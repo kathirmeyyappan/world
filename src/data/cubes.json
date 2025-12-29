@@ -1,0 +1,40 @@
+{
+  "cubes": [
+    {
+      "id": "company-example1",
+      "name": "Example Company 1",
+      "role": "Software Engineer",
+      "period": "2022 - 2024",
+      "description": "Worked on building scalable web applications and microservices. Led a team of 5 engineers to deliver key product features.",
+      "logo": "./assets/logos/placeholder.svg",
+      "glowColor": "#4285f4"
+    },
+    {
+      "id": "company-example2",
+      "name": "Example Company 2",
+      "role": "Full Stack Developer",
+      "period": "2020 - 2022",
+      "description": "Developed and maintained full-stack applications using React, Node.js, and PostgreSQL. Improved system performance by 40%.",
+      "logo": "./assets/logos/placeholder.svg",
+      "glowColor": "#34a853"
+    },
+    {
+      "id": "company-example3",
+      "name": "Example Company 3",
+      "role": "Frontend Developer",
+      "period": "2019 - 2020",
+      "description": "Built responsive user interfaces and implemented design systems. Collaborated with designers to improve user experience.",
+      "logo": "./assets/logos/placeholder.svg",
+      "glowColor": "#fbbc04"
+    },
+    {
+      "id": "company-example4",
+      "name": "Example Company 4",
+      "role": "Software Engineering Intern",
+      "period": "Summer 2018",
+      "description": "Contributed to internal tools and automation scripts. Gained experience with CI/CD pipelines and agile methodologies.",
+      "logo": "./assets/logos/placeholder.svg",
+      "glowColor": "#ea4335"
+    }
+  ]
+}
