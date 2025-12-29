@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="Explore Kathir's interactive 3D portfolio world" />
+    <title>Kathir's World</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        touch-action: none;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      #app {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      #renderCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        outline: none;
+        touch-action: none;
+      }
+
+      /* Info popup overlay */
+      #info-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+      }
+
+      #info-overlay.visible {
+        display: flex;
+      }
+
+      #info-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        color: #fff;
+        position: relative;
+      }
+
+      #info-card .close-btn {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #fff;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+      }
+
+      #info-card .close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      #info-card .logo {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        margin-bottom: 16px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 8px;
+      }
+
+      #info-card h2 {
+        font-size: 24px;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+
+      #info-card .role {
+        font-size: 16px;
+        color: #64b5f6;
+        margin-bottom: 4px;
+      }
+
+      #info-card .period {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 16px;
+      }
+
+      #info-card .description {
+        font-size: 15px;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      /* Mobile joystick container */
+      #joystick-zone {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        width: 120px;
+        height: 120px;
+        z-index: 100;
+        display: none;
+      }
+
+      /* Instructions overlay */
+      #instructions {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.6);
+        color: rgba(255, 255, 255, 0.8);
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        z-index: 50;
+        pointer-events: none;
+      }
+
+      #instructions kbd {
+        background: rgba(255, 255, 255, 0.15);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: inherit;
+      }
+
+      /* Loading screen */
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #0a0a0f;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        color: #fff;
+      }
+
+      #loading.hidden {
+        display: none;
+      }
+
+      #loading h1 {
+        font-size: 28px;
+        margin-bottom: 24px;
+        font-weight: 300;
+        letter-spacing: 4px;
+      }
+
+      .loader {
+        width: 48px;
+        height: 48px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top-color: #64b5f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Mobile detection */
+      @media (pointer: coarse) {
+        #joystick-zone {
+          display: block;
+        }
+        #instructions {
+          display: none;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/world/assets/index-C1Dq_Cut.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="renderCanvas"></canvas>
+      
+      <div id="info-overlay">
+        <div id="info-card">
+          <button class="close-btn">&times;</button>
+          <img class="logo" src="" alt="Logo" />
+          <h2 class="name"></h2>
+          <div class="role"></div>
+          <div class="period"></div>
+          <p class="description"></p>
+        </div>
+      </div>
+
+      <div id="joystick-zone"></div>
+
+      <div id="instructions">
+        <kbd>WASD</kbd> or <kbd>↑↓←→</kbd> to move &nbsp;|&nbsp; Click + drag to look &nbsp;|&nbsp; Click cubes to interact
+      </div>
+
+      <div id="loading">
+        <h1>ENTERING WORLD</h1>
+        <div class="loader"></div>
+      </div>
+    </div>
+
+  </body>
+</html>
+
