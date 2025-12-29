@@ -1,4 +1,4 @@
-import { Ray, Vector3 } from '@babylonjs/core';
+import { Ray } from '@babylonjs/core';
 import { Engine } from './core/Engine';
 import { World } from './core/World';
 import { InputManager } from './core/InputManager';
