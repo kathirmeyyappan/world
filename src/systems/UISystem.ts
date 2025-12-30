@@ -44,8 +44,8 @@ export class UISystem {
 
     const logoEl = this.card.querySelector('.logo') as HTMLImageElement;
     const h1El = this.card.querySelector('.h1')!;
-    const h2El = this.card.querySelector('.h2')!;
-    const h3El = this.card.querySelector('.h3')!;
+    const h2El = this.card.querySelector('.h2') as HTMLElement;
+    const h3El = this.card.querySelector('.h3') as HTMLElement;
     const descEl = this.card.querySelector('.description')!;
 
     // Logo (optional)
