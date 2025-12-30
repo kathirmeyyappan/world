@@ -1,40 +1,80 @@
 {
   "cubes": [
     {
-      "id": "company-example1",
-      "name": "Example Company 1",
-      "role": "Software Engineer",
-      "period": "2022 - 2024",
-      "description": "Worked on building scalable web applications and microservices. Led a team of 5 engineers to deliver key product features.",
-      "logo": "./assets/logos/placeholder.svg",
-      "glowColor": "#4285f4"
+      "id": "aws",
+      "h1": "Amazon Web Services",
+      "h2": "Software Dev Engineer Intern",
+      "h3": "2024",
+      "description": [
+        "My first experience in big tech!",
+        "Worked in a (at the time) new org called DataZone, a data governance platform for AWS",
+        "Main project was inconsequential, but I got to do some cool stuff with Roaring Bitmaps in Go at the end of my time there"
+      ],
+      "logo": "./assets/logos/aws.png",
+      "glowColor": "#777777"
     },
     {
-      "id": "company-example2",
-      "name": "Example Company 2",
-      "role": "Full Stack Developer",
-      "period": "2020 - 2022",
-      "description": "Developed and maintained full-stack applications using React, Node.js, and PostgreSQL. Improved system performance by 40%.",
-      "logo": "./assets/logos/placeholder.svg",
-      "glowColor": "#34a853"
+      "id": "drager",
+      "h1": "Dräger",
+      "h2": "Software Engineer Intern",
+      "h3": "2023",
+      "description": [
+        "My first experience in software!",
+        "Was a noob, but I learned a lot about programming 😅",
+        "Built an internal desktop application for defect tracking in C#"
+      ],
+      "logo": "./assets/logos/drager.png",
+      "glowColor": "#445580"
     },
     {
-      "id": "company-example3",
-      "name": "Example Company 3",
-      "role": "Frontend Developer",
-      "period": "2019 - 2020",
-      "description": "Built responsive user interfaces and implemented design systems. Collaborated with designers to improve user experience.",
-      "logo": "./assets/logos/placeholder.svg",
-      "glowColor": "#fbbc04"
+      "id": "uchicago-cs",
+      "h1": "UChicago Department of Computer Science",
+      "h2": "Teaching Assistant / Undergraduate Researcher",
+      "h3": "2024 - 2026",
+      "description": [
+        "Got hella interested in databases and did infra work under Prof. Aaron Elmore",
+        "TAed a couple times for CMSC 23500 / 33550 undergrad + grad database systems"
+      ],
+      "logo": "./assets/logos/uchicago_cs.png",
+      "glowColor": "#665050"
     },
     {
-      "id": "company-example4",
-      "name": "Example Company 4",
-      "role": "Software Engineering Intern",
-      "period": "Summer 2018",
-      "description": "Contributed to internal tools and automation scripts. Gained experience with CI/CD pipelines and agile methodologies.",
-      "logo": "./assets/logos/placeholder.svg",
-      "glowColor": "#ea4335"
+      "id": "arrowstreet",
+      "h1": "Arrowstreet Capital",
+      "h2": "Quant Dev Intern",
+      "h3": "2025",
+      "description": [
+        "Worked in the research group at a hedgefund solving problems at the intersection of engineering and finance",
+        "Walked around everywhere with a notebook because laptops weren't allowed in meetings for security reasons :(",
+        "Participated in daily standups where we weren't allowed to sit down :("
+      ],
+      "logo": "./assets/logos/arrowstreet.jpg",
+      "glowColor": "#927777"
+    },
+    {
+      "id": "notion",
+      "h1": "Notion",
+      "h2": "Software Engineer Intern",
+      "h3": "2025",
+      "description": [
+        "Took some time off school to work at Notion in the fall",
+        "Got to work on a TON of cool stuff in the storage infrastructure domain",
+        "Met a ton of cool people—definitely thinking of going back"
+      ],
+      "logo": "./assets/logos/notion.jpg",
+      "glowColor": "#888888"
+    },
+    {
+      "id": "iop",
+      "h1": "UChicago Institute of Politics",
+      "h2": "Software Developer",
+      "h3": "2023",
+      "description": [
+        "Did a small part-time gig at UChicago IoP",
+        "Created a pipeline for extracting and logging info from political flyers to identify false citations"
+      ],
+      "logo": "./assets/logos/iop.jpg",
+      "glowColor": "#665050"
     }
   ]
 }

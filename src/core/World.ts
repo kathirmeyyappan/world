@@ -4,6 +4,8 @@ import {
   Color3,
   Vector3,
   DynamicTexture,
+  Texture,
+  Mesh,
 } from '@babylonjs/core';
 import { Engine } from './Engine';
 import { Entity } from '../entities/Entity';
@@ -26,21 +28,44 @@ export class World {
 
     this.createGround(radius);
     this.createDome(radius);
+    this.createSkyObjects(radius);
   }
 
   private createGround(radius: number): void {
+    // Inner high-quality ground extends beyond dome for crisp visuals
+    const innerRadius = radius * 2; // 2x playable area for high quality past dome
     const ground = MeshBuilder.CreateDisc(
       'ground',
-      { radius: radius, tessellation: 64 },
+      { radius: innerRadius, tessellation: 64 },
       this.engine.scene
     );
     ground.rotation.x = Math.PI / 2;
+    ground.position.y = 0.01; // Slightly above extended ground to avoid z-fighting
 
     const material = new StandardMaterial('groundMat', this.engine.scene);
     material.diffuseColor = new Color3(0.18, 0.32, 0.2);
     material.specularColor = new Color3(0.1, 0.15, 0.1);
-    material.diffuseTexture = this.createGridTexture('groundGrid', 1024, radius);
+    // Scale texture size with radius for consistent quality
+    material.diffuseTexture = this.createGridTexture('groundGrid', 2048, innerRadius);
     ground.material = material;
+
+    // Extended ground that goes forever (creates "locked in" feel)
+    // Uses the same material as inner ground for seamless transition
+    const extendedRadius = radius * 10;
+    const extendedGround = MeshBuilder.CreateDisc(
+      'extendedGround',
+      { radius: extendedRadius, tessellation: 64 },
+      this.engine.scene
+    );
+    extendedGround.rotation.x = Math.PI / 2;
+    extendedGround.position.y = -0.01; // Slightly below inner ground
+
+    // Use same colors but dimmer grid lines for distance fade effect
+    const extendedMaterial = new StandardMaterial('extendedGroundMat', this.engine.scene);
+    extendedMaterial.diffuseColor = new Color3(0.18, 0.32, 0.2); // Same as inner
+    extendedMaterial.specularColor = new Color3(0.1, 0.15, 0.1);
+    extendedMaterial.diffuseTexture = this.createGridTexture('extendedGroundGrid', 2048, extendedRadius, false, true);
+    extendedGround.material = extendedMaterial;
   }
 
   private createDome(radius: number): void {
@@ -50,34 +75,128 @@ export class World {
       { diameter: domeRadius * 2, segments: 32, slice: 0.5 },
       this.engine.scene
     );
-    // Lower the dome so floor cuts it higher up (less equator distortion)
-    dome.position.y = -domeRadius * 0.3;
+    dome.position.y = -domeRadius * 0.41;
 
     const material = new StandardMaterial('domeMat', this.engine.scene);
-    material.diffuseColor = new Color3(0.08, 0.2, 0.1);
-    material.emissiveColor = new Color3(0.04, 0.12, 0.06);
+    material.diffuseColor = new Color3(0.2, 0.05, 0.05);
+    material.emissiveColor = new Color3(0.4, 0.1, 0.1); // Brighter red glow
     material.specularColor = new Color3(0, 0, 0);
+    material.alpha = 0.4; // Make dome translucent
     material.backFaceCulling = false;
-    material.diffuseTexture = this.createGridTexture('domeGrid', 512, radius, true);
+    
+    const texture = this.createGridTexture('domeGrid', 512, radius, true);
+    texture.hasAlpha = true;
+    material.diffuseTexture = texture;
+    material.useAlphaFromDiffuseTexture = true;
     dome.material = material;
   }
 
-  private createGridTexture(name: string, size: number, worldRadius: number, isDome: boolean = false): DynamicTexture {
+  private createSkyObjects(worldRadius: number): void {
+    // Define sky objects here - each gets placed at a random sky position
+    const skyObjects = [
+      { image: 'moon.png', size: 20, glowColor: new Color3(0.8, 0.8, 0.8) },
+      { image: 'mugiwara.png', size: 30, glowColor: new Color3(0.7, 0.7, 0.7) },
+      { image: 'patriots.png', size: 25, glowColor: new Color3(0.5, 0.5, 0.5) },
+      { image: 'drake_maye.png', size: 30, glowColor: new Color3(0.3, 0.3, 0.3) },
+      // Add more objects here as needed
+    ];
+
+    const placedPositions: Vector3[] = [];
+    const minDistance = 100; // Minimum 3D distance between sky objects
+
+    for (const obj of skyObjects) {
+      // Generate random position with better spacing
+      let position: Vector3;
+      let attempts = 0;
+      do {
+        const angle = Math.random() * Math.PI * 2;
+        const elevation = 30 + Math.random() * 80; // Height in sky
+        const distance = worldRadius * 0.8 + Math.random() * worldRadius * 2;
+        position = new Vector3(
+          Math.cos(angle) * distance,
+          elevation,
+          Math.sin(angle) * distance
+        );
+        attempts++;
+      } while (
+        attempts < 100 &&
+        placedPositions.some(p => Vector3.Distance(p, position) < minDistance)
+      );
+      placedPositions.push(position);
+
+      // Material with texture - load first to get aspect ratio
+      const mat = new StandardMaterial(`skyMat_${obj.image}`, this.engine.scene);
+      const tex = new Texture(
+        `./assets/textures/sky/${obj.image}`,
+        this.engine.scene,
+        false,
+        true // Invert Y to fix upside down
+      );
+      tex.hasAlpha = true;
+      
+      // Wait for texture to load, then create plane with correct aspect ratio
+      tex.onLoadObservable.addOnce(() => {
+        const internalTex = tex.getInternalTexture();
+        if (internalTex) {
+          const texWidth = internalTex.width;
+          const texHeight = internalTex.height;
+          const aspectRatio = texWidth / texHeight;
+          const baseSize = obj.size;
+          
+          // Calculate width/height preserving aspect ratio
+          const width = aspectRatio >= 1 ? baseSize * aspectRatio : baseSize;
+          const height = aspectRatio >= 1 ? baseSize : baseSize / aspectRatio;
+          
+          // Create billboard plane with correct aspect ratio
+          const plane = MeshBuilder.CreatePlane(
+            `sky_${obj.image}`,
+            { width, height },
+            this.engine.scene
+          );
+          plane.position = position;
+          plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+          
+          mat.diffuseTexture = tex;
+          mat.emissiveTexture = tex;
+          mat.emissiveColor = obj.glowColor;
+          mat.useAlphaFromDiffuseTexture = true;
+          mat.backFaceCulling = false;
+          mat.disableLighting = true;
+          plane.material = mat;
+          
+          // Add to glow layer
+          this.engine.glowLayer.addIncludedOnlyMesh(plane);
+        }
+      });
+    }
+  }
+
+  private createGridTexture(name: string, size: number, worldRadius: number, isDome: boolean = false, isExtended: boolean = false): DynamicTexture {
     const texture = new DynamicTexture(name, size, this.engine.scene, true);
     const ctx = texture.getContext();
 
-    // Background - dark green tint (ground lighter)
-    ctx.fillStyle = isDome ? '#081a0c' : '#0e2810';
+    // Background - dome is transparent, ground is dark green
+    if (isDome) {
+      ctx.fillStyle = 'rgba(20, 5, 5, 0.1)'; // Nearly transparent dark red
+    } else {
+      ctx.fillStyle = '#0e2810';
+    }
     ctx.fillRect(0, 0, size, size);
 
-    // Grid lines - yellowish green, every 0.5 units
+    // Grid lines - dome is bright glowing red, ground is yellowish green, extended is dimmer
     const gridSpacing = size / (worldRadius / 0.5);
-    ctx.strokeStyle = isDome ? 'rgba(180, 255, 100, 0.25)' : 'rgba(200, 255, 120, 0.35)';
-    ctx.lineWidth = 1;
+    let strokeStyle = 'rgba(200, 255, 120, 0.35)';
+    if (isDome) {
+      strokeStyle = 'rgba(255, 50, 50, 1.0)';
+    } else if (isExtended) {
+      strokeStyle = 'rgba(200, 255, 120, 0.15)'; // Dimmer for extended ground
+    }
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = isDome ? 2 : 1; // Thicker lines for dome
 
     // Vertical lines
     // Horizontal lines (dome uses 2x spacing to reduce stretching appearance)
-    const vSpacing = isDome ? gridSpacing * 2 : gridSpacing;
+    const vSpacing = isDome ? 1.5 * gridSpacing : gridSpacing;
     for (let x = 0; x <= size; x += vSpacing) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -86,7 +205,7 @@ export class World {
     }
 
     // Horizontal lines (dome uses 6x spacing to reduce stretching appearance)
-    const hSpacing = isDome ? gridSpacing * 6 : gridSpacing;
+    const hSpacing = isDome ? 4.5 * gridSpacing : gridSpacing;
     for (let y = 0; y <= size; y += hSpacing) {
       ctx.beginPath();
       ctx.moveTo(0, y);

@@ -23,7 +23,7 @@ export class Engine {
     });
 
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.03, 0.08, 0.04, 1);
+    this.scene.clearColor = new Color4(0.01, 0.02, 0.03, 1); // Dark blue sky
 
     this.setupLighting();
     this.glowLayer = new GlowLayer('glow', this.scene);
