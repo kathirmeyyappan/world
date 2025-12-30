@@ -12,11 +12,11 @@ import { WorldBounds } from '../core/World';
 
 export interface CubeConfig {
   id: string;
-  name: string;
-  role: string;
-  period: string;
-  description: string;
-  logo: string;
+  h1: string;
+  h2?: string;
+  h3?: string;
+  description: string[];
+  logo?: string;
   glowColor: string;
 }
 
@@ -32,7 +32,7 @@ export class InfoCube extends Entity {
   private baseColor!: Color3;
 
   private time: number = 0;
-  private baseY: number = 2;
+  private baseY: number = 3;
   private floatAmplitude: number = 0.3;
   private floatFrequency: number = 1.5;
   private rotationSpeed: number = 0.3;
@@ -73,7 +73,7 @@ export class InfoCube extends Entity {
   private createMesh(position: Vector3): void {
     this._mesh = MeshBuilder.CreateBox(
       `cube-${this.config.id}`,
-      { size: 1.2 },
+      { size: 1.8 },
       this.scene
     );
     this._mesh.position = position.clone();
@@ -84,7 +84,7 @@ export class InfoCube extends Entity {
     // Parse glow color
     this.baseColor = Color3.FromHexString(this.config.glowColor);
     this.material.diffuseColor = this.baseColor;
-    this.material.emissiveColor = this.baseColor.scale(0.3);
+    this.material.emissiveColor = this.baseColor.scale(0.6); // Increased default glow
     this.material.specularColor = new Color3(0.3, 0.3, 0.3);
 
     // Apply logo texture if available
@@ -119,9 +119,9 @@ export class InfoCube extends Entity {
   private onClick(): void {
     const info: CubeInfo = {
       id: this.config.id,
-      name: this.config.name,
-      role: this.config.role,
-      period: this.config.period,
+      h1: this.config.h1,
+      h2: this.config.h2,
+      h3: this.config.h3,
       description: this.config.description,
       logo: this.config.logo,
     };
@@ -176,8 +176,8 @@ export class InfoCube extends Entity {
         this._mesh.scaling.setAll(1.15);
       }
     } else {
-      // Normal dim glow
-      this.material.emissiveColor = this.baseColor.scale(0.3);
+      // Normal glow (increased from 0.3)
+      this.material.emissiveColor = this.baseColor.scale(0.6);
       if (this._mesh) {
         this._mesh.scaling.setAll(1);
       }
