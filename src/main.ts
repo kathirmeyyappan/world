@@ -31,7 +31,7 @@ async function main(): Promise<void> {
 
   // Load and spawn cubes
   const spawnSystem = new SpawnSystem(world, engine, uiSystem);
-  await spawnSystem.loadAndSpawnCubes('./src/data/cubes.json');
+  await spawnSystem.loadAndSpawnCubes('./data/cubes.json');
 
   // Hide loading screen
   const loadingEl = document.getElementById('loading');
