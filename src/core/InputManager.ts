@@ -159,12 +159,11 @@ export class InputManager {
 
   public getLookDelta(): Vector2 {
     // Don't return look delta when overlay is visible
+    const delta = this._lookDelta.clone();
     if (this.uiSystem.isVisible()) {
-      const delta = this._lookDelta.clone();
       this._lookDelta.set(0, 0);
       return Vector2.Zero();
     }
-    const delta = this._lookDelta.clone();
     this._lookDelta.set(0, 0);
     return delta;
   }
