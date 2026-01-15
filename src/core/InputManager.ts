@@ -1,4 +1,5 @@
 import { Vector2 } from '@babylonjs/core';
+import { UISystem } from '../systems/UISystem';
 
 export interface InputState {
   movement: Vector2;
@@ -11,6 +12,7 @@ export interface InputState {
  */
 export class InputManager {
   private canvas: HTMLCanvasElement;
+  private uiSystem: UISystem;
   private keys: Set<string> = new Set();
   private _lookDelta: Vector2 = Vector2.Zero();
   private _isPointerLocked: boolean = false;
@@ -21,8 +23,9 @@ export class InputManager {
   // Mobile joystick state (set by mobile controls)
   public joystickMovement: Vector2 = Vector2.Zero();
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, uiSystem: UISystem) {
     this.canvas = canvas;
+    this.uiSystem = uiSystem;
     this.setupKeyboardListeners();
     this.setupMouseListeners();
     this.setupTouchListeners();
@@ -30,6 +33,10 @@ export class InputManager {
 
   private setupKeyboardListeners(): void {
     window.addEventListener('keydown', (e) => {
+      // Don't process game input when overlay is visible (except for overlay close keys handled by UISystem)
+      if (this.uiSystem.isVisible()) {
+        return;
+      }
       this.keys.add(e.code);
       if (e.code === 'Space') {
         this._jumpRequested = true;
@@ -37,13 +44,18 @@ export class InputManager {
     });
 
     window.addEventListener('keyup', (e) => {
+      // Don't process game input when overlay is visible
+      if (this.uiSystem.isVisible()) {
+        return;
+      }
       this.keys.delete(e.code);
     });
   }
 
   private setupMouseListeners(): void {
     this.canvas.addEventListener('click', () => {
-      if (!this._isPointerLocked) {
+      // Don't request pointer lock when overlay is visible
+      if (!this._isPointerLocked && !this.uiSystem.isVisible()) {
         this.canvas.requestPointerLock();
       }
     });
@@ -53,7 +65,8 @@ export class InputManager {
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (this._isPointerLocked) {
+      // Don't process look input when overlay is visible
+      if (this._isPointerLocked && !this.uiSystem.isVisible()) {
         this._lookDelta.x += e.movementX;
         this._lookDelta.y += e.movementY;
       }
@@ -61,7 +74,8 @@ export class InputManager {
 
     // Fallback drag-to-look for when pointer lock isn't available
     this.canvas.addEventListener('mousedown', (e) => {
-      if (!this._isPointerLocked && e.button === 0) {
+      // Don't start dragging when overlay is visible
+      if (!this._isPointerLocked && e.button === 0 && !this.uiSystem.isVisible()) {
         this.isDragging = true;
         this.lastPointerPos.set(e.clientX, e.clientY);
       }
@@ -72,7 +86,8 @@ export class InputManager {
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (this.isDragging && !this._isPointerLocked) {
+      // Don't process drag-to-look when overlay is visible
+      if (this.isDragging && !this._isPointerLocked && !this.uiSystem.isVisible()) {
         this._lookDelta.x += e.clientX - this.lastPointerPos.x;
         this._lookDelta.y += e.clientY - this.lastPointerPos.y;
         this.lastPointerPos.set(e.clientX, e.clientY);
@@ -116,6 +131,11 @@ export class InputManager {
   }
 
   public getMovement(): Vector2 {
+    // Don't return movement when overlay is visible
+    if (this.uiSystem.isVisible()) {
+      return Vector2.Zero();
+    }
+
     const movement = new Vector2(0, 0);
 
     // Keyboard input
@@ -138,6 +158,12 @@ export class InputManager {
   }
 
   public getLookDelta(): Vector2 {
+    // Don't return look delta when overlay is visible
+    if (this.uiSystem.isVisible()) {
+      const delta = this._lookDelta.clone();
+      this._lookDelta.set(0, 0);
+      return Vector2.Zero();
+    }
     const delta = this._lookDelta.clone();
     this._lookDelta.set(0, 0);
     return delta;
@@ -148,6 +174,11 @@ export class InputManager {
   }
 
   public consumeJump(): boolean {
+    // Don't allow jump when overlay is visible
+    if (this.uiSystem.isVisible()) {
+      this._jumpRequested = false;
+      return false;
+    }
     const jump = this._jumpRequested;
     this._jumpRequested = false;
     return jump;

@@ -16,8 +16,8 @@ async function main(): Promise<void> {
 
   // Initialize core systems
   const engine = new Engine(canvas);
-  const inputManager = new InputManager(canvas);
   const uiSystem = new UISystem();
+  const inputManager = new InputManager(canvas, uiSystem);
   
   // Initialize mobile controls
   new MobileControls(inputManager);
@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   const world = new World(engine);
   
   // Create player
-  const player = new Player(engine, inputManager, world.bounds);
+  const player = new Player(engine, inputManager, world.bounds, uiSystem);
   world.addEntity(player);
 
   // Load and spawn cubes
@@ -44,17 +44,24 @@ async function main(): Promise<void> {
 
   // Handle click on hovered cube
   canvas.addEventListener('click', () => {
-    if (hoveredCube && !engine.isPaused) {
+    // Don't allow clicking cubes when overlay is visible
+    if (hoveredCube && !uiSystem.isVisible()) {
       hoveredCube.activate();
     }
   });
 
   // Start render loop
   engine.run((deltaTime: number) => {
-    if (!engine.isPaused) {
-      inputManager.update();
-      world.update(deltaTime);
+    const overlayVisible = uiSystem.isVisible();
+    
+    // Always update input manager (it will be ignored by player when overlay is visible)
+    inputManager.update();
+    
+    // Always update world (entities continue moving for multiplayer)
+    world.update(deltaTime);
 
+    // Only update raycast/hover when overlay is not visible
+    if (!overlayVisible) {
       // Raycast from camera center to detect hovered cube
       const camera = player.getCamera();
       const ray = new Ray(camera.position, camera.getForwardRay().direction, 50);
@@ -69,6 +76,12 @@ async function main(): Promise<void> {
         if (hoveredCube) hoveredCube.setHovered(false);
         if (newHoveredCube) newHoveredCube.setHovered(true);
         hoveredCube = newHoveredCube ?? null;
+      }
+    } else {
+      // Clear hover state when overlay is visible
+      if (hoveredCube) {
+        hoveredCube.setHovered(false);
+        hoveredCube = null;
       }
     }
   });

@@ -126,10 +126,8 @@ export class InfoCube extends Entity {
       logo: this.config.logo,
     };
 
-    this.engine.isPaused = true;
-    this.uiSystem.show(info, () => {
-      this.engine.isPaused = false;
-    });
+    // Show overlay without pausing the game (for multiplayer support)
+    this.uiSystem.show(info);
   }
 
   private pickNewTarget(): Vector3 {

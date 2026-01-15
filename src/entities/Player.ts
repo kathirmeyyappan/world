@@ -6,6 +6,7 @@ import { Engine } from '../core/Engine';
 import { InputManager } from '../core/InputManager';
 import { Entity } from './Entity';
 import { WorldBounds } from '../core/World';
+import { UISystem } from '../systems/UISystem';
 
 /**
  * First-person player controller with camera, movement, and look controls.
@@ -14,6 +15,7 @@ export class Player extends Entity {
   private camera: UniversalCamera;
   private inputManager: InputManager;
   private bounds: WorldBounds;
+  private uiSystem: UISystem;
 
   private moveSpeed: number = 8;
   private lookSensitivity: number = 0.002;
@@ -26,10 +28,11 @@ export class Player extends Entity {
   private readonly jumpForce: number = 8;
   private readonly groundY: number = 1.7;
 
-  constructor(engine: Engine, inputManager: InputManager, bounds: WorldBounds) {
+  constructor(engine: Engine, inputManager: InputManager, bounds: WorldBounds, uiSystem: UISystem) {
     super(engine.scene);
     this.inputManager = inputManager;
     this.bounds = bounds;
+    this.uiSystem = uiSystem;
 
     this.camera = new UniversalCamera(
       'playerCamera',
@@ -42,9 +45,14 @@ export class Player extends Entity {
   }
 
   public update(deltaTime: number): void {
-    this.handleLook();
-    this.handleMovement(deltaTime);
+    // Always apply physics (gravity, falling) even when overlay is visible
     this.handleJump(deltaTime);
+    
+    // Only process input (movement, look) when overlay is not visible
+    if (!this.uiSystem.isVisible()) {
+      this.handleLook();
+      this.handleMovement(deltaTime);
+    }
   }
 
   private handleJump(deltaTime: number): void {
