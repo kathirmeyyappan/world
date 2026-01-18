@@ -11,7 +11,8 @@
         "Main project was inconsequential, but I got to do some cool stuff with Roaring Bitmaps in Go at the end of my time there"
       ],
       "logo": "./assets/logos/aws.png",
-      "glowColor": "#777777"
+      "glowColor": "#777777",
+      "borderColor": "#777777"
     },
     {
       "id": "drager",
@@ -24,7 +25,8 @@
         "Built an internal desktop application for defect tracking in C#"
       ],
       "logo": "./assets/logos/drager.png",
-      "glowColor": "#445580"
+      "glowColor": "#445580",
+      "borderColor": "#445580"
     },
     {
       "id": "uchicago-cs",
@@ -36,7 +38,8 @@
         "TAed a couple times for CMSC 23500 / 33550 undergrad + grad database systems"
       ],
       "logo": "./assets/logos/uchicago_cs.png",
-      "glowColor": "#665050"
+      "glowColor": "#665050",
+      "borderColor": "#665050"
     },
     {
       "id": "arrowstreet",
@@ -49,7 +52,8 @@
         "Participated in daily standups where we weren't allowed to sit down :("
       ],
       "logo": "./assets/logos/arrowstreet.jpg",
-      "glowColor": "#927777"
+      "glowColor": "#927777",
+      "borderColor": "#453535"
     },
     {
       "id": "notion",
@@ -62,7 +66,8 @@
         "Met a ton of super cool people"
       ],
       "logo": "./assets/logos/notion.jpg",
-      "glowColor": "#888888"
+      "glowColor": "#888888",
+      "borderColor": "#222222"
     },
     {
       "id": "iop",
@@ -74,7 +79,8 @@
         "Created a pipeline for extracting and logging info from political flyers to identify false citations"
       ],
       "logo": "./assets/logos/iop.jpg",
-      "glowColor": "#665050"
+      "glowColor": "#665050",
+      "borderColor": "#665050"
     }
   ]
 }

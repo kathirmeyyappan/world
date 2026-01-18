@@ -23,21 +23,23 @@ export class Engine {
     });
 
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.01, 0.02, 0.03, 1); // Dark blue sky
+    this.scene.clearColor = new Color4(0.01, 0.02, 0.03, 1); // Dark sky
 
     this.setupLighting();
     this.glowLayer = new GlowLayer('glow', this.scene);
-    this.glowLayer.intensity = 0.8;
+    this.glowLayer.intensity = 1.2; // More glow for cartoony feel
   }
 
   private setupLighting(): void {
+    // Softer, more ambient lighting for cartoony feel
     const ambient = new HemisphericLight(
       'ambient',
       new Vector3(0, 1, 0),
       this.scene
     );
-    ambient.intensity = 0.7;
-    ambient.groundColor.set(0.15, 0.3, 0.18);
+    ambient.intensity = 1.0; // Brighter overall
+    ambient.groundColor.set(0.3, 0.5, 0.35); // More saturated ground color
+    ambient.diffuse.set(1, 1, 1); // Pure white for flatter lighting
   }
 
   /**

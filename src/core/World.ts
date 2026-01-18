@@ -36,15 +36,16 @@ export class World {
     const innerRadius = radius * 2; // 2x playable area for high quality past dome
     const ground = MeshBuilder.CreateDisc(
       'ground',
-      { radius: innerRadius, tessellation: 64 },
+      { radius: innerRadius, tessellation: 128 }, // Smoother for less polygon-y look
       this.engine.scene
     );
     ground.rotation.x = Math.PI / 2;
     ground.position.y = 0.01; // Slightly above extended ground to avoid z-fighting
 
     const material = new StandardMaterial('groundMat', this.engine.scene);
-    material.diffuseColor = new Color3(0.18, 0.32, 0.2);
-    material.specularColor = new Color3(0.1, 0.15, 0.1);
+    material.diffuseColor = new Color3(0.3, 0.5, 0.35); // Brighter, more saturated
+    material.specularColor = new Color3(0, 0, 0); // No specular for flat cartoony look
+    material.roughness = 1.0; // Fully rough = no shine
     // Scale texture size with radius for consistent quality
     material.diffuseTexture = this.createGridTexture('groundGrid', 2048, innerRadius);
     ground.material = material;
@@ -54,7 +55,7 @@ export class World {
     const extendedRadius = radius * 10;
     const extendedGround = MeshBuilder.CreateDisc(
       'extendedGround',
-      { radius: extendedRadius, tessellation: 64 },
+      { radius: extendedRadius, tessellation: 128 }, // Smoother
       this.engine.scene
     );
     extendedGround.rotation.x = Math.PI / 2;
@@ -62,8 +63,9 @@ export class World {
 
     // Use same colors but dimmer grid lines for distance fade effect
     const extendedMaterial = new StandardMaterial('extendedGroundMat', this.engine.scene);
-    extendedMaterial.diffuseColor = new Color3(0.18, 0.32, 0.2); // Same as inner
-    extendedMaterial.specularColor = new Color3(0.1, 0.15, 0.1);
+    extendedMaterial.diffuseColor = new Color3(0.3, 0.5, 0.35); // Brighter, more saturated
+    extendedMaterial.specularColor = new Color3(0, 0, 0); // No specular
+    extendedMaterial.roughness = 1.0;
     extendedMaterial.diffuseTexture = this.createGridTexture('extendedGroundGrid', 2048, extendedRadius, false, true);
     extendedGround.material = extendedMaterial;
   }
@@ -72,16 +74,17 @@ export class World {
     const domeRadius = radius * 1.1;
     const dome = MeshBuilder.CreateSphere(
       'dome',
-      { diameter: domeRadius * 2, segments: 32, slice: 0.5 },
+      { diameter: domeRadius * 2, segments: 64, slice: 0.5 }, // Smoother dome
       this.engine.scene
     );
     dome.position.y = -domeRadius * 0.41;
 
     const material = new StandardMaterial('domeMat', this.engine.scene);
-    material.diffuseColor = new Color3(0.2, 0.05, 0.05);
-    material.emissiveColor = new Color3(0.4, 0.1, 0.1); // Brighter red glow
+    material.diffuseColor = new Color3(0.4, 0.1, 0.15); // Brighter, more saturated red
+    material.emissiveColor = new Color3(0.6, 0.2, 0.25); // More vibrant glow
     material.specularColor = new Color3(0, 0, 0);
-    material.alpha = 0.4; // Make dome translucent
+    material.roughness = 1.0; // Flat, no shine
+    material.alpha = 0.5; // Slightly more opaque for cartoony feel
     material.backFaceCulling = false;
     
     const texture = this.createGridTexture('domeGrid', 512, radius, true);
@@ -175,24 +178,24 @@ export class World {
     const texture = new DynamicTexture(name, size, this.engine.scene, true);
     const ctx = texture.getContext();
 
-    // Background - dome is transparent, ground is dark green
+    // Background - brighter, more saturated for cartoony look
     if (isDome) {
-      ctx.fillStyle = 'rgba(20, 5, 5, 0.1)'; // Nearly transparent dark red
+      ctx.fillStyle = 'rgba(40, 10, 15, 0.15)'; // Brighter red background
     } else {
-      ctx.fillStyle = '#0e2810';
+      ctx.fillStyle = '#1a3a20'; // Brighter green background
     }
     ctx.fillRect(0, 0, size, size);
 
-    // Grid lines - dome is bright glowing red, ground is yellowish green, extended is dimmer
+    // Grid lines - brighter, more vibrant colors
     const gridSpacing = size / (worldRadius / 0.5);
-    let strokeStyle = 'rgba(200, 255, 120, 0.35)';
+    let strokeStyle = 'rgba(220, 255, 140, 0.6)'; // Brighter, more opaque
     if (isDome) {
-      strokeStyle = 'rgba(255, 50, 50, 1.0)';
+      strokeStyle = 'rgba(255, 100, 100, 1.0)'; // More vibrant red
     } else if (isExtended) {
-      strokeStyle = 'rgba(200, 255, 120, 0.15)'; // Dimmer for extended ground
+      strokeStyle = 'rgba(200, 255, 120, 0.3)'; // Brighter extended
     }
     ctx.strokeStyle = strokeStyle;
-    ctx.lineWidth = isDome ? 2 : 1; // Thicker lines for dome
+    ctx.lineWidth = isDome ? 3 : 2; // Thicker lines for more defined look
 
     // Vertical lines
     // Horizontal lines (dome uses 2x spacing to reduce stretching appearance)
