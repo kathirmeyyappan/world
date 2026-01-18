@@ -44,12 +44,27 @@ export class InputManager {
     });
 
     window.addEventListener('keyup', (e) => {
+      // Always remove keys from the set, even when overlay is visible
+      // This prevents keys from getting stuck when popup opens while key is held
+      this.keys.delete(e.code);
+      
       // Don't process game input when overlay is visible
       if (this.uiSystem.isVisible()) {
         return;
       }
-      this.keys.delete(e.code);
     });
+
+    // Clear all keys when overlay becomes visible to prevent stuck keys
+    const overlay = document.getElementById('info-overlay');
+    if (overlay) {
+      const observer = new MutationObserver(() => {
+        if (this.uiSystem.isVisible()) {
+          this.keys.clear();
+          this._jumpRequested = false;
+        }
+      });
+      observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+    }
   }
 
   private setupMouseListeners(): void {
