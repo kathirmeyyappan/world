@@ -26,8 +26,30 @@ async function main(): Promise<void> {
   // Create world
   const world = new World(engine);
 
-  // Create state manager (for multiplayer, this would sync with server)
+  // Create state manager
   const stateManager = new StateManager(world.bounds.radius);
+  
+  // TODO: Multiplayer - Initialize WebSocket connection
+  // const socket = new WebSocket('ws://your-server-url');
+  // socket.onopen = () => {
+  //   stateManager.enableMultiplayer();
+  //   console.log('Connected to server');
+  // };
+  // socket.onmessage = (event) => {
+  //   const data = JSON.parse(event.data);
+  //   if (data.type === 'state') {
+  //     stateManager.receiveServerState(data.state, data.timestamp);
+  //   }
+  // };
+  // socket.onerror = () => {
+  //   stateManager.disableMultiplayer();
+  //   console.error('Server connection lost, falling back to single-player');
+  // };
+  // 
+  // // Input throttling for server (send every ~50ms = 20 times/sec)
+  // // Uncomment when enabling multiplayer:
+  // // let lastInputSendTime = 0;
+  // // const INPUT_SEND_INTERVAL = 50;
 
   // Create player
   const player = new Player(engine, inputManager, world.bounds, uiSystem, stateManager);
@@ -53,17 +75,40 @@ async function main(): Promise<void> {
     }
   });
 
-  // Start render loop
+  // Start render loop (runs at 60 FPS)
   engine.run((deltaTime: number) => {
     const overlayVisible = uiSystem.isVisible();
 
     // Update input
     inputManager.update();
 
-    // Simulate cube movement (for multiplayer, replace with server state sync)
+    // CLIENT-SIDE PREDICTION: Update local player immediately (no lag)
+    // In multiplayer, server will correct if needed
+    // In single-player, this is the authoritative update
+    const localPlayer = stateManager.getPlayer('local');
+    if (localPlayer && !overlayVisible) {
+      // Player.update() handles movement and updates state directly
+      // This gives instant response for local player
+    }
+
+    // TODO: Multiplayer - Send local player input to server (throttled)
+    // Uncomment when enabling multiplayer (also uncomment variable declarations above):
+    // const now = Date.now();
+    // if (now - lastInputSendTime >= INPUT_SEND_INTERVAL) {
+    //   const input = stateManager.getLocalPlayerInput('local');
+    //   if (input && socket.readyState === WebSocket.OPEN) {
+    //     socket.send(JSON.stringify({ type: 'input', data: input }));
+    //   }
+    //   lastInputSendTime = now;
+    // }
+
+    // STATE UPDATE: 
+    // - Single-player: Simulate cubes locally
+    // - Multiplayer: Interpolate from server state (handled in simulateCubes)
     stateManager.simulateCubes(deltaTime);
 
-    // Update world (renders entities from state)
+    // RENDER: Update world (renders entities from state at 60 FPS)
+    // This runs every frame for smooth rendering, even if state updates are less frequent
     world.update(deltaTime);
 
     // Raycast for hover (only when overlay hidden)
