@@ -39,7 +39,7 @@
       ],
       "logo": "./assets/logos/uchicago_cs.png",
       "glowColor": "#665050",
-      "borderColor": "#665050"
+      "borderColor": "#886262"
     },
     {
       "id": "arrowstreet",
@@ -80,7 +80,7 @@
       ],
       "logo": "./assets/logos/iop.jpg",
       "glowColor": "#665050",
-      "borderColor": "#665050"
+      "borderColor": "#886262"
     }
   ]
 }

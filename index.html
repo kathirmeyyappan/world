@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="description" content="explore kathir meyyappan lore in 3D" />
+    <meta http-equiv="Content-Language" content="en" />
     <link rel="icon" type="image/x-icon" href="/assets/elizabeth.ico" />
     <title>kathir world</title>
     <style>
@@ -42,12 +43,12 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.5);
         display: none;
         justify-content: center;
         align-items: center;
         z-index: 1000;
-        backdrop-filter: blur(4px);
+        backdrop-filter: blur(2px);
       }
 
       #info-overlay.visible {
@@ -55,39 +56,49 @@
       }
 
       #info-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 32px;
+        background: rgba(20, 20, 30, 0.85);
+        border: 4px solid #64b5f6;
+        border-radius: 0;
+        padding: 24px;
         max-width: 500px;
         width: 90%;
         max-height: 80vh;
         overflow-y: auto;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        box-shadow: 
+          0 0 0 2px rgba(0, 0, 0, 0.8),
+          0 0 20px rgba(100, 181, 246, 0.3),
+          inset 0 0 20px rgba(100, 181, 246, 0.1);
         color: #fff;
         position: relative;
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+        font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
       }
 
       #info-card .close-btn {
         position: absolute;
-        top: 16px;
-        right: 16px;
-        background: rgba(255, 255, 255, 0.1);
-        border: none;
+        top: 8px;
+        right: 8px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 2px solid #64b5f6;
         color: #fff;
         width: 32px;
         height: 32px;
-        border-radius: 50%;
+        border-radius: 0;
         cursor: pointer;
-        font-size: 18px;
+        font-size: 20px;
+        font-weight: bold;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.2s;
+        transition: all 0.1s;
+        font-family: 'Courier New', monospace;
       }
 
       #info-card .close-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(100, 181, 246, 0.3);
+        border-color: #90caf9;
       }
 
       #info-card .logo {
@@ -95,43 +106,57 @@
         height: 80px;
         object-fit: contain;
         margin-bottom: 16px;
-        border-radius: 12px;
+        border-radius: 0;
+        border: 2px solid #64b5f6;
         background: rgba(255, 255, 255, 0.05);
         padding: 8px;
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
       }
 
       #info-card .h1 {
-        font-size: 24px;
-        margin-bottom: 8px;
-        font-weight: 600;
+        font-size: 22px;
+        margin-bottom: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #64b5f6;
+        text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.8);
       }
 
       #info-card .h2 {
-        font-size: 16px;
-        color: #64b5f6;
-        margin-bottom: 4px;
+        font-size: 14px;
+        color: #90caf9;
+        margin-bottom: 6px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
       #info-card .h3 {
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.6);
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.7);
         margin-bottom: 16px;
+        font-weight: bold;
       }
 
       #info-card .description {
-        font-size: 15px;
-        line-height: 1.6;
-        color: rgba(255, 255, 255, 0.85);
+        font-size: 13px;
+        line-height: 1.8;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: normal;
       }
 
       #info-card .description ul {
         margin: 0;
-        padding-left: 20px;
-        list-style-type: disc;
+        padding-left: 24px;
+        list-style-type: square;
       }
 
       #info-card .description li {
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        position: relative;
       }
 
       #info-card .description li:last-child {
@@ -140,16 +165,21 @@
 
       #info-card .close-hint {
         margin-top: 20px;
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.4);
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
         text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }
 
       #info-card .close-hint kbd {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-family: inherit;
+        background: rgba(100, 181, 246, 0.2);
+        border: 1px solid #64b5f6;
+        padding: 4px 8px;
+        border-radius: 0;
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        color: #64b5f6;
       }
 
       /* Crosshair */
@@ -281,31 +311,36 @@
     </style>
   </head>
   <body>
+    <!-- Hidden text for Chrome translation detection -->
+    <div style="position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;" translate="yes">
+      <p>Interactive 3D portfolio world. Explore information cubes to learn more.</p>
+    </div>
+    
     <div id="app">
       <canvas id="renderCanvas"></canvas>
       
       <div id="crosshair">+</div>
 
-      <div id="info-overlay">
-        <div id="info-card">
-          <button class="close-btn">&times;</button>
-          <img class="logo" src="" alt="Logo" />
-          <div class="h1"></div>
-          <div class="h2"></div>
-          <div class="h3"></div>
-          <div class="description"></div>
-          <div class="close-hint">Press <kbd>Q</kbd> to close</div>
+      <div id="info-overlay" translate="yes">
+        <div id="info-card" translate="yes">
+          <button class="close-btn" translate="no">&times;</button>
+          <img class="logo" src="" alt="Logo" translate="no" />
+          <div class="h1" translate="yes"></div>
+          <div class="h2" translate="yes"></div>
+          <div class="h3" translate="yes"></div>
+          <div class="description" translate="yes"></div>
+          <div class="close-hint" translate="yes">Press <kbd translate="no">Q</kbd> to close</div>
         </div>
       </div>
 
       <div id="joystick-zone"></div>
       <div id="jump-button">JUMP</div>
 
-      <div id="instructions">
-        <kbd>WASD</kbd> or <kbd>↑↓←→</kbd> to move &nbsp;|&nbsp; <kbd>Space</kbd> to jump &nbsp;|&nbsp; Click to select
+      <div id="instructions" translate="yes">
+        <kbd translate="no">WASD</kbd> or <kbd translate="no">↑↓←→</kbd> to move &nbsp;|&nbsp; <kbd translate="no">Space</kbd> to jump &nbsp;|&nbsp; Click to select
       </div>
 
-      <div id="loading">
+      <div id="loading" translate="yes">
         <h1>ENTERING WORLD</h1>
         <div class="loader"></div>
       </div>
