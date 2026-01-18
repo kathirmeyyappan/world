@@ -7,6 +7,7 @@ import { InfoCube } from './entities/InfoCube';
 import { UISystem } from './systems/UISystem';
 import { SpawnSystem } from './systems/SpawnSystem';
 import { MobileControls } from './systems/MobileControls';
+import { StateManager } from './state';
 
 async function main(): Promise<void> {
   const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
@@ -18,19 +19,22 @@ async function main(): Promise<void> {
   const engine = new Engine(canvas);
   const uiSystem = new UISystem();
   const inputManager = new InputManager(canvas, uiSystem);
-  
+
   // Initialize mobile controls
   new MobileControls(inputManager);
 
   // Create world
   const world = new World(engine);
-  
+
+  // Create state manager (for multiplayer, this would sync with server)
+  const stateManager = new StateManager(world.bounds.radius);
+
   // Create player
-  const player = new Player(engine, inputManager, world.bounds, uiSystem);
+  const player = new Player(engine, inputManager, world.bounds, uiSystem, stateManager);
   world.addEntity(player);
 
   // Load and spawn cubes
-  const spawnSystem = new SpawnSystem(world, engine, uiSystem);
+  const spawnSystem = new SpawnSystem(world, engine, uiSystem, stateManager);
   await spawnSystem.loadAndSpawnCubes('./data/cubes.json');
 
   // Hide loading screen
@@ -44,7 +48,6 @@ async function main(): Promise<void> {
 
   // Handle click on hovered cube
   canvas.addEventListener('click', () => {
-    // Don't allow clicking cubes when overlay is visible
     if (hoveredCube && !uiSystem.isVisible()) {
       hoveredCube.activate();
     }
@@ -53,23 +56,24 @@ async function main(): Promise<void> {
   // Start render loop
   engine.run((deltaTime: number) => {
     const overlayVisible = uiSystem.isVisible();
-    
-    // Always update input manager (it will be ignored by player when overlay is visible)
+
+    // Update input
     inputManager.update();
-    
-    // Always update world (entities continue moving for multiplayer)
+
+    // Simulate cube movement (for multiplayer, replace with server state sync)
+    stateManager.simulateCubes(deltaTime);
+
+    // Update world (renders entities from state)
     world.update(deltaTime);
 
-    // Only update raycast/hover when overlay is not visible
+    // Raycast for hover (only when overlay hidden)
     if (!overlayVisible) {
-      // Raycast from camera center to detect hovered cube
       const camera = player.getCamera();
       const ray = new Ray(camera.position, camera.getForwardRay().direction, 50);
       const hit = engine.scene.pickWithRay(ray, (mesh) => mesh.name.startsWith('cube-'));
 
-      // Update hover states
-      const newHoveredCube = hit?.pickedMesh 
-        ? spawnSystem.getCubes().find(c => c.mesh === hit.pickedMesh) 
+      const newHoveredCube = hit?.pickedMesh
+        ? spawnSystem.getCubes().find(c => c.mesh === hit.pickedMesh)
         : null;
 
       if (newHoveredCube !== hoveredCube) {
@@ -78,7 +82,6 @@ async function main(): Promise<void> {
         hoveredCube = newHoveredCube ?? null;
       }
     } else {
-      // Clear hover state when overlay is visible
       if (hoveredCube) {
         hoveredCube.setHovered(false);
         hoveredCube = null;

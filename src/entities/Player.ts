@@ -1,133 +1,118 @@
-import {
-  UniversalCamera,
-  Vector3,
-} from '@babylonjs/core';
+import { UniversalCamera, Vector3 } from '@babylonjs/core';
 import { Engine } from '../core/Engine';
 import { InputManager } from '../core/InputManager';
 import { Entity } from './Entity';
 import { WorldBounds } from '../core/World';
 import { UISystem } from '../systems/UISystem';
+import { StateManager } from '../state';
 
 /**
- * First-person player controller with camera, movement, and look controls.
+ * First-person player controller. Syncs position/rotation to game state.
  */
 export class Player extends Entity {
   private camera: UniversalCamera;
   private inputManager: InputManager;
   private bounds: WorldBounds;
   private uiSystem: UISystem;
+  private stateManager: StateManager;
+  private playerId: string;
 
-  private moveSpeed: number = 8;
-  private lookSensitivity: number = 0.002;
-  private rotationX: number = 0;
-  private rotationY: number = 0;
+  private moveSpeed = 8;
+  private lookSensitivity = 0.002;
+  private gravity = 20;
+  private jumpForce = 8;
+  private groundY = 1.7;
 
-  // Jump physics
-  private velocityY: number = 0;
-  private readonly gravity: number = 20;
-  private readonly jumpForce: number = 8;
-  private readonly groundY: number = 1.7;
-
-  constructor(engine: Engine, inputManager: InputManager, bounds: WorldBounds, uiSystem: UISystem) {
+  constructor(
+    engine: Engine,
+    inputManager: InputManager,
+    bounds: WorldBounds,
+    uiSystem: UISystem,
+    stateManager: StateManager,
+    playerId: string = 'local'
+  ) {
     super(engine.scene);
     this.inputManager = inputManager;
     this.bounds = bounds;
     this.uiSystem = uiSystem;
+    this.stateManager = stateManager;
+    this.playerId = playerId;
 
-    this.camera = new UniversalCamera(
-      'playerCamera',
-      new Vector3(0, 1.7, 0),
-      this.scene
-    );
+    // Register in state
+    this.stateManager.addPlayer(playerId);
+
+    this.camera = new UniversalCamera('playerCamera', new Vector3(0, 1.7, 0), this.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = 1.2;
     this.scene.activeCamera = this.camera;
   }
 
   public update(deltaTime: number): void {
-    // Always apply physics (gravity, falling) even when overlay is visible
-    this.handleJump(deltaTime);
-    
-    // Only process input (movement, look) when overlay is not visible
+    const state = this.stateManager.getPlayer(this.playerId);
+    if (!state) return;
+
+    // Physics (always runs)
+    this.handleJump(deltaTime, state);
+
+    // Input (only when overlay hidden)
     if (!this.uiSystem.isVisible()) {
-      this.handleLook();
-      this.handleMovement(deltaTime);
+      this.handleLook(state);
+      this.handleMovement(deltaTime, state);
     }
+
+    // Sync camera to state
+    this.camera.position.set(state.position.x, state.position.y, state.position.z);
+    this.camera.rotation.x = state.rotation.x;
+    this.camera.rotation.y = state.rotation.y;
   }
 
-  private handleJump(deltaTime: number): void {
-    const isGrounded = this.camera.position.y <= this.groundY;
+  private handleJump(deltaTime: number, state: NonNullable<ReturnType<StateManager['getPlayer']>>): void {
+    const isGrounded = state.position.y <= this.groundY;
 
-    // Check for jump input
     if (isGrounded && this.inputManager.consumeJump()) {
-      this.velocityY = this.jumpForce;
+      state.velocityY = this.jumpForce;
     }
 
-    // Apply gravity
-    this.velocityY -= this.gravity * deltaTime;
+    state.velocityY -= this.gravity * deltaTime;
+    state.position.y += state.velocityY * deltaTime;
 
-    // Update position
-    this.camera.position.y += this.velocityY * deltaTime;
-
-    // Ground collision
-    if (this.camera.position.y < this.groundY) {
-      this.camera.position.y = this.groundY;
-      this.velocityY = 0;
+    if (state.position.y < this.groundY) {
+      state.position.y = this.groundY;
+      state.velocityY = 0;
     }
   }
 
-  private handleLook(): void {
-    const lookDelta = this.inputManager.getLookDelta();
-
-    this.rotationY += lookDelta.x * this.lookSensitivity;
-    this.rotationX += lookDelta.y * this.lookSensitivity;
-
-    // Clamp vertical look to prevent flipping
-    this.rotationX = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.rotationX));
-
-    this.camera.rotation.x = this.rotationX;
-    this.camera.rotation.y = this.rotationY;
+  private handleLook(state: NonNullable<ReturnType<StateManager['getPlayer']>>): void {
+    const delta = this.inputManager.getLookDelta();
+    state.rotation.y += delta.x * this.lookSensitivity;
+    state.rotation.x += delta.y * this.lookSensitivity;
+    state.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, state.rotation.x));
   }
 
-  private handleMovement(deltaTime: number): void {
+  private handleMovement(deltaTime: number, state: NonNullable<ReturnType<StateManager['getPlayer']>>): void {
     const input = this.inputManager.getMovement();
     if (input.length() === 0) return;
 
-    const forward = new Vector3(
-      Math.sin(this.rotationY),
-      0,
-      Math.cos(this.rotationY)
-    );
-    const right = new Vector3(
-      Math.sin(this.rotationY + Math.PI / 2),
-      0,
-      Math.cos(this.rotationY + Math.PI / 2)
-    );
+    const forward = new Vector3(Math.sin(state.rotation.y), 0, Math.cos(state.rotation.y));
+    const right = new Vector3(Math.sin(state.rotation.y + Math.PI / 2), 0, Math.cos(state.rotation.y + Math.PI / 2));
 
     const velocity = forward.scale(input.y).add(right.scale(input.x));
-    velocity.normalize();
-    velocity.scaleInPlace(this.moveSpeed * deltaTime);
+    velocity.normalize().scaleInPlace(this.moveSpeed * deltaTime);
 
-    const newPosition = this.camera.position.add(velocity);
+    state.position.x += velocity.x;
+    state.position.z += velocity.z;
 
-    // Clamp to circular bounds
+    // Clamp to bounds
     const maxRadius = this.bounds.radius - 1;
-    const distanceFromCenter = Math.sqrt(newPosition.x * newPosition.x + newPosition.z * newPosition.z);
-    if (distanceFromCenter > maxRadius) {
-      const scale = maxRadius / distanceFromCenter;
-      newPosition.x *= scale;
-      newPosition.z *= scale;
+    const dist = Math.sqrt(state.position.x ** 2 + state.position.z ** 2);
+    if (dist > maxRadius) {
+      const scale = maxRadius / dist;
+      state.position.x *= scale;
+      state.position.z *= scale;
     }
-
-    this.camera.position = newPosition;
-  }
-
-  public get cameraPosition(): Vector3 {
-    return this.camera.position.clone();
   }
 
   public getCamera(): UniversalCamera {
     return this.camera;
   }
 }
-
