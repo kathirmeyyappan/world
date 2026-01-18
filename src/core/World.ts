@@ -195,7 +195,7 @@ export class World {
       strokeStyle = 'rgba(200, 255, 120, 0.3)'; // Brighter extended
     }
     ctx.strokeStyle = strokeStyle;
-    ctx.lineWidth = isDome ? 3 : 2; // Thicker lines for more defined look
+    ctx.lineWidth = isDome ? 1 : 2; // Thinner dome lines
 
     // Vertical lines
     // Horizontal lines (dome uses 2x spacing to reduce stretching appearance)
