@@ -8,7 +8,7 @@
       "description": [
         "My first experience in big tech!",
         "Worked in a (at the time) new org called DataZone, a data governance platform for AWS",
-        "Main project was inconsequential, but I got to do some cool stuff with Roaring Bitmaps in Go at the end of my time there"
+        "Main project was pretty inconsequential, but I got to do some cool stuff with Roaring Bitmaps in Golang at the end"
       ],
       "logo": "./assets/logos/aws.png",
       "glowColor": "#777777",
@@ -21,8 +21,7 @@
       "h3": "2023",
       "description": [
         "My first experience in software!",
-        "Was a noob, but I learned a lot about programming 😅",
-        "Built an internal desktop application for defect tracking in C#"
+        "Built an internal desktop app for defect tracking via Jira in C#"
       ],
       "logo": "./assets/logos/drager.png",
       "glowColor": "#445580",
@@ -34,7 +33,7 @@
       "h2": "Teaching Assistant / Undergraduate Researcher",
       "h3": "2024 - 2026",
       "description": [
-        "Got hella interested in databases and did infra work under Prof. Aaron Elmore",
+        "Got interested in databases and did infra work under Prof. Aaron Elmore",
         "TAed a couple times for CMSC 23500 / 33550 undergrad + grad database systems"
       ],
       "logo": "./assets/logos/uchicago_cs.png",
@@ -48,7 +47,7 @@
       "h3": "2025",
       "description": [
         "Worked in the research group at a hedgefund solving problems at the intersection of engineering and finance",
-        "Walked around everywhere with a notebook because laptops weren't allowed in meetings for security reasons :(",
+        "Walked around everywhere with a notebook because laptops weren't allowed in meetings (for real)",
         "Participated in daily standups where we weren't allowed to sit down :("
       ],
       "logo": "./assets/logos/arrowstreet.jpg",
@@ -61,9 +60,9 @@
       "h2": "Software Engineer Intern",
       "h3": "2025",
       "description": [
-        "Took some time off school to work at Notion in the fall",
-        "Got to work on a bunch of cool stuff in the storage infrastructure domain",
-        "Met a ton of super cool people"
+        "Took some time off school to intern at Notion in the fall",
+        "Built a system called DISS to autonomously detect database integrity problems like schema drift and index invalidation",
+        "Created a lot of funny slack emojis"
       ],
       "logo": "./assets/logos/notion.jpg",
       "glowColor": "#888888",
