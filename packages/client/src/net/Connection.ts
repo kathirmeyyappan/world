@@ -41,7 +41,7 @@ export class WsConnection implements Connection {
       };
       ws.onerror = () => {
         clearTimeout(timer);
-        reject(new Error('could not reach the room server'));
+        reject(new Error(`could not reach the room server at ${url}`));
       };
       ws.onclose = (e) => {
         clearTimeout(timer);

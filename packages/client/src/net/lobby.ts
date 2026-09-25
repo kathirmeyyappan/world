@@ -14,7 +14,12 @@ interface Ticket {
 
 export async function joinRoom(roomId: string, name: string): Promise<Connection> {
   const q = (params: Record<string, string>) => new URLSearchParams(params).toString();
-  if (DIRECT_WS_URL) return WsConnection.connect(`${DIRECT_WS_URL}?${q({ room: roomId, name })}`);
+  if (DIRECT_WS_URL) {
+    const base = DIRECT_WS_URL.startsWith('/')
+      ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${DIRECT_WS_URL}`
+      : DIRECT_WS_URL;
+    return WsConnection.connect(`${base}?${q({ room: roomId, name })}`);
+  }
 
   let ticket = await requestTicket(roomId, false);
   try {

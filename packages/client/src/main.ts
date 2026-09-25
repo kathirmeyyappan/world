@@ -1,4 +1,3 @@
-import './styles.css';
 import { showHome } from './app/home';
 import { Game } from './game/Game';
 
