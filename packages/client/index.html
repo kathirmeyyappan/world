@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="explore kathir meyyappan lore in 3D, with friends" />
+    <meta http-equiv="Content-Language" content="en" />
+    <link rel="icon" type="image/x-icon" href="/assets/elizabeth.ico" />
+    <title>kathir world</title>
+  </head>
+  <body>
+    <div style="position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;" translate="yes">
+      <p>Kathir Meyyappan secret portfolio! I have nothing better to do.</p>
+    </div>
+
+    <div id="app">
+      <canvas id="renderCanvas"></canvas>
+      <div id="crosshair">+</div>
+
+      <div id="hud">
+        <div class="panel" id="room-panel">
+          <div class="room-line">
+            <span class="label">ROOM</span>
+            <button id="room-code" title="copy invite link"></button>
+          </div>
+          <ul id="player-list"></ul>
+          <div class="ping-line"><span class="label">PING</span> <span id="ping">--</span></div>
+        </div>
+        <div id="chat">
+          <ul id="chat-log"></ul>
+          <input id="chat-input" type="text" maxlength="140" placeholder="say something" autocomplete="off" spellcheck="false" />
+          <div id="chat-hint">Press <kbd>Enter</kbd> to chat</div>
+        </div>
+      </div>
+
+      <div id="info-overlay" translate="yes">
+        <div id="info-card" translate="yes">
+          <button class="close-btn" translate="no">&times;</button>
+          <img class="logo" src="" alt="Logo" translate="no" />
+          <div class="h1" translate="yes"></div>
+          <div class="h2" translate="yes"></div>
+          <div class="h3" translate="yes"></div>
+          <div class="description" translate="yes"></div>
+          <div class="close-hint" translate="yes">Press <kbd translate="no">Q</kbd> to close</div>
+        </div>
+      </div>
+
+      <div id="joystick-zone"></div>
+      <div id="jump-button">JUMP</div>
+
+      <div id="instructions" translate="yes">
+        <kbd translate="no">WASD</kbd> or <kbd translate="no">↑↓←→</kbd> to move &nbsp;|&nbsp; <kbd translate="no">Space</kbd> to jump &nbsp;|&nbsp; Click to select
+      </div>
+
+      <div id="home">
+        <div class="card">
+          <h1>KATHIR WORLD</h1>
+          <p class="tagline">a small 3D playground. bring friends.</p>
+          <label>
+            <span>NAME</span>
+            <input id="home-name" type="text" maxlength="16" placeholder="who are you" autocomplete="off" spellcheck="false" />
+          </label>
+          <label>
+            <span>ROOM CODE</span>
+            <input id="home-room" type="text" maxlength="24" placeholder="e.g. late-night" autocomplete="off" spellcheck="false" />
+          </label>
+          <div class="actions">
+            <button id="home-join">JOIN ROOM</button>
+            <button id="home-create">CREATE ROOM</button>
+          </div>
+          <button id="home-global" class="wide">JOIN GLOBAL</button>
+          <button id="home-offline" class="wide subtle hidden">PLAY OFFLINE</button>
+          <div id="home-status"></div>
+        </div>
+      </div>
+
+      <div id="disconnected" class="hidden">
+        <div class="card">
+          <h1>DISCONNECTED</h1>
+          <p id="disconnected-reason"></p>
+          <button id="disconnected-home" class="wide">BACK TO HOME</button>
+        </div>
+      </div>
+
+      <div id="loading" class="hidden" translate="yes">
+        <h1>ENTERING WORLD</h1>
+        <div class="loader"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
