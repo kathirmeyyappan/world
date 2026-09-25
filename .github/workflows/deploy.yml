@@ -37,6 +37,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Set the LOBBY_URL repository variable to the deployed lobby's URL; empty means offline-only.
+          VITE_LOBBY_URL: ${{ vars.LOBBY_URL }}
 
       - name: Setup Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

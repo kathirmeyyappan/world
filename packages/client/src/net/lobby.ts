@@ -1,8 +1,10 @@
 // Turns a room id into a live Connection. In dev the client dials the room server directly;
-// in production it asks the lobby for a session token first (see docs/multiplayer-flow.png).
+// in production it asks the lobby for a session token first (see docs/connections.png).
 import { WsConnection, type Connection } from './Connection';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
+// Where the lobby API lives when the client is served from somewhere else (GitHub Pages).
+const LOBBY_URL = ((import.meta.env.VITE_LOBBY_URL as string | undefined) ?? '').replace(/\/$/, '');
 
 export class LobbyUnavailableError extends Error {}
 
@@ -34,7 +36,7 @@ export async function joinRoom(roomId: string, name: string): Promise<Connection
 async function requestTicket(roomId: string, fresh: boolean): Promise<Ticket> {
   let res: Response;
   try {
-    res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}`, {
+    res = await fetch(`${LOBBY_URL}/api/rooms/${encodeURIComponent(roomId)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ fresh }),
