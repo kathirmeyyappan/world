@@ -9,11 +9,27 @@
 import { WsConnection, type Connection } from './Connection';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
-// Read once at load: the home screen cleans the query string after joining.
+// The home screen scrubs the query string after joining, so what it carried is kept in
+// sessionStorage: a reload on the room host then rejoins the same room instead of showing the menu.
 const startParams = new URLSearchParams(location.search);
-export const SERVED_BY_ROOM_HOST = startParams.has('direct');
-// The lobby tells the room-host page where it lives, so "back to home" can reach it later.
+if (startParams.has('direct')) sessionStorage.setItem('world.direct', '1');
 if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.get('lobby')!);
+export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
+
+export function rememberRoom(roomId: string, name: string): void {
+  sessionStorage.setItem('world.room', roomId);
+  sessionStorage.setItem('world.name', name);
+}
+
+export function rememberedRoom(): { roomId: string; name: string } | null {
+  const roomId = sessionStorage.getItem('world.room');
+  return roomId ? { roomId, name: sessionStorage.getItem('world.name') ?? '' } : null;
+}
+
+export function forgetRoom(): void {
+  sessionStorage.removeItem('world.room');
+  sessionStorage.removeItem('world.name');
+}
 
 export class LobbyUnavailableError extends Error {}
 

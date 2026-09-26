@@ -2,7 +2,7 @@
 // Resolves with a live Connection. Also honours ?room=&name= for invite links and tests.
 import { isValidRoomId, sanitizeName } from '@world/shared';
 import { LocalConnection, type Connection } from '../net/Connection';
-import { LobbyUnavailableError, joinRoom } from '../net/lobby';
+import { LobbyUnavailableError, SERVED_BY_ROOM_HOST, joinRoom, rememberRoom, rememberedRoom } from '../net/lobby';
 
 export interface HomeResult {
   connection: Connection;
@@ -46,7 +46,10 @@ export function showHome(): Promise<HomeResult> {
       localStorage.setItem(NAME_KEY, name);
       try {
         const connection = await joinRoom(roomId, name);
-        if (params.has('direct')) history.replaceState(null, '', location.pathname);
+        if (SERVED_BY_ROOM_HOST) {
+          rememberRoom(roomId, name);
+          history.replaceState(null, '', location.pathname);
+        }
         root.classList.add('hidden');
         resolve({ connection, roomId, name });
       } catch (err) {
@@ -80,8 +83,12 @@ export function showHome(): Promise<HomeResult> {
       resolve({ connection: new LocalConnection(name), roomId: 'offline', name });
     });
 
+    const remembered = SERVED_BY_ROOM_HOST ? rememberedRoom() : null;
     if (params.get('room')) attempt(params.get('room')!);
-    else if (params.get('offline') !== null) offlineBtn.click();
+    else if (remembered) {
+      nameInput.value = remembered.name || nameInput.value;
+      attempt(remembered.roomId);
+    } else if (params.get('offline') !== null) offlineBtn.click();
     else (nameInput.value ? roomInput : nameInput).focus();
   });
 }
