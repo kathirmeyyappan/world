@@ -32,8 +32,8 @@ def room_server() -> modal.Server:
     container_app = _App._get_container_app()
     running = container_app._running_app if container_app is not None else None
     if running is not None and hasattr(modal.Server, "from_id"):
-        return modal.Server.from_id(running.function_ids["Room"])
-    return modal.Server.from_name(APP_NAME, "Room")
+        return modal.Server.from_id(running.function_ids["room"])
+    return modal.Server.from_name(APP_NAME, "room")
 
 
 async def session_alive(room_url: str, token: str) -> bool:
