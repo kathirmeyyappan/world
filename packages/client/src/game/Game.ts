@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, SKY_OBJECTS, TICK_DT, WORLD_RADIUS, createRng, hashSeed,
+  CUBES, SKY_OBJECTS, TICK_DT, WORLD_RADIUS, WORLD_SHAPE, createRng, hashSeed,
   type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -17,6 +17,7 @@ import { Environment } from '../render/Environment';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
 import { Hud } from '../ui/Hud';
+import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { Pins } from '../ui/Pins';
 
@@ -41,6 +42,7 @@ export class Game {
   private readonly avatars = new Map<string, Avatar>();
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
+  private readonly minimap = new Minimap(WORLD_SHAPE);
   private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
@@ -77,6 +79,9 @@ export class Game {
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => conn.send({ t: 'chat', text });
     this.hud.onChatOpenChange = () => this.syncBlocked();
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyP' && !this.isBlocked()) this.minimap.toggle();
+    });
     canvas.addEventListener('click', () => {
       if (this.isBlocked()) return;
       if (this.hovered) this.overlay.show(this.hovered.content);
@@ -199,6 +204,7 @@ export class Game {
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
+    this.minimap.update({ me: { x: p.x, z: p.z, yaw: this.input.yaw }, players: sampled.players, cubes: sampled.cubes });
 
     this.updateHover();
     for (const cs of sampled.cubes) {

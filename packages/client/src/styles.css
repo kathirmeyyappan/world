@@ -126,6 +126,18 @@ html, body {
 }
 #crosshair.hot { color: var(--accent); }
 
+#minimap {
+  position: fixed; right: 20px; bottom: 76px; z-index: 50; pointer-events: none; padding: 6px;
+  background: rgba(11,13,20,0.8); border: 2px solid rgba(100,181,246,0.4); box-shadow: 4px 4px 0 #000;
+}
+#minimap-canvas { display: block; width: 224px; height: 224px; image-rendering: pixelated; background: rgba(5,7,12,0.6); }
+#minimap .minimap-bar {
+  display: flex; justify-content: space-between; align-items: center; margin-top: 6px;
+  font: 16px var(--mono); color: rgba(255,255,255,0.55); letter-spacing: 1px;
+}
+#minimap-view { font: 9px var(--pixel); color: var(--accent-soft); }
+#minimap kbd { background: rgba(100,181,246,0.2); border: 1px solid rgba(100,181,246,0.5); padding: 0 5px; font-family: inherit; }
+
 #instructions {
   position: fixed; bottom: 20px; right: 20px; padding: 8px 12px; font: 18px var(--mono); z-index: 50;
   background: rgba(11,13,20,0.8); border: 2px solid rgba(100,181,246,0.4); color: rgba(255,255,255,0.8); pointer-events: none;
@@ -202,5 +214,5 @@ html, body {
 @media (pointer: coarse) {
   #pad { display: block; }
   #jump-button { display: flex; }
-  #instructions, #chat, #info-card .close-hint { display: none; }
+  #instructions, #chat, #minimap, #info-card .close-hint { display: none; }
 }
