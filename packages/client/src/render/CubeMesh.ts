@@ -22,10 +22,15 @@ export class CubeMesh {
     this.material = new StandardMaterial(`mat-${content.id}`, scene);
     this.baseColor = Color3.FromHexString(content.glowColor);
     this.material.diffuseColor = this.baseColor;
-    this.material.emissiveColor = this.baseColor.scale(0.25);
+    this.material.emissiveColor = this.baseColor.scale(0.55);
     this.material.specularColor = new Color3(0.15, 0.15, 0.15);
     this.material.specularPower = 24;
-    if (content.logo) this.material.diffuseTexture = new Texture(content.logo, scene, false, true, Texture.NEAREST_SAMPLINGMODE);
+    if (content.logo) {
+      // Nearest magnification keeps the pixel look up close; mipmaps stop it sparkling at distance.
+      const logo = new Texture(content.logo, scene, false, true, Texture.NEAREST_NEAREST_MIPLINEAR);
+      this.material.diffuseTexture = logo;
+      this.material.emissiveTexture = logo;
+    }
     const fresnel = new FresnelParameters();
     fresnel.bias = 0.2;
     fresnel.power = 2.5;
@@ -36,7 +41,7 @@ export class CubeMesh {
 
     const border = Color3.FromHexString(content.borderColor ?? '#ffffff');
     this.mesh.enableEdgesRendering();
-    this.mesh.edgesWidth = 6;
+    this.mesh.edgesWidth = 4;
     this.mesh.edgesColor.set(border.r, border.g, border.b, 1);
     engine.glowLayer.addIncludedOnlyMesh(this.mesh);
 
@@ -59,14 +64,14 @@ export class CubeMesh {
     this.shadow.scaling.setAll(Math.max(0.6, 1.3 - snap.y * 0.12));
     if (this.hovered) {
       const pulse = (Math.sin(this.time * 5) + 1) / 2;
-      this.material.emissiveColor = this.baseColor.scale(0.45 + pulse * 0.35);
+      this.material.emissiveColor = this.baseColor.scale(0.75 + pulse * 0.35);
       this.mesh.scaling.setAll(1.12);
     } else if (this.readers > 0) {
       const pulse = (Math.sin(this.time * 2) + 1) / 2;
-      this.material.emissiveColor = Color3.Lerp(this.baseColor.scale(0.35), Color3.White().scale(0.5), pulse * 0.5);
+      this.material.emissiveColor = Color3.Lerp(this.baseColor.scale(0.6), Color3.White().scale(0.7), pulse * 0.5);
       this.mesh.scaling.setAll(1.04);
     } else {
-      this.material.emissiveColor = this.baseColor.scale(0.25);
+      this.material.emissiveColor = this.baseColor.scale(0.55);
       this.mesh.scaling.setAll(1);
     }
   }

@@ -1,5 +1,6 @@
 // A remote player: a blocky figure in their colour with a glowing visor, a shadow on the ground,
-// a walk cycle driven by how far they moved, and a name tag.
+// a walk cycle driven by how far they moved, and a name tag. No outline pass: thin lines shimmer
+// at the reduced render resolution.
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, TransformNode, Vector3 } from '@babylonjs/core';
 import { EYE_HEIGHT } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
@@ -70,12 +71,12 @@ export class Avatar {
     this.body.parent = this.root;
 
     const suit = new StandardMaterial(`avatar-suit-${id}`, scene);
-    suit.diffuseColor = c.scale(0.55);
-    suit.emissiveColor = c.scale(0.12);
+    suit.diffuseColor = c.scale(0.7);
+    suit.emissiveColor = c.scale(0.22);
     suit.specularColor = Color3.Black();
     const skin = new StandardMaterial(`avatar-skin-${id}`, scene);
-    skin.diffuseColor = c.scale(0.8);
-    skin.emissiveColor = c.scale(0.2);
+    skin.diffuseColor = c.scale(0.95);
+    skin.emissiveColor = c.scale(0.3);
     skin.specularColor = Color3.Black();
     const visorMat = new StandardMaterial(`avatar-visor-${id}`, scene);
     visorMat.diffuseColor = Color3.Black();
@@ -108,11 +109,6 @@ export class Avatar {
     visor.position.set(0, 0.04, 0.23);
     engine.glowLayer.addIncludedOnlyMesh(visor);
 
-    for (const m of [this.legL, this.legR, torso, this.armL, this.armR, skull]) {
-      m.enableEdgesRendering();
-      m.edgesWidth = 1.5;
-      m.edgesColor.set(c.r, c.g, c.b, 0.9);
-    }
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.1);
     this.shadow.parent = this.root;

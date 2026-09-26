@@ -5,9 +5,9 @@ import {
   HemisphericLight, Scene, Vector3,
 } from '@babylonjs/core';
 
-// Internal pixels per CSS pixel. 2.5 keeps the chunky look on a 1080p screen without turning text
+// CSS pixels per internal pixel. 2 keeps the chunky look on a 1080p screen without turning text
 // on cubes into mush; touch devices render smaller still.
-const PIXEL_SCALE = window.matchMedia('(pointer: coarse)').matches ? 3 : 2.5;
+const PIXEL_SCALE = window.matchMedia('(pointer: coarse)').matches ? 2.5 : 2;
 
 export const FOG_COLOR = new Color3(0.02, 0.02, 0.05);
 
@@ -37,6 +37,9 @@ export class Engine {
     this.glowLayer.intensity = 0.8;
 
     const pipeline = new DefaultRenderingPipeline('post', false, this.scene);
+    // Anti-alias the low-res frame itself: pixels stay blocky after upscaling but stop shimmering.
+    pipeline.samples = 4;
+    pipeline.fxaaEnabled = true;
     pipeline.bloomEnabled = true;
     pipeline.bloomThreshold = 0.55;
     pipeline.bloomWeight = 0.35;

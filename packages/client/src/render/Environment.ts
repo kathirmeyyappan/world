@@ -104,7 +104,7 @@ export class Environment {
       placed.push(position);
 
       const mat = new StandardMaterial(`skyMat_${obj.image}`, scene);
-      const tex = new Texture(`/assets/textures/sky/${obj.image}`, scene, false, true, Texture.NEAREST_SAMPLINGMODE);
+      const tex = new Texture(`/assets/textures/sky/${obj.image}`, scene, false, true, Texture.NEAREST_NEAREST_MIPLINEAR);
       tex.hasAlpha = true;
       tex.onLoadObservable.addOnce(() => {
         const internal = tex.getInternalTexture();
