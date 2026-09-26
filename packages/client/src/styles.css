@@ -125,6 +125,19 @@ html, body {
   color: rgba(255,255,255,0.6); pointer-events: none; z-index: 100; text-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 #crosshair.hot { color: var(--accent); }
+#crosshair.hit { color: #ff3b4e; transform: translate(-50%, -50%) scale(1.4); }
+#player-list .skull { margin-left: 6px; font-size: 12px; }
+
+#death {
+  position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;
+  background: rgba(200, 20, 40, 0.42); z-index: 1500;
+}
+#death .card { text-align: center; border-color: #ff3b4e; }
+#death h1 { color: #ff3b4e; }
+#death p { font: 22px var(--mono); color: rgba(255,255,255,0.85); margin-bottom: 8px; }
+#death .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+#death #death-rejoin { border-color: #ff3b4e; background: rgba(255,59,78,0.2); }
+#death #death-rejoin:hover { background: rgba(255,59,78,0.4); }
 
 #minimap {
   position: fixed; right: 20px; bottom: 76px; z-index: 50; pointer-events: none; padding: 6px; width: 236px;

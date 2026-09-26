@@ -13,6 +13,7 @@ export interface CubeSnapshot {
 export type ClientMessage =
   | { t: 'input'; f: InputFrame }
   | { t: 'chat'; text: string }
+  | { t: 'shoot'; yaw: number; pitch: number } // fire along this look; the server decides what it hits
   | { t: 'ping'; at: number };
 
 export type ServerMessage =
@@ -22,6 +23,8 @@ export type ServerMessage =
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; color: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
+  | { t: 'shot'; id: string; hit: string | null } // someone fired; clients play the effect
+  | { t: 'kill'; shooter: string; victim: string }
   | { t: 'pong'; at: number }
   | { t: 'error'; message: string };
 
@@ -41,6 +44,8 @@ export function isClientMessage(v: unknown): v is ClientMessage {
     }
     case 'chat':
       return typeof m.text === 'string';
+    case 'shoot':
+      return isNum(m.yaw) && isNum(m.pitch);
     case 'ping':
       return isNum(m.at);
     default:

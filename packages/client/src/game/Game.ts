@@ -14,8 +14,10 @@ import { Avatar } from '../render/Avatar';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { Gun } from '../render/Gun';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
+import { Death } from '../ui/Death';
 import { Hud } from '../ui/Hud';
 import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
@@ -43,6 +45,9 @@ export class Game {
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
   private readonly minimap = new Minimap(WORLD_SHAPE);
+  private readonly death = new Death();
+  private readonly gun: Gun;
+  private dead = false;
   private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
@@ -65,6 +70,7 @@ export class Game {
     this.camera.minZ = 0.1;
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
+    this.gun = new Gun(this.engine, this.camera);
 
     for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(roomId)))) this.skyByMesh.set(sky.mesh.name, sky);
 
@@ -85,6 +91,10 @@ export class Game {
     canvas.addEventListener('click', () => {
       if (this.isBlocked()) return;
       if (this.hovered) this.overlay.show(this.hovered.content);
+      else if (this.prediction?.state.gun) {
+        conn.send({ t: 'shoot', yaw: this.input.yaw, pitch: this.input.pitch });
+        this.gun.fire();
+      }
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -104,7 +114,7 @@ export class Game {
   }
 
   private isBlocked(): boolean {
-    return this.overlay.isVisible() || this.hud.isChatOpen();
+    return this.dead || this.overlay.isVisible() || this.hud.isChatOpen();
   }
 
   private syncBlocked(): void {
@@ -153,6 +163,17 @@ export class Game {
       case 'system':
         this.hud.system(m.text);
         return;
+      case 'shot':
+        if (m.id === this.myId && m.hit) this.hud.hitMarker();
+        return;
+      case 'kill':
+        this.hud.setDead(m.victim);
+        if (m.victim === this.myId) {
+          this.dead = true;
+          this.syncBlocked();
+          this.death.show(this.hud.playerName(m.shooter));
+        }
+        return;
       case 'pong':
         this.hud.setPing(now - m.at);
         return;
@@ -189,6 +210,8 @@ export class Game {
     this.camera.rotation.set(this.input.pitch, this.input.yaw, 0);
 
     this.environment.update(dt, this.camera.position);
+    this.gun.setVisible(!!this.prediction.state.gun && !this.dead);
+    this.gun.update(dt);
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();

@@ -16,6 +16,8 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
+    gun: false,
+    dead: false,
   };
 }
 
@@ -34,7 +36,7 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
     p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
     p.reading = input.reading;
     p.lastSeq = input.seq;
-    if (input.jump && isGrounded(p)) p.vy = JUMP_VELOCITY;
+    if (input.jump && isGrounded(p) && !p.dead) p.vy = JUMP_VELOCITY;
   }
 
   const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1);
@@ -47,7 +49,7 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
     p.vy = 0;
   }
 
-  if (input && (input.mx !== 0 || input.my !== 0)) {
+  if (input && !p.dead && (input.mx !== 0 || input.my !== 0)) {
     const sinY = Math.sin(p.yaw);
     const cosY = Math.cos(p.yaw);
     let dx = sinY * input.my + cosY * input.mx;

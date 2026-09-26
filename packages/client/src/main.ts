@@ -1,6 +1,6 @@
 import { showHome } from './app/home';
 import { Game } from './game/Game';
-import { forgetRoom } from './net/lobby';
+import { forgetRoom, homeUrl } from './net/lobby';
 
 declare global {
   interface Window {
@@ -22,7 +22,7 @@ async function main(): Promise<void> {
   window.__world = { debug: () => game.debug(), setLook: (yaw, pitch) => game.setLook(yaw, pitch) };
   document.getElementById('disconnected-home')!.addEventListener('click', () => {
     forgetRoom();
-    location.href = location.pathname;
+    location.href = homeUrl();
   });
   game.start();
   requestAnimationFrame(() => loading.classList.add('hidden'));

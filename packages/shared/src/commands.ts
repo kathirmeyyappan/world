@@ -1,7 +1,7 @@
 // Chat commands: a message starting with "/" is parsed here and handled by the Room instead of
 // being broadcast. Anyone seated can run them, bots included. Add a command by extending the
 // union and the switch in Room.
-export type Command = { name: 'speedy' };
+export type Command = { name: 'speedy' } | { name: 'gun' };
 
 export function parseCommand(text: string): Command | { name: 'unknown'; raw: string } | null {
   if (!text.startsWith('/')) return null;
@@ -9,6 +9,8 @@ export function parseCommand(text: string): Command | { name: 'unknown'; raw: st
   switch (word.toLowerCase()) {
     case 'speedy':
       return { name: 'speedy' };
+    case 'gun':
+      return { name: 'gun' };
     default:
       return { name: 'unknown', raw: word };
   }

@@ -77,3 +77,33 @@ test('/speedy is a command: boosts the sender and tells everyone in grey', () =>
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'unknown command /fly' });
   assert.notDeepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /fly' }, 'only the sender is told');
 });
+
+test('/gun then click: the server resolves the hit, kills the target, and the dead stop moving', () => {
+  const room = new Room('gun', { seed: 5 });
+  const a = link();
+  const b = link();
+  const ida = room.join('alice', a)!;
+  const idb = room.join('bob', b)!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 8 };
+
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
+  assert.ok(!bob.dead, 'no gun yet');
+  room.receive(ida, { t: 'chat', text: '/gun' });
+  assert.ok(alice.gun);
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
+  assert.ok(bob.dead, 'bob is directly ahead');
+  assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === idb && m.shooter === ida));
+  assert.ok(b.inbox.some((m) => m.t === 'system' && m.text === 'alice shot bob'));
+
+  const before = { ...bob.pos };
+  room.receive(idb, { t: 'input', f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: true, reading: null } });
+  room.step();
+  assert.deepEqual(bob.pos, before, 'dead players cannot move or jump');
+
+  const c = link();
+  room.join('carol', c);
+  const welcome = c.inbox[0];
+  assert.ok(welcome.t === 'welcome' && welcome.players.find((p) => p.id === idb)!.dead, 'late joiners see who is dead');
+});

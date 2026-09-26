@@ -16,6 +16,8 @@ export interface PlayerState {
   lastSeq: number;
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal
+  gun: boolean;
+  dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 
 // One tick of intent from a client. Look is client-authoritative; movement is not.
