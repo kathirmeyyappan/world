@@ -38,6 +38,13 @@ export function lobbyUrl(): string | null {
   return url ? url.replace(/\/$/, '') : null;
 }
 
+// Wake the lobby while the player is still typing a name, so Join doesn't pay its cold start.
+// Opaque cross-origin fetch: we only need the request to land, not the response.
+export function warmLobby(): void {
+  const lobby = lobbyUrl();
+  if (lobby) fetch(`${lobby}/healthz`, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+}
+
 export async function joinRoom(roomId: string, name: string): Promise<Connection> {
   const q = (params: Record<string, string>) => new URLSearchParams(params).toString();
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
