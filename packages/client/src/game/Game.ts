@@ -16,6 +16,7 @@ import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
 import { Hud } from '../ui/Hud';
 import { Overlay } from '../ui/Overlay';
+import { Pins } from '../ui/Pins';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
@@ -31,6 +32,7 @@ export class Game {
   private readonly mobile: MobileControls;
   private readonly overlay = new Overlay();
   private readonly hud: Hud;
+  private readonly pins = new Pins();
   private readonly interp = new Interpolation();
   private readonly cubes = new Map<string, CubeMesh>();
   private readonly cubeByMesh = new Map<string, CubeMesh>();
@@ -44,11 +46,12 @@ export class Game {
   private pingTimer = 0;
 
   constructor(
-    canvas: HTMLCanvasElement,
+    private readonly canvasEl: HTMLCanvasElement,
     private readonly conn: Connection,
     roomId: string,
     private readonly onDisconnect: (reason: string) => void,
   ) {
+    const canvas = canvasEl;
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_RADIUS);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
@@ -185,6 +188,7 @@ export class Game {
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
+    this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
 
     this.updateHover();
     for (const cs of sampled.cubes) {
