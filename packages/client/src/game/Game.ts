@@ -59,11 +59,11 @@ export class Game {
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
 
-    for (const content of CUBES) {
-      const cube = new CubeMesh(this.engine, content);
+    CUBES.forEach((content, i) => {
+      const cube = new CubeMesh(this.engine, content, i);
       this.cubes.set(content.id, cube);
       this.cubeByMesh.set(cube.mesh.name, cube);
-    }
+    });
 
     this.input = new InputManager(canvas);
     this.mobile = new MobileControls(this.input);

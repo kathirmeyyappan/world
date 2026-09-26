@@ -27,6 +27,9 @@ export const MAX_NAME_LENGTH = 16;
 export const MAX_CHAT_LENGTH = 140;
 export const MAX_ROOM_ID_LENGTH = 24;
 
+// Neon tints for the info cubes, assigned by index.
+export const CUBE_COLORS = ['#ff5c8a', '#5cf0ff', '#b56cff', '#ffd75c', '#6cff9a', '#ff9a5c'];
+
 export const PLAYER_COLORS = [
   '#64b5f6', '#f06292', '#81c784', '#ffb74d', '#ba68c8', '#4dd0e1',
   '#fff176', '#ff8a65', '#a1887f', '#90a4ae', '#e57373', '#aed581',

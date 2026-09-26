@@ -1,4 +1,5 @@
 // Content for the info cubes. Edit here; both the client card and the server's cube list read it.
+// Colours are not per cube: the client assigns them from CUBE_COLORS by index.
 export interface CubeContent {
   id: string;
   h1: string;
@@ -6,8 +7,6 @@ export interface CubeContent {
   h3?: string;
   description: string[];
   logo?: string;
-  glowColor: string;
-  borderColor?: string;
 }
 
 export const CUBES: CubeContent[] = [
@@ -22,8 +21,6 @@ export const CUBES: CubeContent[] = [
       "Main project was pretty inconsequential, but I got to do some cool stuff with Roaring Bitmaps in Golang at the end",
     ],
     logo: "/assets/logos/aws.png",
-    glowColor: "#777777",
-    borderColor: "#777777",
   },
   {
     id: "drager",
@@ -35,8 +32,6 @@ export const CUBES: CubeContent[] = [
       "Built an internal desktop app for defect tracking via Jira in C#",
     ],
     logo: "/assets/logos/drager.png",
-    glowColor: "#445580",
-    borderColor: "#445580",
   },
   {
     id: "uchicago-cs",
@@ -48,8 +43,6 @@ export const CUBES: CubeContent[] = [
       "TAed a couple times for CMSC 23500 / 33550 undergrad + grad database systems",
     ],
     logo: "/assets/logos/uchicago_cs.png",
-    glowColor: "#665050",
-    borderColor: "#886262",
   },
   {
     id: "arrowstreet",
@@ -62,8 +55,6 @@ export const CUBES: CubeContent[] = [
       "Participated in daily standups where we weren't allowed to sit down :(",
     ],
     logo: "/assets/logos/arrowstreet.jpg",
-    glowColor: "#927777",
-    borderColor: "#453535",
   },
   {
     id: "notion",
@@ -76,8 +67,6 @@ export const CUBES: CubeContent[] = [
       "Created a lot of funny slack emojis",
     ],
     logo: "/assets/logos/notion.jpg",
-    glowColor: "#888888",
-    borderColor: "#222222",
   },
   {
     id: "iop",
@@ -89,8 +78,6 @@ export const CUBES: CubeContent[] = [
       "Created a pipeline for extracting and logging info from political flyers to identify false citations",
     ],
     logo: "/assets/logos/iop.jpg",
-    glowColor: "#665050",
-    borderColor: "#886262",
   },
 ];
 

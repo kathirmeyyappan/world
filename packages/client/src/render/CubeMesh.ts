@@ -1,7 +1,7 @@
 // Visual for one info cube. Position and rotation come from the server every frame; hover and
 // "someone is reading this" are the only local effects.
 import { Color3, FresnelParameters, Mesh, MeshBuilder, StandardMaterial, Texture } from '@babylonjs/core';
-import type { CubeContent, CubeSnapshot } from '@world/shared';
+import { CUBE_COLORS, type CubeContent, type CubeSnapshot } from '@world/shared';
 import { createShadowBlob } from './Avatar';
 import type { Engine } from './Engine';
 
@@ -16,13 +16,14 @@ export class CubeMesh {
   private readers = 0;
   private time = Math.random() * 10;
 
-  constructor(engine: Engine, readonly content: CubeContent) {
+  constructor(engine: Engine, readonly content: CubeContent, index: number) {
     const scene = engine.scene;
+    const color = CUBE_COLORS[index % CUBE_COLORS.length];
     this.mesh = MeshBuilder.CreateBox(`cube-${content.id}`, { size: SIZE, wrap: true }, scene);
     this.material = new StandardMaterial(`mat-${content.id}`, scene);
-    this.baseColor = Color3.FromHexString(content.glowColor);
-    this.material.diffuseColor = this.baseColor;
-    this.material.emissiveColor = this.baseColor.scale(0.55);
+    this.baseColor = Color3.FromHexString(color);
+    this.material.diffuseColor = Color3.Lerp(Color3.White(), this.baseColor, 0.35);
+    this.material.emissiveColor = this.baseColor.scale(0.45);
     this.material.specularColor = new Color3(0.15, 0.15, 0.15);
     this.material.specularPower = 24;
     if (content.logo) {
@@ -34,15 +35,14 @@ export class CubeMesh {
     const fresnel = new FresnelParameters();
     fresnel.bias = 0.2;
     fresnel.power = 2.5;
-    fresnel.leftColor = Color3.FromHexString(content.borderColor ?? '#ffffff');
+    fresnel.leftColor = this.baseColor;
     fresnel.rightColor = Color3.Black();
     this.material.emissiveFresnelParameters = fresnel;
     this.mesh.material = this.material;
 
-    const border = Color3.FromHexString(content.borderColor ?? '#ffffff');
     this.mesh.enableEdgesRendering();
     this.mesh.edgesWidth = 4;
-    this.mesh.edgesColor.set(border.r, border.g, border.b, 1);
+    this.mesh.edgesColor.set(this.baseColor.r, this.baseColor.g, this.baseColor.b, 1);
     engine.glowLayer.addIncludedOnlyMesh(this.mesh);
 
     this.shadow = createShadowBlob(engine, `cube-shadow-${content.id}`, 2.6);
