@@ -10,16 +10,16 @@ import subprocess
 import modal
 
 from .common import app, room_image
-from .config import ROOM_PORT, MAX_SESSIONS_PER_CONTAINER
+from .config import ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
 
 
 @app.server(
     image=room_image,
     port=ROOM_PORT,
+    target_concurrency=TARGET_SESSIONS_PER_CONTAINER,
     max_concurrency=MAX_SESSIONS_PER_CONTAINER,
-    # Starting a session needs a container to land on and does not scale the Server up from zero,
-    # so keep one warm. Costs an idle container.
-    min_containers=1,
+    min_containers=1, # keep startup kinda warm
+    max_containers=10, # guard against runaway scaling
     startup_timeout=120,
     exit_grace_period=30,
 )
