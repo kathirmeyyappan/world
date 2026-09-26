@@ -17,7 +17,10 @@ from .config import ROOM_PORT, ROOM_TARGET_CONCURRENCY
     image=room_image,
     port=ROOM_PORT,
     target_concurrency=ROOM_TARGET_CONCURRENCY,
-    startup_timeout=60,
+    # Starting a session needs a container to land on and does not scale the Server up from zero,
+    # so keep one warm. Costs an idle container.
+    min_containers=1,
+    startup_timeout=120,
     exit_grace_period=30,
 )
 @modal.sessioned()
