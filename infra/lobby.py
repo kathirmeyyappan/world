@@ -2,7 +2,9 @@
 
 POST /api/rooms/{id} looks the room up in a Dict, starts a session on the Room server if there is
 none (or the caller asks for a fresh one), and returns the WebSocket URL plus the session token.
-The lobby is the only component that ever holds proxy auth.
+The lobby is the only component that ever holds proxy auth. `Room` is referenced directly rather
+than via `Server.from_name` so the same code works under `modal serve` (ephemeral app) and
+`modal deploy`.
 """
 
 import re
@@ -10,7 +12,8 @@ import re
 import modal
 
 from .common import app, lobby_image, rooms
-from .config import ALLOWED_ORIGINS, APP_NAME, SESSION_IDLE_TIMEOUT
+from .config import ALLOWED_ORIGINS, SESSION_IDLE_TIMEOUT
+from .room import Room
 
 ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
 
@@ -19,8 +22,6 @@ def build_api():
     from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
-
-    room_server = modal.Server.from_name(APP_NAME, "Room")
 
     class JoinRequest(BaseModel):
         fresh: bool = False
@@ -35,10 +36,10 @@ def build_api():
         fresh = bool(body and body.fresh)
         entry = None if fresh else await rooms.get.aio(room_id)
         if entry is None:
-            session = await room_server.sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
+            session = await Room.sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
             entry = {"session_id": session.session_id, "token": session.token}
             await rooms.put.aio(room_id, entry)
-        url = await room_server.get_url.aio()
+        url = await Room.get_url.aio()
         ws_url = re.sub(r"^http", "ws", url.rstrip("/")) + "/ws"
         return {"room_id": room_id, "ws_url": ws_url, "token": entry["token"]}
 
