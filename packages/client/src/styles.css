@@ -136,6 +136,7 @@ html, body {
   font: 16px var(--mono); color: rgba(255,255,255,0.55); letter-spacing: 1px;
 }
 #minimap-view { font: 9px var(--pixel); color: var(--accent-soft); }
+#minimap-coords { color: rgba(255,255,255,0.8); }
 #minimap kbd { background: rgba(100,181,246,0.2); border: 1px solid rgba(100,181,246,0.5); padding: 0 5px; font-family: inherit; }
 
 #instructions {

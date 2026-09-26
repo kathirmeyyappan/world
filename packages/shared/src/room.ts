@@ -12,12 +12,12 @@ import {
   PLAYER_COLORS,
   TICK_DT,
   TICK_RATE,
-  WORLD_RADIUS,
 } from './sim/constants';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState } from './sim/types';
+import { WORLD_SHAPE, type WorldPart } from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
@@ -35,14 +35,14 @@ interface Seat {
 
 export interface RoomOptions {
   seed?: number;
-  worldRadius?: number;
+  worldShape?: WorldPart[];
   onEmpty?: () => void;
   log?: (msg: string) => void;
 }
 
 export class Room {
   readonly id: string;
-  readonly worldRadius: number;
+  readonly worldShape: WorldPart[];
   tick = 0;
 
   private readonly seats = new Map<string, Seat>();
@@ -55,9 +55,9 @@ export class Room {
 
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
-    this.worldRadius = opts.worldRadius ?? WORLD_RADIUS;
+    this.worldShape = opts.worldShape ?? WORLD_SHAPE;
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
-    this.cubes = createCubes(CUBE_IDS, this.worldRadius, this.rng);
+    this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
     this.onEmpty = opts.onEmpty;
     this.log = opts.log ?? (() => {});
   }
@@ -131,13 +131,13 @@ export class Room {
     for (const seat of this.seats.values()) {
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
-        stepPlayer(seat.state, null, TICK_DT, this.worldRadius);
+        stepPlayer(seat.state, null, TICK_DT, this.worldShape);
         continue;
       }
-      for (let i = 0; i < n; i++) stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldRadius);
+      for (let i = 0; i < n; i++) stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape);
       seat.queue.splice(0, n);
     }
-    stepCubes(this.cubes, TICK_DT, this.worldRadius, this.rng);
+    stepCubes(this.cubes, TICK_DT, this.worldShape, this.rng);
     this.tick++;
     this.broadcast({ t: 'snap', tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
   }

@@ -1,11 +1,13 @@
 // A billboard in the sky for one SkyContent entry. Placement, size and glow are uniform here;
 // the content file only knows the image and the line it says.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, Texture, Vector3 } from '@babylonjs/core';
-import type { Rng, SkyContent } from '@world/shared';
+import { worldBounds, worldDistance, type Rng, type SkyContent, type WorldPart } from '@world/shared';
 import type { Engine } from './Engine';
 
 const BASE_SIZE = 22;
 const MIN_SPACING = 60;
+const MIN_OUTSIDE = 15; // metres beyond the edge, so nothing floats over the playable floor
+const MAX_OUTSIDE = 85;
 
 export class SkyObject {
   readonly mesh: Mesh;
@@ -47,16 +49,20 @@ export class SkyObject {
   }
 }
 
-// Spread the objects around the sky, well apart, at a distance where they read as scenery.
-// Driven by a seeded rng so everyone in a room sees the same sky.
-export function placeSkyObjects(engine: Engine, contents: SkyContent[], worldRadius: number, rng: Rng): SkyObject[] {
+// Spread the objects around the sky beyond the world's edge, well apart, at a distance where
+// they read as scenery. Driven by a seeded rng so everyone in a room sees the same sky.
+export function placeSkyObjects(engine: Engine, contents: SkyContent[], shape: WorldPart[], rng: Rng): SkyObject[] {
   const placed: Vector3[] = [];
+  const b = worldBounds(shape);
+  const pad = MAX_OUTSIDE;
   return contents.map((content) => {
     let position = Vector3.Zero();
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const angle = rng() * Math.PI * 2;
-      const distance = worldRadius * 1.2 + rng() * worldRadius * 1.5;
-      position = new Vector3(Math.cos(angle) * distance, 25 + rng() * 45, Math.sin(angle) * distance);
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const x = b.minX - pad + rng() * (b.maxX - b.minX + pad * 2);
+      const z = b.minZ - pad + rng() * (b.maxZ - b.minZ + pad * 2);
+      const outside = worldDistance(x, z, shape);
+      if (outside < MIN_OUTSIDE || outside > MAX_OUTSIDE) continue;
+      position = new Vector3(x, 25 + rng() * 45, z);
       if (placed.every((p) => Vector3.Distance(p, position) >= MIN_SPACING)) break;
     }
     placed.push(position);

@@ -1,8 +1,10 @@
 // Bottom-right minimap. Two views: NEAR keeps you centred and rotates so you always face up;
 // WORLD shows the whole outline north-up. The floor and outline are drawn per pixel from the
-// world's signed distance, so any union-of-discs shape draws correctly with no path maths.
-// Markers (cubes, players, you) go on top with plain canvas calls. Desktop only; see styles.css.
-import { worldBounds, worldDistance, type Disc } from '@world/shared';
+// world's signed distance, so any shape made of discs and bridges draws correctly with no path maths.
+// Markers (cubes, players, you) go on top with plain canvas calls, and your world x, z is shown
+// under the map: the same coordinates the sim, the wire protocol and WORLD_SHAPE use.
+// Desktop only; see styles.css.
+import { worldBounds, worldDistance, type WorldPart } from '@world/shared';
 
 export interface MinimapFrame {
   me: { x: number; z: number; yaw: number };
@@ -22,12 +24,13 @@ export class Minimap {
   private readonly root = document.getElementById('minimap')!;
   private readonly canvas = document.getElementById('minimap-canvas') as HTMLCanvasElement;
   private readonly label = document.getElementById('minimap-view')!;
+  private readonly coords = document.getElementById('minimap-coords')!;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly image: ImageData;
   private view: MinimapView = 'near';
   private readonly bounds;
 
-  constructor(private readonly shape: Disc[]) {
+  constructor(private readonly shape: WorldPart[]) {
     this.canvas.width = SIZE;
     this.canvas.height = SIZE;
     this.ctx = this.canvas.getContext('2d')!;
@@ -51,6 +54,7 @@ export class Minimap {
 
   update(frame: MinimapFrame): void {
     if (!this.active) return;
+    this.coords.textContent = `${frame.me.x.toFixed(0)}, ${frame.me.z.toFixed(0)}`;
     const t = this.transform(frame.me);
     this.drawFloor(t);
     this.ctx.putImageData(this.image, 0, 0);
