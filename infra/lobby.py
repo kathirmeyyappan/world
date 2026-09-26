@@ -22,12 +22,17 @@ ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
 
 
 def room_server() -> modal.Server:
-    """Handle to the Room server without importing its module."""
+    """Handle to the Room server without importing its module.
+
+    `Server.from_id` with the id Modal hands this container works for ephemeral (`modal serve`)
+    and deployed apps alike, but only newer clients have it; older ones fall back to a lookup by
+    name, which needs the app to be deployed."""
     from modal.app import _App
 
     container_app = _App._get_container_app()
-    if container_app is not None and container_app._running_app is not None:
-        return modal.Server.from_id(container_app._running_app.function_ids["Room"])
+    running = container_app._running_app if container_app is not None else None
+    if running is not None and hasattr(modal.Server, "from_id"):
+        return modal.Server.from_id(running.function_ids["Room"])
     return modal.Server.from_name(APP_NAME, "Room")
 
 
