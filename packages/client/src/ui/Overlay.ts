@@ -1,4 +1,5 @@
-// The info card that opens when you click a cube. While open, `reading` is the cube id so the
+// The info card that opens when you click a cube. Closes on Q or a click outside the card; opening
+// it releases the pointer lock so the mouse is usable. While open, `reading` is the cube id so the
 // server can tell everyone else you're looking at it.
 import type { CubeContent } from '@world/shared';
 
@@ -8,12 +9,11 @@ export class Overlay {
   reading: string | null = null;
 
   constructor() {
-    this.card.querySelector('.close-btn')?.addEventListener('click', () => this.hide());
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) this.hide();
     });
     window.addEventListener('keydown', (e) => {
-      if (this.isVisible() && (e.code === 'KeyQ' || e.code === 'KeyX' || e.code === 'Escape')) this.hide();
+      if (this.isVisible() && e.code === 'KeyQ') this.hide();
     });
   }
 
@@ -38,6 +38,7 @@ export class Overlay {
     desc.appendChild(ul);
     this.reading = info.id;
     this.overlay.classList.add('visible');
+    if (document.pointerLockElement) document.exitPointerLock();
   }
 
   hide(): void {

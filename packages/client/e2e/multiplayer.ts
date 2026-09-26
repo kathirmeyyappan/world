@@ -78,8 +78,8 @@ async function main() {
     const bobState = await debug(bob);
     const yaw = Math.atan2(after.pos.x - bobState.pos.x, after.pos.z - bobState.pos.z);
     await bob.evaluate((y) => {
-      const w = window as unknown as { __world: { setYaw?: (y: number) => void } };
-      w.__world.setYaw?.(y);
+      const w = window as unknown as { __world: { setLook?: (y: number) => void } };
+      w.__world.setLook?.(y);
     }, yaw);
     await alice.keyboard.press('Enter');
     await alice.keyboard.type('hi bob');

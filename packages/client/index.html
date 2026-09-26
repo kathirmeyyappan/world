@@ -21,11 +21,14 @@
       <div id="hud">
         <div class="panel" id="room-panel">
           <div class="room-line">
+            <button id="panel-toggle" title="show or hide players" aria-expanded="true">▾</button>
             <span class="label">ROOM</span>
             <button id="room-code" title="copy invite link"></button>
           </div>
-          <ul id="player-list"></ul>
-          <div class="ping-line"><span class="label">PING</span> <span id="ping">--</span></div>
+          <div id="panel-body">
+            <ul id="player-list"></ul>
+            <div class="ping-line"><span class="label">PING</span> <span id="ping">--</span></div>
+          </div>
         </div>
         <div id="chat">
           <ul id="chat-log"></ul>
@@ -36,13 +39,12 @@
 
       <div id="info-overlay" translate="yes">
         <div id="info-card" translate="yes">
-          <button class="close-btn" translate="no">&times;</button>
           <img class="logo" src="" alt="Logo" translate="no" />
           <div class="h1" translate="yes"></div>
           <div class="h2" translate="yes"></div>
           <div class="h3" translate="yes"></div>
           <div class="description" translate="yes"></div>
-          <div class="close-hint" translate="yes">Press <kbd translate="no">Q</kbd> to close</div>
+          <div class="close-hint" translate="yes">Press <kbd translate="no">Q</kbd> or click outside to close</div>
         </div>
       </div>
 

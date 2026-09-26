@@ -208,8 +208,9 @@ export class Game {
   }
 
   // Exposed for the end-to-end test.
-  setYaw(yaw: number): void {
+  setLook(yaw: number, pitch = 0): void {
     this.input.yaw = yaw;
+    this.input.pitch = pitch;
   }
 
   debug(): { id: string; pos: { x: number; y: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[] } {

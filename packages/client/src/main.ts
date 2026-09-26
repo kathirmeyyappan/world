@@ -4,7 +4,7 @@ import { forgetRoom } from './net/lobby';
 
 declare global {
   interface Window {
-    __world?: { debug: () => unknown; setYaw: (yaw: number) => void };
+    __world?: { debug: () => unknown; setLook: (yaw: number, pitch?: number) => void };
   }
 }
 
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
     document.getElementById('disconnected-reason')!.textContent = reason;
     document.getElementById('disconnected')!.classList.remove('hidden');
   });
-  window.__world = { debug: () => game.debug(), setYaw: (yaw) => game.setYaw(yaw) };
+  window.__world = { debug: () => game.debug(), setLook: (yaw, pitch) => game.setLook(yaw, pitch) };
   document.getElementById('disconnected-home')!.addEventListener('click', () => {
     forgetRoom();
     location.href = location.pathname;
