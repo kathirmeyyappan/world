@@ -10,6 +10,10 @@ export const GRAVITY = 20;
 export const JUMP_VELOCITY = 8;
 export const MAX_PITCH = Math.PI / 2 - 0.1;
 
+// /speedy: temporary movement multiplier, counted down by the sim so prediction matches.
+export const SPEEDY_MULTIPLIER = 1.8;
+export const SPEEDY_SECONDS = 20;
+
 // How far behind the newest snapshot remote players are rendered. Higher hides jitter, costs latency.
 export const INTERP_DELAY_TICKS = 3;
 // Inputs a server tick will consume from one player's queue. >1 lets a lagging client catch up.

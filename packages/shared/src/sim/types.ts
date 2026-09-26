@@ -15,6 +15,7 @@ export interface PlayerState {
   pitch: number;
   lastSeq: number;
   reading: string | null;
+  boost: number; // seconds of /speedy left, 0 when normal
 }
 
 // One tick of intent from a client. Look is client-authoritative; movement is not.

@@ -1,6 +1,6 @@
 // Player movement. Runs identically on the server (authoritative) and the client (prediction),
 // so it must stay pure: no Babylon, no DOM, no time reads.
-import { EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PLAYER_PADDING } from './constants';
+import { EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PLAYER_PADDING, SPEEDY_MULTIPLIER } from './constants';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, clampToWorld, type WorldPart } from './world';
 
@@ -15,6 +15,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     pitch: 0,
     lastSeq: 0,
     reading: null,
+    boost: 0,
   };
 }
 
@@ -36,6 +37,9 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
     if (input.jump && isGrounded(p)) p.vy = JUMP_VELOCITY;
   }
 
+  const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1);
+  p.boost = Math.max(0, p.boost - dt);
+
   p.vy -= GRAVITY * dt;
   p.pos.y += p.vy * dt;
   if (p.pos.y < EYE_HEIGHT) {
@@ -53,8 +57,8 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
       dx /= len;
       dz /= len;
     }
-    p.pos.x += dx * MOVE_SPEED * dt;
-    p.pos.z += dz * MOVE_SPEED * dt;
+    p.pos.x += dx * speed * dt;
+    p.pos.z += dz * speed * dt;
     clampToWorld(p.pos, PLAYER_PADDING, shape);
   }
 }
