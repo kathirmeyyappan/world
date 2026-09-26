@@ -31,11 +31,24 @@ def room_server() -> modal.Server:
     return modal.Server.from_name(APP_NAME, "Room")
 
 
-async def room_entry(room_id: str, fresh: bool) -> dict:
-    """Get or create a room entry for given room id"""
+async def session_alive(room_url: str, token: str) -> bool:
+    """One authenticated request to the Room host. The proxy rejects tokens for sessions that idled
+    out, expired, or belonged to a previous deployment."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.get(f"{room_url}/healthz", headers={"Modal-Authorization": f"Bearer {token}"})
+        return res.status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
+async def room_entry(room_id: str, room_url: str, fresh: bool) -> dict:
+    """Get the room's session, starting a new one if there is none or the cached one is dead."""
     if not fresh:
         entry = await rooms.get.aio(room_id)
-        if entry is not None:
+        if entry is not None and await session_alive(room_url, entry["token"]):
             return entry
     session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
     entry = {"session_id": session.session_id, "token": session.token}
@@ -57,8 +70,8 @@ def build_api():
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
-        entry = await room_entry(room_id, fresh)
         room_url = (await room_server().get_url.aio()).rstrip("/")
+        entry = await room_entry(room_id, room_url, fresh)
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         query = urlencode(
             {"modal_session_token": entry["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
