@@ -158,8 +158,11 @@ html, body {
 #info-card .description ul { padding-left: 0; list-style: none; }
 #info-card .description li { margin-bottom: 8px; padding-left: 18px; position: relative; }
 #info-card .description li::before { content: '>'; position: absolute; left: 0; color: var(--accent); }
-#info-card .close-hint { padding: 10px 20px 14px; font: 18px var(--mono); color: rgba(255,255,255,0.55); text-align: right; letter-spacing: 1px; }
-#info-card .close-hint kbd { background: var(--accent); color: #05070c; padding: 1px 7px; font: 10px var(--pixel); margin-right: 8px; vertical-align: middle; }
+#info-card .close-hint { padding: 10px 20px 14px; font: 18px var(--mono); color: rgba(255,255,255,0.8); text-align: right; letter-spacing: 1px; }
+#info-card .close-hint kbd {
+  display: inline-block; min-width: 26px; text-align: center; margin: 0 6px; padding: 2px 6px 0;
+  background: var(--accent); color: #05070c; font: 13px/16px var(--pixel); border-bottom: 3px solid #2f6db3; vertical-align: middle;
+}
 #info-card .cursor { display: inline-block; margin-left: 4px; color: var(--accent); animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
