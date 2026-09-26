@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, SKY_OBJECTS, TICK_DT, WORLD_RADIUS, createRng, hashSeed,
+  CUBES, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, createRng, hashSeed,
   type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -17,6 +17,7 @@ import { Environment } from '../render/Environment';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
 import { Hud } from '../ui/Hud';
+import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { Pins } from '../ui/Pins';
 
@@ -41,6 +42,7 @@ export class Game {
   private readonly avatars = new Map<string, Avatar>();
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
+  private readonly minimap = new Minimap(WORLD_SHAPE);
   private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
@@ -58,13 +60,13 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas);
-    this.environment = new Environment(this.engine, WORLD_RADIUS);
+    this.environment = new Environment(this.engine, WORLD_SHAPE);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
 
-    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_RADIUS, createRng(hashSeed(roomId)))) this.skyByMesh.set(sky.mesh.name, sky);
+    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(roomId)))) this.skyByMesh.set(sky.mesh.name, sky);
 
     CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);
@@ -77,10 +79,12 @@ export class Game {
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => conn.send({ t: 'chat', text });
     this.hud.onChatOpenChange = () => this.syncBlocked();
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyP' && !this.isBlocked()) this.minimap.toggle();
+    });
     canvas.addEventListener('click', () => {
       if (this.isBlocked()) return;
       if (this.hovered) this.overlay.show(this.hovered.content);
-      else if (this.hoveredSky) this.bubble.say(this.hoveredSky.content.line, this.hoveredSky.anchor());
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -113,7 +117,7 @@ export class Game {
       case 'welcome': {
         this.myId = m.id;
         const me = m.players.find((p) => p.id === m.id)!;
-        this.prediction = new Prediction(me, WORLD_RADIUS);
+        this.prediction = new Prediction(me, WORLD_SHAPE);
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
         this.interp.push(m.tick, m.players, m.cubes, now);
@@ -199,6 +203,7 @@ export class Game {
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
+    this.minimap.update({ me: { x: p.x, z: p.z, yaw: this.input.yaw }, players: sampled.players, cubes: sampled.cubes });
 
     this.updateHover();
     for (const cs of sampled.cubes) {
@@ -229,6 +234,8 @@ export class Game {
       this.hoveredSky?.setHovered(false);
       nextSky?.setHovered(true);
       this.hoveredSky = nextSky;
+      if (nextSky) this.bubble.hover(nextSky.content.line, nextSky.anchor());
+      else this.bubble.release();
     }
     this.hud.setCrosshairHot(!!nextCube || !!nextSky);
   }
