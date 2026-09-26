@@ -2,6 +2,8 @@
 // it releases the pointer lock so the mouse is usable. While open, `reading` is the cube id so the
 // server can tell everyone else you're looking at it.
 import type { CubeContent } from '@world/shared';
+import { LOGO_PIXELS } from '../render/CubeMesh';
+import { loadPixelated } from '../render/pixelate';
 
 export class Overlay {
   private readonly overlay = document.getElementById('info-overlay')!;
@@ -18,11 +20,15 @@ export class Overlay {
   }
 
   show(info: CubeContent): void {
-    const logo = this.card.querySelector('.logo') as HTMLImageElement;
+    const logo = this.card.querySelector('.logo') as HTMLCanvasElement;
     logo.style.display = info.logo ? 'block' : 'none';
+    const ctx = logo.getContext('2d')!;
+    ctx.clearRect(0, 0, logo.width, logo.height);
     if (info.logo) {
-      logo.src = info.logo;
-      logo.alt = `${info.h1} logo`;
+      const url = info.logo;
+      loadPixelated(url, LOGO_PIXELS).then((canvas) => {
+        if (this.reading === info.id) ctx.drawImage(canvas, 0, 0);
+      });
     }
     this.setText('.h1', info.h1);
     this.setText('.h2', info.h2);

@@ -127,7 +127,7 @@ html, body {
   box-shadow: 0 0 0 2px rgba(0,0,0,0.8), 0 0 20px rgba(100,181,246,0.3), inset 0 0 20px rgba(100,181,246,0.1);
   image-rendering: pixelated;
 }
-#info-card .logo { width: 80px; height: 80px; object-fit: contain; margin-bottom: 16px; border: 2px solid var(--accent); background: rgba(255,255,255,0.05); padding: 8px; }
+#info-card .logo { width: 80px; height: 80px; margin-bottom: 16px; border: 2px solid var(--accent); background: #fff; padding: 0; image-rendering: pixelated; display: block; }
 #info-card .h1 { font-size: 22px; margin-bottom: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); text-shadow: 2px 2px 0 rgba(0,0,0,0.8); }
 #info-card .h2 { font-size: 14px; color: var(--accent-soft); margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
 #info-card .h3 { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 16px; font-weight: bold; }

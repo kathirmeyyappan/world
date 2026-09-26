@@ -59,8 +59,8 @@ export class Game {
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
 
-    CUBES.forEach((content, i) => {
-      const cube = new CubeMesh(this.engine, content, i);
+    CUBES.forEach((content) => {
+      const cube = new CubeMesh(this.engine, content);
       this.cubes.set(content.id, cube);
       this.cubeByMesh.set(cube.mesh.name, cube);
     });

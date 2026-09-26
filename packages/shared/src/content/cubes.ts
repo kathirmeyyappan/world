@@ -1,5 +1,4 @@
 // Content for the info cubes. Edit here; both the client card and the server's cube list read it.
-// Colours are not per cube: the client assigns them from CUBE_COLORS by index.
 export interface CubeContent {
   id: string;
   h1: string;
