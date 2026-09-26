@@ -11,7 +11,7 @@ export const JUMP_VELOCITY = 8;
 export const MAX_PITCH = Math.PI / 2 - 0.1;
 
 // /speedy: temporary movement multiplier, counted down by the sim so prediction matches.
-export const SPEEDY_MULTIPLIER = 1.5;
+export const SPEEDY_MULTIPLIER = 1.8;
 export const SPEEDY_SECONDS = 20;
 
 // How far behind the newest snapshot remote players are rendered. Higher hides jitter, costs latency.
