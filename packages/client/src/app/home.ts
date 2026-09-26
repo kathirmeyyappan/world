@@ -3,7 +3,7 @@
 // Resolves with a live Connection. Also honours ?room=&name= for invite links and tests.
 import { isValidRoomId, sanitizeName } from '@world/shared';
 import { LocalConnection, type Connection } from '../net/Connection';
-import { LobbyUnavailableError, SERVED_BY_ROOM_HOST, joinRoom, rememberRoom, rememberedRoom } from '../net/lobby';
+import { LobbyUnavailableError, SERVED_BY_ROOM_HOST, joinRoom, rememberRoom, rememberedRoom, warmLobby } from '../net/lobby';
 
 export interface HomeResult {
   connection: Connection;
@@ -104,6 +104,7 @@ export function showHome(): Promise<HomeResult> {
     } else if (params.get('offline') !== null) offlineBtn.click();
     else {
       showForm();
+      if (!SERVED_BY_ROOM_HOST) warmLobby();
       (nameInput.value ? roomInput : nameInput).focus();
     }
   });
