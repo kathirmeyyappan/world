@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, SKY_OBJECTS, TICK_DT, WORLD_RADIUS,
+  CUBES, SKY_OBJECTS, TICK_DT, WORLD_RADIUS, createRng, hashSeed,
   type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -64,7 +64,7 @@ export class Game {
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
 
-    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_RADIUS)) this.skyByMesh.set(sky.mesh.name, sky);
+    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_RADIUS, createRng(hashSeed(roomId)))) this.skyByMesh.set(sky.mesh.name, sky);
 
     CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);

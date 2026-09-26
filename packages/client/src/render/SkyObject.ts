@@ -1,7 +1,7 @@
 // A billboard in the sky for one SkyContent entry. Placement, size and glow are uniform here;
 // the content file only knows the image and the line it says.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, Texture, Vector3 } from '@babylonjs/core';
-import type { SkyContent } from '@world/shared';
+import type { Rng, SkyContent } from '@world/shared';
 import type { Engine } from './Engine';
 
 const BASE_SIZE = 22;
@@ -48,14 +48,15 @@ export class SkyObject {
 }
 
 // Spread the objects around the sky, well apart, at a distance where they read as scenery.
-export function placeSkyObjects(engine: Engine, contents: SkyContent[], worldRadius: number): SkyObject[] {
+// Driven by a seeded rng so everyone in a room sees the same sky.
+export function placeSkyObjects(engine: Engine, contents: SkyContent[], worldRadius: number, rng: Rng): SkyObject[] {
   const placed: Vector3[] = [];
   return contents.map((content) => {
     let position = Vector3.Zero();
     for (let attempt = 0; attempt < 100; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = worldRadius * 1.2 + Math.random() * worldRadius * 1.5;
-      position = new Vector3(Math.cos(angle) * distance, 25 + Math.random() * 45, Math.sin(angle) * distance);
+      const angle = rng() * Math.PI * 2;
+      const distance = worldRadius * 1.2 + rng() * worldRadius * 1.5;
+      position = new Vector3(Math.cos(angle) * distance, 25 + rng() * 45, Math.sin(angle) * distance);
       if (placed.every((p) => Vector3.Distance(p, position) >= MIN_SPACING)) break;
     }
     placed.push(position);
