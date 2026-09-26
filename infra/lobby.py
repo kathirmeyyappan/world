@@ -1,4 +1,4 @@
-"""The lobby: turns a room id into a session on the Room server and sends the browser there.
+"""Lobby turns a room id into a session (which lives on Room server) and sends the browser there.
 
 GET /join/{id} looks the room up in a Dict, starts a session if there is none (or ?fresh=1), and
 redirects to the Room server with the token in the query string. The proxy answers that with a
@@ -21,11 +21,14 @@ ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
 
 
 async def room_entry(room_id: str, fresh: bool) -> dict:
-    entry = None if fresh else await rooms.get.aio(room_id)
-    if entry is None:
-        session = await Room.sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
-        entry = {"session_id": session.session_id, "token": session.token}
-        await rooms.put.aio(room_id, entry)
+    """Get or create a room entry for given room id"""
+    if not fresh:
+        entry = await rooms.get.aio(room_id)
+        if entry is not None:
+            return entry
+    session = await Room.sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
+    entry = {"session_id": session.session_id, "token": session.token}
+    await rooms.put.aio(room_id, entry)
     return entry
 
 
@@ -39,6 +42,7 @@ def build_api():
 
     @api.get("/join/{room_id}")
     async def join(room_id: str, name: str = "", fresh: bool = False):
+        """Join a room, creating one if necessary"""
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
