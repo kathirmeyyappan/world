@@ -25,6 +25,7 @@ const HOVER_RANGE = 50;
 
 export class Game {
   private readonly engine: Engine;
+  private readonly environment: Environment;
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
@@ -49,7 +50,7 @@ export class Game {
     private readonly onDisconnect: (reason: string) => void,
   ) {
     this.engine = new Engine(canvas);
-    new Environment(this.engine, WORLD_RADIUS);
+    this.environment = new Environment(this.engine, WORLD_RADIUS);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = 1.2;
@@ -167,6 +168,8 @@ export class Game {
     const p = this.prediction.state.pos;
     this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
     this.camera.rotation.set(this.input.pitch, this.input.yaw, 0);
+
+    this.environment.update(dt, this.camera.position);
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();

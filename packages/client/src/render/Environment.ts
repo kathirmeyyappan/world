@@ -1,57 +1,93 @@
-// Static scenery: the neon grid ground, the red dome at the world edge, and billboards in the sky.
-import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, Vector3 } from '@babylonjs/core';
-import type { Engine } from './Engine';
+// Static scenery: shader-drawn grid floor, gradient sky with stars, a boundary wall that only
+// shows up when you get close, and a few billboards in the sky. No textures, no lights needed.
+import {
+  Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, StandardMaterial, Texture, Vector3,
+} from '@babylonjs/core';
+import { Engine, FOG_COLOR } from './Engine';
+import {
+  GROUND_FRAGMENT, GROUND_VERTEX, SKY_FRAGMENT, SKY_VERTEX, WALL_FRAGMENT, WALL_VERTEX,
+} from './shaders';
 
 const SKY_OBJECTS = [
-  { image: 'moon.png', size: 20, glow: new Color3(0.8, 0.8, 0.8) },
-  { image: 'mugiwara.png', size: 30, glow: new Color3(0.7, 0.7, 0.7) },
-  { image: 'patriots.png', size: 25, glow: new Color3(0.5, 0.5, 0.5) },
-  { image: 'drake_maye.png', size: 30, glow: new Color3(0.3, 0.3, 0.3) },
+  { image: 'moon.png', size: 18, glow: 0.9 },
+  { image: 'mugiwara.png', size: 24, glow: 0.6 },
+  { image: 'patriots.png', size: 20, glow: 0.5 },
+  { image: 'drake_maye.png', size: 24, glow: 0.35 },
 ];
 
+const WALL_REVEAL_DISTANCE = 9;
+
 export class Environment {
+  private readonly materials: ShaderMaterial[] = [];
+  private time = 0;
+
   constructor(private readonly engine: Engine, private readonly radius: number) {
+    Effect.ShadersStore['worldGroundVertexShader'] = GROUND_VERTEX;
+    Effect.ShadersStore['worldGroundFragmentShader'] = GROUND_FRAGMENT;
+    Effect.ShadersStore['worldSkyVertexShader'] = SKY_VERTEX;
+    Effect.ShadersStore['worldSkyFragmentShader'] = SKY_FRAGMENT;
+    Effect.ShadersStore['worldWallVertexShader'] = WALL_VERTEX;
+    Effect.ShadersStore['worldWallFragmentShader'] = WALL_FRAGMENT;
     this.createGround();
-    this.createDome();
+    this.createSky();
+    this.createWall();
     this.createSkyObjects();
   }
 
   private createGround(): void {
     const scene = this.engine.scene;
-    const make = (name: string, r: number, y: number, dim: boolean) => {
-      const disc = MeshBuilder.CreateDisc(name, { radius: r, tessellation: 128 }, scene);
-      disc.rotation.x = Math.PI / 2;
-      disc.position.y = y;
-      disc.isPickable = false;
-      const mat = new StandardMaterial(`${name}Mat`, scene);
-      mat.diffuseColor = new Color3(0.3, 0.5, 0.35);
-      mat.specularColor = Color3.Black();
-      mat.roughness = 1;
-      mat.diffuseTexture = this.gridTexture(`${name}Grid`, 2048, r, dim ? 'rgba(200, 255, 120, 0.3)' : 'rgba(220, 255, 140, 0.6)', '#1a3a20', 2);
-      disc.material = mat;
-    };
-    make('ground', this.radius * 2, 0.01, false);
-    make('extendedGround', this.radius * 10, -0.01, true);
+    const size = this.radius * 12;
+    const ground = MeshBuilder.CreateGround('ground', { width: size, height: size, subdivisions: 1 }, scene);
+    ground.isPickable = false;
+    const mat = new ShaderMaterial('groundMat', scene, 'worldGround', {
+      attributes: ['position'],
+      uniforms: ['world', 'worldViewProjection', 'cameraPos', 'lineColor', 'majorColor', 'floorColor', 'fogColor', 'playRadius', 'time'],
+    });
+    mat.setColor3('lineColor', new Color3(0.2, 0.9, 0.5));
+    mat.setColor3('majorColor', new Color3(0.45, 1.0, 0.7));
+    mat.setColor3('floorColor', new Color3(0.03, 0.06, 0.05));
+    mat.setColor3('fogColor', FOG_COLOR);
+    mat.setFloat('playRadius', this.radius);
+    mat.backFaceCulling = false;
+    ground.material = mat;
+    this.materials.push(mat);
   }
 
-  private createDome(): void {
+  private createSky(): void {
     const scene = this.engine.scene;
-    const domeRadius = this.radius * 1.1;
-    const dome = MeshBuilder.CreateSphere('dome', { diameter: domeRadius * 2, segments: 64, slice: 0.5 }, scene);
-    dome.position.y = -domeRadius * 0.41;
-    dome.isPickable = false;
-    const mat = new StandardMaterial('domeMat', scene);
-    mat.diffuseColor = new Color3(0.4, 0.1, 0.15);
-    mat.emissiveColor = new Color3(0.6, 0.2, 0.25);
-    mat.specularColor = Color3.Black();
-    mat.roughness = 1;
-    mat.alpha = 0.5;
+    const sky = MeshBuilder.CreateSphere('sky', { diameter: this.radius * 30, segments: 16, sideOrientation: Mesh.BACKSIDE }, scene);
+    sky.isPickable = false;
+    sky.infiniteDistance = true;
+    sky.applyFog = false;
+    const mat = new ShaderMaterial('skyMat', scene, 'worldSky', {
+      attributes: ['position'],
+      uniforms: ['worldViewProjection', 'fogColor', 'zenithColor', 'horizonColor', 'time'],
+    });
+    mat.setColor3('fogColor', FOG_COLOR);
+    mat.setColor3('zenithColor', new Color3(0.01, 0.01, 0.04));
+    mat.setColor3('horizonColor', new Color3(0.12, 0.03, 0.14));
     mat.backFaceCulling = false;
-    const tex = this.gridTexture('domeGrid', 512, this.radius, 'rgba(255, 100, 100, 1.0)', 'rgba(40, 10, 15, 0.15)', 1, 1.5, 4.5);
-    tex.hasAlpha = true;
-    mat.diffuseTexture = tex;
-    mat.useAlphaFromDiffuseTexture = true;
-    dome.material = mat;
+    mat.disableDepthWrite = true;
+    sky.material = mat;
+    this.materials.push(mat);
+  }
+
+  private createWall(): void {
+    const scene = this.engine.scene;
+    const wall = MeshBuilder.CreateCylinder('wall', { diameter: this.radius * 2, height: 16, tessellation: 96, cap: Mesh.NO_CAP }, scene);
+    wall.position.y = 8;
+    wall.isPickable = false;
+    const mat = new ShaderMaterial('wallMat', scene, 'worldWall', {
+      attributes: ['position'],
+      uniforms: ['world', 'worldViewProjection', 'cameraPos', 'wallColor', 'revealDistance', 'time'],
+      needAlphaBlending: true,
+    });
+    mat.setColor3('wallColor', new Color3(1.0, 0.25, 0.35));
+    mat.setFloat('revealDistance', WALL_REVEAL_DISTANCE);
+    mat.backFaceCulling = false;
+    mat.disableDepthWrite = true;
+    wall.material = mat;
+    this.materials.push(mat);
   }
 
   private createSkyObjects(): void {
@@ -61,14 +97,14 @@ export class Environment {
       let position = Vector3.Zero();
       for (let attempt = 0; attempt < 100; attempt++) {
         const angle = Math.random() * Math.PI * 2;
-        const distance = this.radius * 0.8 + Math.random() * this.radius * 2;
-        position = new Vector3(Math.cos(angle) * distance, 30 + Math.random() * 80, Math.sin(angle) * distance);
-        if (placed.every((p) => Vector3.Distance(p, position) >= 100)) break;
+        const distance = this.radius * 1.2 + Math.random() * this.radius * 1.5;
+        position = new Vector3(Math.cos(angle) * distance, 25 + Math.random() * 45, Math.sin(angle) * distance);
+        if (placed.every((p) => Vector3.Distance(p, position) >= 60)) break;
       }
       placed.push(position);
 
       const mat = new StandardMaterial(`skyMat_${obj.image}`, scene);
-      const tex = new Texture(`/assets/textures/sky/${obj.image}`, scene, false, true);
+      const tex = new Texture(`/assets/textures/sky/${obj.image}`, scene, false, true, Texture.NEAREST_SAMPLINGMODE);
       tex.hasAlpha = true;
       tex.onLoadObservable.addOnce(() => {
         const internal = tex.getInternalTexture();
@@ -80,41 +116,24 @@ export class Environment {
         plane.position = position;
         plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
         plane.isPickable = false;
+        plane.applyFog = false;
         mat.diffuseTexture = tex;
         mat.emissiveTexture = tex;
-        mat.emissiveColor = obj.glow;
+        mat.emissiveColor = new Color3(obj.glow, obj.glow, obj.glow);
         mat.useAlphaFromDiffuseTexture = true;
         mat.backFaceCulling = false;
         mat.disableLighting = true;
         plane.material = mat;
-        this.engine.glowLayer.addIncludedOnlyMesh(plane);
       });
     }
   }
 
-  private gridTexture(
-    name: string, size: number, worldRadius: number, stroke: string, fill: string, lineWidth: number, vScale = 1, hScale = 1,
-  ): DynamicTexture {
-    const texture = new DynamicTexture(name, size, this.engine.scene, true);
-    const ctx = texture.getContext();
-    ctx.fillStyle = fill;
-    ctx.fillRect(0, 0, size, size);
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = lineWidth;
-    const spacing = size / (worldRadius / 0.5);
-    for (let x = 0; x <= size; x += spacing * vScale) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, size);
-      ctx.stroke();
+  // Once per frame: the shaders need the camera position for fades and a clock for pulses.
+  update(dt: number, cameraPos: Vector3): void {
+    this.time += dt;
+    for (const m of this.materials) {
+      m.setFloat('time', this.time);
+      m.setVector3('cameraPos', cameraPos);
     }
-    for (let y = 0; y <= size; y += spacing * hScale) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(size, y);
-      ctx.stroke();
-    }
-    texture.update();
-    return texture;
   }
 }
