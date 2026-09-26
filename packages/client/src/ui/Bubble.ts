@@ -1,16 +1,18 @@
-// A speech bubble anchored to a world position. The line types in, holds, then backspaces out.
+// A speech bubble anchored to a world position. While you look at the object the line types in;
+// look away and it backspaces out from wherever it got to. Look back and it resumes.
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 
 const TYPE_MS = 32;
-const HOLD_MS = 2600;
 const DELETE_MS = 18;
 
 export class Bubble {
   private readonly el: HTMLDivElement;
   private readonly text: HTMLSpanElement;
   private anchor: Vector3 | null = null;
+  private line = '';
+  private shown = 0; // characters currently on screen
+  private dir: 1 | -1 = -1; // typing while hovered, deleting otherwise
   private timer: number | null = null;
-  private generation = 0;
 
   constructor() {
     this.el = document.createElement('div');
@@ -21,36 +23,50 @@ export class Bubble {
     document.getElementById('hud')!.appendChild(this.el);
   }
 
-  say(line: string, anchor: Vector3): void {
-    const gen = ++this.generation;
-    if (this.timer !== null) clearTimeout(this.timer);
+  // Start (or resume) typing this line. A different line replaces whatever was showing.
+  hover(line: string, anchor: Vector3): void {
+    if (line !== this.line) {
+      this.line = line;
+      this.shown = 0;
+      this.text.textContent = '';
+    }
     this.anchor = anchor;
-    this.text.textContent = '';
+    this.dir = 1;
     this.el.classList.remove('hidden');
+    this.run();
+  }
 
-    const step = (fn: () => boolean, ms: number, done: () => void) => {
-      const tick = () => {
-        if (gen !== this.generation) return;
-        if (fn()) this.timer = window.setTimeout(tick, ms);
-        else done();
-      };
-      tick();
-    };
-    let i = 0;
-    step(() => (i < line.length ? ((this.text.textContent = line.slice(0, ++i)), true) : false), TYPE_MS, () => {
-      this.timer = window.setTimeout(() => {
-        if (gen !== this.generation) return;
-        step(() => (i > 0 ? ((this.text.textContent = line.slice(0, --i)), true) : false), DELETE_MS, () => this.hide());
-      }, HOLD_MS);
-    });
+  // Start backspacing from wherever typing got to. Hides once nothing is left.
+  release(): void {
+    this.dir = -1;
+    this.run();
   }
 
   hide(): void {
-    this.generation++;
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
     this.anchor = null;
+    this.line = '';
+    this.shown = 0;
     this.el.classList.add('hidden');
+  }
+
+  // One ticker moves `shown` toward the full line or toward zero, whichever `dir` says. It stops
+  // when it gets there and hover()/release() restart it when the direction changes.
+  private run(): void {
+    if (this.timer !== null) return;
+    const tick = () => {
+      this.timer = null;
+      if (this.dir === 1 && this.shown < this.line.length) this.shown++;
+      else if (this.dir === -1 && this.shown > 0) this.shown--;
+      else {
+        if (this.shown === 0) this.hide();
+        return;
+      }
+      this.text.textContent = this.line.slice(0, this.shown);
+      this.timer = window.setTimeout(tick, this.dir === 1 ? TYPE_MS : DELETE_MS);
+    };
+    tick();
   }
 
   update(scene: Scene, camera: Camera, canvas: HTMLCanvasElement): void {

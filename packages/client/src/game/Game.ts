@@ -85,7 +85,6 @@ export class Game {
     canvas.addEventListener('click', () => {
       if (this.isBlocked()) return;
       if (this.hovered) this.overlay.show(this.hovered.content);
-      else if (this.hoveredSky) this.bubble.say(this.hoveredSky.content.line, this.hoveredSky.anchor());
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -235,6 +234,8 @@ export class Game {
       this.hoveredSky?.setHovered(false);
       nextSky?.setHovered(true);
       this.hoveredSky = nextSky;
+      if (nextSky) this.bubble.hover(nextSky.content.line, nextSky.anchor());
+      else this.bubble.release();
     }
     this.hud.setCrosshairHot(!!nextCube || !!nextSky);
   }
