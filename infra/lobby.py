@@ -1,6 +1,6 @@
 """Lobby turns a room id into a session (which lives on Room server) and sends the browser there.
 
-GET /join/{id} looks the room up in a Dict, starts a session if there is none (or ?fresh=1), and
+GET /join/{id} looks the room up in a Dict, starts a session if there is none or it died, and
 redirects to the Room server with the token in the query string. The proxy answers that with a
 307 that moves the token into a host-bound cookie, and the Room's Node process then serves the
 page; the game's WebSocket is same-origin from there, so the cookie covers it.
@@ -49,12 +49,11 @@ async def session_alive(room_url: str, token: str) -> bool:
         return False
 
 
-async def room_entry(room_id: str, room_url: str, fresh: bool) -> dict:
+async def room_entry(room_id: str, room_url: str) -> dict:
     """Get the room's session, starting a new one if there is none or the cached one is dead."""
-    if not fresh:
-        entry = await rooms.get.aio(room_id)
-        if entry is not None and await session_alive(room_url, entry["token"]):
-            return entry
+    entry = await rooms.get.aio(room_id)
+    if entry is not None and await session_alive(room_url, entry["token"]):
+        return entry
     session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
     entry = {"session_id": session.session_id, "token": session.token}
     await rooms.put.aio(room_id, entry)
@@ -70,13 +69,13 @@ def build_api():
     api = FastAPI()
 
     @api.get("/join/{room_id}")
-    async def join(room_id: str, name: str = "", fresh: bool = False):
+    async def join(room_id: str, name: str = ""):
         """Join a room, creating one if necessary"""
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
         room_url = (await room_server().get_url.aio()).rstrip("/")
-        entry = await room_entry(room_id, room_url, fresh)
+        entry = await room_entry(room_id, room_url)
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         query = urlencode(
             {"modal_session_token": entry["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
