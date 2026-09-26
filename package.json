@@ -1,21 +1,25 @@
 {
   "name": "world",
-  "version": "1.0.0",
-  "description": "Interactive 3D portfolio world",
+  "version": "2.0.0",
+  "private": true,
+  "description": "kathir world: a small multiplayer 3D playground",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@babylonjs/core": "^7.34.0",
-    "@babylonjs/materials": "^7.34.0",
-    "nipplejs": "^0.10.2"
+    "dev": "concurrently -n server,client -c yellow,cyan \"npm run dev -w @world/server\" \"npm run dev -w @world/client\"",
+    "dev:server": "npm run dev -w @world/server",
+    "dev:client": "npm run dev -w @world/client",
+    "build": "npm run build -w @world/server && npm run build -w @world/client",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/shared/test && tsc -p packages/server && tsc -p packages/client && tsc -p packages/client/e2e",
+    "test": "node --import tsx --test packages/shared/test/*.test.ts packages/server/test/*.test.ts",
+    "e2e": "node --import tsx packages/client/e2e/multiplayer.ts"
   },
   "devDependencies": {
-    "typescript": "^5.3.3",
-    "vite": "^5.4.11"
+    "@types/node": "^22.10.0",
+    "concurrently": "^9.1.0",
+    "tsx": "4.23.13",
+    "typescript": "^5.7.0"
   }
 }
-

@@ -1,0 +1,5 @@
+# The lobby uses `@modal.sessioned()`, which is not in a PyPI release yet (1.5.5 lacks it).
+# Until it ships, install the client from the modal-labs/modal monorepo:
+#   pip install -e <monorepo>/client/py
+modal>=1.5.5
+fastapi[standard]>=0.115
