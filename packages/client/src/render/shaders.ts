@@ -160,7 +160,7 @@ void main() {
   vec2 uv = vec2(vArc, vWorld.y);
   float line = hexLine(uv, 1.6, 0.06);
   float dist = length(vWorld.xz - cameraPos.xz);
-  float reveal = 1.0 - smoothstep(revealDistance * 0.4, revealDistance, dist);
+  float reveal = 1.0 - smoothstep(2.0, revealDistance, dist); // fully lit only right at the wall
   float heightFade = 1.0 - smoothstep(6.0, 14.0, vWorld.y);
   float pulse = 0.8 + 0.2 * sin(time * 3.0 + vWorld.y * 0.8);
   float alpha = line * reveal * heightFade * pulse;
