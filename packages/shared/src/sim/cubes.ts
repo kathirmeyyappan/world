@@ -40,6 +40,11 @@ export function stepCubes(cubes: CubeState[], dt: number, worldRadius: number, r
       const speed = c.wanderSpeed * Math.min(dist / 5, 1);
       c.pos.x += (dx / dist) * speed * dt;
       c.pos.z += (dz / dist) * speed * dt;
+      const r = Math.hypot(c.pos.x, c.pos.z);
+      if (r > maxR) {
+        c.pos.x *= maxR / r;
+        c.pos.z *= maxR / r;
+      }
     }
   }
 }

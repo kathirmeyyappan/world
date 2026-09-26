@@ -16,6 +16,7 @@ import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
 import { Hud } from '../ui/Hud';
 import { Overlay } from '../ui/Overlay';
+import { Pins } from '../ui/Pins';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
@@ -25,11 +26,13 @@ const HOVER_RANGE = 50;
 
 export class Game {
   private readonly engine: Engine;
+  private readonly environment: Environment;
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
   private readonly overlay = new Overlay();
   private readonly hud: Hud;
+  private readonly pins = new Pins();
   private readonly interp = new Interpolation();
   private readonly cubes = new Map<string, CubeMesh>();
   private readonly cubeByMesh = new Map<string, CubeMesh>();
@@ -43,23 +46,24 @@ export class Game {
   private pingTimer = 0;
 
   constructor(
-    canvas: HTMLCanvasElement,
+    private readonly canvasEl: HTMLCanvasElement,
     private readonly conn: Connection,
     roomId: string,
     private readonly onDisconnect: (reason: string) => void,
   ) {
+    const canvas = canvasEl;
     this.engine = new Engine(canvas);
-    new Environment(this.engine, WORLD_RADIUS);
+    this.environment = new Environment(this.engine, WORLD_RADIUS);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
 
-    for (const content of CUBES) {
+    CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);
       this.cubes.set(content.id, cube);
       this.cubeByMesh.set(cube.mesh.name, cube);
-    }
+    });
 
     this.input = new InputManager(canvas);
     this.mobile = new MobileControls(this.input);
@@ -168,6 +172,8 @@ export class Game {
     this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
     this.camera.rotation.set(this.input.pitch, this.input.yaw, 0);
 
+    this.environment.update(dt, this.camera.position);
+
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
     const seen = new Set<string>();
@@ -182,13 +188,14 @@ export class Game {
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
+    this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
 
     this.updateHover();
     for (const cs of sampled.cubes) {
       const cube = this.cubes.get(cs.id);
       if (!cube) continue;
       cube.setReaders(readers.get(cs.id) ?? 0);
-      cube.update(cs, dt);
+      cube.update(cs);
     }
   }
 
@@ -208,8 +215,9 @@ export class Game {
   }
 
   // Exposed for the end-to-end test.
-  setYaw(yaw: number): void {
+  setLook(yaw: number, pitch = 0): void {
     this.input.yaw = yaw;
+    this.input.pitch = pitch;
   }
 
   debug(): { id: string; pos: { x: number; y: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[] } {

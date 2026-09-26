@@ -19,6 +19,8 @@ const CHAT_FADE_MS = 12_000;
 
 export class Hud {
   private readonly roomCode = document.getElementById('room-code') as HTMLButtonElement;
+  private readonly panel = document.getElementById('room-panel')!;
+  private readonly panelToggle = document.getElementById('panel-toggle') as HTMLButtonElement;
   private readonly playerList = document.getElementById('player-list')!;
   private readonly ping = document.getElementById('ping')!;
   private readonly chatLog = document.getElementById('chat-log')!;
@@ -34,6 +36,9 @@ export class Hud {
     this.roomCode.addEventListener('click', () => {
       navigator.clipboard?.writeText(inviteLink(roomId)).then(() => this.system('invite link copied'));
     });
+
+    this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
+    this.panelToggle.addEventListener('click', () => this.setPanelCollapsed(!this.panel.classList.contains('collapsed')));
 
     this.chatInput.classList.add('hidden');
     window.addEventListener('keydown', (e) => {
@@ -55,6 +60,12 @@ export class Hud {
     this.chatInput.addEventListener('blur', () => this.closeChat());
   }
 
+  private setPanelCollapsed(collapsed: boolean): void {
+    this.panel.classList.toggle('collapsed', collapsed);
+    this.panelToggle.textContent = collapsed ? '▸' : '▾';
+    this.panelToggle.setAttribute('aria-expanded', String(!collapsed));
+  }
+
   isChatOpen(): boolean {
     return !this.chatInput.classList.contains('hidden');
   }
@@ -69,6 +80,9 @@ export class Hud {
 
   private closeChat(): void {
     if (!this.isChatOpen()) return;
+    this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
+    this.panelToggle.addEventListener('click', () => this.setPanelCollapsed(!this.panel.classList.contains('collapsed')));
+
     this.chatInput.classList.add('hidden');
     this.chatInput.blur();
     this.onChatOpenChange?.(false);

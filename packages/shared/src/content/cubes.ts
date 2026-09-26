@@ -6,8 +6,6 @@ export interface CubeContent {
   h3?: string;
   description: string[];
   logo?: string;
-  glowColor: string;
-  borderColor?: string;
 }
 
 export const CUBES: CubeContent[] = [
@@ -17,13 +15,10 @@ export const CUBES: CubeContent[] = [
     h2: "Software Dev Engineer Intern",
     h3: "2024",
     description: [
-      "My first experience in big tech!",
       "Worked in a (at the time) new org called DataZone, a data governance platform for AWS",
       "Main project was pretty inconsequential, but I got to do some cool stuff with Roaring Bitmaps in Golang at the end",
     ],
     logo: "/assets/logos/aws.png",
-    glowColor: "#777777",
-    borderColor: "#777777",
   },
   {
     id: "drager",
@@ -33,23 +28,21 @@ export const CUBES: CubeContent[] = [
     description: [
       "My first experience in software!",
       "Built an internal desktop app for defect tracking via Jira in C#",
+      "Got scared when they mentioned multithreading as a follow-up because I didn't know what it was"
     ],
     logo: "/assets/logos/drager.png",
-    glowColor: "#445580",
-    borderColor: "#445580",
   },
   {
     id: "uchicago-cs",
     h1: "UChicago Department of Computer Science",
-    h2: "Teaching Assistant / Undergraduate Researcher",
+    h2: "Undergraduate Researcher + Teaching Assistant",
     h3: "2024 - 2026",
     description: [
       "Got interested in databases and did infra work under Prof. Aaron Elmore",
       "TAed a couple times for CMSC 23500 / 33550 undergrad + grad database systems",
+      "Co-published a little paper on buffer pool tricks"
     ],
     logo: "/assets/logos/uchicago_cs.png",
-    glowColor: "#665050",
-    borderColor: "#886262",
   },
   {
     id: "arrowstreet",
@@ -62,8 +55,6 @@ export const CUBES: CubeContent[] = [
       "Participated in daily standups where we weren't allowed to sit down :(",
     ],
     logo: "/assets/logos/arrowstreet.jpg",
-    glowColor: "#927777",
-    borderColor: "#453535",
   },
   {
     id: "notion",
@@ -76,8 +67,6 @@ export const CUBES: CubeContent[] = [
       "Created a lot of funny slack emojis",
     ],
     logo: "/assets/logos/notion.jpg",
-    glowColor: "#888888",
-    borderColor: "#222222",
   },
   {
     id: "iop",
@@ -89,8 +78,6 @@ export const CUBES: CubeContent[] = [
       "Created a pipeline for extracting and logging info from political flyers to identify false citations",
     ],
     logo: "/assets/logos/iop.jpg",
-    glowColor: "#665050",
-    borderColor: "#886262",
   },
 ];
 

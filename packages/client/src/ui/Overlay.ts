@@ -1,6 +1,9 @@
-// The info card that opens when you click a cube. While open, `reading` is the cube id so the
+// The info card that opens when you click a cube. Closes on Q or a click outside the card; opening
+// it releases the pointer lock so the mouse is usable. While open, `reading` is the cube id so the
 // server can tell everyone else you're looking at it.
 import type { CubeContent } from '@world/shared';
+import { LOGO_PIXELS } from '../render/CubeMesh';
+import { loadPixelated } from '../render/pixelate';
 
 export class Overlay {
   private readonly overlay = document.getElementById('info-overlay')!;
@@ -8,22 +11,26 @@ export class Overlay {
   reading: string | null = null;
 
   constructor() {
-    this.card.querySelector('.close-btn')?.addEventListener('click', () => this.hide());
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) this.hide();
     });
     window.addEventListener('keydown', (e) => {
-      if (this.isVisible() && (e.code === 'KeyQ' || e.code === 'KeyX' || e.code === 'Escape')) this.hide();
+      if (this.isVisible() && e.code === 'KeyQ') this.hide();
     });
   }
 
   show(info: CubeContent): void {
-    const logo = this.card.querySelector('.logo') as HTMLImageElement;
+    const logo = this.card.querySelector('.logo') as HTMLCanvasElement;
     logo.style.display = info.logo ? 'block' : 'none';
+    const ctx = logo.getContext('2d')!;
+    ctx.clearRect(0, 0, logo.width, logo.height);
     if (info.logo) {
-      logo.src = info.logo;
-      logo.alt = `${info.h1} logo`;
+      const url = info.logo;
+      loadPixelated(url, LOGO_PIXELS).then((canvas) => {
+        if (this.reading === info.id) ctx.drawImage(canvas, 0, 0);
+      });
     }
+    (this.card.querySelector('.card-bar-id') as HTMLElement).textContent = info.id.toUpperCase();
     this.setText('.h1', info.h1);
     this.setText('.h2', info.h2);
     this.setText('.h3', info.h3);
@@ -38,6 +45,7 @@ export class Overlay {
     desc.appendChild(ul);
     this.reading = info.id;
     this.overlay.classList.add('visible');
+    if (document.pointerLockElement) document.exitPointerLock();
   }
 
   hide(): void {
