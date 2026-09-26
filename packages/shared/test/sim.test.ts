@@ -72,13 +72,16 @@ test('the annex is reachable only through the bridge', () => {
   }
 });
 
-test('cubes are spread over both discs and never enter the bridge', () => {
+test('cubes all live in the main disc and cover it evenly', () => {
   const rng = createRng(7);
   const cubes = createCubes(['a', 'b', 'c', 'd', 'e', 'f'], WORLD_SHAPE, rng);
-  assert.ok(cubes.some((c) => c.pos.x > 70), 'some cube starts in the annex');
-  assert.ok(cubes.some((c) => c.pos.x < 50), 'some cube starts in the main disc');
-  for (let t = 0; t < 30 * 60 * 5; t++) {
+  const quadrants = new Set<string>();
+  for (let t = 0; t < 30 * 60 * 10; t++) {
     stepCubes(cubes, TICK_DT, WORLD_SHAPE, rng);
-    for (const c of cubes) assert.ok(c.pos.x < 44 || c.pos.x > 88, 'cube is not on the bridge');
+    for (const c of cubes) {
+      assert.ok(Math.hypot(c.pos.x, c.pos.z) <= 50 - 7.9, 'cube stays in the main disc');
+      if (t % 30 === 0) quadrants.add(`${c.pos.x > 0}${c.pos.z > 0}${Math.hypot(c.pos.x, c.pos.z) > 25}`);
+    }
   }
+  assert.equal(quadrants.size, 8, 'over ten minutes the cubes visit every quadrant, inner and outer');
 });

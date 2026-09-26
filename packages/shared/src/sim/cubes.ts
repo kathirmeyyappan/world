@@ -1,5 +1,6 @@
 // Floating info cubes. Simulated on the server only; clients interpolate the broadcast positions.
-// Cubes are spread across the world's discs by area and wander within the disc they're in.
+// All cubes live in the main disc and wander it evenly: each new target is uniform over the disc,
+// far from where the cube is now, and away from the other cubes' targets.
 import {
   CUBE_BASE_Y,
   CUBE_BOUNDARY,
@@ -9,23 +10,26 @@ import {
 } from './constants';
 import type { Rng } from './rng';
 import type { CubeState } from './types';
-import { WORLD_SHAPE, clampToWorld, nearestDisc, randomPointInDisc, worldDiscs, type Disc, type WorldPart } from './world';
+import { WORLD_SHAPE, clampToWorld, randomPointInDisc, worldDiscs, type Disc, type WorldPart } from './world';
+
+const MIN_TARGET_TRAVEL = 20; // a new target is at least this far away, so cubes cross the area
+const MIN_TARGET_SPACING = 12; // and this far from the other cubes' targets, so they spread out
 
 export function createCubes(ids: string[], shape: WorldPart[], rng: Rng): CubeState[] {
-  const discs = worldDiscs(shape);
-  const counts = splitByArea(ids.length, discs);
-  const positions: { x: number; z: number }[] = [];
-  discs.forEach((disc, i) => positions.push(...distribute(counts[i], disc, rng)));
-  return ids.map((id, i) => ({
+  const home = mainDisc(shape);
+  const positions = distribute(ids.length, home, rng);
+  const cubes: CubeState[] = ids.map((id, i) => ({
     id,
     pos: { x: positions[i].x, y: CUBE_BASE_Y, z: positions[i].z },
     rot: { x: 0, y: rng() * Math.PI * 2 },
-    target: randomPointInDisc(nearestDisc(positions[i].x, positions[i].z, shape), CUBE_BOUNDARY, rng),
+    target: { x: positions[i].x, z: positions[i].z },
     time: rng() * Math.PI * 2,
     wanderSpeed: 0.3 + rng() * 0.5,
     floatFrequency: 1.2 + rng() * 0.6,
     rotationSpeed: 0.2 + rng() * 0.3,
   }));
+  for (const c of cubes) c.target = pickTarget(c, cubes, home, rng);
+  return cubes;
 }
 
 export function stepCubes(cubes: CubeState[], dt: number, shape: WorldPart[] = WORLD_SHAPE, rng: Rng): void {
@@ -39,7 +43,7 @@ export function stepCubes(cubes: CubeState[], dt: number, shape: WorldPart[] = W
     const dz = c.target.z - c.pos.z;
     const dist = Math.hypot(dx, dz);
     if (dist < 0.5) {
-      c.target = randomPointInDisc(nearestDisc(c.pos.x, c.pos.z, shape), CUBE_BOUNDARY, rng);
+      c.target = pickTarget(c, cubes, mainDisc(shape), rng);
     } else {
       const speed = c.wanderSpeed * Math.min(dist / 5, 1);
       c.pos.x += (dx / dist) * speed * dt;
@@ -49,21 +53,23 @@ export function stepCubes(cubes: CubeState[], dt: number, shape: WorldPart[] = W
   }
 }
 
-// How many cubes each disc gets, proportional to area, every disc getting at least one when
-// there are enough cubes to go round.
-function splitByArea(count: number, discs: Disc[]): number[] {
-  const total = discs.reduce((s, d) => s + d.r * d.r, 0);
-  const counts = discs.map((d) => Math.floor((count * d.r * d.r) / total));
-  if (count >= discs.length) for (let i = 0; i < counts.length; i++) counts[i] = Math.max(1, counts[i]);
-  let placed = counts.reduce((s, n) => s + n, 0);
-  for (let i = 0; placed < count; i = (i + 1) % counts.length, placed++) counts[i]++;
-  for (let i = 0; placed > count; i = (i + 1) % counts.length) {
-    if (counts[i] > 1) {
-      counts[i]--;
-      placed--;
-    }
+function mainDisc(shape: WorldPart[]): Disc {
+  const disc = worldDiscs(shape)[0];
+  if (!disc) throw new Error('world shape has no discs');
+  return disc;
+}
+
+// Uniform over the disc, but rejected when too close to the cube's current spot or to another
+// cube's target. Falls back to plain uniform after enough tries so it can never stall.
+function pickTarget(c: CubeState, cubes: CubeState[], disc: Disc, rng: Rng): { x: number; z: number } {
+  for (let i = 0; i < 40; i++) {
+    const p = randomPointInDisc(disc, CUBE_BOUNDARY, rng);
+    if (Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < MIN_TARGET_TRAVEL) continue;
+    if (Math.hypot(p.x - disc.x, p.z - disc.z) < CUBE_MIN_CENTER_DISTANCE) continue;
+    if (cubes.some((o) => o !== c && Math.hypot(p.x - o.target.x, p.z - o.target.z) < MIN_TARGET_SPACING)) continue;
+    return p;
   }
-  return counts;
+  return randomPointInDisc(disc, CUBE_BOUNDARY, rng);
 }
 
 // Rings of evenly spaced slots with jitter inside one disc, falling back to random placement
