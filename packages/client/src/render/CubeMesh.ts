@@ -12,9 +12,9 @@ export class CubeMesh {
   private readonly material: StandardMaterial;
   private readonly baseColor: Color3;
   private readonly shadow: Mesh;
+  private readonly fresnel: FresnelParameters;
   private hovered = false;
   private readers = 0;
-  private time = Math.random() * 10;
 
   constructor(engine: Engine, readonly content: CubeContent, index: number) {
     const scene = engine.scene;
@@ -32,12 +32,12 @@ export class CubeMesh {
       this.material.diffuseTexture = logo;
       this.material.emissiveTexture = logo;
     }
-    const fresnel = new FresnelParameters();
-    fresnel.bias = 0.2;
-    fresnel.power = 2.5;
-    fresnel.leftColor = this.baseColor;
-    fresnel.rightColor = Color3.Black();
-    this.material.emissiveFresnelParameters = fresnel;
+    this.fresnel = new FresnelParameters();
+    this.fresnel.bias = 0.2;
+    this.fresnel.power = 2.5;
+    this.fresnel.leftColor = this.baseColor;
+    this.fresnel.rightColor = Color3.Black();
+    this.material.emissiveFresnelParameters = this.fresnel;
     this.mesh.material = this.material;
 
     this.mesh.enableEdgesRendering();
@@ -56,24 +56,26 @@ export class CubeMesh {
     this.readers = count;
   }
 
-  update(snap: CubeSnapshot, dt: number): void {
-    this.time += dt;
+  // Hover and "being read" change the frame, never the face, so the logo stays readable.
+  update(snap: CubeSnapshot): void {
     this.mesh.position.set(snap.x, snap.y, snap.z);
     this.mesh.rotation.set(snap.rx, snap.ry, 0);
     this.shadow.position.set(snap.x, 0.02, snap.z);
     this.shadow.scaling.setAll(Math.max(0.6, 1.3 - snap.y * 0.12));
     if (this.hovered) {
-      const pulse = (Math.sin(this.time * 5) + 1) / 2;
-      this.material.emissiveColor = this.baseColor.scale(0.75 + pulse * 0.35);
-      this.mesh.scaling.setAll(1.12);
+      this.setFrame(this.baseColor, 6, 1.1);
     } else if (this.readers > 0) {
-      const pulse = (Math.sin(this.time * 2) + 1) / 2;
-      this.material.emissiveColor = Color3.Lerp(this.baseColor.scale(0.6), Color3.White().scale(0.7), pulse * 0.5);
-      this.mesh.scaling.setAll(1.04);
+      this.setFrame(Color3.White(), 5, 1.04);
     } else {
-      this.material.emissiveColor = this.baseColor.scale(0.55);
-      this.mesh.scaling.setAll(1);
+      this.setFrame(this.baseColor, 4, 1);
     }
+  }
+
+  private setFrame(color: Color3, width: number, scale: number): void {
+    this.mesh.edgesWidth = width;
+    this.mesh.edgesColor.set(color.r, color.g, color.b, 1);
+    this.fresnel.leftColor = color;
+    this.mesh.scaling.setAll(scale);
   }
 
   dispose(): void {

@@ -195,7 +195,7 @@ export class Game {
       const cube = this.cubes.get(cs.id);
       if (!cube) continue;
       cube.setReaders(readers.get(cs.id) ?? 0);
-      cube.update(cs, dt);
+      cube.update(cs);
     }
   }
 
