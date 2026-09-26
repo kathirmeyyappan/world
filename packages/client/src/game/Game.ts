@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, TICK_DT, WORLD_RADIUS,
+  CUBES, SKY_OBJECTS, TICK_DT, WORLD_RADIUS,
   type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -14,6 +14,8 @@ import { Avatar } from '../render/Avatar';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
+import { Bubble } from '../ui/Bubble';
 import { Hud } from '../ui/Hud';
 import { Overlay } from '../ui/Overlay';
 import { Pins } from '../ui/Pins';
@@ -22,7 +24,7 @@ const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
-const HOVER_RANGE = 50;
+const HOVER_RANGE = 400;
 
 export class Game {
   private readonly engine: Engine;
@@ -37,6 +39,9 @@ export class Game {
   private readonly cubes = new Map<string, CubeMesh>();
   private readonly cubeByMesh = new Map<string, CubeMesh>();
   private readonly avatars = new Map<string, Avatar>();
+  private readonly skyByMesh = new Map<string, SkyObject>();
+  private readonly bubble = new Bubble();
+  private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
   private myId = '';
@@ -59,6 +64,8 @@ export class Game {
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
 
+    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_RADIUS)) this.skyByMesh.set(sky.mesh.name, sky);
+
     CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);
       this.cubes.set(content.id, cube);
@@ -71,7 +78,9 @@ export class Game {
     this.hud.onChat = (text) => conn.send({ t: 'chat', text });
     this.hud.onChatOpenChange = () => this.syncBlocked();
     canvas.addEventListener('click', () => {
-      if (this.hovered && !this.isBlocked()) this.overlay.show(this.hovered.content);
+      if (this.isBlocked()) return;
+      if (this.hovered) this.overlay.show(this.hovered.content);
+      else if (this.hoveredSky) this.bubble.say(this.hoveredSky.content.line, this.hoveredSky.anchor());
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -189,6 +198,7 @@ export class Game {
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
+    this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
 
     this.updateHover();
     for (const cs of sampled.cubes) {
@@ -200,18 +210,27 @@ export class Game {
   }
 
   private updateHover(): void {
-    let next: CubeMesh | null = null;
+    let nextCube: CubeMesh | null = null;
+    let nextSky: SkyObject | null = null;
     if (!this.isBlocked()) {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
-      const hit = this.engine.scene.pickWithRay(ray, (mesh) => mesh.name.startsWith('cube-'));
-      if (hit?.pickedMesh) next = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
+      const hit = this.engine.scene.pickWithRay(ray, (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'));
+      if (hit?.pickedMesh) {
+        nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
+        nextSky = this.skyByMesh.get(hit.pickedMesh.name) ?? null;
+      }
     }
-    if (next !== this.hovered) {
+    if (nextCube !== this.hovered) {
       this.hovered?.setHovered(false);
-      next?.setHovered(true);
-      this.hovered = next;
-      this.hud.setCrosshairHot(!!next);
+      nextCube?.setHovered(true);
+      this.hovered = nextCube;
     }
+    if (nextSky !== this.hoveredSky) {
+      this.hoveredSky?.setHovered(false);
+      nextSky?.setHovered(true);
+      this.hoveredSky = nextSky;
+    }
+    this.hud.setCrosshairHot(!!nextCube || !!nextSky);
   }
 
   // Exposed for the end-to-end test.

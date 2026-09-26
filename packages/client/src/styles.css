@@ -74,6 +74,16 @@ html, body {
 }
 .pin-arrow { font-size: 12px; line-height: 12px; display: inline-block; }
 .pin-label { line-height: 10px; }
+#bubble {
+  position: absolute; left: 0; top: 0; max-width: 340px; padding: 8px 12px; pointer-events: none;
+  background: var(--panel); border: 2px solid #fff; box-shadow: 4px 4px 0 #000; color: #fff;
+  font: 21px/1.15 var(--mono); will-change: transform;
+}
+#bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -10px; width: 8px; height: 8px; margin-left: -4px;
+  background: var(--panel); border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(45deg);
+}
+#bubble .bubble-cursor { color: var(--accent); animation: blink 1s steps(1) infinite; margin-left: 2px; }
 #hud .label { font-size: 10px; letter-spacing: 1px; color: var(--accent-soft); }
 #hud .room-line { display: flex; align-items: center; gap: 8px; }
 #panel-toggle {
