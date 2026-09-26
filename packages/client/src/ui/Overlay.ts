@@ -1,6 +1,6 @@
-// The info card that opens when you click a cube. Closes on Q or a click outside the card; opening
-// it releases the pointer lock so the mouse is usable. While open, `reading` is the cube id so the
-// server can tell everyone else you're looking at it.
+// The info card that opens when you click a cube. Closes on Q, or on a click outside the card once
+// the mouse is free (Esc). Pointer lock is left alone so opening it doesn't break immersion.
+// While open, `reading` is the cube id so the server can tell everyone else you're looking at it.
 import type { CubeContent } from '@world/shared';
 import { LOGO_PIXELS } from '../render/CubeMesh';
 import { loadPixelated } from '../render/pixelate';
@@ -45,7 +45,6 @@ export class Overlay {
     desc.appendChild(ul);
     this.reading = info.id;
     this.overlay.classList.add('visible');
-    if (document.pointerLockElement) document.exitPointerLock();
   }
 
   hide(): void {
