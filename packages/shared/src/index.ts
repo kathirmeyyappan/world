@@ -6,3 +6,4 @@ export * from './sim/cubes';
 export * from './protocol';
 export * from './room';
 export * from './content/cubes';
+export * from './content/sky';
