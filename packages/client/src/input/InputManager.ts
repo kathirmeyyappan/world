@@ -3,6 +3,7 @@
 import { MAX_PITCH, type InputFrame } from '@world/shared';
 
 const LOOK_SENSITIVITY = 0.002;
+const TOUCH_LOOK_MULTIPLIER = 3; // a thumb travels far fewer pixels than a mouse
 
 export class InputManager {
   yaw = 0;
@@ -70,8 +71,8 @@ export class InputManager {
     canvas.addEventListener('touchmove', (e) => {
       for (const t of Array.from(e.touches)) {
         if (t.identifier === touchId) {
-          this.lookDx += t.clientX - this.lastX;
-          this.lookDy += t.clientY - this.lastY;
+          this.lookDx += (t.clientX - this.lastX) * TOUCH_LOOK_MULTIPLIER;
+          this.lookDy += (t.clientY - this.lastY) * TOUCH_LOOK_MULTIPLIER;
           this.lastX = t.clientX;
           this.lastY = t.clientY;
         }
