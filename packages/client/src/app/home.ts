@@ -24,10 +24,17 @@ export function showHome(): Promise<HomeResult> {
   const status = document.getElementById('home-status')!;
   const buttons = [joinBtn, globalBtn, offlineBtn];
 
+  const loading = document.getElementById('loading')!;
   const params = new URLSearchParams(location.search);
   nameInput.value = params.get('name') ?? localStorage.getItem(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? '';
-  root.classList.remove('hidden');
+
+  // The page loads showing the loading screen. Only reveal the home screen when there is
+  // nothing to auto-join (or an auto-join fails), so arriving via the lobby never flashes it.
+  const showForm = () => {
+    loading.classList.add('hidden');
+    root.classList.remove('hidden');
+  };
 
   return new Promise((resolve) => {
     let busy = false;
@@ -37,6 +44,7 @@ export function showHome(): Promise<HomeResult> {
       const name = sanitizeName(nameInput.value);
       roomId = roomId.trim().toLowerCase();
       if (!isValidRoomId(roomId)) {
+        showForm();
         status.textContent = 'room codes are 1-24 letters, digits or dashes';
         return;
       }
@@ -53,6 +61,7 @@ export function showHome(): Promise<HomeResult> {
         root.classList.add('hidden');
         resolve({ connection, roomId, name });
       } catch (err) {
+        showForm();
         if (err instanceof LobbyUnavailableError) {
           status.textContent = 'no multiplayer server here. play offline instead?';
           offlineBtn.classList.remove('hidden');
@@ -93,6 +102,9 @@ export function showHome(): Promise<HomeResult> {
       nameInput.value = remembered.name || nameInput.value;
       attempt(remembered.roomId);
     } else if (params.get('offline') !== null) offlineBtn.click();
-    else (nameInput.value ? roomInput : nameInput).focus();
+    else {
+      showForm();
+      (nameInput.value ? roomInput : nameInput).focus();
+    }
   });
 }

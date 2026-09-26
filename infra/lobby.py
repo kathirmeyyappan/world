@@ -95,7 +95,8 @@ def build_api():
     return api
 
 
-@app.function(image=lobby_image)
+# Kept warm: a cold start here is dead time between clicking Join and seeing anything.
+@app.function(image=lobby_image, min_containers=1)
 @modal.asgi_app()
 def lobby():
     return build_api()
