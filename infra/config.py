@@ -8,4 +8,4 @@ ROOM_PORT = 8000
 SESSION_IDLE_TIMEOUT = 3600
 # WebSockets per Room container before the autoscaler adds another. A session pins a whole room
 # to one container, so this only spreads distinct rooms.
-ROOM_TARGET_CONCURRENCY = 64
+MAX_SESSIONS_PER_CONTAINER = 64
