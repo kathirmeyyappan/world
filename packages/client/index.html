@@ -7,6 +7,9 @@
     <meta http-equiv="Content-Language" content="en" />
     <link rel="icon" type="image/x-icon" href="/assets/elizabeth.ico" />
     <title>kathir world</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
@@ -40,12 +43,17 @@
 
       <div id="info-overlay" translate="yes">
         <div id="info-card" translate="yes">
-          <canvas class="logo" width="40" height="40" translate="no"></canvas>
-          <div class="h1" translate="yes"></div>
-          <div class="h2" translate="yes"></div>
-          <div class="h3" translate="yes"></div>
-          <div class="description" translate="yes"></div>
-          <div class="close-hint" translate="yes">Press <kbd translate="no">Q</kbd> to close</div>
+          <div class="card-bar" translate="no"><span class="card-bar-title">■ RECORD</span><span class="card-bar-id"></span></div>
+          <div class="card-body">
+            <canvas class="logo" width="40" height="40" translate="no"></canvas>
+            <div class="card-text">
+              <div class="h1" translate="yes"></div>
+              <div class="h2" translate="yes"></div>
+              <div class="h3" translate="yes"></div>
+              <div class="description" translate="yes"></div>
+            </div>
+          </div>
+          <div class="close-hint" translate="yes"><kbd translate="no">Q</kbd> CLOSE<span class="cursor">▮</span></div>
         </div>
       </div>
 

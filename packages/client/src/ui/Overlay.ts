@@ -30,6 +30,7 @@ export class Overlay {
         if (this.reading === info.id) ctx.drawImage(canvas, 0, 0);
       });
     }
+    (this.card.querySelector('.card-bar-id') as HTMLElement).textContent = info.id.toUpperCase();
     this.setText('.h1', info.h1);
     this.setText('.h2', info.h2);
     this.setText('.h3', info.h3);
