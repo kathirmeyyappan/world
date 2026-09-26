@@ -8,7 +8,7 @@ import {
   GROUND_FRAGMENT, GROUND_VERTEX, MAX_BRIDGES, MAX_DISCS, SKY_FRAGMENT, SKY_VERTEX, WALL_FRAGMENT, WALL_VERTEX,
 } from './shaders';
 
-const WALL_REVEAL_DISTANCE = 9;
+const WALL_REVEAL_DISTANCE = 16;
 const WALL_HEIGHT = 16;
 const WALL_STEP = 0.8; // metres between ribbon samples along the outline
 
