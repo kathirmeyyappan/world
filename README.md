@@ -49,12 +49,12 @@ server (authoritative) and in the browser (prediction), which is what lets recon
 - Look direction is client-authoritative; movement and jumping are server-authoritative.
 
 Rooms are keyed by the `x-modal-server-session-id` header the Modal proxy stamps on the WebSocket
-upgrade, or by `?room=` when the server runs bare. `docs/connections.png` shows the hosted layout.
+upgrade, or by `?room=` when the server runs bare. `docs/join-flow.png` shows how a player gets into a hosted room; `docs/client-timeline.png` shows how the client interleaves frames and snapshots.
 
 ### Hosting
 
 The backend is a Modal App in `infra/`: a `lobby` web function and a sessioned `Room` server that
-runs the Node room server and also serves the built client. See `docs/connections.png`.
+runs the Node room server and also serves the built client. See `docs/join-flow.png`.
 
 ```bash
 pip install -r infra/requirements.txt   # needs a client with @modal.sessioned(), see the file

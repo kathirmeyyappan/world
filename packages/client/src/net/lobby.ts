@@ -5,7 +5,7 @@
 //   hosted   the page was served by the room server itself (?direct=1): the WebSocket is
 //            same-origin, so the proxy's session cookie applies and no token is needed.
 //   launcher anywhere else (GitHub Pages): navigate to the lobby, which starts a session and
-//            redirects the browser to the room host with the token. See docs/connections.png.
+//            redirects the browser to the room host with the token. See docs/join-flow.png.
 import { WsConnection, type Connection } from './Connection';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
