@@ -10,12 +10,12 @@ export const SKY_OBJECTS: SkyContent[] = [
   {
     id: "moon",
     image: "/assets/textures/sky/moon.png",
-    line: "Zelda and Mario games are peak. Nintendo only created goated media.",
+    line: "Zelda and Mario games are peak. Nintendo only creates goated media.",
   },
   {
     id: "mugiwara",
     image: "/assets/textures/sky/mugiwara.png",
-    line: "Kathir watches way too much anime. Visit anime.kathirm.com.",
+    line: "Visit anime.kathirm.com if you're curious.",
   },
   {
     id: "patriots",
