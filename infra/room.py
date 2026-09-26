@@ -14,7 +14,6 @@ from .config import ROOM_PORT, MAX_SESSIONS_PER_CONTAINER
 
 
 @app.server(
-    name="room",
     image=room_image,
     port=ROOM_PORT,
     max_concurrency=MAX_SESSIONS_PER_CONTAINER,
