@@ -149,5 +149,5 @@ html, body {
 @media (pointer: coarse) {
   #joystick-zone { display: block; }
   #jump-button { display: flex; }
-  #instructions, #chat { display: none; }
+  #instructions, #chat, #info-card .close-hint { display: none; }
 }
