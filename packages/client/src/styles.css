@@ -106,18 +106,18 @@ html, body {
 #player-list li.me { color: var(--accent); }
 .ping-line { color: rgba(255,255,255,0.6); }
 
-#chat { position: absolute; left: 16px; bottom: 16px; width: min(380px, 70vw); }
-#chat-log { list-style: none; margin-bottom: 6px; display: flex; flex-direction: column; gap: 3px; }
-#chat-log li { font-size: 19px; color: rgba(255,255,255,0.9); text-shadow: 2px 2px 0 #000; opacity: 1; transition: opacity 1s; }
+#chat { position: absolute; left: 16px; bottom: 16px; width: min(520px, 70vw); }
+#chat-log { list-style: none; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px; }
+#chat-log li { font-size: 26px; color: rgba(255,255,255,0.9); text-shadow: 2px 2px 0 #000; opacity: 1; transition: opacity 1s; }
 #chat-log li.faded { opacity: 0; }
 #chat-log li .who { font-weight: bold; }
 #chat-log li.system { color: rgba(255,255,255,0.55); font-style: italic; }
 #chat-input {
-  pointer-events: auto; width: 100%; padding: 6px 10px; font: 20px var(--mono); color: #fff;
+  pointer-events: auto; width: 100%; padding: 8px 12px; font: 26px var(--mono); color: #fff;
   background: var(--panel); border: 2px solid var(--accent); outline: none; box-shadow: 3px 3px 0 #000;
 }
 #chat-input.hidden + #chat-hint { display: block; }
-#chat-hint { display: none; font-size: 17px; color: rgba(255,255,255,0.45); }
+#chat-hint { display: none; font-size: 22px; color: rgba(255,255,255,0.45); }
 #chat-hint kbd, #instructions kbd { background: rgba(100,181,246,0.2); border: 1px solid rgba(100,181,246,0.5); padding: 0 5px; font-family: inherit; }
 
 #crosshair {
