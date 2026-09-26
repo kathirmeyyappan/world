@@ -109,6 +109,18 @@ export function randomPointInDisc(disc: Disc, margin: number, rng: Rng): { x: nu
   return { x: disc.x + Math.cos(a) * d, z: disc.z + Math.sin(a) * d };
 }
 
+// A random point anywhere in the world's discs, weighted by area, at least `margin` from a wall.
+export function randomPointInWorld(shape: WorldPart[], margin: number, rng: Rng): { x: number; z: number } {
+  const discs = worldDiscs(shape);
+  const total = discs.reduce((s, d) => s + d.r * d.r, 0);
+  let pick = rng() * total;
+  for (const disc of discs) {
+    pick -= disc.r * disc.r;
+    if (pick <= 0) return randomPointInDisc(disc, margin, rng);
+  }
+  return randomPointInDisc(discs[discs.length - 1], margin, rng);
+}
+
 // The disc a point is in, or the nearest one.
 export function nearestDisc(x: number, z: number, shape: WorldPart[] = WORLD_SHAPE): Disc {
   let best: Disc | null = null;

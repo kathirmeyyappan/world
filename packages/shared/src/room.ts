@@ -5,6 +5,7 @@ import { CUBE_IDS } from './content/cubes';
 import { isClientMessage, type ClientMessage, type CubeSnapshot, type ServerMessage } from './protocol';
 import {
   MAX_CHAT_LENGTH,
+  EYE_HEIGHT,
   MAX_INPUTS_PER_TICK,
   MAX_INPUT_QUEUE,
   MAX_NAME_LENGTH,
@@ -17,11 +18,14 @@ import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState } from './sim/types';
-import { WORLD_SHAPE, type WorldPart } from './sim/world';
+import { WORLD_SHAPE, randomPointInWorld, type WorldPart } from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
 declare function clearInterval(handle: unknown): void;
+
+const SPAWN_WALL_MARGIN = 3;
+const SPAWN_CUBE_MARGIN = 4;
 
 export interface ClientLink {
   send(msg: ServerMessage): void;
@@ -167,10 +171,14 @@ export class Room {
     return best;
   }
 
+  // Anywhere in the world, clear of the walls and not on top of a cube.
   private spawnPoint() {
-    const a = this.rng() * Math.PI * 2;
-    const r = 1 + this.rng() * 3;
-    return { x: Math.cos(a) * r, y: 1.7, z: Math.sin(a) * r };
+    let p = randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng);
+    for (let i = 0; i < 20; i++) {
+      if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN)) break;
+      p = randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng);
+    }
+    return { x: p.x, y: EYE_HEIGHT, z: p.z };
   }
 }
 

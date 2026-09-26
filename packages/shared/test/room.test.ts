@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Room, type ServerMessage } from '@world/shared';
+import { Room, WORLD_SHAPE, worldDistance, type ServerMessage } from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -42,4 +42,21 @@ test('room calls onEmpty when the last player leaves', () => {
   const id = room.join('x', link())!;
   room.leave(id);
   assert.equal(empty, 1);
+});
+
+test('players spawn at random spots across the whole world, clear of walls', () => {
+  const room = new Room('spawn', { seed: 3 });
+  const spots: { x: number; z: number }[] = [];
+  for (let i = 0; i < 30; i++) {
+    const l = link();
+    const id = room.join(`p${i}`, l)!;
+    const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
+    assert.ok(me);
+    spots.push({ x: me.pos.x, z: me.pos.z });
+    assert.ok(worldDistance(me.pos.x, me.pos.z, WORLD_SHAPE) <= -3 + 1e-9, 'inside, clear of the wall');
+    room.leave(id);
+  }
+  assert.ok(spots.some((p) => p.x > 82), 'some spawn in the annex');
+  assert.ok(spots.some((p) => p.x < 50), 'some spawn in the main disc');
+  assert.ok(new Set(spots.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`)).size === spots.length, 'all different');
 });
