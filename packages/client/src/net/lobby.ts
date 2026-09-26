@@ -1,50 +1,40 @@
-// Turns a room id into a live Connection. In dev the client dials the room server directly;
-// in production it asks the lobby for a session token first (see docs/connections.png).
+// Turns a room id into a live Connection.
+//
+// Three ways in, decided at runtime:
+//   dev      VITE_ROOM_WS_URL is set: dial the room server directly (Vite proxies /ws).
+//   hosted   the page was served by the room server itself (?direct=1): the WebSocket is
+//            same-origin, so the proxy's session cookie applies and no token is needed.
+//   launcher anywhere else (GitHub Pages): navigate to the lobby, which starts a session and
+//            redirects the browser to the room host with the token. See docs/connections.png.
 import { WsConnection, type Connection } from './Connection';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
-// Where the lobby API lives when the client is served from somewhere else (GitHub Pages).
-const LOBBY_URL = ((import.meta.env.VITE_LOBBY_URL as string | undefined) ?? '').replace(/\/$/, '');
+// Read once at load: the home screen cleans the query string after joining.
+export const SERVED_BY_ROOM_HOST = new URLSearchParams(location.search).has('direct');
 
 export class LobbyUnavailableError extends Error {}
 
-interface Ticket {
-  room_id: string;
-  ws_url: string;
-  token: string;
+export function lobbyUrl(): string | null {
+  const meta = document.querySelector('meta[name="lobby-url"]') as HTMLMetaElement | null;
+  const url = meta?.content || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
+  return url ? url.replace(/\/$/, '') : null;
 }
 
 export async function joinRoom(roomId: string, name: string): Promise<Connection> {
   const q = (params: Record<string, string>) => new URLSearchParams(params).toString();
+  const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
+
   if (DIRECT_WS_URL) {
-    const base = DIRECT_WS_URL.startsWith('/')
-      ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${DIRECT_WS_URL}`
-      : DIRECT_WS_URL;
+    const base = DIRECT_WS_URL.startsWith('/') ? `${wsScheme}://${location.host}${DIRECT_WS_URL}` : DIRECT_WS_URL;
     return WsConnection.connect(`${base}?${q({ room: roomId, name })}`);
   }
 
-  let ticket = await requestTicket(roomId, false);
-  try {
-    return await WsConnection.connect(`${ticket.ws_url}?${q({ modal_session_token: ticket.token, name })}`);
-  } catch {
-    // The stored session probably idled out. Ask the lobby for a fresh one, once.
-    ticket = await requestTicket(roomId, true);
-    return WsConnection.connect(`${ticket.ws_url}?${q({ modal_session_token: ticket.token, name })}`);
+  if (SERVED_BY_ROOM_HOST) {
+    return WsConnection.connect(`${wsScheme}://${location.host}/ws?${q({ room: roomId, name })}`);
   }
-}
 
-async function requestTicket(roomId: string, fresh: boolean): Promise<Ticket> {
-  let res: Response;
-  try {
-    res = await fetch(`${LOBBY_URL}/api/rooms/${encodeURIComponent(roomId)}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ fresh }),
-    });
-  } catch {
-    throw new LobbyUnavailableError('lobby unreachable');
-  }
-  if (res.status === 404) throw new LobbyUnavailableError('no lobby at this origin');
-  if (!res.ok) throw new Error(`lobby error ${res.status}`);
-  return (await res.json()) as Ticket;
+  const lobby = lobbyUrl();
+  if (!lobby) throw new LobbyUnavailableError('no lobby configured');
+  location.href = `${lobby}/join/${encodeURIComponent(roomId)}?${q({ name })}`;
+  return new Promise(() => {});
 }

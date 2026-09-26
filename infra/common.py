@@ -6,7 +6,7 @@ from .config import APP_NAME, REPO
 
 app = modal.App(APP_NAME)
 
-# Runs the Node room server. Only the server bundle is built; the client ships via GitHub Pages.
+# Runs the Node room server, which also serves the client bundle (see lobby.py for why).
 room_image = (
     modal.Image.from_registry("node:22-slim", add_python="3.12")
     .workdir("/app")
@@ -16,7 +16,7 @@ room_image = (
         copy=True,
         ignore=["node_modules", "dist", ".git", "docs", "infra", "e2e", "__pycache__", "*.local"],
     )
-    .run_commands("npm ci", "npm run build -w @world/server")
+    .run_commands("npm ci", "npm run build")
 )
 
 lobby_image = modal.Image.debian_slim(python_version="3.12").uv_pip_install("fastapi[standard]>=0.115")

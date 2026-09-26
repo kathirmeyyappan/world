@@ -54,14 +54,19 @@ upgrade, or by `?room=` when the server runs bare. `docs/connections.png` shows 
 
 ## Hosting
 
-The static client is deployed to GitHub Pages by `.github/workflows/deploy.yml`. The backend is a
-Modal App in `infra/`:
+The backend is a Modal App in `infra/`: a `lobby` web function and a sessioned `Room` server that
+runs the Node room server and also serves the built client. See `docs/connections.png`.
 
 ```bash
-pip install -r infra/requirements.txt
-modal deploy -m infra.app          # prints the lobby URL
+pip install -r infra/requirements.txt   # needs a client with @modal.sessioned(), see the file
+modal serve -m infra.app                # or modal deploy -m infra.app
 ```
 
-Set the `LOBBY_URL` repository variable to that URL so the Pages build bakes it in
-(`VITE_LOBBY_URL`). Until it's set, the hosted site offers offline mode only. To point a dev
-client at a deployed lobby: `VITE_ROOM_WS_URL= VITE_LOBBY_URL=https://... npm run dev:client`.
+Joining goes through a redirect: `GET <lobby>/join/<room>?name=<name>` starts a session and sends
+the browser to the Room host with the session token in the URL. Modal's proxy swaps that for a
+host-bound cookie, the Room's Node process serves the page, and the game's WebSocket is then
+same-origin so the cookie covers it. The page therefore runs on the Room host while playing.
+
+GitHub Pages (`.github/workflows/deploy.yml`) keeps serving a copy of the client at
+world.kathirm.com as a launcher: set the `LOBBY_URL` repository variable to the lobby's URL and
+its join buttons navigate to the lobby. Without it, that copy offers offline mode only.

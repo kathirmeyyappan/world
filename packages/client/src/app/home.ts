@@ -46,6 +46,7 @@ export function showHome(): Promise<HomeResult> {
       localStorage.setItem(NAME_KEY, name);
       try {
         const connection = await joinRoom(roomId, name);
+        if (params.has('direct')) history.replaceState(null, '', location.pathname);
         root.classList.add('hidden');
         resolve({ connection, roomId, name });
       } catch (err) {

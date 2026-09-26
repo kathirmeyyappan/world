@@ -3,12 +3,14 @@
 import { createServer, type IncomingMessage } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { Room, type ClientLink, type ServerMessage } from '@world/shared';
+import { createStaticHandler } from './static';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_HEADER = 'x-modal-server-session-id';
 const EMPTY_ROOM_GRACE_MS = 30_000;
 const SIM_LATENCY_MS = Number(process.env.SIM_LATENCY_MS ?? 0);
 const SIM_JITTER_MS = Number(process.env.SIM_JITTER_MS ?? 0);
+const STATIC_DIR = process.env.STATIC_DIR;
 
 const rooms = new Map<string, Room>();
 const emptyTimers = new Map<string, NodeJS.Timeout>();
@@ -62,10 +64,16 @@ function linkFor(ws: WebSocket): ClientLink {
   };
 }
 
+const serveStatic = STATIC_DIR ? createStaticHandler(STATIC_DIR, process.env.LOBBY_URL) : null;
+
 const http = createServer((req, res) => {
   if (req.url === '/healthz') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
+    return;
+  }
+  if (serveStatic) {
+    serveStatic(req, res);
     return;
   }
   res.writeHead(404).end();
@@ -111,7 +119,7 @@ http.on('upgrade', (req, socket, head) => {
 });
 
 http.listen(PORT, '0.0.0.0', () => {
-  log(`room server listening on :${PORT}` + (SIM_LATENCY_MS ? ` (simulated latency ${SIM_LATENCY_MS}+${SIM_JITTER_MS}ms)` : ''));
+  log(`room server listening on :${PORT}` + (STATIC_DIR ? ` serving ${STATIC_DIR}` : '') + (SIM_LATENCY_MS ? ` (simulated latency ${SIM_LATENCY_MS}+${SIM_JITTER_MS}ms)` : ''));
 });
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {

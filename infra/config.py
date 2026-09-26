@@ -9,9 +9,3 @@ SESSION_IDLE_TIMEOUT = 3600
 # WebSockets per Room container before the autoscaler adds another. A session pins a whole room
 # to one container, so this only spreads distinct rooms.
 ROOM_TARGET_CONCURRENCY = 64
-
-# Origins allowed to call the lobby API. The static client is served by GitHub Pages.
-ALLOWED_ORIGINS = [
-    "https://world.kathirm.com",
-    "http://localhost:5173",
-]

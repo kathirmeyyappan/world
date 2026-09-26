@@ -1,7 +1,20 @@
 // Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events.
 import { MAX_CHAT_LENGTH } from '@world/shared';
 
+import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
+
 const CHAT_LINES = 8;
+
+// On Pages or in dev the page can take ?room=; on the room host that would skip the lobby, so
+// point invites at the lobby instead.
+function inviteLink(roomId: string): string {
+  const lobby = lobbyUrl();
+  if (lobby && SERVED_BY_ROOM_HOST) return `${lobby}/join/${encodeURIComponent(roomId)}`;
+  const url = new URL(location.href);
+  url.search = '';
+  url.searchParams.set('room', roomId);
+  return url.toString();
+}
 const CHAT_FADE_MS = 12_000;
 
 export class Hud {
@@ -19,10 +32,7 @@ export class Hud {
   constructor(roomId: string) {
     this.roomCode.textContent = roomId;
     this.roomCode.addEventListener('click', () => {
-      const url = new URL(location.href);
-      url.searchParams.set('room', roomId);
-      url.searchParams.delete('name');
-      navigator.clipboard?.writeText(url.toString()).then(() => this.system('invite link copied'));
+      navigator.clipboard?.writeText(inviteLink(roomId)).then(() => this.system('invite link copied'));
     });
 
     this.chatInput.classList.add('hidden');
