@@ -49,15 +49,18 @@ async def session_alive(room_url: str, token: str) -> bool:
         return False
 
 
-async def room_entry(room_id: str, room_url: str) -> dict:
+async def get_or_start_session(room_id: str, room_url: str) -> dict:
     """Get the room's session, starting a new one if there is none or the cached one is dead."""
-    entry = await rooms.get.aio(room_id)
-    if entry is not None and await session_alive(room_url, entry["token"]):
-        return entry
+    entry_info = await rooms.get.aio(room_id)
+    if entry_info is not None and await session_alive(room_url, entry_info["token"]):
+        return entry_info
     session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
-    entry = {"session_id": session.session_id, "token": session.token}
-    await rooms.put.aio(room_id, entry)
-    return entry
+    entry_info = {
+        "session_id": session.session_id, 
+        "token": session.token
+    }
+    await rooms.put.aio(room_id, entry_info)
+    return entry_info
 
 
 def build_api():
@@ -71,14 +74,17 @@ def build_api():
     @api.get("/join/{room_id}")
     async def join(room_id: str, name: str = ""):
         """Join a room, creating one if necessary"""
+        print(f"Attempting to join room {room_id} with name {name}")
+        
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
+        
         room_url = (await room_server().get_url.aio()).rstrip("/")
-        entry = await room_entry(room_id, room_url)
+        entry_info = await get_or_start_session(room_id, room_url)
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         query = urlencode(
-            {"modal_session_token": entry["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
+            {"modal_session_token": entry_info["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
         )
         return RedirectResponse(f"{room_url}/?{query}", status_code=302)
 

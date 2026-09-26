@@ -1,11 +1,10 @@
 # kathir world
 
-A small multiplayer 3D playground. Walk around, click the floating cubes to learn a bit about me,
-and see whoever else is in the room.
+Started as a gamified personal portfolio and then turned into brainrot after I got my hands on Modal compute. Join with friends and have fun.
 
-https://github.com/user-attachments/assets/8e9db70c-1969-447f-aa85-abbf5abb1a5d
+---
 
-## Run it locally
+### Run it locally
 
 ```bash
 npm install
@@ -24,7 +23,7 @@ npm run e2e                        # two headless browsers in one room (needs Ch
 SIM_LATENCY_MS=120 SIM_JITTER_MS=40 npm run dev:server   # watch prediction/reconciliation under lag
 ```
 
-## Layout
+### Layout
 
 ```
 packages/shared    @world/shared   pure TS: sim (movement, cubes), protocol, Room host, cube content
@@ -37,7 +36,7 @@ docs/                              architecture diagrams
 `packages/shared` has no DOM or Node dependencies on purpose: the same `stepPlayer` runs on the
 server (authoritative) and in the browser (prediction), which is what lets reconciliation be exact.
 
-## How multiplayer works
+### How multiplayer works
 
 - The client samples input at 30 Hz into numbered `InputFrame`s, applies each one locally right
   away (prediction), and sends it to the room.
@@ -52,7 +51,7 @@ server (authoritative) and in the browser (prediction), which is what lets recon
 Rooms are keyed by the `x-modal-server-session-id` header the Modal proxy stamps on the WebSocket
 upgrade, or by `?room=` when the server runs bare. `docs/connections.png` shows the hosted layout.
 
-## Hosting
+### Hosting
 
 The backend is a Modal App in `infra/`: a `lobby` web function and a sessioned `Room` server that
 runs the Node room server and also serves the built client. See `docs/connections.png`.
