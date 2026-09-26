@@ -1,5 +1,6 @@
 import { showHome } from './app/home';
 import { Game } from './game/Game';
+import { forgetRoom } from './net/lobby';
 
 declare global {
   interface Window {
@@ -20,6 +21,7 @@ async function main(): Promise<void> {
   });
   window.__world = { debug: () => game.debug(), setYaw: (yaw) => game.setYaw(yaw) };
   document.getElementById('disconnected-home')!.addEventListener('click', () => {
+    forgetRoom();
     location.href = location.pathname;
   });
   game.start();
