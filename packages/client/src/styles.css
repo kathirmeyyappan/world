@@ -138,16 +138,37 @@ html, body {
 #info-card .close-hint kbd { background: rgba(100,181,246,0.2); border: 1px solid var(--accent); padding: 4px 8px; font: bold 11px var(--mono); color: var(--accent); }
 
 /* Mobile */
-#joystick-zone { position: fixed; bottom: 20px; left: 20px; width: 120px; height: 120px; z-index: 100; display: none; }
-#jump-button {
-  position: fixed; bottom: 40px; right: 40px; width: 70px; height: 70px; border-radius: 50%; z-index: 100;
-  background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.8);
-  font-size: 14px; font-weight: 600; display: none; justify-content: center; align-items: center;
-  user-select: none; -webkit-user-select: none; touch-action: manipulation; backdrop-filter: blur(4px);
+#pad, #jump-button { display: none; }
+#pad {
+  position: fixed; left: 22px; bottom: 26px; width: 112px; height: 112px; z-index: 100;
+  border: 2px solid rgba(100,181,246,0.55); background: rgba(10,10,15,0.45); box-sizing: border-box;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.6), inset 0 0 12px rgba(100,181,246,0.12);
 }
-#jump-button:active { background: rgba(255,255,255,0.3); transform: scale(0.95); }
+#pad::before, #pad::after {
+  content: ''; position: absolute; background: rgba(100,181,246,0.35);
+}
+#pad::before { left: 50%; top: 10px; bottom: 10px; width: 2px; margin-left: -1px; }
+#pad::after { top: 50%; left: 10px; right: 10px; height: 2px; margin-top: -1px; }
+#pad .pad-cross { position: absolute; inset: 6px; border: 1px dashed rgba(100,181,246,0.25); pointer-events: none; }
+#pad-thumb {
+  position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  background: var(--accent); box-shadow: 0 0 10px var(--accent), 0 0 0 2px rgba(0,0,0,0.7);
+  transition: transform 0.05s linear; pointer-events: none;
+}
+#pad.active { border-color: var(--accent); }
+#pad.active #pad-thumb { transition: none; }
+#jump-button {
+  position: fixed; right: 22px; bottom: 26px; width: 84px; height: 84px; z-index: 100;
+  border: 2px solid rgba(100,181,246,0.55); background: rgba(10,10,15,0.45); color: var(--accent);
+  font: bold 11px var(--mono); letter-spacing: 2px; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; padding: 0;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.6), inset 0 0 12px rgba(100,181,246,0.12);
+}
+#jump-button .glyph { font-size: 20px; line-height: 20px; }
+#jump-button.active { background: rgba(100,181,246,0.3); border-color: var(--accent); box-shadow: 0 0 14px var(--accent); }
 @media (pointer: coarse) {
-  #joystick-zone { display: block; }
+  #pad { display: block; }
   #jump-button { display: flex; }
   #instructions, #chat, #info-card .close-hint { display: none; }
 }

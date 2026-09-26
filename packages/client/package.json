@@ -10,8 +10,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "^7.34.0",
-    "@world/shared": "*",
-    "nipplejs": "^0.10.2"
+    "@world/shared": "*"
   },
   "devDependencies": {
     "playwright": "^1.58.0",
