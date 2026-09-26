@@ -95,8 +95,9 @@ def build_api():
     return api
 
 
-# Not kept warm: the launcher pings /healthz on load, which wakes a container before Join is clicked.
-@app.function(image=lobby_image)
+# Not kept warm: the launcher pings /healthz on load, which wakes a container before Join is
+# clicked. The longer idle window gives the player five minutes to click it.
+@app.function(image=lobby_image, scaledown_window=300)
 @modal.asgi_app()
 def lobby():
     return build_api()
