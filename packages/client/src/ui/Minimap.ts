@@ -1,8 +1,8 @@
 // Bottom-right minimap. Two views: NEAR keeps you centred and rotates so you always face up;
 // WORLD shows the whole outline north-up. The floor and outline are drawn per pixel from the
-// world's signed distance, so any union-of-discs shape draws correctly with no path maths.
+// world's signed distance, so any shape made of discs and bridges draws correctly with no path maths.
 // Markers (cubes, players, you) go on top with plain canvas calls. Desktop only; see styles.css.
-import { worldBounds, worldDistance, type Disc } from '@world/shared';
+import { worldBounds, worldDistance, type WorldPart } from '@world/shared';
 
 export interface MinimapFrame {
   me: { x: number; z: number; yaw: number };
@@ -27,7 +27,7 @@ export class Minimap {
   private view: MinimapView = 'near';
   private readonly bounds;
 
-  constructor(private readonly shape: Disc[]) {
+  constructor(private readonly shape: WorldPart[]) {
     this.canvas.width = SIZE;
     this.canvas.height = SIZE;
     this.ctx = this.canvas.getContext('2d')!;

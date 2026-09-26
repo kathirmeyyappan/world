@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, SKY_OBJECTS, TICK_DT, WORLD_RADIUS, WORLD_SHAPE, createRng, hashSeed,
+  CUBES, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, createRng, hashSeed,
   type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -60,13 +60,13 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas);
-    this.environment = new Environment(this.engine, WORLD_RADIUS);
+    this.environment = new Environment(this.engine, WORLD_SHAPE);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = 1.2;
     this.engine.scene.activeCamera = this.camera;
 
-    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_RADIUS, createRng(hashSeed(roomId)))) this.skyByMesh.set(sky.mesh.name, sky);
+    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(roomId)))) this.skyByMesh.set(sky.mesh.name, sky);
 
     CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);
@@ -118,7 +118,7 @@ export class Game {
       case 'welcome': {
         this.myId = m.id;
         const me = m.players.find((p) => p.id === m.id)!;
-        this.prediction = new Prediction(me, WORLD_RADIUS);
+        this.prediction = new Prediction(me, WORLD_SHAPE);
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
         this.interp.push(m.tick, m.players, m.cubes, now);

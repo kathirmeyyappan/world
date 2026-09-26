@@ -13,8 +13,36 @@ void main() {
 }
 `;
 
+// Signed distance to the world's edge, mirroring worldDistance() in shared: discs are (x, z, r),
+// bridges are (ax, az, bx, bz) with a half width. Counts are capped so the loops stay constant.
+export const MAX_DISCS = 4;
+export const MAX_BRIDGES = 4;
+export const WORLD_SDF = `
+uniform vec3 discs[${MAX_DISCS}];
+uniform vec4 bridges[${MAX_BRIDGES}];
+uniform float bridgeWidths[${MAX_BRIDGES}];
+uniform int discCount;
+uniform int bridgeCount;
+
+float worldDistance(vec2 p) {
+  float d = 1.0e9;
+  for (int i = 0; i < ${MAX_DISCS}; i++) {
+    if (i >= discCount) break;
+    d = min(d, length(p - discs[i].xy) - discs[i].z);
+  }
+  for (int i = 0; i < ${MAX_BRIDGES}; i++) {
+    if (i >= bridgeCount) break;
+    vec2 a = bridges[i].xy;
+    vec2 v = bridges[i].zw - a;
+    float t = clamp(dot(p - a, v) / max(dot(v, v), 1.0e-6), 0.0, 1.0);
+    d = min(d, length(p - (a + v * t)) - bridgeWidths[i]);
+  }
+  return d;
+}
+`;
+
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the fog
-// colour. `playRadius` is where the walkable world ends; the grid dims past it.
+// colour. The grid dims past the world's edge.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
@@ -23,8 +51,8 @@ uniform vec3 lineColor;
 uniform vec3 majorColor;
 uniform vec3 floorColor;
 uniform vec3 fogColor;
-uniform float playRadius;
 uniform float time;
+${WORLD_SDF}
 
 float gridLine(vec2 p, float spacing, float width) {
   vec2 g = abs(fract(p / spacing - 0.5) - 0.5) * spacing;
@@ -38,9 +66,9 @@ void main() {
   float dist = length(p - cameraPos.xz);
   float minor = gridLine(p, 2.0, 0.045);
   float major = gridLine(p, 10.0, 0.09);
-  float r = length(p);
-  float inside = 1.0 - smoothstep(playRadius - 2.0, playRadius + 6.0, r);
-  float pulse = 0.85 + 0.15 * sin(time * 1.5 - r * 0.15);
+  float sd = worldDistance(p);
+  float inside = 1.0 - smoothstep(-2.0, 6.0, sd);
+  float pulse = 0.85 + 0.15 * sin(time * 1.5 - length(p) * 0.15);
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
@@ -86,15 +114,20 @@ void main() {
 }
 `;
 
+// The wall ribbon carries its distance along the outline in uv.x so the hex pattern tiles evenly
+// around any shape.
 export const WALL_VERTEX = `
 precision highp float;
 attribute vec3 position;
+attribute vec2 uv;
 uniform mat4 worldViewProjection;
 uniform mat4 world;
 varying vec3 vWorld;
+varying float vArc;
 void main() {
   vec4 wp = world * vec4(position, 1.0);
   vWorld = wp.xyz;
+  vArc = uv.x;
   gl_Position = worldViewProjection * vec4(position, 1.0);
 }
 `;
@@ -103,6 +136,7 @@ void main() {
 export const WALL_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
+varying float vArc;
 uniform vec3 cameraPos;
 uniform vec3 wallColor;
 uniform float revealDistance;
@@ -123,8 +157,7 @@ float hexLine(vec2 p, float scale, float width) {
 }
 
 void main() {
-  float angle = atan(vWorld.z, vWorld.x);
-  vec2 uv = vec2(angle * 50.0, vWorld.y);
+  vec2 uv = vec2(vArc, vWorld.y);
   float line = hexLine(uv, 1.6, 0.06);
   float dist = length(vWorld.xz - cameraPos.xz);
   float reveal = 1.0 - smoothstep(revealDistance * 0.4, revealDistance, dist);

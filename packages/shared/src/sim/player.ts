@@ -2,6 +2,7 @@
 // so it must stay pure: no Babylon, no DOM, no time reads.
 import { EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PLAYER_PADDING } from './constants';
 import type { InputFrame, PlayerState, Vec3 } from './types';
+import { WORLD_SHAPE, clampToWorld, type WorldPart } from './world';
 
 export function createPlayer(id: string, name: string, color: string, spawn: Vec3): PlayerState {
   return {
@@ -26,7 +27,7 @@ export function isGrounded(p: PlayerState): boolean {
 }
 
 // Advances one player by `dt`. A null input means "no frame arrived": gravity still applies.
-export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number, worldRadius: number): void {
+export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number, shape: WorldPart[] = WORLD_SHAPE): void {
   if (input) {
     p.yaw = input.yaw;
     p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
@@ -54,15 +55,6 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
     }
     p.pos.x += dx * MOVE_SPEED * dt;
     p.pos.z += dz * MOVE_SPEED * dt;
-    clampToWorld(p.pos, worldRadius - PLAYER_PADDING);
-  }
-}
-
-export function clampToWorld(pos: Vec3, maxRadius: number): void {
-  const d = Math.hypot(pos.x, pos.z);
-  if (d > maxRadius) {
-    const s = maxRadius / d;
-    pos.x *= s;
-    pos.z *= s;
+    clampToWorld(p.pos, PLAYER_PADDING, shape);
   }
 }
