@@ -57,8 +57,10 @@ test('two clients in one room see each other move', async () => {
     }
     const snap = await b.next((m) => m.t === 'snap' && m.players.some((p) => p.id === wa.id && p.lastSeq >= 30), 5000);
     if (snap.t !== 'snap') return;
+    const start = wa.players.find((p) => p.id === wa.id)!.pos;
     const alice = snap.players.find((p) => p.id === wa.id)!;
-    assert.ok(alice.pos.z > 5, `alice should have walked forward, z=${alice.pos.z}`);
+    const walked = alice.pos.z - start.z;
+    assert.ok(walked > 7 && walked < 9, `30 frames at 8 m/s should walk ~8 m forward, got ${walked}`);
 
     a.send({ t: 'chat', text: 'hi bob' });
     const chat = await b.next((m) => m.t === 'chat');
