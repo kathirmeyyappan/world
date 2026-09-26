@@ -5,8 +5,10 @@ redirects to the Room server with the token in the query string. The proxy answe
 307 that moves the token into a host-bound cookie, and the Room's Node process then serves the
 page; the game's WebSocket is same-origin from there, so the cookie covers it.
 
-The lobby is the only component that ever holds proxy auth. `Room` is referenced directly rather
-than via `Server.from_name` so the same code works under `modal serve` and `modal deploy`.
+The lobby is the only component that ever holds proxy auth. It never imports `room.py`: executing
+the `@app.server` decorator inside this container stalls it. Instead it takes a handle to the Room
+server by id, from the ids Modal hands every container of the running app, which works under both
+`modal serve` (ephemeral app, no name to look up) and `modal deploy`.
 """
 
 import re
@@ -14,10 +16,19 @@ import re
 import modal
 
 from .common import app, lobby_image, rooms
-from .config import SESSION_IDLE_TIMEOUT
-from .room import Room
+from .config import APP_NAME, SESSION_IDLE_TIMEOUT
 
 ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
+
+
+def room_server() -> modal.Server:
+    """Handle to the Room server without importing its module."""
+    from modal.app import _App
+
+    container_app = _App._get_container_app()
+    if container_app is not None and container_app._running_app is not None:
+        return modal.Server.from_id(container_app._running_app.function_ids["Room"])
+    return modal.Server.from_name(APP_NAME, "Room")
 
 
 async def room_entry(room_id: str, fresh: bool) -> dict:
@@ -26,7 +37,7 @@ async def room_entry(room_id: str, fresh: bool) -> dict:
         entry = await rooms.get.aio(room_id)
         if entry is not None:
             return entry
-    session = await Room.sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
+    session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
     entry = {"session_id": session.session_id, "token": session.token}
     await rooms.put.aio(room_id, entry)
     return entry
@@ -47,8 +58,11 @@ def build_api():
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
         entry = await room_entry(room_id, fresh)
-        room_url = (await Room.get_url.aio()).rstrip("/")
-        query = urlencode({"modal_session_token": entry["token"], "room": room_id, "direct": "1", "name": name})
+        room_url = (await room_server().get_url.aio()).rstrip("/")
+        lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
+        query = urlencode(
+            {"modal_session_token": entry["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
+        )
         return RedirectResponse(f"{room_url}/?{query}", status_code=302)
 
     @api.get("/healthz")

@@ -24,8 +24,6 @@ from .config import ROOM_PORT, ROOM_TARGET_CONCURRENCY
 class Room:
     @modal.enter()
     def start(self):
-        from .lobby import lobby
-
         self.proc = subprocess.Popen(
             ["node", "packages/server/dist/server.cjs"],
             cwd="/app",
@@ -33,7 +31,6 @@ class Room:
                 "PORT": str(ROOM_PORT),
                 "PATH": "/usr/local/bin:/usr/bin:/bin",
                 "STATIC_DIR": "/app/packages/client/dist",
-                "LOBBY_URL": lobby.get_web_url() or "",
             },
         )
 

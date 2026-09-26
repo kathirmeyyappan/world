@@ -10,13 +10,15 @@ import { WsConnection, type Connection } from './Connection';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
 // Read once at load: the home screen cleans the query string after joining.
-export const SERVED_BY_ROOM_HOST = new URLSearchParams(location.search).has('direct');
+const startParams = new URLSearchParams(location.search);
+export const SERVED_BY_ROOM_HOST = startParams.has('direct');
+// The lobby tells the room-host page where it lives, so "back to home" can reach it later.
+if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.get('lobby')!);
 
 export class LobbyUnavailableError extends Error {}
 
 export function lobbyUrl(): string | null {
-  const meta = document.querySelector('meta[name="lobby-url"]') as HTMLMetaElement | null;
-  const url = meta?.content || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
+  const url = sessionStorage.getItem('world.lobby') || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
   return url ? url.replace(/\/$/, '') : null;
 }
 

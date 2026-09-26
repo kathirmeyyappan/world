@@ -17,9 +17,8 @@ const TYPES: Record<string, string> = {
   '.webp': 'image/webp',
 };
 
-export function createStaticHandler(dir: string, lobbyUrl: string | undefined) {
-  let index = readFileSync(join(dir, 'index.html'), 'utf8');
-  if (lobbyUrl) index = index.replace('</head>', `<meta name="lobby-url" content="${lobbyUrl}" /></head>`);
+export function createStaticHandler(dir: string) {
+  const index = readFileSync(join(dir, 'index.html'), 'utf8');
 
   return (req: IncomingMessage, res: ServerResponse): void => {
     const path = normalize(new URL(req.url ?? '/', 'http://x').pathname).replace(/^(\.\.[/\\])+/, '');

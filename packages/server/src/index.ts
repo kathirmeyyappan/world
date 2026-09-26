@@ -64,7 +64,7 @@ function linkFor(ws: WebSocket): ClientLink {
   };
 }
 
-const serveStatic = STATIC_DIR ? createStaticHandler(STATIC_DIR, process.env.LOBBY_URL) : null;
+const serveStatic = STATIC_DIR ? createStaticHandler(STATIC_DIR) : null;
 
 const http = createServer((req, res) => {
   if (req.url === '/healthz') {
