@@ -64,15 +64,15 @@ async def get_or_start_session(room_id: str, room_url: str) -> dict:
 
 
 def build_api():
-    from urllib.parse import urlencode
+    from urllib.parse import urlencode, urlparse
 
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import RedirectResponse
 
     api = FastAPI()
 
     @api.get("/join/{room_id}")
-    async def join(room_id: str, name: str = ""):
+    async def join(request: Request, room_id: str, name: str = ""):
         """Join a room, creating one if necessary"""
         print(f"Attempting to join room {room_id} with name {name}")
         
@@ -83,9 +83,12 @@ def build_api():
         room_url = (await room_server().get_url.aio()).rstrip("/")
         entry_info = await get_or_start_session(room_id, room_url)
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
-        query = urlencode(
-            {"modal_session_token": entry_info["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
-        )
+        # Where the player came from (the launcher), so the room page can send them back to it.
+        home = urlparse(request.headers.get("referer", ""))
+        params = {"modal_session_token": entry_info["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
+        if home.scheme and home.netloc:
+            params["home"] = f"{home.scheme}://{home.netloc}"
+        query = urlencode(params)
         return RedirectResponse(f"{room_url}/?{query}", status_code=302)
 
     @api.get("/healthz")

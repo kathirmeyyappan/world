@@ -18,6 +18,8 @@ export interface RemotePlayer {
   yaw: number;
   pitch: number;
   reading: string | null;
+  gun: boolean;
+  dead: boolean;
 }
 
 const KEEP_TICKS = TICK_RATE * 2;
@@ -66,6 +68,8 @@ export class Interpolation {
         yaw: lerpAngle(a.yaw, b.yaw, t),
         pitch: lerp(a.pitch, b.pitch, t),
         reading: b.reading,
+        gun: b.gun,
+        dead: b.dead,
       });
     }
     const cubes: CubeSnapshot[] = [];
