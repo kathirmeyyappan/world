@@ -1,4 +1,5 @@
-// Home screen: pick a name, then join a room by code, create one, or drop into the global room.
+// Home screen: pick a name, then drop into the global room or join a room by code (a code nobody
+// is using yet becomes a new room).
 // Resolves with a live Connection. Also honours ?room=&name= for invite links and tests.
 import { isValidRoomId, sanitizeName } from '@world/shared';
 import { LocalConnection, type Connection } from '../net/Connection';
@@ -18,11 +19,10 @@ export function showHome(): Promise<HomeResult> {
   const nameInput = document.getElementById('home-name') as HTMLInputElement;
   const roomInput = document.getElementById('home-room') as HTMLInputElement;
   const joinBtn = document.getElementById('home-join') as HTMLButtonElement;
-  const createBtn = document.getElementById('home-create') as HTMLButtonElement;
   const globalBtn = document.getElementById('home-global') as HTMLButtonElement;
   const offlineBtn = document.getElementById('home-offline') as HTMLButtonElement;
   const status = document.getElementById('home-status')!;
-  const buttons = [joinBtn, createBtn, globalBtn, offlineBtn];
+  const buttons = [joinBtn, globalBtn, offlineBtn];
 
   const params = new URLSearchParams(location.search);
   nameInput.value = params.get('name') ?? localStorage.getItem(NAME_KEY) ?? '';
@@ -64,16 +64,20 @@ export function showHome(): Promise<HomeResult> {
       }
     };
 
-    joinBtn.addEventListener('click', () => attempt(roomInput.value));
+    const joinTyped = () => {
+      if (!roomInput.value.trim()) {
+        status.textContent = 'enter a room code';
+        roomInput.focus();
+        return;
+      }
+      attempt(roomInput.value);
+    };
+    joinBtn.addEventListener('click', joinTyped);
     roomInput.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter') attempt(roomInput.value);
+      if (e.code === 'Enter') joinTyped();
     });
     nameInput.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter') (roomInput.value ? attempt(roomInput.value) : roomInput.focus());
-    });
-    createBtn.addEventListener('click', () => {
-      if (!roomInput.value.trim()) roomInput.value = randomCode();
-      attempt(roomInput.value);
+      if (e.code === 'Enter') (roomInput.value ? joinTyped() : roomInput.focus());
     });
     globalBtn.addEventListener('click', () => attempt(GLOBAL_ROOM));
     offlineBtn.addEventListener('click', () => {
@@ -91,10 +95,4 @@ export function showHome(): Promise<HomeResult> {
     } else if (params.get('offline') !== null) offlineBtn.click();
     else (nameInput.value ? roomInput : nameInput).focus();
   });
-}
-
-function randomCode(): string {
-  const words = ['neon', 'moon', 'grid', 'dome', 'cube', 'drift', 'echo', 'glow', 'orbit', 'pixel'];
-  const w = words[Math.floor(Math.random() * words.length)];
-  return `${w}-${Math.random().toString(36).slice(2, 6)}`;
 }

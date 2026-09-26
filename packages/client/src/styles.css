@@ -48,7 +48,10 @@ html, body {
 .card button:disabled { opacity: 0.5; cursor: default; }
 .card button.wide { width: 100%; margin-top: 10px; }
 .card button.subtle { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
-.card .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.card .divider {
+  display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; font: 10px var(--pixel); color: rgba(255,255,255,0.4);
+}
+.card .divider::before, .card .divider::after { content: ''; flex: 1; border-top: 2px solid rgba(100,181,246,0.3); }
 #home-status { min-height: 18px; margin-top: 14px; font-size: 19px; color: #ffb74d; }
 
 #home, #disconnected, #loading {
