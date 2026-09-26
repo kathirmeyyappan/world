@@ -60,3 +60,20 @@ test('players spawn at random spots across the whole world, clear of walls', () 
   assert.ok(spots.some((p) => p.x < 50), 'some spawn in the main disc');
   assert.ok(new Set(spots.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`)).size === spots.length, 'all different');
 });
+
+test('/speedy is a command: boosts the sender and tells everyone in grey', () => {
+  const room = new Room('cmd', { seed: 1 });
+  const a = link();
+  const b = link();
+  const ida = room.join('alice', a)!;
+  room.join('bob', b);
+  room.receive(ida, { t: 'chat', text: '/speedy' });
+  assert.equal(room.players.find((p) => p.id === ida)!.boost, 20);
+  const notice = b.inbox.at(-1)!;
+  assert.deepEqual(notice, { t: 'system', text: 'alice increased their movement speed for 20s' });
+  assert.ok(!b.inbox.some((m) => m.t === 'chat'), 'the command itself is not broadcast as chat');
+
+  room.receive(ida, { t: 'chat', text: '/fly' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'unknown command /fly' });
+  assert.notDeepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /fly' }, 'only the sender is told');
+});

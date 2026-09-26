@@ -5,6 +5,7 @@ export * from './sim/world';
 export * from './sim/player';
 export * from './sim/cubes';
 export * from './protocol';
+export * from './commands';
 export * from './room';
 export * from './content/cubes';
 export * from './content/sky';

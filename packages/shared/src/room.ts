@@ -11,9 +11,11 @@ import {
   MAX_NAME_LENGTH,
   MAX_PLAYERS,
   PLAYER_COLORS,
+  SPEEDY_SECONDS,
   TICK_DT,
   TICK_RATE,
 } from './sim/constants';
+import { parseCommand } from './commands';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
@@ -122,7 +124,10 @@ export class Room {
       }
       case 'chat': {
         const text = msg.text.replace(/[\u0000-\u001f]/g, '').trim().slice(0, MAX_CHAT_LENGTH);
-        if (text) this.broadcast({ t: 'chat', id, name: seat.state.name, color: seat.state.color, text });
+        if (!text) return;
+        const command = parseCommand(text);
+        if (command) this.runCommand(seat, command);
+        else this.broadcast({ t: 'chat', id, name: seat.state.name, color: seat.state.color, text });
         return;
       }
       case 'ping':
@@ -169,6 +174,18 @@ export class Room {
       }
     }
     return best;
+  }
+
+  private runCommand(seat: Seat, command: NonNullable<ReturnType<typeof parseCommand>>): void {
+    switch (command.name) {
+      case 'speedy':
+        seat.state.boost = SPEEDY_SECONDS;
+        this.broadcast({ t: 'system', text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
+        return;
+      case 'unknown':
+        seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
+        return;
+    }
   }
 
   // Anywhere in the world, clear of the walls and not on top of a cube.

@@ -21,6 +21,7 @@ export type ServerMessage =
   | { t: 'join'; p: PlayerState }
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; color: string; text: string }
+  | { t: 'system'; text: string } // greyed-out line: command results, notices
   | { t: 'pong'; at: number }
   | { t: 'error'; message: string };
 

@@ -150,6 +150,9 @@ export class Game {
       case 'chat':
         this.hud.chat(m.name, m.color, m.text);
         return;
+      case 'system':
+        this.hud.system(m.text);
+        return;
       case 'pong':
         this.hud.setPing(now - m.at);
         return;

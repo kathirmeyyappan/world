@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  EYE_HEIGHT, JUMP_VELOCITY, TICK_DT, WORLD_SHAPE,
+  EYE_HEIGHT, JUMP_VELOCITY, SPEEDY_MULTIPLIER, SPEEDY_SECONDS, TICK_DT, WORLD_SHAPE,
   clonePlayer, createCubes, createPlayer, createRng, stepCubes, stepPlayer, worldDistance,
   type InputFrame,
 } from '@world/shared';
@@ -84,4 +84,16 @@ test('cubes all live in the main disc and cover it evenly', () => {
     }
   }
   assert.equal(quadrants.size, 8, 'over ten minutes the cubes visit every quadrant, inner and outer');
+});
+
+test('/speedy boost multiplies movement and wears off', () => {
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  p.boost = SPEEDY_SECONDS;
+  stepPlayer(p, frame(1, { my: 1 }), 1, WORLD_SHAPE);
+  assert.ok(Math.abs(p.pos.z - 8 * SPEEDY_MULTIPLIER) < 1e-9, 'boosted for one second');
+  for (let i = 2; i <= SPEEDY_SECONDS; i++) stepPlayer(p, frame(i, { my: 0 }), 1, WORLD_SHAPE);
+  assert.equal(p.boost, 0);
+  const before = p.pos.z;
+  stepPlayer(p, frame(99, { my: 1 }), 0.1, WORLD_SHAPE);
+  assert.ok(Math.abs(p.pos.z - before - 0.8) < 1e-9, 'back to normal speed');
 });
