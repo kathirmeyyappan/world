@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  EYE_HEIGHT, JUMP_VELOCITY, SPEEDY_MULTIPLIER, SPEEDY_SECONDS, TICK_DT, WORLD_SHAPE,
+  EYE_HEIGHT, GUN_SECONDS, JUMP_VELOCITY, SPEEDY_MULTIPLIER, SPEEDY_SECONDS, TICK_DT, WORLD_SHAPE,
   clonePlayer, createCubes, createPlayer, createRng, stepCubes, stepPlayer, worldDistance,
   type InputFrame,
 } from '@world/shared';
@@ -96,4 +96,13 @@ test('/speedy boost multiplies movement and wears off', () => {
   const before = p.pos.z;
   stepPlayer(p, frame(99, { my: 1 }), 0.1, WORLD_SHAPE);
   assert.ok(Math.abs(p.pos.z - before - 0.8) < 1e-9, 'back to normal speed');
+});
+
+test('/gun wears off after its window', () => {
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  p.gun = GUN_SECONDS;
+  for (let i = 1; i <= GUN_SECONDS - 1; i++) stepPlayer(p, null, 1, WORLD_SHAPE);
+  assert.ok(p.gun > 0, 'still armed just before the window ends');
+  stepPlayer(p, null, 1, WORLD_SHAPE);
+  assert.equal(p.gun, 0);
 });

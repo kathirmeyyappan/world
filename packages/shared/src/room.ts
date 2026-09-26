@@ -10,6 +10,7 @@ import {
   MAX_INPUT_QUEUE,
   MAX_NAME_LENGTH,
   MAX_PITCH,
+  GUN_SECONDS,
   MAX_PLAYERS,
   PLAYER_COLORS,
   SHOT_COOLDOWN_TICKS,
@@ -136,7 +137,7 @@ export class Room {
       }
       case 'shoot': {
         const me = seat.state;
-        if (!me.gun || me.dead || this.tick - seat.lastShotTick < SHOT_COOLDOWN_TICKS) return;
+        if (me.gun <= 0 || me.dead || this.tick - seat.lastShotTick < SHOT_COOLDOWN_TICKS) return;
         seat.lastShotTick = this.tick;
         me.yaw = msg.yaw;
         me.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, msg.pitch));
@@ -202,8 +203,8 @@ export class Room {
         this.broadcast({ t: 'system', text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
       case 'gun':
-        seat.state.gun = true;
-        seat.link.send({ t: 'system', text: 'you drew a gun. click to shoot.' });
+        seat.state.gun = GUN_SECONDS;
+        seat.link.send({ t: 'system', text: `you drew a gun for ${GUN_SECONDS}s. click to shoot.` });
         this.broadcast({ t: 'system', text: `${seat.state.name} drew a gun` }, seat.state.id);
         return;
       case 'unknown':

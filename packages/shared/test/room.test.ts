@@ -91,7 +91,7 @@ test('/gun then click: the server resolves the hit, kills the target, and the de
   room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
   assert.ok(!bob.dead, 'no gun yet');
   room.receive(ida, { t: 'chat', text: '/gun' });
-  assert.ok(alice.gun);
+  assert.equal(alice.gun, 30);
   room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
   assert.ok(bob.dead, 'bob is directly ahead');
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === idb && m.shooter === ida));

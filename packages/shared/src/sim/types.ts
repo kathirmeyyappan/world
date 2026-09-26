@@ -16,7 +16,7 @@ export interface PlayerState {
   lastSeq: number;
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal
-  gun: boolean;
+  gun: number; // seconds of /gun left, 0 when unarmed
   dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 

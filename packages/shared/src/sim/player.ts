@@ -16,7 +16,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
-    gun: false,
+    gun: 0,
     dead: false,
   };
 }
@@ -41,6 +41,7 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
 
   const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1);
   p.boost = Math.max(0, p.boost - dt);
+  p.gun = Math.max(0, p.gun - dt);
 
   p.vy -= GRAVITY * dt;
   p.pos.y += p.vy * dt;

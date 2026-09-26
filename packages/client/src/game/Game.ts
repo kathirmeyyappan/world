@@ -91,7 +91,7 @@ export class Game {
     canvas.addEventListener('click', () => {
       if (this.isBlocked()) return;
       if (this.hovered) this.overlay.show(this.hovered.content);
-      else if (this.prediction?.state.gun) {
+      else if ((this.prediction?.state.gun ?? 0) > 0) {
         conn.send({ t: 'shoot', yaw: this.input.yaw, pitch: this.input.pitch });
         this.gun.fire();
       }
@@ -210,7 +210,7 @@ export class Game {
     this.camera.rotation.set(this.input.pitch, this.input.yaw, 0);
 
     this.environment.update(dt, this.camera.position);
-    this.gun.setVisible(!!this.prediction.state.gun && !this.dead);
+    this.gun.setVisible(this.prediction.state.gun > 0 && !this.dead);
     this.gun.update(dt);
 
     const sampled = this.interp.sample(performance.now(), this.myId);

@@ -18,7 +18,7 @@ export interface RemotePlayer {
   yaw: number;
   pitch: number;
   reading: string | null;
-  gun: boolean;
+  gun: boolean; // armed right now
   dead: boolean;
 }
 
@@ -68,7 +68,7 @@ export class Interpolation {
         yaw: lerpAngle(a.yaw, b.yaw, t),
         pitch: lerp(a.pitch, b.pitch, t),
         reading: b.reading,
-        gun: b.gun,
+        gun: b.gun > 0,
         dead: b.dead,
       });
     }
