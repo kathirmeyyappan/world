@@ -103,6 +103,8 @@ html, body {
   background: none; border: none; border-bottom: 1px dashed rgba(255,255,255,0.4); padding: 0 0 1px;
 }
 #room-code:hover { color: var(--accent); }
+#hud .tip { font: 13px var(--mono); color: var(--accent); opacity: 1; transition: opacity 0.4s; }
+#hud .tip.gone { opacity: 0; }
 #player-list { list-style: none; margin-bottom: 8px; }
 #player-list li { display: flex; align-items: center; gap: 6px; line-height: 20px; color: rgba(255,255,255,0.9); }
 #player-list li .dot { width: 8px; height: 8px; display: inline-block; }
@@ -173,6 +175,7 @@ html, body {
 }
 #hit-notice.on { opacity: 1; transition: none; }
 #hit-notice.headshot { color: #ffd54a; font-weight: bold; }
+#hit-notice.note { color: rgba(255,255,255,0.8); }
 
 /* Onboarding banner across the screen after 30 s without using anything. */
 #command-hint {
