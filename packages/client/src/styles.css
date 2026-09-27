@@ -217,7 +217,7 @@ html, body {
 @keyframes blink { 50% { opacity: 0; } }
 
 /* Mobile */
-#pad, #jump-button { display: none; }
+#pad, #jump-button, .touch-button { display: none; }
 #pad {
   position: fixed; left: 22px; bottom: 26px; width: 112px; height: 112px; z-index: 100;
   border: 2px solid rgba(100,181,246,0.55); background: rgba(10,10,15,0.45); box-sizing: border-box;
@@ -246,8 +246,29 @@ html, body {
 }
 #jump-button .glyph { font-size: 20px; line-height: 20px; }
 #jump-button.active { background: rgba(100,181,246,0.3); border-color: var(--accent); box-shadow: 0 0 14px var(--accent); }
+/* Context buttons stacked above JUMP on the right, and CHAT in the top-right corner. */
+.touch-button {
+  position: fixed; right: 22px; z-index: 100; padding: 0 14px; height: 44px;
+  border: 2px solid rgba(100,181,246,0.55); background: rgba(10,10,15,0.45); color: var(--accent);
+  font: 9px var(--pixel); letter-spacing: 1px; touch-action: none; user-select: none; -webkit-user-select: none;
+  box-shadow: 3px 3px 0 #000;
+}
+.touch-button.active { background: rgba(100,181,246,0.3); border-color: var(--accent); }
+.touch-button.on { background: rgba(100,181,246,0.3); border-color: var(--accent); box-shadow: 0 0 12px var(--accent); }
+#action-button { bottom: 122px; width: 84px; }
+#action-button.fire { color: #ff3b4e; border-color: rgba(255,59,78,0.7); }
+#action-button.fire.active { background: rgba(255,59,78,0.3); }
+#scope-button { bottom: 178px; width: 84px; }
+#chat-button { top: 16px; }
+
 @media (pointer: coarse) {
   #pad { display: block; }
   #jump-button { display: flex; }
-  #instructions, #chat, #minimap, #item-hint, #info-card .close-hint { display: none; }
+  .touch-button { display: block; }
+  .touch-button.hidden { display: none; }
+  #instructions, #minimap, #chat-input.hidden + #chat-hint, #info-card .close-hint { display: none; }
+  /* Chat sits above the pad; the log stays short so it doesn't cover the world. */
+  #chat { bottom: 150px; width: min(300px, 60vw); }
+  #chat-log li { font-size: 18px; }
+  #item-hint { bottom: 82px; }
 }

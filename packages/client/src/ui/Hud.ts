@@ -72,7 +72,7 @@ export class Hud {
     return !this.chatInput.classList.contains('hidden');
   }
 
-  private openChat(): void {
+  openChat(): void {
     if (document.pointerLockElement) document.exitPointerLock();
     this.chatInput.classList.remove('hidden');
     this.chatInput.value = '';
@@ -82,9 +82,6 @@ export class Hud {
 
   private closeChat(): void {
     if (!this.isChatOpen()) return;
-    this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
-    this.panelToggle.addEventListener('click', () => this.setPanelCollapsed(!this.panel.classList.contains('collapsed')));
-
     this.chatInput.classList.add('hidden');
     this.chatInput.blur();
     this.onChatOpenChange?.(false);
