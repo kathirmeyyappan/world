@@ -10,7 +10,27 @@ import subprocess
 import modal
 
 from .common import app, room_image
-from .config import ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
+from .config import APP_NAME, ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
+
+
+def lobby_url() -> str:
+    """The lobby's public URL, for the page the Node server serves. A tab that lands on this host
+    without the lobby's redirect params (a pasted URL, a fresh tab) still needs to know where the
+    lobby is to join a room. Resolved by id like lobby.py does for the Room, so it works under
+    `modal serve` too; empty if anything fails, which only loses that fallback."""
+    try:
+        from modal.app import _App
+
+        container_app = _App._get_container_app()
+        running = container_app._running_app if container_app is not None else None
+        if running is not None and hasattr(modal.Function, "from_id"):
+            fn = modal.Function.from_id(running.function_ids["lobby"])
+        else:
+            fn = modal.Function.from_name(APP_NAME, "lobby")
+        return (fn.get_web_url() or "").rstrip("/")
+    except Exception as e:  # noqa: BLE001
+        print(f"lobby url unavailable: {e}")
+        return ""
 
 
 @app.server(
@@ -34,6 +54,7 @@ class Room:
                 "PORT": str(ROOM_PORT),
                 "PATH": "/usr/local/bin:/usr/bin:/bin",
                 "STATIC_DIR": "/app/packages/client/dist",
+                "LOBBY_URL": lobby_url(),
             },
         )
 

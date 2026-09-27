@@ -17,8 +17,11 @@ const TYPES: Record<string, string> = {
   '.webp': 'image/webp',
 };
 
-export function createStaticHandler(dir: string) {
-  const index = readFileSync(join(dir, 'index.html'), 'utf8');
+// The page is served with the lobby's URL in a meta tag when the host knows it, so a tab that
+// didn't arrive through the lobby (a pasted URL) can still reach it to join a room.
+export function createStaticHandler(dir: string, lobbyUrl = '') {
+  const meta = lobbyUrl ? `<meta name="world-lobby" content="${escapeAttr(lobbyUrl)}" />` : '';
+  const index = readFileSync(join(dir, 'index.html'), 'utf8').replace('</head>', `${meta}</head>`);
 
   return (req: IncomingMessage, res: ServerResponse): void => {
     const path = normalize(new URL(req.url ?? '/', 'http://x').pathname).replace(/^(\.\.[/\\])+/, '');
@@ -45,4 +48,8 @@ export function createStaticHandler(dir: string) {
       res.end(index);
     }
   };
+}
+
+function escapeAttr(v: string): string {
+  return v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
