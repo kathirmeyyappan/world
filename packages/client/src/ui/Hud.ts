@@ -25,6 +25,8 @@ export class Hud {
   private readonly ping = document.getElementById('ping')!;
   private readonly chatLog = document.getElementById('chat-log')!;
   private readonly itemHint = document.getElementById('item-hint')!;
+  private readonly itemHintMain = this.itemHint.querySelector('.main')!;
+  private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
   private itemHintText = '';
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
   private readonly crosshair = document.getElementById('crosshair')!;
@@ -126,10 +128,12 @@ export class Hud {
   }
 
   // What you're holding and how to use it, or nothing.
-  setItemHint(text: string): void {
-    if (text === this.itemHintText) return;
-    this.itemHintText = text;
-    this.itemHint.textContent = text;
+  setItemHint(text: string, stats = ''): void {
+    const key = `${text}\n${stats}`;
+    if (key === this.itemHintText) return;
+    this.itemHintText = key;
+    this.itemHintMain.textContent = text;
+    this.itemHintStats.textContent = stats;
     this.itemHint.classList.toggle('hidden', !text);
   }
 

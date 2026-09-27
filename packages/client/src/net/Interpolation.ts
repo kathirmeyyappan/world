@@ -19,6 +19,7 @@ export interface RemotePlayer {
   pitch: number;
   reading: string | null;
   item: ItemId | null;
+  firing: boolean;
   dead: boolean;
   avatar: AvatarId;
 }
@@ -70,6 +71,7 @@ export class Interpolation {
         pitch: lerp(a.pitch, b.pitch, t),
         reading: b.reading,
         item: b.item?.id ?? null,
+        firing: b.firing,
         dead: b.dead,
         avatar: b.avatar,
       });

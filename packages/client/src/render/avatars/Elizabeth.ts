@@ -3,11 +3,10 @@
 // spheres for the body so it reads as a soft egg while still fitting the blocky world. Same
 // movement, hit capsule and items as everyone else; a weapon goes in the right flipper.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
-import type { ItemId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { buildWeapon, weaponPalette } from '../Weapons';
 import { box, createShadowBlob, createTag, type Avatar } from './common';
+import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
 const HEIGHT = 2.0;
@@ -25,9 +24,8 @@ export class ElizabethAvatar implements Avatar {
   private readonly footL: Mesh;
   private readonly footR: Mesh;
   private readonly shadow: Mesh;
-  private readonly weapons = new Map<ItemId, TransformNode>();
+  private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
-  private held: ItemId | null = null;
   private dead = false;
   private phase = 0;
   private lastX = 0;
@@ -89,17 +87,9 @@ export class ElizabethAvatar implements Avatar {
     this.footL = foot(scene, `eliz-footL-${id}`, this.body, orange, -0.24);
     this.footR = foot(scene, `eliz-footR-${id}`, this.body, orange, 0.24);
 
-    // Weapons hang off the right flipper's tip; the flipper points forward while holding one.
-    const pal = weaponPalette(scene, `eliz-weapon-${id}`);
-    for (const item of ['gun', 'sniper'] as ItemId[]) {
-      const node = new TransformNode(`eliz-${item}-${id}`, scene);
-      node.parent = this.flipperR;
-      node.position.set(0.02, -0.32, 0.04);
-      node.rotation.x = Math.PI / 2; // barrel along the raised flipper, grip down
-      buildWeapon(scene, `eliz-${item}-${id}`, item, node, pal);
-      node.setEnabled(false);
-      this.weapons.set(item, node);
-    }
+    // Items hang off the right flipper's tip; the flipper points forward while holding one. The
+    // flamethrower's tank rides on the back of the egg.
+    this.items = new HeldItems(engine, `eliz-${id}`, this.flipperR, new Vector3(0.02, -0.32, 0.04), this.body, new Vector3(0, 1.15, -(RADIUS + 0.1)));
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.5);
     this.shadow.parent = this.root;
@@ -132,11 +122,7 @@ export class ElizabethAvatar implements Avatar {
     this.flipperR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : Math.sin(this.phase) * 0.3 * effort;
     this.flipperR.rotation.z = p.item ? 0 : 0.3;
 
-    if (p.item !== this.held) {
-      if (this.held) this.weapons.get(this.held)!.setEnabled(false);
-      if (p.item) this.weapons.get(p.item)!.setEnabled(true);
-      this.held = p.item;
-    }
+    this.items.update(p.item, p.firing);
     if (p.dead !== this.dead) {
       this.dead = p.dead;
       // Tipped onto its side; the egg's half-width keeps it resting on the ground.

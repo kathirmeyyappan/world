@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { EYE_HEIGHT, ITEMS, createPlayer, findHit, lookDirection } from '@world/shared';
+import { EYE_HEIGHT, ITEMS, createPlayer, findHit, lookDirection, resolveFire } from '@world/shared';
 
 const GUN = ITEMS.gun.range;
 
@@ -41,4 +41,15 @@ test('where the shot lands decides a headshot: eye level is the head, the chest 
   assert.equal(findHit(me, [x], GUN)?.headshot, false, 'chest');
   me.pitch = Math.atan2(1.5, 6);
   assert.equal(findHit(me, [x], GUN)?.headshot, false, 'legs');
+});
+
+test('resolveFire: hitscan picks one, a cone takes everyone inside it', () => {
+  const me = at('me', 0, 0);
+  const near = at('near', 0, 4);
+  const beside = at('beside', 1.5, 6);
+  const far = at('far', 0, 12);
+  const wide = at('wide', 5, 6);
+  assert.deepEqual(resolveFire(ITEMS.gun, me, [near, beside, far, wide]).map((h) => h.target.id), ['near']);
+  assert.deepEqual(resolveFire(ITEMS.flamethrower, me, [near, beside, far, wide]).map((h) => h.target.id).sort(), ['beside', 'near']);
+  assert.ok(resolveFire(ITEMS.flamethrower, me, [near]).every((h) => !h.headshot), 'no headshots from a cone');
 });

@@ -3,7 +3,7 @@
 import { EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PLAYER_PADDING, SPEEDY_MULTIPLIER } from './constants';
 import { avatarFor } from './avatars';
 import { MAX_HEARTS } from './health';
-import { permanentItemFor } from './items';
+import { FUEL_REFILL_RATE, ITEMS, createItem, permanentItemFor } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, clampToWorld, type WorldPart } from './world';
 
@@ -20,6 +20,8 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     reading: null,
     boost: 0,
     item: permanentItem(name),
+    scoped: false,
+    firing: false,
     avatar: avatarFor(name),
     avatarLeft: null,
     hearts: MAX_HEARTS,
@@ -33,7 +35,31 @@ export function clonePlayer(p: PlayerState): PlayerState {
 
 function permanentItem(name: string) {
   const id = permanentItemFor(name);
-  return id ? { id, left: 0, permanent: true } : null;
+  return id ? createItem(id, true) : null;
+}
+
+// Item actions from the frame. Scope is a level the client reports; firing is for hold items
+// and needs fuel, which burns while firing and refills at half rate otherwise. Pure, so the
+// local fuel gauge and scope state predict exactly. Tap shots are events the Room resolves.
+function stepItem(p: PlayerState, input: InputFrame | null, dt: number): void {
+  const item = p.item;
+  if (!item || p.dead) {
+    p.scoped = false;
+    p.firing = false;
+    return;
+  }
+  const spec = ITEMS[item.id];
+  const held = input ? input.actions : [];
+  p.scoped = !!spec.actions.scope && held.includes('scope');
+  const wantsFire = spec.actions.shoot?.mode === 'hold' && held.includes('shoot') && (!spec.fireNeedsScope || p.scoped);
+  p.firing = wantsFire && (item.fuel === null || item.fuel > 0);
+  if (item.fuel !== null && spec.fuelSeconds !== null) {
+    item.fuel = p.firing ? item.fuel - dt : Math.min(spec.fuelSeconds, item.fuel + dt * FUEL_REFILL_RATE);
+    if (item.fuel < 1e-9) {
+      item.fuel = 0; // the tank ran dry this tick (float slop counts as dry)
+      p.firing = false;
+    }
+  }
 }
 
 export function isGrounded(p: PlayerState): boolean {
@@ -63,6 +89,7 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
     p.item.left -= dt;
     if (p.item.left <= 0) p.item = null;
   }
+  stepItem(p, input, dt);
 
   p.vy -= GRAVITY * dt;
   p.pos.y += p.vy * dt;

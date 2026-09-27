@@ -145,6 +145,11 @@ html, body {
 .heart.lost .broken { display: block; }
 .heart.lost svg rect { fill: #3a3d46; }
 .heart.lost svg rect.hi { fill: #4a4e58; }
+/* Half a heart: the cracked grey one underneath, the left half of the red one on top. */
+.heart.half .broken { display: block; }
+.heart.half .broken rect { fill: #3a3d46; }
+.heart.half .broken rect.hi { fill: #4a4e58; }
+.heart.half .full { display: block; clip-path: inset(0 50% 0 0); }
 .heart.breaking { animation: heart-break 0.45s steps(6) both; }
 @keyframes heart-break {
   0% { transform: scale(1.35) rotate(-8deg); }
@@ -181,11 +186,21 @@ html, body {
 #command-hint .count { display: block; margin-top: 6px; font-size: 15px; color: var(--accent); }
 @keyframes hint-flash { 50% { background: rgba(60,160,120,0.55); } }
 
+/* Flamethrower tank, above the item hint. */
+#fuel {
+  position: fixed; bottom: 146px; left: 50%; transform: translateX(-50%); width: 220px; height: 12px; z-index: 50;
+  background: rgba(11,13,20,0.8); border: 2px solid rgba(255,140,40,0.7); box-shadow: 3px 3px 0 #000; pointer-events: none;
+}
+#fuel .fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff5a1f, #ffb347); transition: width 0.1s linear; }
+#fuel.empty { border-color: rgba(255,255,255,0.3); }
+
 #item-hint {
   position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); padding: 6px 12px; z-index: 50;
   font: 19px var(--mono); color: rgba(255,255,255,0.85); letter-spacing: 1px; pointer-events: none;
   background: rgba(11,13,20,0.8); border: 2px solid rgba(255,59,78,0.6); box-shadow: 4px 4px 0 #000;
 }
+#item-hint .stats { margin-top: 4px; font-size: 14px; color: rgba(255,255,255,0.55); letter-spacing: 0.5px; }
+#item-hint .stats:empty { display: none; }
 
 /* Sniper scope: black outside a circle, hairlines inside. The crosshair stays on top. */
 #scope { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
@@ -326,6 +341,7 @@ html, body {
   #chat { bottom: 150px; width: min(300px, 60vw); }
   #chat-log li { font-size: 18px; }
   #item-hint { bottom: 82px; }
+  #fuel { bottom: 146px; width: 160px; height: 10px; }
   #command-hint { top: 26%; padding: 8px 16px; font-size: 14px; }
   #command-hint .count { font-size: 12px; }
   #hearts { top: 8px; grid-template-columns: repeat(5, 18px); gap: 2px 3px; }

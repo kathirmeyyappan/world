@@ -1,6 +1,6 @@
 // Collects keyboard, mouse, touch and joystick input into a per-tick InputFrame.
 // Look (yaw/pitch) is integrated here every frame; movement and jump are sampled per tick.
-import { MAX_PITCH, type InputFrame } from '@world/shared';
+import { MAX_PITCH, type InputFrame, type ItemAction } from '@world/shared';
 
 const LOOK_SENSITIVITY = 0.002;
 const TOUCH_LOOK_MULTIPLIER = 3; // a thumb travels far fewer pixels than a mouse
@@ -11,8 +11,10 @@ export class InputManager {
   lookScale = 1; // <1 while scoped
   joystick = { x: 0, y: 0 };
   pointerLocked = false;
+  fireHeld = false; // mouse button while the pointer is locked, or the touch FIRE button
 
   private readonly keys = new Set<string>();
+  private readonly pressed = new Set<string>(); // keys that went down since the last sample
   private lookDx = 0;
   private lookDy = 0;
   private jumpRequested = false;
@@ -26,6 +28,7 @@ export class InputManager {
       if (this.blocked || isTyping(e)) return;
       if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
       this.keys.add(e.code);
+      this.pressed.add(e.code);
       if (e.code === 'Space') this.jumpRequested = true;
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
@@ -50,13 +53,18 @@ export class InputManager {
       }
     });
     canvas.addEventListener('mousedown', (e) => {
-      if (!this.pointerLocked && e.button === 0 && !this.blocked) {
+      if (e.button !== 0 || this.blocked) return;
+      if (this.pointerLocked) this.fireHeld = true;
+      else {
         this.dragging = true;
         this.lastX = e.clientX;
         this.lastY = e.clientY;
       }
     });
-    window.addEventListener('mouseup', () => (this.dragging = false));
+    window.addEventListener('mouseup', () => {
+      this.dragging = false;
+      this.fireHeld = false;
+    });
 
     let touchId: number | null = null;
     canvas.addEventListener('touchstart', (e) => {
@@ -88,6 +96,8 @@ export class InputManager {
     this.blocked = blocked;
     if (blocked) {
       this.keys.clear();
+      this.pressed.clear();
+      this.fireHeld = false;
       this.jumpRequested = false;
       this.lookDx = this.lookDy = 0;
       this.dragging = false;
@@ -106,8 +116,17 @@ export class InputManager {
     this.lookDx = this.lookDy = 0;
   }
 
-  // Once per sim tick: everything the server needs to move us.
-  sampleFrame(seq: number, reading: string | null): InputFrame {
+  isDown(code: string): boolean {
+    return this.keys.has(code);
+  }
+
+  // Whether the key went down since the last sample, so a tap shorter than a tick still counts.
+  wasPressed(code: string): boolean {
+    return this.pressed.has(code);
+  }
+
+  // Once per sim tick: everything the server needs to move us, plus the item actions in play.
+  sampleFrame(seq: number, reading: string | null, actions: ItemAction[]): InputFrame {
     let mx = this.joystick.x;
     let my = this.joystick.y;
     if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) my += 1;
@@ -121,7 +140,8 @@ export class InputManager {
     }
     const jump = this.jumpRequested;
     this.jumpRequested = false;
-    return { seq, mx, my, yaw: this.yaw, pitch: this.pitch, jump, reading };
+    this.pressed.clear();
+    return { seq, mx, my, yaw: this.yaw, pitch: this.pitch, jump, reading, actions };
   }
 }
 

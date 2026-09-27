@@ -2,8 +2,8 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, findHit, hashSeed, itemHelp,
-  type ItemId, type PlayerState, type ServerMessage,
+  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, itemStats, resolveFire,
+  type ItemAction, type ItemId, type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
@@ -22,6 +22,7 @@ import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { DamageFlash } from '../ui/DamageFlash';
 import { Death } from '../ui/Death';
+import { Fuel } from '../ui/Fuel';
 import { Hearts } from '../ui/Hearts';
 import { HitNotice } from '../ui/HitNotice';
 import { Hud } from '../ui/Hud';
@@ -59,6 +60,7 @@ export class Game {
   private readonly minimap = new Minimap(WORLD_SHAPE);
   private readonly death = new Death();
   private readonly hearts = new Hearts();
+  private readonly fuel = new Fuel();
   private readonly commandHint = new CommandHint();
   private readonly damageFlash = new DamageFlash();
   private readonly hitNotice = new HitNotice();
@@ -67,6 +69,8 @@ export class Game {
   private scoped = false;
   private canHit = false;
   private lastScopeNag = -Infinity;
+  private shootWasHeld = false; // last frame's shoot level, for the press edge
+  private localCooldownUntil = 0; // when the viewmodel may kick again; mirrors the server's cooldown
   private kick = 0; // camera recoil, radians of upward pitch that decays back
   private hoveredSky: SkyObject | null = null;
 
@@ -102,7 +106,12 @@ export class Game {
     this.input = new InputManager(canvas);
     this.mobile = new MobileControls(this.input);
     this.mobileActions = new MobileActions({
-      onAction: () => this.select(),
+      // SELECT opens the cube under the crosshair; otherwise the button is the trigger, held.
+      onActionDown: () => {
+        if (this.hovered) this.overlay.show(this.hovered.content);
+        else this.input.fireHeld = true;
+      },
+      onActionUp: () => (this.input.fireHeld = false),
       onScope: () => this.setScoped(!this.scoped),
       onChat: () => this.hud.openChat(),
     });
@@ -117,17 +126,12 @@ export class Game {
     window.addEventListener('keydown', (e) => {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
-      else if (this.held) {
-        switch (actionForKey(this.held.id, e.code)) {
-          case 'shoot': this.shoot(); break;
-          case 'scope': this.setScoped(!this.scoped); break;
-        }
-      }
+      else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
+    // Shooting is not a click handler: the input layer samples the mouse button into the
+    // frame's actions like any key. A click only opens the cube under the crosshair.
     canvas.addEventListener('click', () => {
-      // On touch a stray tap while turning must not fire; the FIRE button is the trigger there.
-      if (this.isBlocked() || (IS_TOUCH && !this.hovered)) return;
-      this.select();
+      if (!this.isBlocked() && this.hovered) this.overlay.show(this.hovered.content);
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -150,26 +154,43 @@ export class Game {
     return this.prediction?.state.item ?? null;
   }
 
-  // What a click or the touch action button does: open the cube you're looking at, else shoot.
-  private select(): void {
-    if (this.hovered) this.overlay.show(this.hovered.content);
-    else this.shoot();
-  }
-
   private canFire(): boolean {
     return !!this.held && (!ITEMS[this.held.id].fireNeedsScope || this.scoped);
   }
 
-  private shoot(): void {
+  // The item actions to put in this tick's frame. Shoot is a level: key or mouse button down
+  // (a press shorter than a tick still counts), except over a cube, where a click selects.
+  // Scope is the local toggle, reported while on so the server's state follows it.
+  private itemActions(): ItemAction[] {
+    const held = this.held;
+    if (!held || this.dead) return [];
+    const spec = ITEMS[held.id];
+    const actions: ItemAction[] = [];
+    const shoot = spec.actions.shoot;
+    const key = !!shoot && (this.input.isDown(shoot.key) || this.input.wasPressed(shoot.key));
+    if (shoot && (key || (this.input.fireHeld && !this.hovered))) actions.push('shoot');
+    if (spec.actions.scope && this.scoped) actions.push('scope');
+    this.localEffects(actions.includes('shoot'));
+    return actions;
+  }
+
+  // What the local player sees on the press of a tap weapon, before the server confirms:
+  // viewmodel recoil, camera kick, scope flash. Hold weapons show their jet from the sim's
+  // firing state instead. An unscoped sniper explains itself.
+  private localEffects(shootHeld: boolean): void {
+    const pressed = shootHeld && !this.shootWasHeld;
+    this.shootWasHeld = shootHeld;
+    if (!pressed || !this.held) return;
+    const spec = ITEMS[this.held.id];
     if (!this.canFire()) {
-      // Trying to fire an unscoped sniper: say why nothing happened, but not on every press.
-      if (this.held && performance.now() - this.lastScopeNag > 2000) {
+      if (performance.now() - this.lastScopeNag > 2000) {
         this.lastScopeNag = performance.now();
         this.hud.system(`the ${this.held.id} only fires while scoped${IS_TOUCH ? '' : ' (F)'}`);
       }
       return;
     }
-    this.conn.send({ t: 'shoot', yaw: this.input.yaw, pitch: this.input.pitch, scoped: this.scoped });
+    if (spec.actions.shoot?.mode !== 'tap' || performance.now() < this.localCooldownUntil) return;
+    this.localCooldownUntil = performance.now() + (spec.cooldownTicks * TICK_DT) * 1000;
     this.viewmodel.fire();
     // Recoil the camera up and let it settle. Bigger for the sniper, whose viewmodel is hidden
     // behind the scope, and flash the scope so the shot is unmistakable.
@@ -301,7 +322,7 @@ export class Game {
     this.accumulator += Math.min(dt, TICK_DT * MAX_TICKS_PER_FRAME);
     while (this.accumulator >= TICK_DT) {
       this.accumulator -= TICK_DT;
-      const frame = this.input.sampleFrame(this.prediction.nextSeq(), this.overlay.reading);
+      const frame = this.input.sampleFrame(this.prediction.nextSeq(), this.overlay.reading, this.itemActions());
       this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
@@ -318,9 +339,12 @@ export class Game {
     const held = this.held;
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
-    this.viewmodel.update(dt);
-    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '');
     const self = this.prediction.state;
+    this.viewmodel.setFiring(self.firing);
+    this.viewmodel.update(dt);
+    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '', held ? itemStats(held.id) : '');
+    const fuelMax = held && ITEMS[held.id].fuelSeconds;
+    this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
     this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard', this.dead || this.hud.isChatOpen());
 
     const sampled = this.interp.sample(performance.now(), this.myId);
@@ -348,12 +372,11 @@ export class Game {
     this.updateHover();
     // Red crosshair when a shot from here would land: same maths the server will run.
     const me = this.prediction.state;
-    const hit = held && !this.dead && this.canFire()
-      ? findHit({ id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch }, targets(sampled.players), ITEMS[held.id].range)
-      : null;
+    const hit = !!held && !this.dead && this.canFire()
+      && resolveFire(ITEMS[held.id], { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch }, targets(sampled.players)).length > 0;
     this.mobileActions.update({ hot: !!this.hovered, item: held?.id ?? null, scoped: this.scoped, canFire: this.canFire() });
-    if (!!hit !== this.canHit) {
-      this.canHit = !!hit;
+    if (hit !== this.canHit) {
+      this.canHit = hit;
       this.hud.setCrosshairTarget(this.canHit);
     }
     for (const cs of sampled.cubes) {

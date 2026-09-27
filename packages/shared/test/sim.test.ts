@@ -7,7 +7,7 @@ import {
 } from '@world/shared';
 
 const frame = (seq: number, over: Partial<InputFrame> = {}): InputFrame => ({
-  seq, mx: 0, my: 0, yaw: 0, pitch: 0, jump: false, reading: null, ...over,
+  seq, mx: 0, my: 0, yaw: 0, pitch: 0, jump: false, reading: null, actions: [], ...over,
 });
 
 test('stepPlayer is deterministic: same inputs give identical state', () => {
@@ -100,7 +100,7 @@ test('/speedy boost multiplies movement and wears off', () => {
 
 test('a timed item wears off after its window; a permanent one never does', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
-  p.item = { id: 'gun', left: ITEMS.gun.seconds, permanent: false };
+  p.item = { id: 'gun', left: ITEMS.gun.seconds, permanent: false, fuel: null };
   for (let i = 1; i <= ITEMS.gun.seconds - 1; i++) stepPlayer(p, null, 1, WORLD_SHAPE);
   assert.ok(p.item, 'still armed just before the window ends');
   stepPlayer(p, null, 1, WORLD_SHAPE);
@@ -108,5 +108,5 @@ test('a timed item wears off after its window; a permanent one never does', () =
 
   const q = createPlayer('b', 'SNIPERb', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   for (let i = 0; i < 1000; i++) stepPlayer(q, null, 1, WORLD_SHAPE);
-  assert.deepEqual(q.item, { id: 'sniper', left: 0, permanent: true });
+  assert.deepEqual(q.item, { id: 'sniper', left: 0, permanent: true, fuel: null });
 });

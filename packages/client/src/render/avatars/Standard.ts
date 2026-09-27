@@ -2,11 +2,11 @@
 // the ground, a walk cycle driven by how far they moved, and a name tag. No outline pass: thin
 // lines shimmer at the reduced render resolution.
 import { Color3, Mesh, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT, type ItemId } from '@world/shared';
+import { EYE_HEIGHT } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { buildWeapon, weaponPalette } from '../Weapons';
 import { box, createShadowBlob, createTag, type Avatar } from './common';
+import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
 export class StandardAvatar implements Avatar {
@@ -20,9 +20,8 @@ export class StandardAvatar implements Avatar {
   private readonly armR: Mesh;
   private readonly shadow: Mesh;
   private readonly tag: Mesh;
-  private readonly weapons = new Map<ItemId, TransformNode>();
+  private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
-  private held: ItemId | null = null;
   private dead = false;
   private phase = 0;
   private lastX = 0;
@@ -77,18 +76,9 @@ export class StandardAvatar implements Avatar {
     engine.glowLayer.addIncludedOnlyMesh(visor);
 
 
-    // Weapons hang off the right arm's hand; the arm points forward while holding one so it
-    // reads as aiming.
-    const pal = weaponPalette(scene, `avatar-weapon-${id}`);
-    for (const item of ['gun', 'sniper'] as ItemId[]) {
-      const node = new TransformNode(`avatar-${item}-${id}`, scene);
-      node.parent = this.armR;
-      node.position.set(0, -0.32, 0.04);
-      node.rotation.x = Math.PI / 2; // barrel along the raised arm, grip down
-      buildWeapon(scene, `avatar-${item}-${id}`, item, node, pal);
-      node.setEnabled(false);
-      this.weapons.set(item, node);
-    }
+    // Items go in the right hand; the arm points forward while holding one so it reads as aiming.
+    // The flamethrower's tank sits on the back of the torso.
+    this.items = new HeldItems(engine, `avatar-${id}`, this.armR, new Vector3(0, -0.32, 0.04), this.body, new Vector3(0, 1.12, -0.28));
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.1);
     this.shadow.parent = this.root;
@@ -117,11 +107,7 @@ export class StandardAvatar implements Avatar {
     this.armL.rotation.x = -swing * 0.8;
     this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : swing * 0.8;
     this.body.position.y = airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.04;
-    if (p.item !== this.held) {
-      if (this.held) this.weapons.get(this.held)!.setEnabled(false);
-      if (p.item) this.weapons.get(p.item)!.setEnabled(true);
-      this.held = p.item;
-    }
+    this.items.update(p.item, p.firing);
     if (p.dead !== this.dead) {
       this.dead = p.dead;
       // Fallen: the whole body tipped onto its side, tag left standing so the name stays readable.
