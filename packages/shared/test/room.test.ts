@@ -107,3 +107,20 @@ test('/gun then click: the server resolves the hit, kills the target, and the de
   const welcome = c.inbox[0];
   assert.ok(welcome.t === 'welcome' && welcome.players.find((p) => p.id === idb)!.dead, 'late joiners see who is dead');
 });
+
+test('a name containing GUN is armed permanently and /gun just says so', () => {
+  const room = new Room('perm', { seed: 2 });
+  const a = link();
+  const ida = room.join('bigGUNner', a)!;
+  const me = room.players.find((p) => p.id === ida)!;
+  assert.ok(me.gun > 1e8, 'armed on join');
+  for (let i = 0; i < 30 * 60; i++) room.step();
+  assert.ok(me.gun > 1e8, 'still armed a minute later');
+  room.receive(ida, { t: 'chat', text: '/gun' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'bigGUNner already has a gun' });
+  assert.ok(me.gun > 1e8, 'not reset to the 30 s window');
+
+  const b = link();
+  const idb = room.join('gunner', b)!;
+  assert.equal(room.players.find((p) => p.id === idb)!.gun, 0, 'lowercase does not count');
+});

@@ -203,6 +203,10 @@ export class Room {
         this.broadcast({ t: 'system', text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
       case 'gun':
+        if (seat.state.gun > GUN_SECONDS) {
+          this.broadcast({ t: 'system', text: `${seat.state.name} already has a gun` });
+          return;
+        }
         seat.state.gun = GUN_SECONDS;
         seat.link.send({ t: 'system', text: `you drew a gun for ${GUN_SECONDS}s. click to shoot.` });
         this.broadcast({ t: 'system', text: `${seat.state.name} drew a gun` }, seat.state.id);

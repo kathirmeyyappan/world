@@ -1,6 +1,8 @@
 // Player movement. Runs identically on the server (authoritative) and the client (prediction),
 // so it must stay pure: no Babylon, no DOM, no time reads.
-import { EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PLAYER_PADDING, SPEEDY_MULTIPLIER } from './constants';
+import {
+  EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PERMANENT_GUN_SECONDS, PERMANENT_GUN_TAG, PLAYER_PADDING, SPEEDY_MULTIPLIER,
+} from './constants';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, clampToWorld, type WorldPart } from './world';
 
@@ -16,7 +18,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
-    gun: 0,
+    gun: name.includes(PERMANENT_GUN_TAG) ? PERMANENT_GUN_SECONDS : 0,
     dead: false,
   };
 }
