@@ -96,7 +96,12 @@ export class Game {
     });
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => conn.send({ t: 'chat', text });
-    this.hud.onChatOpenChange = () => this.syncBlocked();
+    this.hud.onChatOpenChange = (open) => {
+      this.syncBlocked();
+      // Sending or cancelling a message is a key press, so the browser lets us take the mouse
+      // straight back rather than making the player click into the world again.
+      if (!open && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
+    };
     window.addEventListener('keydown', (e) => {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
