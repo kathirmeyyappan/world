@@ -19,6 +19,7 @@ import { Environment } from '../render/Environment';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
+import { CommandHint } from '../ui/CommandHint';
 import { DamageFlash } from '../ui/DamageFlash';
 import { Death } from '../ui/Death';
 import { Hearts } from '../ui/Hearts';
@@ -58,6 +59,7 @@ export class Game {
   private readonly minimap = new Minimap(WORLD_SHAPE);
   private readonly death = new Death();
   private readonly hearts = new Hearts();
+  private readonly commandHint = new CommandHint();
   private readonly damageFlash = new DamageFlash();
   private readonly hitNotice = new HitNotice();
   private readonly viewmodel: Viewmodel;
@@ -318,6 +320,8 @@ export class Game {
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
     this.viewmodel.update(dt);
     this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '');
+    const self = this.prediction.state;
+    this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard', this.dead || this.hud.isChatOpen());
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
