@@ -11,6 +11,7 @@ import {
   MAX_NAME_LENGTH,
   MAX_PITCH,
   MAX_PLAYERS,
+  DEATH_SCREEN_SECONDS,
   PLAYER_COLORS,
   SPEEDY_SECONDS,
   TICK_DT,
@@ -30,14 +31,19 @@ declare function setInterval(cb: () => void, ms: number): unknown;
 declare function clearInterval(handle: unknown): void;
 
 const SPAWN_WALL_MARGIN = 3;
+// A dead player's own client reloads after the death screen; anything still connected after
+// this (a bot, a backgrounded tab) is removed so corpses don't pile up.
+const CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 
 export interface ClientLink {
   send(msg: ServerMessage): void;
+  close?(): void; // the room is done with this client (e.g. a corpse that never rejoined)
 }
 
 interface Seat {
   lastShotTick: number;
+  diedTick: number | null;
   state: PlayerState;
   link: ClientLink;
   queue: InputFrame[];
@@ -98,7 +104,7 @@ export class Room {
     }
     const id = `p${this.nextPlayerId++}`;
     const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), this.spawnPoint());
-    this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity });
+    this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, diedTick: null });
     link.send({ t: 'welcome', id, room: this.id, tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}, ${this.seats.size} online`);
@@ -147,6 +153,8 @@ export class Room {
         this.broadcast({ t: 'shot', id, hit: hit?.id ?? null });
         if (hit) {
           hit.dead = true;
+          const victim = this.seats.get(hit.id);
+          if (victim) victim.diedTick = this.tick;
           this.broadcast({ t: 'kill', shooter: id, victim: hit.id });
           this.broadcast({ t: 'system', text: `${me.name} shot ${hit.name}` });
         }
@@ -159,7 +167,12 @@ export class Room {
   }
 
   step(): void {
-    for (const seat of this.seats.values()) {
+    for (const [id, seat] of this.seats) {
+      if (seat.diedTick !== null && this.tick - seat.diedTick >= CORPSE_TICKS) {
+        this.leave(id);
+        seat.link.close?.();
+        continue;
+      }
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
         stepPlayer(seat.state, null, TICK_DT, this.worldShape);
