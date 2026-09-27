@@ -139,6 +139,7 @@ html, body {
 
 /* Sniper scope: black outside a circle, hairlines inside. The crosshair stays on top. */
 #scope { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+#scope.flash::before { background: radial-gradient(circle at center, rgba(255,255,255,0.35) 0, rgba(255,255,255,0.35) 34vmin, rgba(0,0,0,0.92) 35vmin); }
 #scope::before {
   content: ''; position: absolute; inset: 0;
   background: radial-gradient(circle at center, transparent 0, transparent 34vmin, rgba(0,0,0,0.92) 35vmin);
