@@ -17,7 +17,7 @@ export interface ItemSpec {
 }
 
 export const ITEMS: Record<ItemId, ItemSpec> = {
-  gun: { id: 'gun', seconds: 45, range: 12, cooldownTicks: 10, actions: { shoot: 'KeyK' }, fireNeedsScope: false, nameTag: 'GUN' },
+  gun: { id: 'gun', seconds: 45, range: 20, cooldownTicks: 10, actions: { shoot: 'KeyK' }, fireNeedsScope: false, nameTag: 'GUN' },
   sniper: {
     id: 'sniper', seconds: 45, range: 150, cooldownTicks: 30, actions: { shoot: 'KeyK', scope: 'KeyF' }, fireNeedsScope: true, nameTag: 'SNIPER',
   },
