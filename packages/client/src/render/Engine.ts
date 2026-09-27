@@ -10,6 +10,7 @@ import {
 const PIXEL_SCALE = window.matchMedia('(pointer: coarse)').matches ? 2.5 : 2;
 
 export const FOG_COLOR = new Color3(0.02, 0.02, 0.05);
+export const BASE_FOG_DENSITY = 0.012; // EXP2: players fade out past ~50 m
 
 export class Engine {
   readonly engine: BabylonEngine;
@@ -22,7 +23,7 @@ export class Engine {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(FOG_COLOR.r, FOG_COLOR.g, FOG_COLOR.b, 1);
     this.scene.fogMode = Scene.FOGMODE_EXP2;
-    this.scene.fogDensity = 0.012;
+    this.scene.fogDensity = BASE_FOG_DENSITY;
     this.scene.fogColor = FOG_COLOR;
 
     const key = new DirectionalLight('key', new Vector3(-0.4, -1, 0.6), this.scene);

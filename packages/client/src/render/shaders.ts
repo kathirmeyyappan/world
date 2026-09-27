@@ -51,6 +51,7 @@ uniform vec3 lineColor;
 uniform vec3 majorColor;
 uniform vec3 floorColor;
 uniform vec3 fogColor;
+uniform float fogScale; // 1 normally, small while scoped so the far end is visible
 uniform float time;
 ${WORLD_SDF}
 
@@ -72,7 +73,7 @@ void main() {
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
-  float fog = 1.0 - exp(-dist * dist * 0.00035);
+  float fog = 1.0 - exp(-dist * dist * 0.00035 * fogScale);
   col = mix(col, fogColor, fog);
   gl_FragColor = vec4(col, 1.0);
 }

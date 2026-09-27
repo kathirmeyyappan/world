@@ -262,7 +262,7 @@ test('headshots do 2.5x: a gun takes 5 hearts, a scoped sniper to the head is a 
   assert.equal(alice.hearts, 0);
 });
 
-test('flamethrower: hold to spray a 10 m cone at 1 heart/s, on a 7.5 s tank that refills at half rate', () => {
+test('flamethrower: hold to spray a 10 m cone at 1 heart/s, on a 7.5 s tank that takes 25 s to refill', () => {
   const room = new Room('flame', { seed: 9 });
   const a = link();
   const ida = room.join('alice', a)!;
@@ -291,10 +291,10 @@ test('flamethrower: hold to spray a 10 m cone at 1 heart/s, on a 7.5 s tank that
   hold(room, ida, 30);
   assert.equal(bob.hearts, before, 'holding with an empty tank does nothing');
 
-  hold(room, ida, 30 * 7.5, false);
-  assert.ok(Math.abs(alice.item!.fuel! - 3.75) < 1e-6, '7.5 s off the trigger refills half');
-  hold(room, ida, 30 * 7.5, false);
-  assert.ok(Math.abs(alice.item!.fuel! - 7.5) < 1e-6, 'and then full, no further');
+  hold(room, ida, 30 * 12.5, false);
+  assert.ok(Math.abs(alice.item!.fuel! - 3.75) < 1e-6, '12.5 s off the trigger refills half');
+  hold(room, ida, 30 * 13, false);
+  assert.ok(Math.abs(alice.item!.fuel! - 7.5) < 1e-6, 'full at 25 s, no further');
 });
 
 test('a tap weapon fires once per press however long the key is held', () => {

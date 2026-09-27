@@ -3,7 +3,7 @@
 // SkyObject.ts.
 import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData } from '@babylonjs/core';
 import { partDistance, worldBounds, type WorldPart } from '@world/shared';
-import { Engine, FOG_COLOR } from './Engine';
+import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
   GROUND_FRAGMENT, GROUND_VERTEX, MAX_BRIDGES, MAX_DISCS, SKY_FRAGMENT, SKY_VERTEX, WALL_FRAGMENT, WALL_VERTEX,
 } from './shaders';
@@ -12,8 +12,13 @@ const WALL_REVEAL_DISTANCE = 16;
 const WALL_HEIGHT = 16;
 const WALL_STEP = 0.8; // metres between ribbon samples along the outline
 
+const FOG_HALF_LIFE = 0.12; // seconds, for the scope's fog change
+
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
+  private ground!: ShaderMaterial; // set in buildGround
+  private fogScale = 1;
+  private fogTarget = 1;
   private readonly bounds;
   private readonly span: number;
   private time = 0;
@@ -41,7 +46,7 @@ export class Environment {
     const mat = new ShaderMaterial('groundMat', scene, 'worldGround', {
       attributes: ['position'],
       uniforms: [
-        'world', 'worldViewProjection', 'cameraPos', 'lineColor', 'majorColor', 'floorColor', 'fogColor', 'time',
+        'world', 'worldViewProjection', 'cameraPos', 'lineColor', 'majorColor', 'floorColor', 'fogColor', 'fogScale', 'time',
         'discs', 'bridges', 'bridgeWidths', 'discCount', 'bridgeCount',
       ],
     });
@@ -49,6 +54,8 @@ export class Environment {
     mat.setColor3('majorColor', new Color3(0.45, 1.0, 0.7));
     mat.setColor3('floorColor', new Color3(0.03, 0.06, 0.05));
     mat.setColor3('fogColor', FOG_COLOR);
+    mat.setFloat('fogScale', 1);
+    this.ground = mat;
     this.setShapeUniforms(mat);
     mat.backFaceCulling = false;
     ground.material = mat;
@@ -182,9 +189,22 @@ export class Environment {
     }
   }
 
+  // How far you can see, as a multiplier on the squared fog term: 1 is the normal murk, a small
+  // number thins it so a scope can pick out a player at its full range. Eased in update().
+  setVisibility(fogScale: number): void {
+    this.fogTarget = fogScale;
+  }
+
   // Once per frame: the shaders need the camera position for fades and a clock for pulses.
   update(dt: number, cameraPos: Vector3): void {
     this.time += dt;
+    if (this.fogScale !== this.fogTarget) {
+      const k = 1 - Math.pow(0.5, dt / FOG_HALF_LIFE);
+      this.fogScale += (this.fogTarget - this.fogScale) * k;
+      if (Math.abs(this.fogScale - this.fogTarget) < 1e-3) this.fogScale = this.fogTarget;
+      this.ground.setFloat('fogScale', this.fogScale);
+      this.engine.scene.fogDensity = BASE_FOG_DENSITY * Math.sqrt(this.fogScale);
+    }
     for (const m of this.materials) {
       m.setFloat('time', this.time);
       m.setVector3('cameraPos', cameraPos);
