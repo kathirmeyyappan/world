@@ -21,6 +21,7 @@ export interface PlayerState {
   boost: number; // seconds of /speedy left, 0 when normal
   item: ItemState | null; // what they're holding, if anything
   avatar: AvatarId; // how they look; cosmetic only
+  avatarLeft: number | null; // seconds until they revert to standard; null when not timed
   dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 

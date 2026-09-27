@@ -179,7 +179,7 @@ test('a corpse that never rejoins is removed and its link closed', () => {
   assert.ok(a.inbox.some((m) => m.t === 'leave' && m.id === idb), 'everyone saw it leave');
 });
 
-test('avatars: ELIZABETH in the name or /elizabeth switches the look, nothing else', () => {
+test('avatars: ELIZABETH in the name is for keeps; /elizabeth lasts 60 s', () => {
   const room = new Room('av', { seed: 1 });
   const a = link();
   const b = link();
@@ -189,12 +189,24 @@ test('avatars: ELIZABETH in the name or /elizabeth switches the look, nothing el
   const bob = room.players.find((p) => p.id === idb)!;
   assert.equal(ann.avatar, 'elizabeth');
   assert.equal(bob.avatar, 'standard');
+
   room.receive(idb, { t: 'chat', text: '/elizabeth' });
   assert.equal(bob.avatar, 'elizabeth');
-  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'bob is now elizabeth'));
-  room.receive(idb, { t: 'chat', text: '/elizabeth' });
-  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "you're already elizabeth" });
-  room.receive(idb, { t: 'chat', text: '/standard' });
-  assert.equal(bob.avatar, 'standard');
+  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'bob is now elizabeth for 60s'));
+  for (let i = 0; i < 30 * 59; i++) room.step();
+  assert.equal(bob.avatar, 'elizabeth', 'still elizabeth just before the minute is up');
+  for (let i = 0; i < 30 * 2; i++) room.step();
+  assert.equal(bob.avatar, 'standard', 'reverted on its own');
   assert.equal(bob.item, null, 'looks change nothing else');
+
+  room.receive(idb, { t: 'chat', text: '/elizabeth' });
+  room.receive(idb, { t: 'chat', text: '/standard' });
+  assert.equal(bob.avatar, 'standard', '/standard ends it early');
+
+  for (let i = 0; i < 30 * 120; i++) room.step();
+  assert.equal(ann.avatar, 'elizabeth', 'the name tag never expires');
+  room.receive(ida, { t: 'chat', text: '/standard' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
+  room.receive(ida, { t: 'chat', text: '/elizabeth' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're already elizabeth" });
 });
