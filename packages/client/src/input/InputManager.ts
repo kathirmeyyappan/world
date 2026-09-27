@@ -51,8 +51,12 @@ export class InputManager {
     document.addEventListener('mousemove', (e) => {
       if (this.blocked) return;
       if (this.pointerLocked) {
-        if (performance.now() - this.lockChangedAt < LOCK_SETTLE_MS) return;
-        if (Math.abs(e.movementX) > MAX_EVENT_MOTION || Math.abs(e.movementY) > MAX_EVENT_MOTION) return;
+        const sinceLock = performance.now() - this.lockChangedAt;
+        const spike = Math.abs(e.movementX) > MAX_EVENT_MOTION || Math.abs(e.movementY) > MAX_EVENT_MOTION;
+        if (sinceLock < LOCK_SETTLE_MS || spike) {
+          if (spike) console.warn(`look: dropped a ${e.movementX},${e.movementY} px jump ${Math.round(sinceLock)} ms after pointer lock`);
+          return;
+        }
         this.lookDx += e.movementX;
         this.lookDy += e.movementY;
       } else if (this.dragging) {
