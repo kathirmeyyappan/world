@@ -91,7 +91,7 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: false });
   assert.ok(!bob.dead, 'nothing to shoot with yet');
   room.receive(ida, { t: 'chat', text: '/gun' });
-  assert.deepEqual(alice.item, { id: 'gun', left: 30, permanent: false });
+  assert.deepEqual(alice.item, { id: 'gun', left: 45, permanent: false });
   room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: false });
   assert.ok(bob.dead, 'bob is directly ahead');
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === idb && m.shooter === ida));
@@ -121,12 +121,12 @@ test('items are one at a time, on a timer, and the gun only reaches 20 m', () =>
   room.receive(ida, { t: 'chat', text: '/gun' });
   room.receive(ida, { t: 'chat', text: '/sniper' });
   assert.equal(alice.item?.id, 'gun', 'still the gun');
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're holding a gun for another 30s" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're holding a gun for another 45s" });
 
   room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: false });
   assert.ok(!bob.dead, '25 m is past the gun');
 
-  for (let i = 0; i < 30 * 31; i++) room.step();
+  for (let i = 0; i < 30 * 46; i++) room.step();
   assert.ok(alice.item === null, 'the gun wore off');
   room.receive(ida, { t: 'chat', text: '/sniper' });
   assert.equal(room.players.find((p) => p.id === ida)!.item?.id, 'sniper');
