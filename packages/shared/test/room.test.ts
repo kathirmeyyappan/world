@@ -155,3 +155,24 @@ test('a name containing GUN or SNIPER is armed permanently and can never swap', 
   const idb = room.join('gunner', b)!;
   assert.equal(room.players.find((p) => p.id === idb)!.item, null, 'lowercase does not count');
 });
+
+test('a corpse that never rejoins is removed and its link closed', () => {
+  const room = new Room('corpse', { seed: 5 });
+  const a = link();
+  let closed = false;
+  const bLink = { ...link(), close: () => { closed = true; } };
+  const ida = room.join('alice', a)!;
+  const idb = room.join('bot', bLink)!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  const bot = room.players.find((p) => p.id === idb)!;
+  bot.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
+  room.receive(ida, { t: 'chat', text: '/gun' });
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: false });
+  assert.ok(bot.dead);
+  for (let i = 0; i < 30 * 12; i++) room.step();
+  assert.ok(room.players.some((p) => p.id === idb), 'still a corpse at 12 s');
+  for (let i = 0; i < 30 * 2; i++) room.step();
+  assert.ok(!room.players.some((p) => p.id === idb), 'gone after the death screen would have reloaded');
+  assert.ok(closed, 'its socket was closed');
+  assert.ok(a.inbox.some((m) => m.t === 'leave' && m.id === idb), 'everyone saw it leave');
+});

@@ -58,9 +58,11 @@ function linkFor(ws: WebSocket): ClientLink {
   const raw = (msg: ServerMessage) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
   };
-  if (SIM_LATENCY_MS <= 0 && SIM_JITTER_MS <= 0) return { send: raw };
+  const close = () => ws.close(1000, 'dead');
+  if (SIM_LATENCY_MS <= 0 && SIM_JITTER_MS <= 0) return { send: raw, close };
   return {
     send: (msg) => setTimeout(() => raw(msg), SIM_LATENCY_MS + Math.random() * SIM_JITTER_MS),
+    close,
   };
 }
 
