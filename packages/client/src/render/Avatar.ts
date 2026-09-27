@@ -2,9 +2,10 @@
 // a walk cycle driven by how far they moved, and a name tag. No outline pass: thin lines shimmer
 // at the reduced render resolution.
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT } from '@world/shared';
+import { EYE_HEIGHT, type ItemId } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
 import type { Engine } from './Engine';
+import { buildWeapon, weaponPalette } from './Weapons';
 
 let shadowTexture: DynamicTexture | null = null;
 
@@ -59,6 +60,9 @@ export class Avatar {
   private readonly armR: Mesh;
   private readonly shadow: Mesh;
   private readonly tag: Mesh;
+  private readonly weapons = new Map<ItemId, TransformNode>();
+  private held: ItemId | null = null;
+  private dead = false;
   private phase = 0;
   private lastX = 0;
   private lastZ = 0;
@@ -109,6 +113,18 @@ export class Avatar {
     visor.position.set(0, 0.04, 0.23);
     engine.glowLayer.addIncludedOnlyMesh(visor);
 
+
+    // Weapons hang off the right arm's hand; the arm points forward while holding one so it
+    // reads as aiming.
+    const pal = weaponPalette(scene, `avatar-weapon-${id}`);
+    for (const item of ['gun', 'sniper'] as ItemId[]) {
+      const node = new TransformNode(`avatar-${item}-${id}`, scene);
+      node.parent = this.armR;
+      node.position.set(0, -0.3, 0.12);
+      buildWeapon(scene, `avatar-${item}-${id}`, item, node, pal);
+      node.setEnabled(false);
+      this.weapons.set(item, node);
+    }
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.1);
     this.shadow.parent = this.root;
@@ -165,8 +181,23 @@ export class Avatar {
     this.legL.rotation.x = swing;
     this.legR.rotation.x = -swing;
     this.armL.rotation.x = -swing * 0.8;
-    this.armR.rotation.x = swing * 0.8;
+    this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : swing * 0.8;
     this.body.position.y = airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.04;
+    if (p.item !== this.held) {
+      if (this.held) this.weapons.get(this.held)!.setEnabled(false);
+      if (p.item) this.weapons.get(p.item)!.setEnabled(true);
+      this.held = p.item;
+    }
+    if (p.dead !== this.dead) {
+      this.dead = p.dead;
+      // Fallen: the whole body tipped onto its side, tag left standing so the name stays readable.
+      this.body.rotation.z = p.dead ? Math.PI / 2 : 0;
+      this.body.position.x = p.dead ? 0.3 : 0;
+    }
+    if (p.dead) {
+      this.legL.rotation.x = this.legR.rotation.x = this.armL.rotation.x = 0;
+      this.body.position.y = 0.3;
+    }
     this.shadow.position.y = 0.02 - feetY;
     this.shadow.scaling.setAll(Math.max(0.5, 1 - feetY * 0.15));
     this.root.setEnabled(true);

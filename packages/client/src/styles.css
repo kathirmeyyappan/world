@@ -125,6 +125,40 @@ html, body {
   color: rgba(255,255,255,0.6); pointer-events: none; z-index: 100; text-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 #crosshair.hot { color: var(--accent); }
+#crosshair.target { color: #ff3b4e; text-shadow: 0 0 6px #ff3b4e, 0 0 12px rgba(255,59,78,0.7); }
+#crosshair.hit { color: #ff3b4e; transform: translate(-50%, -50%) scale(1.4); }
+
+#item-hint {
+  position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); padding: 6px 12px; z-index: 50;
+  font: 19px var(--mono); color: rgba(255,255,255,0.85); letter-spacing: 1px; pointer-events: none;
+  background: rgba(11,13,20,0.8); border: 2px solid rgba(255,59,78,0.6); box-shadow: 4px 4px 0 #000;
+}
+
+/* Sniper scope: black outside a circle, hairlines inside. The crosshair stays on top. */
+#scope { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+#scope::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at center, transparent 0, transparent 34vmin, rgba(0,0,0,0.92) 35vmin);
+}
+#scope::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 70vmin; height: 70vmin; transform: translate(-50%, -50%);
+  border: 3px solid rgba(255,255,255,0.35); border-radius: 50%;
+  background:
+    linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)) center/100% 1px no-repeat,
+    linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)) center/1px 100% no-repeat;
+}
+#player-list .skull { margin-left: 6px; font-size: 12px; }
+
+#death {
+  position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;
+  background: rgba(200, 20, 40, 0.42); z-index: 1500;
+}
+#death .card { text-align: center; border-color: #ff3b4e; }
+#death h1 { color: #ff3b4e; }
+#death p { font: 22px var(--mono); color: rgba(255,255,255,0.85); margin-bottom: 8px; }
+#death .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+#death #death-rejoin { border-color: #ff3b4e; background: rgba(255,59,78,0.2); }
+#death #death-rejoin:hover { background: rgba(255,59,78,0.4); }
 
 #minimap {
   position: fixed; right: 20px; bottom: 76px; z-index: 50; pointer-events: none; padding: 6px; width: 236px;
@@ -215,5 +249,5 @@ html, body {
 @media (pointer: coarse) {
   #pad { display: block; }
   #jump-button { display: flex; }
-  #instructions, #chat, #minimap, #info-card .close-hint { display: none; }
+  #instructions, #chat, #minimap, #item-hint, #info-card .close-hint { display: none; }
 }

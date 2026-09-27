@@ -14,6 +14,7 @@ const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
 const startParams = new URLSearchParams(location.search);
 if (startParams.has('direct')) sessionStorage.setItem('world.direct', '1');
 if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.get('lobby')!);
+if (startParams.get('home')) sessionStorage.setItem('world.home', startParams.get('home')!);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
 
 export function rememberRoom(roomId: string, name: string): void {
@@ -29,6 +30,11 @@ export function rememberedRoom(): { roomId: string; name: string } | null {
 export function forgetRoom(): void {
   sessionStorage.removeItem('world.room');
   sessionStorage.removeItem('world.name');
+}
+
+// The launcher the player came from, or this host's own menu when that isn't known.
+export function homeUrl(): string {
+  return sessionStorage.getItem('world.home') || location.pathname;
 }
 
 export class LobbyUnavailableError extends Error {}

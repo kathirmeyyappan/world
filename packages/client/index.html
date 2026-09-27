@@ -63,6 +63,9 @@
       </div>
       <button id="jump-button" translate="no"><span class="glyph">▲</span><span>JUMP</span></button>
 
+      <div id="item-hint" class="hidden" translate="yes"></div>
+      <div id="scope" class="hidden"></div>
+
       <div id="minimap" translate="yes">
         <canvas id="minimap-canvas"></canvas>
         <div class="minimap-bar"><span id="minimap-view"></span><span id="minimap-coords" translate="no"></span><span><kbd translate="no">P</kbd> to toggle view</span></div>
@@ -97,6 +100,18 @@
           <h1>DISCONNECTED</h1>
           <p id="disconnected-reason"></p>
           <button id="disconnected-home" class="wide">BACK TO HOME</button>
+        </div>
+      </div>
+
+      <div id="death" class="hidden" translate="yes">
+        <div class="card">
+          <h1>YOU DIED!</h1>
+          <p id="death-by"></p>
+          <p id="death-count"></p>
+          <div class="actions">
+            <button id="death-rejoin">REJOIN</button>
+            <button id="death-exit" class="subtle">EXIT TO HOME</button>
+          </div>
         </div>
       </div>
 

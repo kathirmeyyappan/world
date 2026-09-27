@@ -24,9 +24,11 @@ export class Hud {
   private readonly playerList = document.getElementById('player-list')!;
   private readonly ping = document.getElementById('ping')!;
   private readonly chatLog = document.getElementById('chat-log')!;
+  private readonly itemHint = document.getElementById('item-hint')!;
+  private itemHintText = '';
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
   private readonly crosshair = document.getElementById('crosshair')!;
-  private players = new Map<string, { name: string; color: string }>();
+  private players = new Map<string, { name: string; color: string; dead: boolean }>();
   private myId = '';
   onChat: ((text: string) => void) | null = null;
   onChatOpenChange: ((open: boolean) => void) | null = null;
@@ -92,13 +94,13 @@ export class Hud {
     this.myId = id;
   }
 
-  setPlayers(list: { id: string; name: string; color: string }[]): void {
-    this.players = new Map(list.map((p) => [p.id, { name: p.name, color: p.color }]));
+  setPlayers(list: { id: string; name: string; color: string; dead?: boolean }[]): void {
+    this.players = new Map(list.map((p) => [p.id, { name: p.name, color: p.color, dead: !!p.dead }]));
     this.renderPlayers();
   }
 
-  addPlayer(p: { id: string; name: string; color: string }): void {
-    this.players.set(p.id, { name: p.name, color: p.color });
+  addPlayer(p: { id: string; name: string; color: string; dead?: boolean }): void {
+    this.players.set(p.id, { name: p.name, color: p.color, dead: !!p.dead });
     this.renderPlayers();
     this.system(`${p.name} joined`);
   }
@@ -107,6 +109,37 @@ export class Hud {
     this.players.delete(id);
     this.renderPlayers();
     this.system(`${name} left`);
+  }
+
+  setDead(id: string): void {
+    const p = this.players.get(id);
+    if (p) {
+      p.dead = true;
+      this.renderPlayers();
+    }
+  }
+
+  playerName(id: string): string {
+    return this.players.get(id)?.name ?? 'someone';
+  }
+
+  // Red crosshair while a shot from here would land.
+  setCrosshairTarget(on: boolean): void {
+    this.crosshair.classList.toggle('target', on);
+  }
+
+  // What you're holding and how to use it, or nothing.
+  setItemHint(text: string): void {
+    if (text === this.itemHintText) return;
+    this.itemHintText = text;
+    this.itemHint.textContent = text;
+    this.itemHint.classList.toggle('hidden', !text);
+  }
+
+  // Brief red crosshair when one of your shots lands.
+  hitMarker(): void {
+    this.crosshair.classList.add('hit');
+    setTimeout(() => this.crosshair.classList.remove('hit'), 150);
   }
 
   setPing(ms: number): void {
@@ -149,6 +182,7 @@ export class Hud {
       dot.className = 'dot';
       dot.style.background = p.color;
       li.append(dot, document.createTextNode(p.name + (id === this.myId ? ' (you)' : '')));
+      if (p.dead) li.append(Object.assign(document.createElement('span'), { className: 'skull', textContent: '💀', title: 'dead' }));
       this.playerList.appendChild(li);
     }
   }

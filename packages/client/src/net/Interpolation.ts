@@ -1,6 +1,6 @@
 // Snapshot buffer for everything the server owns: remote players and cubes. Renders a few ticks
 // behind the newest snapshot and lerps between the two that bracket that time.
-import { INTERP_DELAY_TICKS, TICK_RATE, type CubeSnapshot, type PlayerState } from '@world/shared';
+import { INTERP_DELAY_TICKS, TICK_RATE, type CubeSnapshot, type PlayerState, type ItemId } from '@world/shared';
 
 interface Snapshot {
   tick: number;
@@ -18,6 +18,8 @@ export interface RemotePlayer {
   yaw: number;
   pitch: number;
   reading: string | null;
+  item: ItemId | null;
+  dead: boolean;
 }
 
 const KEEP_TICKS = TICK_RATE * 2;
@@ -66,6 +68,8 @@ export class Interpolation {
         yaw: lerpAngle(a.yaw, b.yaw, t),
         pitch: lerp(a.pitch, b.pitch, t),
         reading: b.reading,
+        item: b.item?.id ?? null,
+        dead: b.dead,
       });
     }
     const cubes: CubeSnapshot[] = [];
