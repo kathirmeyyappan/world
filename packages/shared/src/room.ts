@@ -19,6 +19,7 @@ import {
 } from './sim/constants';
 import { parseCommand } from './commands';
 import { findHit } from './sim/combat';
+import { AVATARS } from './sim/avatars';
 import { ITEMS, itemHelp, type ItemId } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
@@ -220,6 +221,23 @@ export class Room {
       case 'equip':
         this.equip(seat, command.item);
         return;
+      case 'avatar': {
+        const me = seat.state;
+        const spec = AVATARS[command.avatar];
+        if (me.avatar === command.avatar && me.avatarLeft === null) {
+          seat.link.send({ t: 'system', text: `you're already ${command.avatar}` });
+          return;
+        }
+        // A name-tagged look is for keeps; the command can't take it away.
+        if (me.avatarLeft === null && me.avatar !== 'standard') {
+          seat.link.send({ t: 'system', text: `you're ${me.avatar} for good` });
+          return;
+        }
+        me.avatar = command.avatar;
+        me.avatarLeft = spec.seconds > 0 ? spec.seconds : null;
+        this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}${spec.seconds ? ` for ${spec.seconds}s` : ''}` });
+        return;
+      }
       case 'unknown':
         seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
         return;

@@ -3,7 +3,7 @@
 // change the frame only, so the logo stays readable.
 import { Color3, DynamicTexture, FresnelParameters, Mesh, MeshBuilder, StandardMaterial, Texture } from '@babylonjs/core';
 import type { CubeContent, CubeSnapshot } from '@world/shared';
-import { createShadowBlob } from './Avatar';
+import { createShadowBlob } from './avatars/common';
 import type { Engine } from './Engine';
 import { loadPixelated } from './pixelate';
 
