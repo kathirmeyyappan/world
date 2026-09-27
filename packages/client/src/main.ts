@@ -5,6 +5,7 @@ import { forgetRoom, homeUrl } from './net/lobby';
 declare global {
   interface Window {
     __world?: { debug: () => unknown; setLook: (yaw: number, pitch?: number) => void };
+    __game?: Game; // dev builds only: the whole thing, for headless checks
   }
 }
 
@@ -20,6 +21,7 @@ async function main(): Promise<void> {
     document.getElementById('disconnected')!.classList.remove('hidden');
   });
   window.__world = { debug: () => game.debug(), setLook: (yaw, pitch) => game.setLook(yaw, pitch) };
+  if (import.meta.env.DEV) window.__game = game;
   document.getElementById('disconnected-home')!.addEventListener('click', () => {
     forgetRoom();
     location.href = homeUrl();

@@ -165,15 +165,15 @@ export class Room {
     for (const hit of resolveFire(spec, me, this.players)) this.damage(seat, hit.target, damageFor(spec, hit.headshot), hit.headshot);
   }
 
-  // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero.
+  // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero. A kill is one
+  // structured message; clients word the announcement.
   private damage(shooter: Seat, victim: PlayerState, damage: number, headshot: boolean): void {
     const killed = applyDamage(victim, damage);
     this.broadcast({ t: 'hit', shooter: shooter.state.id, victim: victim.id, damage, headshot, hearts: victim.hearts });
     if (!killed) return;
     const seat = this.seats.get(victim.id);
     if (seat) seat.diedTick = this.tick;
-    this.broadcast({ t: 'kill', shooter: shooter.state.id, victim: victim.id });
-    this.broadcast({ t: 'system', text: `${shooter.state.name} shot ${victim.name}` });
+    this.broadcast({ t: 'kill', shooter: shooter.state.id, victim: victim.id, item: shooter.state.item!.id, headshot });
   }
 
   step(): void {

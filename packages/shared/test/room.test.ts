@@ -125,7 +125,7 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   assert.equal(bob.hearts, 0);
   assert.equal(b.inbox.filter((m) => m.t === 'hit').length, 5, 'ten hearts, two a shot');
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === idb && m.shooter === ida));
-  assert.ok(b.inbox.some((m) => m.t === 'system' && m.text === 'alice shot bob'));
+  assert.ok(b.inbox.some((m) => m.t === 'kill' && m.item === 'gun' && !m.headshot), 'the kill says what did it');
 
   const before = { ...bob.pos };
   room.receive(idb, { t: 'input', f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: true, reading: null, actions: [] } });
