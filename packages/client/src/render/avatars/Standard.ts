@@ -79,7 +79,8 @@ export class StandardAvatar implements Avatar {
     for (const item of ['gun', 'sniper'] as ItemId[]) {
       const node = new TransformNode(`avatar-${item}-${id}`, scene);
       node.parent = this.armR;
-      node.position.set(0, -0.3, 0.12);
+      node.position.set(0, -0.32, 0.04);
+      node.rotation.x = Math.PI / 2; // barrel along the raised arm, grip down
       buildWeapon(scene, `avatar-${item}-${id}`, item, node, pal);
       node.setEnabled(false);
       this.weapons.set(item, node);
