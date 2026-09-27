@@ -21,6 +21,17 @@ export const CUBES: CubeContent[] = [
     logo: "/assets/logos/aws.png",
   },
   {
+    id: "modal",
+    h1: "Modal",
+    h2: "Member of Technical Staff",
+    h3: "2024",
+    description: [
+      "Working on interesting infra problems with some very cool people",
+      "Fun fact: The kathir world serving infra is built on Modal, meaning rooms and bots scale massively :)"
+    ],
+    logo: "/assets/logos/modal.jpeg",
+  },
+  {
     id: "drager",
     h1: "Dräger",
     h2: "Software Engineer Intern",

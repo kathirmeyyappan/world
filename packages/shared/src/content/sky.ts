@@ -20,11 +20,11 @@ export const SKY_OBJECTS: SkyContent[] = [
   {
     id: "patriots",
     image: "/assets/textures/sky/patriots.png",
-    line: "We are going to the superbowl baby.",
+    line: "Sometimes you hit a rough patch. Just trust the process.",
   },
   {
     id: "drake-maye",
     image: "/assets/textures/sky/drake_maye.png",
-    line: "All hail glorious king Drake Maye",
+    line: "All hail glorious king Drake Maye.",
   },
 ];
