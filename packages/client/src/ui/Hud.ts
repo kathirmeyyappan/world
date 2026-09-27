@@ -222,9 +222,12 @@ export class Hud {
       li.append(dot, document.createTextNode(p.name + (id === this.myId ? ' (you)' : '')));
       const stats = document.createElement('span');
       stats.className = 'stats';
+      // Dead: just the skull. Alive: hearts and kills.
       if (p.dead) stats.append(pixelSvg(SKULL, 'skull'));
-      else stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${MAX_HEARTS}`));
-      stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
+      else {
+        stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${MAX_HEARTS}`));
+        stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
+      }
       li.append(stats);
       this.playerList.appendChild(li);
     }
