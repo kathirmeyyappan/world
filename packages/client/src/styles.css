@@ -199,6 +199,8 @@ html, body {
   font: 19px var(--mono); color: rgba(255,255,255,0.85); letter-spacing: 1px; pointer-events: none;
   background: rgba(11,13,20,0.8); border: 2px solid rgba(255,59,78,0.6); box-shadow: 4px 4px 0 #000;
 }
+#item-hint .stats { margin-top: 4px; font-size: 14px; color: rgba(255,255,255,0.55); letter-spacing: 0.5px; }
+#item-hint .stats:empty { display: none; }
 
 /* Sniper scope: black outside a circle, hairlines inside. The crosshair stays on top. */
 #scope { position: fixed; inset: 0; z-index: 90; pointer-events: none; }

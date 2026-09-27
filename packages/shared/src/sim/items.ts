@@ -2,6 +2,9 @@
 // item's tag, in which case they spawn holding it for good and can never swap. Adding a weapon
 // means adding a row here, a shape in the client's Weapons.ts, and nothing on the wire: every
 // item action travels inside the input frame.
+import { TICK_RATE } from './constants';
+import { HEADSHOT_MULTIPLIER } from './health';
+
 export type ItemId = 'gun' | 'sniper' | 'flamethrower';
 
 // Things an item can do. Each is bound to a key on the client and reported in InputFrame.actions:
@@ -87,6 +90,20 @@ export function itemHelp(id: ItemId, sep = ', '): string {
   return Object.entries(ITEMS[id].actions)
     .map(([action, spec]) => `${spec.mode === 'hold' ? 'hold ' : ''}${keyLabel(spec.key)}${action === 'shoot' ? ' or click' : ''} to ${action === 'shoot' && spec.mode === 'hold' ? 'spray' : action}`)
     .join(sep);
+}
+
+// "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1": the numbers that matter, for
+// the hint bar. Derived from the spec so it can't drift from what the Room does.
+export function itemStats(id: ItemId): string {
+  const spec = ITEMS[id];
+  const parts = [`range: ${spec.range}m`];
+  if (spec.actions.shoot?.mode === 'hold') parts.push(`dps: ${round(spec.damage * TICK_RATE / spec.cooldownTicks)}`);
+  else parts.push(`dmg: ${spec.damage}${spec.fire.kind === 'hitscan' ? ` (headshot ${HEADSHOT_MULTIPLIER}x)` : ''}`);
+  return parts.join(', ');
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 // Which of the item's actions a key press means, if any.

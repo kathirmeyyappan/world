@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, resolveFire,
+  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, itemStats, resolveFire,
   type ItemAction, type ItemId, type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -342,7 +342,7 @@ export class Game {
     const self = this.prediction.state;
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
-    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '');
+    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '', held ? itemStats(held.id) : '');
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
     this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard', this.dead || this.hud.isChatOpen());
