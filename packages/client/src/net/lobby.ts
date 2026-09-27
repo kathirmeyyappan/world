@@ -39,8 +39,11 @@ export function homeUrl(): string {
 
 export class LobbyUnavailableError extends Error {}
 
+// Where the lobby is: what the lobby's own redirect told this tab, else what the room host put in
+// the page (a tab that never went through the lobby), else the build-time launcher setting.
 export function lobbyUrl(): string | null {
-  const url = sessionStorage.getItem('world.lobby') || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="world-lobby"]')?.content;
+  const url = sessionStorage.getItem('world.lobby') || meta || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
   return url ? url.replace(/\/$/, '') : null;
 }
 
