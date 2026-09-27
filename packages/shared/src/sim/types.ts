@@ -25,6 +25,7 @@ export interface PlayerState {
   avatar: AvatarId; // how they look; cosmetic only
   avatarLeft: number | null; // seconds until they revert to standard; null when not timed
   hearts: number; // MAX_HEARTS at spawn, down to 0 when shot enough
+  kills: number; // players this one has finished off this life
   dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 

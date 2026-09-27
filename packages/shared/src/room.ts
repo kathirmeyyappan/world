@@ -173,6 +173,7 @@ export class Room {
     if (!killed) return;
     const seat = this.seats.get(victim.id);
     if (seat) seat.diedTick = this.tick;
+    shooter.state.kills++;
     this.broadcast({ t: 'kill', shooter: shooter.state.id, victim: victim.id, item: shooter.state.item!.id, headshot });
   }
 
