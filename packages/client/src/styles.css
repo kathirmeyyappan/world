@@ -143,8 +143,8 @@ html, body {
 .heart .broken { display: none; }
 .heart.lost .full { display: none; }
 .heart.lost .broken { display: block; }
-.heart.lost svg rect { fill: #262930; }
-.heart.lost svg rect.hi { fill: #31343c; }
+.heart.lost svg rect { fill: #3a3d46; }
+.heart.lost svg rect.hi { fill: #4a4e58; }
 .heart.breaking { animation: heart-break 0.45s steps(6) both; }
 @keyframes heart-break {
   0% { transform: scale(1.35) rotate(-8deg); }
