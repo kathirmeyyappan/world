@@ -219,7 +219,15 @@ html, body {
     linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)) center/100% 1px no-repeat,
     linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)) center/1px 100% no-repeat;
 }
-#player-list .skull { margin-left: 6px; font-size: 12px; }
+#player-list .stats { margin-left: auto; padding-left: 10px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: rgba(255,255,255,0.7); }
+#player-list .stats svg { width: 12px; height: 12px; shape-rendering: crispEdges; }
+#player-list .stats svg + svg { margin-left: 4px; }
+#player-list .stats .heart rect { fill: #c8303e; }
+#player-list .stats .heart rect.hi { fill: #e05a66; }
+#player-list .stats .knife rect { fill: #cfd4dc; }
+#player-list .stats .knife rect.guard { fill: #8a9099; }
+#player-list .stats .knife rect.hilt { fill: #6b4a2e; }
+#player-list .stats .skull rect { fill: #e8e8ee; }
 
 #death {
   position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;

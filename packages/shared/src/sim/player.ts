@@ -25,6 +25,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     avatar: avatarFor(name),
     avatarLeft: null,
     hearts: MAX_HEARTS,
+    kills: 0,
     dead: false,
   };
 }

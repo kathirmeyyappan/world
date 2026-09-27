@@ -257,6 +257,7 @@ export class Game {
         this.interp.push(m.tick, m.players, m.cubes, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) this.hearts.set(me.hearts);
+        this.hud.updateStats(m.players);
         if (me && this.prediction) {
           const d = this.prediction.reconcile(me);
           const dist = Math.hypot(d.dx, d.dy, d.dz);

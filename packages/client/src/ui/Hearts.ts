@@ -2,20 +2,11 @@
 // lost turn grey and crack. Pure DOM, driven by the server's heart count; nothing here decides
 // damage.
 import { MAX_HEARTS } from '@world/shared';
+import { HEART as FULL, pixelSvg } from './pixelIcons';
 
 // 9x8 pixel heart. '#' body, '+' highlight, '.' empty. The broken one has a crack down it; the
 // half one is the broken one with everything left of the crack ('L') still red and the rest ('R')
 // grey, so the crack is where the heart stops.
-const FULL = [
-  '.##...##.',
-  '#+##.####',
-  '#########',
-  '#########',
-  '.#######.',
-  '..#####..',
-  '...###...',
-  '....#....',
-];
 const BROKEN = [
   '.##...##.',
   '#+##.####',
@@ -38,6 +29,8 @@ const HALF = [
   '....L....',
 ];
 
+const PIX = { '+': 'hi', 'R': 'grey' };
+
 export class Hearts {
   private readonly root = document.getElementById('hearts')!;
   private readonly hearts: HTMLElement[] = [];
@@ -47,7 +40,7 @@ export class Hearts {
     for (let i = 0; i < MAX_HEARTS; i++) {
       const heart = document.createElement('div');
       heart.className = 'heart';
-      heart.append(pixelSvg(FULL, 'full'), pixelSvg(BROKEN, 'broken'), pixelSvg(HALF, 'half'));
+      heart.append(pixelSvg(FULL, 'full', PIX), pixelSvg(BROKEN, 'broken', PIX), pixelSvg(HALF, 'half', PIX));
       this.root.append(heart);
       this.hearts.push(heart);
     }
@@ -74,25 +67,4 @@ export class Hearts {
     }
     this.shown = n;
   }
-}
-
-function pixelSvg(rows: string[], cls: string): SVGSVGElement {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${rows[0].length} ${rows.length}`);
-  svg.setAttribute('class', cls);
-  rows.forEach((row, y) => {
-    [...row].forEach((ch, x) => {
-      if (ch === '.') return;
-      const r = document.createElementNS(ns, 'rect');
-      r.setAttribute('x', String(x));
-      r.setAttribute('y', String(y));
-      r.setAttribute('width', '1');
-      r.setAttribute('height', '1');
-      if (ch === '+') r.setAttribute('class', 'hi');
-      if (ch === 'R') r.setAttribute('class', 'grey');
-      svg.append(r);
-    });
-  });
-  return svg;
 }

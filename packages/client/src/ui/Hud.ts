@@ -1,5 +1,6 @@
 // Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events.
-import { MAX_CHAT_LENGTH } from '@world/shared';
+import { MAX_CHAT_LENGTH, MAX_HEARTS } from '@world/shared';
+import { HEART, KNIFE, SKULL, pixelSvg } from './pixelIcons';
 
 import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
 
@@ -30,7 +31,7 @@ export class Hud {
   private itemHintText = '';
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
   private readonly crosshair = document.getElementById('crosshair')!;
-  private players = new Map<string, { name: string; color: string; dead: boolean }>();
+  private players = new Map<string, RosterEntry>();
   private myId = '';
   onChat: ((text: string) => void) | null = null;
   onChatOpenChange: ((open: boolean) => void) | null = null;
@@ -93,15 +94,31 @@ export class Hud {
     this.myId = id;
   }
 
-  setPlayers(list: { id: string; name: string; color: string; dead?: boolean }[]): void {
-    this.players = new Map(list.map((p) => [p.id, { name: p.name, color: p.color, dead: !!p.dead }]));
+  setPlayers(list: RosterPlayer[]): void {
+    this.players = new Map(list.map((p) => [p.id, entry(p)]));
     this.renderPlayers();
   }
 
-  addPlayer(p: { id: string; name: string; color: string; dead?: boolean }): void {
-    this.players.set(p.id, { name: p.name, color: p.color, dead: !!p.dead });
+  addPlayer(p: RosterPlayer): void {
+    this.players.set(p.id, entry(p));
     this.renderPlayers();
     this.system(`${p.name} joined`);
+  }
+
+  // Once per snapshot: hearts and kills on the roster. Re-renders only when a number moved.
+  updateStats(list: { id: string; hearts: number; kills: number; dead: boolean }[]): void {
+    let changed = false;
+    for (const p of list) {
+      const e = this.players.get(p.id);
+      if (!e) continue;
+      if (e.hearts !== p.hearts || e.kills !== p.kills || e.dead !== p.dead) {
+        e.hearts = p.hearts;
+        e.kills = p.kills;
+        e.dead = p.dead;
+        changed = true;
+      }
+    }
+    if (changed) this.renderPlayers();
   }
 
   removePlayer(id: string, name: string): void {
@@ -203,8 +220,43 @@ export class Hud {
       dot.className = 'dot';
       dot.style.background = p.color;
       li.append(dot, document.createTextNode(p.name + (id === this.myId ? ' (you)' : '')));
-      if (p.dead) li.append(Object.assign(document.createElement('span'), { className: 'skull', textContent: '💀', title: 'dead' }));
+      const stats = document.createElement('span');
+      stats.className = 'stats';
+      if (p.dead) stats.append(pixelSvg(SKULL, 'skull'));
+      else stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${MAX_HEARTS}`));
+      stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
+      li.append(stats);
       this.playerList.appendChild(li);
     }
   }
+}
+
+interface RosterPlayer {
+  id: string;
+  name: string;
+  color: string;
+  hearts?: number;
+  kills?: number;
+  dead?: boolean;
+}
+
+interface RosterEntry {
+  name: string;
+  color: string;
+  hearts: number;
+  kills: number;
+  dead: boolean;
+}
+
+function entry(p: RosterPlayer): RosterEntry {
+  return { name: p.name, color: p.color, hearts: p.hearts ?? MAX_HEARTS, kills: p.kills ?? 0, dead: !!p.dead };
+}
+
+function text(s: string): Text {
+  return document.createTextNode(s);
+}
+
+// 7.5 stays 7.5; 8 stays 8.
+function fmt(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
