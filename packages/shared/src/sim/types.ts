@@ -1,5 +1,5 @@
 import type { AvatarId } from './avatars';
-import type { ItemState } from './items';
+import type { ItemAction, ItemState } from './items';
 
 export interface Vec3 {
   x: number;
@@ -20,6 +20,8 @@ export interface PlayerState {
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal
   item: ItemState | null; // what they're holding, if anything
+  scoped: boolean; // aiming down the sniper's scope (reported by the client, kept here so everyone sees it)
+  firing: boolean; // a hold item is spraying this tick
   avatar: AvatarId; // how they look; cosmetic only
   avatarLeft: number | null; // seconds until they revert to standard; null when not timed
   hearts: number; // MAX_HEARTS at spawn, down to 0 when shot enough
@@ -35,6 +37,7 @@ export interface InputFrame {
   pitch: number;
   jump: boolean;
   reading: string | null;
+  actions: ItemAction[]; // item actions held this tick (tap ones on the press, toggles while on)
 }
 
 export interface CubeState {

@@ -14,7 +14,8 @@ export interface MobileActionState {
 }
 
 export interface MobileActionHandlers {
-  onAction: () => void;
+  onActionDown: () => void; // SELECT / FIRE pressed; FIRE stays down until onActionUp
+  onActionUp: () => void;
   onScope: () => void;
   onChat: () => void;
 }
@@ -27,7 +28,7 @@ export class MobileActions {
 
   constructor(handlers: MobileActionHandlers) {
     if (!IS_TOUCH) return;
-    tap(this.action, handlers.onAction);
+    tap(this.action, handlers.onActionDown, handlers.onActionUp);
     tap(this.scope, handlers.onScope);
     tap(this.chat, handlers.onChat);
   }
@@ -48,16 +49,19 @@ export class MobileActions {
   }
 }
 
-// A press that fires once on touchstart, with a pressed look until release. Touch only, so a
-// synthesized click never double-fires.
-function tap(button: HTMLButtonElement | null, handler: () => void): void {
+// A press that fires once on touchstart, with a pressed look until release, which `onUp` hears
+// about for buttons that are held. Touch only, so a synthesized click never double-fires.
+function tap(button: HTMLButtonElement | null, onDown: () => void, onUp?: () => void): void {
   if (!button) return;
   button.addEventListener('touchstart', (e) => {
     e.preventDefault();
     button.classList.add('active');
-    handler();
+    onDown();
   }, { passive: false });
-  const up = () => button.classList.remove('active');
+  const up = () => {
+    button.classList.remove('active');
+    onUp?.();
+  };
   button.addEventListener('touchend', up);
   button.addEventListener('touchcancel', up);
 }

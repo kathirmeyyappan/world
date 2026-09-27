@@ -40,18 +40,24 @@ export class Hearts {
     }
   }
 
-  // Hearts fill from the top-left; the ones past `count` are lost. A heart that just went
-  // gets the breaking animation.
+  // Hearts fill from the top-left in halves: heart i is full at count >= i+1, half at
+  // count >= i+0.5, else lost. A heart that just dropped a state gets the breaking animation.
   set(count: number): void {
     const n = Math.max(0, Math.min(MAX_HEARTS, count));
     if (n === this.shown) return;
     for (let i = 0; i < MAX_HEARTS; i++) {
-      const lost = i >= n;
       const heart = this.hearts[i];
-      if (lost && !heart.classList.contains('lost')) {
-        heart.classList.add('lost', 'breaking');
+      const state = n >= i + 1 ? 'full' : n >= i + 0.5 ? 'half' : 'lost';
+      const was = heart.classList.contains('lost') ? 'lost' : heart.classList.contains('half') ? 'half' : 'full';
+      if (state === was) continue;
+      heart.classList.toggle('half', state === 'half');
+      heart.classList.toggle('lost', state === 'lost');
+      heart.classList.remove('breaking');
+      if (state !== 'full' && (was === 'full' || state === 'lost')) {
+        void heart.offsetWidth; // restart the animation
+        heart.classList.add('breaking');
         heart.addEventListener('animationend', () => heart.classList.remove('breaking'), { once: true });
-      } else if (!lost) heart.classList.remove('lost', 'breaking');
+      }
     }
     this.shown = n;
   }

@@ -1,4 +1,5 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
+import { isItemAction } from './sim/items';
 import type { InputFrame, PlayerState } from './sim/types';
 
 export interface CubeSnapshot {
@@ -13,7 +14,6 @@ export interface CubeSnapshot {
 export type ClientMessage =
   | { t: 'input'; f: InputFrame }
   | { t: 'chat'; text: string }
-  | { t: 'shoot'; yaw: number; pitch: number; scoped: boolean } // fire along this look; the server decides what it hits
   | { t: 'ping'; at: number };
 
 export type ServerMessage =
@@ -23,7 +23,7 @@ export type ServerMessage =
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; color: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
-  | { t: 'shot'; id: string } // someone fired; clients play the effect
+  | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
   | { t: 'hit'; shooter: string; victim: string; damage: number; headshot: boolean; hearts: number } // a shot landed
   | { t: 'kill'; shooter: string; victim: string }
   | { t: 'pong'; at: number }
@@ -40,13 +40,12 @@ export function isClientMessage(v: unknown): v is ClientMessage {
         Number.isInteger(f.seq) &&
         isNum(f.mx) && isNum(f.my) && isNum(f.yaw) && isNum(f.pitch) &&
         typeof f.jump === 'boolean' &&
-        (f.reading === null || typeof f.reading === 'string')
+        (f.reading === null || typeof f.reading === 'string') &&
+        Array.isArray(f.actions) && f.actions.every(isItemAction)
       );
     }
     case 'chat':
       return typeof m.text === 'string';
-    case 'shoot':
-      return isNum(m.yaw) && isNum(m.pitch) && typeof m.scoped === 'boolean';
     case 'ping':
       return isNum(m.at);
     default:

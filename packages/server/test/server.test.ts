@@ -53,7 +53,7 @@ test('two clients in one room see each other move', async () => {
     assert.equal(wb.players.length, 2);
 
     for (let seq = 1; seq <= 30; seq++) {
-      a.send({ t: 'input', f: { seq, mx: 0, my: 1, yaw: 0, pitch: 0, jump: false, reading: null } });
+      a.send({ t: 'input', f: { seq, mx: 0, my: 1, yaw: 0, pitch: 0, jump: false, reading: null, actions: [] } });
     }
     const snap = await b.next((m) => m.t === 'snap' && m.players.some((p) => p.id === wa.id && p.lastSeq >= 30), 5000);
     if (snap.t !== 'snap') return;

@@ -1,40 +1,76 @@
-// Equippable items. One at a time, on a timer, unless the player's name carries an item's tag,
-// in which case they spawn holding it for good and can never swap. Adding a weapon means adding
-// a row here, a chat command alias, and a shape in the client's Weapons.ts.
-export type ItemId = 'gun' | 'sniper';
+// Equippable items. One at a time; chat commands swap freely unless the player's name carries an
+// item's tag, in which case they spawn holding it for good and can never swap. Adding a weapon
+// means adding a row here, a shape in the client's Weapons.ts, and nothing on the wire: every
+// item action travels inside the input frame.
+export type ItemId = 'gun' | 'sniper' | 'flamethrower';
 
-// Things an item can do, each bound to a KeyboardEvent code the client listens for (Space, KeyF).
+// Things an item can do. Each is bound to a key on the client and reported in InputFrame.actions:
+//   tap     fires on the press (the first tick the action is held), then the cooldown
+//   hold    fires every cooldown while held, burning fuel
+//   toggle  a state the client flips and reports while on (the sniper's scope)
 export type ItemAction = 'shoot' | 'scope';
+export type ActionMode = 'tap' | 'hold' | 'toggle';
+
+export interface ActionSpec {
+  key: string; // KeyboardEvent code
+  mode: ActionMode;
+}
+
+// How a shot finds its targets. hitscan: one ray, nearest player, headshots count. cone: every
+// player inside the cone, flat damage.
+export type FireShape = { kind: 'hitscan' } | { kind: 'cone'; halfAngle: number };
 
 export interface ItemSpec {
   id: ItemId;
   seconds: number; // how long a chat-command equip lasts
   range: number; // metres a shot can reach
-  damage: number; // hearts a body shot takes; headshots multiply it (health.ts)
-  cooldownTicks: number;
-  actions: Partial<Record<ItemAction, string>>; // action -> key code
+  damage: number; // hearts a hit takes; hitscan headshots multiply it (health.ts)
+  cooldownTicks: number; // between shots, or between damage ticks while holding
+  actions: Partial<Record<ItemAction, ActionSpec>>;
+  fire: FireShape;
   fireNeedsScope: boolean; // can only shoot while scoped
+  fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at half rate
   nameTag: string; // a name containing this spawns with the item permanently
 }
 
 export const ITEMS: Record<ItemId, ItemSpec> = {
-  gun: { id: 'gun', seconds: 45, range: 20, damage: 2, cooldownTicks: 10, actions: { shoot: 'KeyK' }, fireNeedsScope: false, nameTag: 'GUN' },
+  gun: {
+    id: 'gun', seconds: 45, range: 20, damage: 2, cooldownTicks: 10,
+    actions: { shoot: { key: 'KeyK', mode: 'tap' } }, fire: { kind: 'hitscan' }, fireNeedsScope: false, fuelSeconds: null, nameTag: 'GUN',
+  },
   sniper: {
-    id: 'sniper', seconds: 45, range: 150, damage: 4, cooldownTicks: 30, actions: { shoot: 'KeyK', scope: 'KeyF' }, fireNeedsScope: true, nameTag: 'SNIPER',
+    id: 'sniper', seconds: 45, range: 150, damage: 4, cooldownTicks: 30,
+    actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } }, fire: { kind: 'hitscan' }, fireNeedsScope: true, fuelSeconds: null, nameTag: 'SNIPER',
+  },
+  flamethrower: {
+    id: 'flamethrower', seconds: 45, range: 10, damage: 0.5, cooldownTicks: 15,
+    actions: { shoot: { key: 'KeyK', mode: 'hold' } }, fire: { kind: 'cone', halfAngle: Math.PI / 8 }, fireNeedsScope: false, fuelSeconds: 7.5, nameTag: 'FLAMETHROWER',
   },
 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
+export const FUEL_REFILL_RATE = 0.5; // of the burn rate
 
-// What a player is holding. `left` counts down in the sim unless `permanent`.
+// What a player is holding. `left` counts down in the sim unless `permanent`; `fuel` is seconds
+// of fire left for hold items, null otherwise.
 export interface ItemState {
   id: ItemId;
   left: number;
   permanent: boolean;
+  fuel: number | null;
+}
+
+export function createItem(id: ItemId, permanent: boolean): ItemState {
+  const spec = ITEMS[id];
+  return { id, left: permanent ? 0 : spec.seconds, permanent, fuel: spec.fuelSeconds };
 }
 
 export function isItemId(v: unknown): v is ItemId {
   return typeof v === 'string' && v in ITEMS;
+}
+
+export function isItemAction(v: unknown): v is ItemAction {
+  return v === 'shoot' || v === 'scope';
 }
 
 // The item a name entitles its owner to for the whole session, if any. Longer tags win so a
@@ -46,16 +82,16 @@ export function permanentItemFor(name: string): ItemId | null {
 }
 
 // "K or click to shoot, F to scope", for hints and chat notices. Shooting also works with a
-// click, so say so.
+// click, so say so; hold items say hold.
 export function itemHelp(id: ItemId, sep = ', '): string {
   return Object.entries(ITEMS[id].actions)
-    .map(([action, code]) => `${keyLabel(code)}${action === 'shoot' ? ' or click' : ''} to ${action}`)
+    .map(([action, spec]) => `${spec.mode === 'hold' ? 'hold ' : ''}${keyLabel(spec.key)}${action === 'shoot' ? ' or click' : ''} to ${action === 'shoot' && spec.mode === 'hold' ? 'spray' : action}`)
     .join(sep);
 }
 
 // Which of the item's actions a key press means, if any.
 export function actionForKey(id: ItemId, code: string): ItemAction | null {
-  for (const [action, key] of Object.entries(ITEMS[id].actions)) if (code === key) return action as ItemAction;
+  for (const [action, spec] of Object.entries(ITEMS[id].actions)) if (code === spec.key) return action as ItemAction;
   return null;
 }
 

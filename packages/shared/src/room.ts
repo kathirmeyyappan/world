@@ -9,7 +9,6 @@ import {
   MAX_INPUTS_PER_TICK,
   MAX_INPUT_QUEUE,
   MAX_NAME_LENGTH,
-  MAX_PITCH,
   MAX_PLAYERS,
   DEATH_SCREEN_SECONDS,
   PLAYER_COLORS,
@@ -18,10 +17,10 @@ import {
   TICK_RATE,
 } from './sim/constants';
 import { parseCommand } from './commands';
-import { findHit } from './sim/combat';
+import { resolveFire } from './sim/combat';
 import { applyDamage, damageFor } from './sim/health';
 import { AVATARS } from './sim/avatars';
-import { ITEMS, itemHelp, type ItemId } from './sim/items';
+import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
@@ -45,6 +44,7 @@ export interface ClientLink {
 
 interface Seat {
   lastShotTick: number;
+  shootHeld: boolean; // last frame's shoot level, for tap weapons' press edge
   diedTick: number | null;
   state: PlayerState;
   link: ClientLink;
@@ -106,7 +106,7 @@ export class Room {
     }
     const id = `p${this.nextPlayerId++}`;
     const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), this.spawnPoint());
-    this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, diedTick: null });
+    this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, shootHeld: false, diedTick: null });
     link.send({ t: 'welcome', id, room: this.id, tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}, ${this.seats.size} online`);
@@ -142,24 +142,27 @@ export class Room {
         else this.broadcast({ t: 'chat', id, name: seat.state.name, color: seat.state.color, text });
         return;
       }
-      case 'shoot': {
-        const me = seat.state;
-        if (!me.item || me.dead) return;
-        const spec = ITEMS[me.item.id];
-        if (spec.fireNeedsScope && !msg.scoped) return;
-        if (this.tick - seat.lastShotTick < spec.cooldownTicks) return;
-        seat.lastShotTick = this.tick;
-        me.yaw = msg.yaw;
-        me.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, msg.pitch));
-        this.broadcast({ t: 'shot', id });
-        const hit = findHit(me, this.players, spec.range);
-        if (hit) this.damage(seat, hit.target, damageFor(spec, hit.headshot), hit.headshot);
-        return;
-      }
       case 'ping':
         seat.link.send({ t: 'pong', at: msg.at });
         return;
     }
+  }
+
+  // The shoot action in one frame: a tap weapon fires on the press, a hold weapon fires every
+  // cooldown while the sim says it's firing (held, scoped if needed, fuel left).
+  private applyActions(seat: Seat, frame: InputFrame): void {
+    const me = seat.state;
+    const held = frame.actions.includes('shoot');
+    const pressed = held && !seat.shootHeld;
+    seat.shootHeld = held;
+    const spec = me.item && ITEMS[me.item.id];
+    const shoot = spec?.actions.shoot;
+    if (!spec || !shoot || me.dead) return;
+    const wants = shoot.mode === 'hold' ? me.firing : pressed && (!spec.fireNeedsScope || me.scoped);
+    if (!wants || this.tick - seat.lastShotTick < spec.cooldownTicks) return;
+    seat.lastShotTick = this.tick;
+    if (shoot.mode === 'tap') this.broadcast({ t: 'shot', id: me.id });
+    for (const hit of resolveFire(spec, me, this.players)) this.damage(seat, hit.target, damageFor(spec, hit.headshot), hit.headshot);
   }
 
   // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero.
@@ -185,7 +188,10 @@ export class Room {
         stepPlayer(seat.state, null, TICK_DT, this.worldShape);
         continue;
       }
-      for (let i = 0; i < n; i++) stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape);
+      for (let i = 0; i < n; i++) {
+        stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape);
+        this.applyActions(seat, seat.queue[i]);
+      }
       seat.queue.splice(0, n);
     }
     stepCubes(this.cubes, TICK_DT, this.worldShape, this.rng);
@@ -250,8 +256,8 @@ export class Room {
     }
   }
 
-  // One item at a time. A permanent holder can't swap; a timed holder must wait it out, but
-  // re-equipping the same item restarts its timer.
+  // One item at a time. A permanent holder can't swap; anyone else can, and re-equipping the
+  // same item restarts its timer.
   private equip(seat: Seat, id: ItemId): void {
     const me = seat.state;
     const held = me.item;
@@ -260,15 +266,10 @@ export class Room {
       else seat.link.send({ t: 'system', text: `you can't put down your ${held.id}` });
       return;
     }
-    if (held && held.id !== id) {
-      seat.link.send({ t: 'system', text: `you're holding a ${held.id} for another ${Math.ceil(held.left)}s` });
-      return;
-    }
     const spec = ITEMS[id];
-    me.item = { id, left: spec.seconds, permanent: false };
-    const how = spec.fireNeedsScope ? `${itemHelp(id)}. it only fires while scoped` : itemHelp(id);
-    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${how}.` });
-    this.broadcast({ t: 'system', text: `${me.name} drew a ${id}` }, me.id);
+    me.item = createItem(id, false);
+    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${howTo(spec)}.` });
+    this.broadcast({ t: 'system', text: held && held.id !== id ? `${me.name} swapped their ${held.id} for a ${id}` : `${me.name} drew a ${id}` }, me.id);
   }
 
   // Anywhere in the world, clear of the walls and not on top of a cube.
@@ -280,6 +281,13 @@ export class Room {
     }
     return { x: p.x, y: EYE_HEIGHT, z: p.z };
   }
+}
+
+function howTo(spec: ItemSpec): string {
+  const help = itemHelp(spec.id);
+  if (spec.fireNeedsScope) return `${help}. it only fires while scoped`;
+  if (spec.fuelSeconds !== null) return `${help}. ${spec.fuelSeconds}s of fuel, refills while you don't`;
+  return help;
 }
 
 export function sanitizeName(raw: string): string {
