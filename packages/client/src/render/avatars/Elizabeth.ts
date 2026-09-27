@@ -2,7 +2,7 @@
 // each, a flat orange beak, two small flippers and orange webbed feet. Low-poly flat-shaded
 // spheres for the body so it reads as a soft egg while still fitting the blocky world. Same
 // movement, hit capsule and items as everyone else; a weapon goes in the right flipper.
-import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3, VertexBuffer } from '@babylonjs/core';
+import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import type { ItemId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
@@ -10,8 +10,10 @@ import { buildWeapon, weaponPalette } from '../Weapons';
 import { box, createShadowBlob, createTag, type Avatar } from './common';
 
 const HEIGHT = 2.0;
-const EYE_Y = 1.58;
-const BEAK_Y = 1.34;
+const RADIUS = 0.62; // body is this wide all the way up until the dome
+const DOME_FROM = 0.6; // fraction of the height where the top starts rounding
+const EYE_Y = 1.52;
+const BEAK_Y = 1.24;
 
 export class ElizabethAvatar implements Avatar {
   readonly kind = 'elizabeth' as const;
@@ -40,40 +42,43 @@ export class ElizabethAvatar implements Avatar {
     const orange = flat(scene, `eliz-orange-${id}`, new Color3(0.98, 0.66, 0.16), 0.22);
     const orangeDark = flat(scene, `eliz-orange-dark-${id}`, new Color3(0.72, 0.42, 0.06), 0.08);
 
-    // Body: one pear, a sphere stretched tall and widened toward the bottom.
-    pear(scene, `eliz-body-${id}`, this.body, white);
+    // Body: a capsule, straight-sided, rounding into a dome from DOME_FROM up.
+    capsule(scene, `eliz-body-${id}`, this.body, white);
 
     // Eyes: black ring, white iris, small pupil, three lashes fanning up and out.
     for (const side of [-1, 1]) {
-      const x = side * 0.21;
-      disc(scene, `eliz-eye-ring-${side}-${id}`, this.body, black, 0.36, x, EYE_Y, 0.47);
-      disc(scene, `eliz-eye-${side}-${id}`, this.body, white, 0.3, x, EYE_Y, 0.485);
-      const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.07, 0.07, 0.02, black, this.body);
-      pupil.position.set(x, EYE_Y - 0.01, 0.5);
+      const x = side * 0.18;
+      disc(scene, `eliz-eye-ring-${side}-${id}`, this.body, black, 0.32, x, EYE_Y, RADIUS - 0.02);
+      disc(scene, `eliz-eye-${side}-${id}`, this.body, white, 0.27, x, EYE_Y, RADIUS - 0.005);
+      const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.06, 0.06, 0.02, black, this.body);
+      pupil.position.set(x, EYE_Y - 0.01, RADIUS + 0.01);
       for (const [i, off] of [-0.1, 0, 0.1].entries()) {
         const lash = box(scene, `eliz-lash-${side}-${i}-${id}`, 0.02, 0.09, 0.02, black, this.body);
-        lash.position.set(x + off * 1.2, EYE_Y + 0.22 - Math.abs(off) * 0.3, 0.47);
+        lash.position.set(x + off * 1.2, EYE_Y + 0.21 - Math.abs(off) * 0.3, RADIUS - 0.02);
         lash.rotation.z = -off * 4; // outer lashes fan outward
       }
     }
 
-    // Beak: wide flat orange block with a darker seam for the mouth.
-    const beak = box(scene, `eliz-beak-${id}`, 0.64, 0.2, 0.42, orange, this.body);
-    beak.position.set(0, BEAK_Y, 0.62);
-    beak.rotation.x = 0.12; // tips slightly down, like the real thing
-    const seam = box(scene, `eliz-beak-seam-${id}`, 0.6, 0.02, 0.4, orangeDark, this.body);
-    seam.position.set(0, BEAK_Y - 0.01, 0.64);
-    seam.rotation.x = 0.12;
+    // Beak: a flattened oval about half the face wide, with a darker seam for the mouth.
+    const beak = MeshBuilder.CreateSphere(`eliz-beak-${id}`, { diameter: 1, segments: 6 }, scene);
+    beak.convertToFlatShadedMesh();
+    beak.material = orange;
+    beak.parent = this.body;
+    beak.scaling.set(0.56, 0.2, 0.42);
+    beak.position.set(0, BEAK_Y, RADIUS + 0.08);
+    beak.isPickable = false;
+    const seam = box(scene, `eliz-beak-seam-${id}`, 0.5, 0.018, 0.3, orangeDark, this.body);
+    seam.position.set(0, BEAK_Y, RADIUS + 0.16);
 
     // Flippers: short flat paddles hanging from the shoulders, pivot at the top.
-    this.flipperL = box(scene, `eliz-flipperL-${id}`, 0.13, 0.72, 0.36, white, this.body);
-    this.flipperR = box(scene, `eliz-flipperR-${id}`, 0.13, 0.72, 0.36, white, this.body);
-    this.flipperL.position.set(-0.64, 1.02, 0.1);
-    this.flipperR.position.set(0.64, 1.02, 0.1);
-    this.flipperL.setPivotPoint(new Vector3(0, 0.36, 0));
-    this.flipperR.setPivotPoint(new Vector3(0, 0.36, 0));
-    this.flipperL.rotation.z = -0.28;
-    this.flipperR.rotation.z = 0.28;
+    this.flipperL = box(scene, `eliz-flipperL-${id}`, 0.11, 0.58, 0.3, white, this.body);
+    this.flipperR = box(scene, `eliz-flipperR-${id}`, 0.11, 0.58, 0.3, white, this.body);
+    this.flipperL.position.set(-(RADIUS + 0.04), 1.0, 0.05);
+    this.flipperR.position.set(RADIUS + 0.04, 1.0, 0.05);
+    this.flipperL.setPivotPoint(new Vector3(0, 0.29, 0));
+    this.flipperR.setPivotPoint(new Vector3(0, 0.29, 0));
+    this.flipperL.rotation.z = -0.3;
+    this.flipperR.rotation.z = 0.3;
 
     // Feet: flat orange slabs with three toes each, poking out from under the body.
     this.footL = foot(scene, `eliz-footL-${id}`, this.body, orange, -0.24);
@@ -118,7 +123,7 @@ export class ElizabethAvatar implements Avatar {
     this.footR.position.y = 0.03 + Math.max(0, -Math.sin(this.phase)) * 0.09 * effort;
     this.flipperL.rotation.x = -Math.sin(this.phase) * 0.3 * effort;
     this.flipperR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : Math.sin(this.phase) * 0.3 * effort;
-    this.flipperR.rotation.z = p.item ? 0 : 0.28;
+    this.flipperR.rotation.z = p.item ? 0 : 0.3;
 
     if (p.item !== this.held) {
       if (this.held) this.weapons.get(this.held)!.setEnabled(false);
@@ -128,7 +133,7 @@ export class ElizabethAvatar implements Avatar {
     if (p.dead !== this.dead) {
       this.dead = p.dead;
       // Tipped onto its side; the egg's half-width keeps it resting on the ground.
-      this.body.position.set(p.dead ? 0.95 : 0, p.dead ? 0.62 : 0, 0);
+      this.body.position.set(p.dead ? 1.0 : 0, p.dead ? RADIUS : 0, 0);
     }
     if (p.dead) {
       this.body.rotation.set(0, 0, Math.PI / 2);
@@ -156,19 +161,17 @@ function flat(scene: Engine['scene'], name: string, color: Color3, glow: number)
   return m;
 }
 
-// A sphere pulled into a pear: stretched to HEIGHT, and each ring of vertices widened the lower
-// it sits, so the bottom is fat and the top tapers. Flat shaded so it stays low-poly.
-function pear(scene: Engine['scene'], name: string, parent: TransformNode, mat: StandardMaterial): Mesh {
-  const m = MeshBuilder.CreateSphere(name, { diameter: 1.3, segments: 8 }, scene);
-  const pos = m.getVerticesData(VertexBuffer.PositionKind)!;
-  for (let i = 0; i < pos.length; i += 3) {
-    const y = pos[i + 1] / 0.65; // -1 bottom .. +1 top
-    const widen = 1.12 - 0.3 * y; // 1.42 at the base, 0.82 at the crown
-    pos[i] *= widen * 0.9;
-    pos[i + 2] *= widen * 0.85;
-    pos[i + 1] = (y * 0.5 + 0.5) * HEIGHT;
+// The body as a lathe: a slightly rounded base, straight sides, and a dome for the top part.
+// Flat shaded so it stays low-poly like everything else.
+function capsule(scene: Engine['scene'], name: string, parent: TransformNode, mat: StandardMaterial): Mesh {
+  const domeStart = HEIGHT * DOME_FROM;
+  const shape = [new Vector3(0, 0, 0), new Vector3(RADIUS * 0.8, 0, 0), new Vector3(RADIUS, 0.1, 0), new Vector3(RADIUS, domeStart, 0)];
+  const steps = 6;
+  for (let i = 1; i <= steps; i++) {
+    const a = (i / steps) * (Math.PI / 2);
+    shape.push(new Vector3(RADIUS * Math.cos(a), domeStart + (HEIGHT - domeStart) * Math.sin(a), 0));
   }
-  m.updateVerticesData(VertexBuffer.PositionKind, pos);
+  const m = MeshBuilder.CreateLathe(name, { shape, tessellation: 14, sideOrientation: Mesh.DOUBLESIDE }, scene);
   m.convertToFlatShadedMesh();
   m.material = mat;
   m.parent = parent;
@@ -189,7 +192,7 @@ function disc(scene: Engine['scene'], name: string, parent: TransformNode, mat: 
 
 function foot(scene: Engine['scene'], name: string, parent: TransformNode, mat: StandardMaterial, x: number): Mesh {
   const sole = box(scene, name, 0.3, 0.06, 0.34, mat, parent);
-  sole.position.set(x, 0.03, 0.12);
+  sole.position.set(x, 0.03, 0.42); // poking out from under the front of the body
   for (const [i, tx] of [-0.1, 0, 0.1].entries()) {
     const toe = box(scene, `${name}-toe-${i}`, 0.07, 0.05, 0.14, mat, sole);
     toe.position.set(tx, 0, 0.22);
