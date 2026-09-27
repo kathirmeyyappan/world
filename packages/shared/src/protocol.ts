@@ -1,5 +1,5 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
-import { isItemAction } from './sim/items';
+import { isItemAction, type ItemId } from './sim/items';
 import type { InputFrame, PlayerState } from './sim/types';
 
 export interface CubeSnapshot {
@@ -25,7 +25,7 @@ export type ServerMessage =
   | { t: 'system'; text: string } // greyed-out line: command results, notices
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
   | { t: 'hit'; shooter: string; victim: string; damage: number; headshot: boolean; hearts: number } // a shot landed
-  | { t: 'kill'; shooter: string; victim: string }
+  | { t: 'kill'; shooter: string; victim: string; item: ItemId; headshot: boolean } // clients announce it
   | { t: 'pong'; at: number }
   | { t: 'error'; message: string };
 

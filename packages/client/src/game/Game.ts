@@ -285,6 +285,7 @@ export class Game {
         this.onHit(m);
         return;
       case 'kill':
+        this.hud.announceKill(m.shooter, m.victim, m.item, m.headshot);
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) {
           this.dead = true;

@@ -168,6 +168,14 @@ export class Hud {
     this.pushLine(li);
   }
 
+  // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot".
+  announceKill(shooter: string, victim: string, item: string, headshot: boolean): void {
+    const li = document.createElement('li');
+    li.className = 'kill';
+    li.textContent = `${this.playerName(shooter)} killed ${this.playerName(victim)} with a ${item}${headshot ? ' headshot' : ''}`;
+    this.pushLine(li);
+  }
+
   private pushLine(li: HTMLLIElement): void {
     this.chatLog.appendChild(li);
     while (this.chatLog.children.length > CHAT_LINES) this.chatLog.firstChild?.remove();
