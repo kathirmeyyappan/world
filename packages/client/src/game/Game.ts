@@ -32,6 +32,9 @@ const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400;
 const DEFAULT_FOV = 1.2;
 const SCOPED_FOV = 0.3;
+const HIP_KICK = 0.02;
+const SCOPED_KICK = 0.035;
+const KICK_HALF_LIFE = 0.06;
 
 export class Game {
   private readonly engine: Engine;
@@ -56,6 +59,7 @@ export class Game {
   private scoped = false;
   private canHit = false;
   private lastScopeNag = -Infinity;
+  private kick = 0; // camera recoil, radians of upward pitch that decays back
   private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
@@ -159,6 +163,14 @@ export class Game {
     }
     this.conn.send({ t: 'shoot', yaw: this.input.yaw, pitch: this.input.pitch, scoped: this.scoped });
     this.viewmodel.fire();
+    // Recoil the camera up and let it settle. Bigger for the sniper, whose viewmodel is hidden
+    // behind the scope, and flash the scope so the shot is unmistakable.
+    this.kick = this.scoped ? SCOPED_KICK : HIP_KICK;
+    if (this.scoped) {
+      const scope = document.getElementById('scope')!;
+      scope.classList.add('flash');
+      setTimeout(() => scope.classList.remove('flash'), 90);
+    }
   }
 
   // Aim down the scope: narrow the camera, slow the look, swap the viewmodel for the overlay.
@@ -272,7 +284,9 @@ export class Game {
     this.correction.scaleInPlace(decay);
     const p = this.prediction.state.pos;
     this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
-    this.camera.rotation.set(this.input.pitch, this.input.yaw, 0);
+    this.kick *= Math.pow(0.5, dt / KICK_HALF_LIFE);
+    if (this.kick < 1e-4) this.kick = 0;
+    this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);
 
     this.environment.update(dt, this.camera.position);
     const held = this.held;
