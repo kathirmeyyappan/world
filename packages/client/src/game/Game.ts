@@ -38,6 +38,7 @@ const HOVER_RANGE = 400; // sky objects can be read from anywhere
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const DEFAULT_FOV = 1.2;
 const SCOPED_FOV = 0.3;
+const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper's 150 m is actually visible
 const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;
@@ -346,6 +347,7 @@ export class Game {
     if (this.kick < 1e-4) this.kick = 0;
     this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);
 
+    this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
     this.environment.update(dt, this.camera.position);
     const held = this.held;
     if (!held) this.setScoped(false);

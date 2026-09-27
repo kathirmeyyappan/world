@@ -32,7 +32,7 @@ export interface ItemSpec {
   actions: Partial<Record<ItemAction, ActionSpec>>;
   fire: FireShape;
   fireNeedsScope: boolean; // can only shoot while scoped
-  fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at half rate
+  fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at FUEL_REFILL_RATE
   nameTag: string; // a name containing this spawns with the item permanently
 }
 
@@ -52,7 +52,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
-export const FUEL_REFILL_RATE = 0.5; // of the burn rate
+export const FUEL_REFILL_RATE = 0.25; // of the burn rate: a 7.5 s tank takes 30 s to refill
 
 // What a player is holding. `left` counts down in the sim unless `permanent`; `fuel` is seconds
 // of fire left for hold items, null otherwise.
