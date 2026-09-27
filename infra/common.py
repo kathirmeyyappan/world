@@ -14,7 +14,7 @@ room_image = (
         REPO,
         "/app",
         copy=True,
-        ignore=["node_modules", "dist", ".git", "docs", "infra", "e2e", "__pycache__", "*.local"],
+        ignore=["node_modules", "dist", ".git", "docs", "infra", "modal-bots", "e2e", "__pycache__", "*.local"],
     )
     .run_commands("npm ci", "npm run build")
 )

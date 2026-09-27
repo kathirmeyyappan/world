@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "world-modal-bots"
+version = "0.1.0"
+description = "Headless Modal clients for kathir world"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx",
+  "modal",
+  "websockets",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bots*", "common*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
