@@ -22,6 +22,7 @@ export interface PlayerState {
   item: ItemState | null; // what they're holding, if anything
   avatar: AvatarId; // how they look; cosmetic only
   avatarLeft: number | null; // seconds until they revert to standard; null when not timed
+  hearts: number; // MAX_HEARTS at spawn, down to 0 when shot enough
   dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 

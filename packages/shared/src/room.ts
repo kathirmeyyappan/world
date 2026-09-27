@@ -19,6 +19,7 @@ import {
 } from './sim/constants';
 import { parseCommand } from './commands';
 import { findHit } from './sim/combat';
+import { applyDamage, damageFor } from './sim/health';
 import { AVATARS } from './sim/avatars';
 import { ITEMS, itemHelp, type ItemId } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
@@ -150,21 +151,26 @@ export class Room {
         seat.lastShotTick = this.tick;
         me.yaw = msg.yaw;
         me.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, msg.pitch));
+        this.broadcast({ t: 'shot', id });
         const hit = findHit(me, this.players, spec.range);
-        this.broadcast({ t: 'shot', id, hit: hit?.id ?? null });
-        if (hit) {
-          hit.dead = true;
-          const victim = this.seats.get(hit.id);
-          if (victim) victim.diedTick = this.tick;
-          this.broadcast({ t: 'kill', shooter: id, victim: hit.id });
-          this.broadcast({ t: 'system', text: `${me.name} shot ${hit.name}` });
-        }
+        if (hit) this.damage(seat, hit.target, damageFor(spec, hit.headshot), hit.headshot);
         return;
       }
       case 'ping':
         seat.link.send({ t: 'pong', at: msg.at });
         return;
     }
+  }
+
+  // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero.
+  private damage(shooter: Seat, victim: PlayerState, damage: number, headshot: boolean): void {
+    const killed = applyDamage(victim, damage);
+    this.broadcast({ t: 'hit', shooter: shooter.state.id, victim: victim.id, damage, headshot, hearts: victim.hearts });
+    if (!killed) return;
+    const seat = this.seats.get(victim.id);
+    if (seat) seat.diedTick = this.tick;
+    this.broadcast({ t: 'kill', shooter: shooter.state.id, victim: victim.id });
+    this.broadcast({ t: 'system', text: `${shooter.state.name} shot ${victim.name}` });
   }
 
   step(): void {

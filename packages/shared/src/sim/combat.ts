@@ -1,7 +1,9 @@
 // Hitscan shooting, resolved on the server from the shooter's own position and look direction.
 // A player is a vertical capsule from feet to just above the eyes; the nearest one the ray
-// passes through within range is the hit.
-import { EYE_HEIGHT, HIT_RADIUS } from './constants';
+// passes through within range is the hit, and where on it the ray lands says whether it was
+// a headshot. Damage numbers live in health.ts.
+import { HIT_RADIUS } from './constants';
+import { CAPSULE_TOP, capsuleFeetY, isHeadshot } from './health';
 import type { Vec3 } from './types';
 
 // Enough of a player to be shot at. PlayerState satisfies it; so does the client's remote view.
@@ -18,6 +20,11 @@ export interface Shooter {
   pitch: number;
 }
 
+export interface Hit<T extends Target> {
+  target: T;
+  headshot: boolean;
+}
+
 // Unit vector the player is looking along. Matches the client camera: yaw 0 faces +z,
 // positive pitch looks down.
 export function lookDirection(yaw: number, pitch: number): Vec3 {
@@ -25,7 +32,7 @@ export function lookDirection(yaw: number, pitch: number): Vec3 {
   return { x: Math.sin(yaw) * c, y: -Math.sin(pitch), z: Math.cos(yaw) * c };
 }
 
-export function findHit<T extends Target>(shooter: Shooter, players: Iterable<T>, range: number): T | null {
+export function findHit<T extends Target>(shooter: Shooter, players: Iterable<T>, range: number): Hit<T> | null {
   const dir = lookDirection(shooter.yaw, shooter.pitch);
   const o = shooter.pos;
   let best: T | null = null;
@@ -38,14 +45,15 @@ export function findHit<T extends Target>(shooter: Shooter, players: Iterable<T>
       best = p;
     }
   }
-  return best;
+  if (!best) return null;
+  return { target: best, headshot: isHeadshot(o.y + dir.y * bestT, best.pos.y) };
 }
 
-// Distance along the ray to a capsule around `eye` (feet at eye.y - EYE_HEIGHT, top a bit above
-// the eye), or null. Checks the ray against the capsule's axis segment plus HIT_RADIUS.
+// Distance along the ray to a capsule around `eye` (feet at the bottom, top a bit above the
+// eye), or null. Checks the ray against the capsule's axis segment plus HIT_RADIUS.
 function rayCapsule(o: Vec3, d: Vec3, eye: Vec3, maxT: number): number | null {
-  const a = { x: eye.x, y: eye.y - EYE_HEIGHT, z: eye.z };
-  const b = { x: eye.x, y: eye.y + 0.3, z: eye.z };
+  const a = { x: eye.x, y: capsuleFeetY(eye.y), z: eye.z };
+  const b = { x: eye.x, y: eye.y + CAPSULE_TOP, z: eye.z };
   // Coarse: closest approach between the ray and the axis segment, then check the radius.
   let bestT: number | null = null;
   const steps = 8;

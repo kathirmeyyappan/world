@@ -131,6 +131,44 @@ html, body {
 #crosshair.target { color: #ff3b4e; text-shadow: 0 0 6px #ff3b4e, 0 0 12px rgba(255,59,78,0.7); }
 #crosshair.hit { color: #ff3b4e; transform: translate(-50%, -50%) scale(1.4); }
 
+/* Hearts: two rows of five pixel hearts, top centre. Lost ones grey out and crack. */
+#hearts {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 50; pointer-events: none;
+  display: grid; grid-template-columns: repeat(5, 27px); gap: 3px 4px;
+}
+.heart { position: relative; width: 27px; height: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.8)); }
+.heart svg { position: absolute; inset: 0; width: 100%; height: 100%; shape-rendering: crispEdges; }
+.heart svg rect { fill: #ff3b4e; }
+.heart svg rect.hi { fill: #ff8a95; }
+.heart .broken { display: none; }
+.heart.lost .full { display: none; }
+.heart.lost .broken { display: block; }
+.heart.lost svg rect { fill: #3a3d46; }
+.heart.lost svg rect.hi { fill: #4a4e58; }
+.heart.breaking { animation: heart-break 0.45s steps(6) both; }
+@keyframes heart-break {
+  0% { transform: scale(1.35) rotate(-8deg); }
+  35% { transform: scale(1.2) rotate(8deg); }
+  70% { transform: scale(1.05) rotate(-4deg); }
+  100% { transform: none; }
+}
+
+/* Red vignette when you're hit. */
+#damage-flash {
+  position: fixed; inset: 0; z-index: 95; pointer-events: none; opacity: 0; transition: opacity 0.4s;
+  background: radial-gradient(ellipse at center, rgba(255,40,60,0.12) 30%, rgba(255,40,60,0.7) 100%);
+}
+#damage-flash.on { opacity: 1; transition: none; }
+
+/* "hit bob -2" under the crosshair. */
+#hit-notice {
+  position: fixed; top: calc(50% + 26px); left: 50%; transform: translateX(-50%); z-index: 100; pointer-events: none;
+  font: 18px var(--mono); letter-spacing: 1px; color: #ff3b4e; text-shadow: 2px 2px 0 #000; white-space: pre;
+  opacity: 0; transition: opacity 0.3s;
+}
+#hit-notice.on { opacity: 1; transition: none; }
+#hit-notice.headshot { color: #ffd54a; font-weight: bold; }
+
 #item-hint {
   position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); padding: 6px 12px; z-index: 50;
   font: 19px var(--mono); color: rgba(255,255,255,0.85); letter-spacing: 1px; pointer-events: none;
@@ -276,4 +314,6 @@ html, body {
   #chat { bottom: 150px; width: min(300px, 60vw); }
   #chat-log li { font-size: 18px; }
   #item-hint { bottom: 82px; }
+  #hearts { top: 8px; grid-template-columns: repeat(5, 18px); gap: 2px 3px; }
+  .heart { width: 18px; height: 16px; }
 }

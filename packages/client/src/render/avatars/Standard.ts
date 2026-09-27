@@ -7,6 +7,7 @@ import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { buildWeapon, weaponPalette } from '../Weapons';
 import { box, createShadowBlob, createTag, type Avatar } from './common';
+import { HitFlash } from './HitFlash';
 
 export class StandardAvatar implements Avatar {
   readonly kind = 'standard' as const;
@@ -20,6 +21,7 @@ export class StandardAvatar implements Avatar {
   private readonly shadow: Mesh;
   private readonly tag: Mesh;
   private readonly weapons = new Map<ItemId, TransformNode>();
+  private readonly hitFlash: HitFlash;
   private held: ItemId | null = null;
   private dead = false;
   private phase = 0;
@@ -45,6 +47,8 @@ export class StandardAvatar implements Avatar {
     visorMat.diffuseColor = Color3.Black();
     visorMat.emissiveColor = c;
     visorMat.disableLighting = true;
+
+    this.hitFlash = new HitFlash([suit, skin]);
 
     this.legL = box(scene, `avatar-legL-${id}`, 0.22, 0.7, 0.24, suit, this.body);
     this.legR = box(scene, `avatar-legR-${id}`, 0.22, 0.7, 0.24, suit, this.body);
@@ -96,6 +100,7 @@ export class StandardAvatar implements Avatar {
   }
 
   update(p: RemotePlayer): void {
+    this.hitFlash.update();
     const moved = Math.hypot(p.x - this.lastX, p.z - this.lastZ);
     this.lastX = p.x;
     this.lastZ = p.z;
@@ -130,6 +135,10 @@ export class StandardAvatar implements Avatar {
     this.shadow.position.y = 0.02 - feetY;
     this.shadow.scaling.setAll(Math.max(0.5, 1 - feetY * 0.15));
     this.root.setEnabled(true);
+  }
+
+  flash(): void {
+    this.hitFlash.trigger();
   }
 
   hide(): void {

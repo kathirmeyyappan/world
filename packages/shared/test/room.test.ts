@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Room, WORLD_SHAPE, worldDistance, type ServerMessage } from '@world/shared';
+import { HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, Room, WORLD_SHAPE, worldDistance, type ServerMessage } from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -92,8 +92,17 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   assert.ok(!bob.dead, 'nothing to shoot with yet');
   room.receive(ida, { t: 'chat', text: '/gun' });
   assert.deepEqual(alice.item, { id: 'gun', left: 45, permanent: false });
-  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: false });
-  assert.ok(bob.dead, 'bob is directly ahead');
+  const chest = Math.atan2(0.8, 8);
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: chest, scoped: false });
+  assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, 'a body shot takes the gun\'s damage');
+  assert.ok(!bob.dead, 'bob is directly ahead but not dead yet');
+  assert.ok(b.inbox.some((m) => m.t === 'hit' && m.victim === idb && m.shooter === ida && m.damage === 2 && !m.headshot && m.hearts === 8));
+  while (!bob.dead) {
+    for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) room.step();
+    room.receive(ida, { t: 'shoot', yaw: 0, pitch: chest, scoped: false });
+  }
+  assert.equal(bob.hearts, 0);
+  assert.equal(b.inbox.filter((m) => m.t === 'hit').length, 5, 'ten hearts, two a shot');
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === idb && m.shooter === ida));
   assert.ok(b.inbox.some((m) => m.t === 'system' && m.text === 'alice shot bob'));
 
@@ -168,9 +177,9 @@ test('a corpse that never rejoins is removed and its link closed', () => {
   const alice = room.players.find((p) => p.id === ida)!;
   const bot = room.players.find((p) => p.id === idb)!;
   bot.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
-  room.receive(ida, { t: 'chat', text: '/gun' });
-  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: false });
-  assert.ok(bot.dead);
+  room.receive(ida, { t: 'chat', text: '/sniper' });
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: true });
+  assert.ok(bot.dead, 'a scoped sniper headshot');
   for (let i = 0; i < 30 * 12; i++) room.step();
   assert.ok(room.players.some((p) => p.id === idb), 'still a corpse at 12 s');
   for (let i = 0; i < 30 * 2; i++) room.step();
@@ -209,4 +218,23 @@ test('avatars: ELIZABETH in the name is for keeps; /elizabeth lasts 60 s', () =>
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
   room.receive(ida, { t: 'chat', text: '/elizabeth' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're already elizabeth" });
+});
+
+test('headshots do 2.5x: a gun takes 5 hearts, a scoped sniper to the head is a one-shot kill', () => {
+  const room = new Room('head', { seed: 5 });
+  const a = link();
+  const ida = room.join('GUNalice', a)!;
+  const idb = room.join('bob', link())!;
+  const idc = room.join('SNIPERcarol', link())!;
+  const [alice, bob, carol] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
+  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 8 };
+  carol.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 30 };
+
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0, scoped: false });
+  assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage * HEADSHOT_MULTIPLIER);
+  assert.ok(a.inbox.some((m) => m.t === 'hit' && m.headshot && m.damage === 5));
+
+  room.receive(idc, { t: 'shoot', yaw: 0, pitch: 0, scoped: true });
+  assert.ok(alice.dead, 'sniper headshot: 4 x 2.5 = 10 hearts');
+  assert.equal(alice.hearts, 0);
 });

@@ -5,6 +5,7 @@ export * from './sim/world';
 export * from './sim/player';
 export * from './sim/cubes';
 export * from './sim/combat';
+export * from './sim/health';
 export * from './sim/items';
 export * from './sim/avatars';
 export * from './protocol';

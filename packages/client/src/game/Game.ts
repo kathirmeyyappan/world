@@ -19,7 +19,10 @@ import { Environment } from '../render/Environment';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
+import { DamageFlash } from '../ui/DamageFlash';
 import { Death } from '../ui/Death';
+import { Hearts } from '../ui/Hearts';
+import { HitNotice } from '../ui/HitNotice';
 import { Hud } from '../ui/Hud';
 import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
@@ -54,6 +57,9 @@ export class Game {
   private readonly bubble = new Bubble();
   private readonly minimap = new Minimap(WORLD_SHAPE);
   private readonly death = new Death();
+  private readonly hearts = new Hearts();
+  private readonly damageFlash = new DamageFlash();
+  private readonly hitNotice = new HitNotice();
   private readonly viewmodel: Viewmodel;
   private dead = false;
   private scoped = false;
@@ -216,6 +222,7 @@ export class Game {
       case 'snap': {
         this.interp.push(m.tick, m.players, m.cubes, now);
         const me = m.players.find((p) => p.id === this.myId);
+        if (me) this.hearts.set(me.hearts);
         if (me && this.prediction) {
           const d = this.prediction.reconcile(me);
           const dist = Math.hypot(d.dx, d.dy, d.dz);
@@ -240,7 +247,9 @@ export class Game {
         this.hud.system(m.text);
         return;
       case 'shot':
-        if (m.id === this.myId && m.hit) this.hud.hitMarker();
+        return;
+      case 'hit':
+        this.onHit(m);
         return;
       case 'kill':
         this.hud.setDead(m.victim);
@@ -257,6 +266,21 @@ export class Game {
       case 'error':
         this.hud.system(m.message);
         return;
+    }
+  }
+
+  // A shot landed. The victim's client flashes red and drops hearts, the shooter's says who
+  // they hit, and everyone else sees the victim blink.
+  private onHit(m: { shooter: string; victim: string; damage: number; headshot: boolean; hearts: number }): void {
+    if (m.victim === this.myId) {
+      this.damageFlash.flash();
+      this.hearts.set(m.hearts);
+    } else {
+      this.avatars.get(m.victim)?.flash();
+    }
+    if (m.shooter === this.myId) {
+      this.hud.hitMarker();
+      this.hitNotice.show(this.hud.playerName(m.victim), m.damage, m.headshot);
     }
   }
 
