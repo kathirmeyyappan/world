@@ -24,6 +24,8 @@ export class Hud {
   private readonly playerList = document.getElementById('player-list')!;
   private readonly ping = document.getElementById('ping')!;
   private readonly chatLog = document.getElementById('chat-log')!;
+  private readonly itemHint = document.getElementById('item-hint')!;
+  private itemHintText = '';
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
   private readonly crosshair = document.getElementById('crosshair')!;
   private players = new Map<string, { name: string; color: string; dead: boolean }>();
@@ -119,6 +121,19 @@ export class Hud {
 
   playerName(id: string): string {
     return this.players.get(id)?.name ?? 'someone';
+  }
+
+  // Red crosshair while a shot from here would land.
+  setCrosshairTarget(on: boolean): void {
+    this.crosshair.classList.toggle('target', on);
+  }
+
+  // What you're holding and how to use it, or nothing.
+  setItemHint(text: string): void {
+    if (text === this.itemHintText) return;
+    this.itemHintText = text;
+    this.itemHint.textContent = text;
+    this.itemHint.classList.toggle('hidden', !text);
   }
 
   // Brief red crosshair when one of your shots lands.

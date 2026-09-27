@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  EYE_HEIGHT, GUN_SECONDS, JUMP_VELOCITY, SPEEDY_MULTIPLIER, SPEEDY_SECONDS, TICK_DT, WORLD_SHAPE,
+  EYE_HEIGHT, ITEMS, JUMP_VELOCITY, SPEEDY_MULTIPLIER, SPEEDY_SECONDS, TICK_DT, WORLD_SHAPE,
   clonePlayer, createCubes, createPlayer, createRng, stepCubes, stepPlayer, worldDistance,
   type InputFrame,
 } from '@world/shared';
@@ -98,11 +98,15 @@ test('/speedy boost multiplies movement and wears off', () => {
   assert.ok(Math.abs(p.pos.z - before - 0.8) < 1e-9, 'back to normal speed');
 });
 
-test('/gun wears off after its window', () => {
+test('a timed item wears off after its window; a permanent one never does', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
-  p.gun = GUN_SECONDS;
-  for (let i = 1; i <= GUN_SECONDS - 1; i++) stepPlayer(p, null, 1, WORLD_SHAPE);
-  assert.ok(p.gun > 0, 'still armed just before the window ends');
+  p.item = { id: 'gun', left: ITEMS.gun.seconds, permanent: false };
+  for (let i = 1; i <= ITEMS.gun.seconds - 1; i++) stepPlayer(p, null, 1, WORLD_SHAPE);
+  assert.ok(p.item, 'still armed just before the window ends');
   stepPlayer(p, null, 1, WORLD_SHAPE);
-  assert.equal(p.gun, 0);
+  assert.equal(p.item, null);
+
+  const q = createPlayer('b', 'SNIPERb', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  for (let i = 0; i < 1000; i++) stepPlayer(q, null, 1, WORLD_SHAPE);
+  assert.deepEqual(q.item, { id: 'sniper', left: 0, permanent: true });
 });

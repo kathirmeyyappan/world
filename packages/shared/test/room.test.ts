@@ -78,7 +78,7 @@ test('/speedy is a command: boosts the sender and tells everyone in grey', () =>
   assert.notDeepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /fly' }, 'only the sender is told');
 });
 
-test('/gun then click: the server resolves the hit, kills the target, and the dead stop moving', () => {
+test('/gun then shoot: the server resolves the hit, kills the target, and the dead stop moving', () => {
   const room = new Room('gun', { seed: 5 });
   const a = link();
   const b = link();
@@ -89,9 +89,9 @@ test('/gun then click: the server resolves the hit, kills the target, and the de
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 8 };
 
   room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
-  assert.ok(!bob.dead, 'no gun yet');
+  assert.ok(!bob.dead, 'nothing to shoot with yet');
   room.receive(ida, { t: 'chat', text: '/gun' });
-  assert.equal(alice.gun, 30);
+  assert.deepEqual(alice.item, { id: 'gun', left: 30, permanent: false });
   room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
   assert.ok(bob.dead, 'bob is directly ahead');
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === idb && m.shooter === ida));
@@ -108,19 +108,50 @@ test('/gun then click: the server resolves the hit, kills the target, and the de
   assert.ok(welcome.t === 'welcome' && welcome.players.find((p) => p.id === idb)!.dead, 'late joiners see who is dead');
 });
 
-test('a name containing GUN is armed permanently and /gun just says so', () => {
+test('items are one at a time, on a timer, and the gun only reaches 20 m', () => {
+  const room = new Room('items', { seed: 6 });
+  const a = link();
+  const b = link();
+  const ida = room.join('alice', a)!;
+  const idb = room.join('bob', b)!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 25 };
+
+  room.receive(ida, { t: 'chat', text: '/gun' });
+  room.receive(ida, { t: 'chat', text: '/sniper' });
+  assert.equal(alice.item?.id, 'gun', 'still the gun');
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're holding a gun for another 30s" });
+
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
+  assert.ok(!bob.dead, '25 m is past the gun');
+
+  for (let i = 0; i < 30 * 31; i++) room.step();
+  assert.ok(alice.item === null, 'the gun wore off');
+  room.receive(ida, { t: 'chat', text: '/sniper' });
+  assert.equal(room.players.find((p) => p.id === ida)!.item?.id, 'sniper');
+  room.receive(ida, { t: 'shoot', yaw: 0, pitch: 0 });
+  assert.ok(bob.dead, 'the sniper reaches 25 m');
+});
+
+test('a name containing GUN or SNIPER is armed permanently and can never swap', () => {
   const room = new Room('perm', { seed: 2 });
   const a = link();
   const ida = room.join('bigGUNner', a)!;
   const me = room.players.find((p) => p.id === ida)!;
-  assert.ok(me.gun > 1e8, 'armed on join');
+  assert.deepEqual(me.item, { id: 'gun', left: 0, permanent: true });
   for (let i = 0; i < 30 * 60; i++) room.step();
-  assert.ok(me.gun > 1e8, 'still armed a minute later');
+  assert.equal(me.item?.id, 'gun', 'still armed a minute later');
   room.receive(ida, { t: 'chat', text: '/gun' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'bigGUNner already has a gun' });
-  assert.ok(me.gun > 1e8, 'not reset to the 30 s window');
+  room.receive(ida, { t: 'chat', text: '/sniper' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you can't put down your gun" });
+  assert.equal(me.item?.id, 'gun');
 
+  const s = link();
+  const ids = room.join('SNIPERGUN', s)!;
+  assert.equal(room.players.find((p) => p.id === ids)!.item?.id, 'sniper', 'longer tag wins');
   const b = link();
   const idb = room.join('gunner', b)!;
-  assert.equal(room.players.find((p) => p.id === idb)!.gun, 0, 'lowercase does not count');
+  assert.equal(room.players.find((p) => p.id === idb)!.item, null, 'lowercase does not count');
 });

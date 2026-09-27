@@ -14,14 +14,9 @@ export const MAX_PITCH = Math.PI / 2 - 0.1;
 export const SPEEDY_MULTIPLIER = 1.8;
 export const SPEEDY_SECONDS = 20;
 
-// /gun: hitscan pistol. Hits are resolved on the server against a capsule around each player.
-export const GUN_SECONDS = 30; // how long /gun lasts
-// Names containing this are armed for good: their timer starts so high it never runs out.
-export const PERMANENT_GUN_TAG = 'GUN';
-export const PERMANENT_GUN_SECONDS = 1e9;
-export const GUN_RANGE = 60;
+// Shooting: hits are resolved on the server against a capsule around each player. Ranges and
+// cooldowns are per item, in items.ts.
 export const HIT_RADIUS = 0.55;
-export const SHOT_COOLDOWN_TICKS = 10;
 export const DEATH_SCREEN_SECONDS = 10;
 
 // How far behind the newest snapshot remote players are rendered. Higher hides jitter, costs latency.

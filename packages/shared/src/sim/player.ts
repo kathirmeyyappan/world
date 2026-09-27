@@ -1,8 +1,7 @@
 // Player movement. Runs identically on the server (authoritative) and the client (prediction),
 // so it must stay pure: no Babylon, no DOM, no time reads.
-import {
-  EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PERMANENT_GUN_SECONDS, PERMANENT_GUN_TAG, PLAYER_PADDING, SPEEDY_MULTIPLIER,
-} from './constants';
+import { EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PLAYER_PADDING, SPEEDY_MULTIPLIER } from './constants';
+import { permanentItemFor } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, clampToWorld, type WorldPart } from './world';
 
@@ -18,13 +17,18 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
-    gun: name.includes(PERMANENT_GUN_TAG) ? PERMANENT_GUN_SECONDS : 0,
+    item: permanentItem(name),
     dead: false,
   };
 }
 
 export function clonePlayer(p: PlayerState): PlayerState {
-  return { ...p, pos: { ...p.pos } };
+  return { ...p, pos: { ...p.pos }, item: p.item && { ...p.item } };
+}
+
+function permanentItem(name: string) {
+  const id = permanentItemFor(name);
+  return id ? { id, left: 0, permanent: true } : null;
 }
 
 export function isGrounded(p: PlayerState): boolean {
@@ -43,7 +47,10 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
 
   const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1);
   p.boost = Math.max(0, p.boost - dt);
-  p.gun = Math.max(0, p.gun - dt);
+  if (p.item && !p.item.permanent) {
+    p.item.left -= dt;
+    if (p.item.left <= 0) p.item = null;
+  }
 
   p.vy -= GRAVITY * dt;
   p.pos.y += p.vy * dt;

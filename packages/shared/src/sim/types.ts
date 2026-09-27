@@ -1,3 +1,5 @@
+import type { ItemState } from './items';
+
 export interface Vec3 {
   x: number;
   y: number;
@@ -16,7 +18,7 @@ export interface PlayerState {
   lastSeq: number;
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal
-  gun: number; // seconds of /gun left, 0 when unarmed
+  item: ItemState | null; // what they're holding, if anything
   dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 

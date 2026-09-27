@@ -8,6 +8,7 @@ const TOUCH_LOOK_MULTIPLIER = 3; // a thumb travels far fewer pixels than a mous
 export class InputManager {
   yaw = 0;
   pitch = 0;
+  lookScale = 1; // <1 while scoped
   joystick = { x: 0, y: 0 };
   pointerLocked = false;
 
@@ -99,8 +100,9 @@ export class InputManager {
 
   // Once per rendered frame: fold accumulated mouse motion into the view angles.
   update(): void {
-    this.yaw += this.lookDx * LOOK_SENSITIVITY;
-    this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch + this.lookDy * LOOK_SENSITIVITY));
+    const k = LOOK_SENSITIVITY * this.lookScale;
+    this.yaw += this.lookDx * k;
+    this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch + this.lookDy * k));
     this.lookDx = this.lookDy = 0;
   }
 

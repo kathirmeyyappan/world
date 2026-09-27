@@ -2,10 +2,10 @@
 // a walk cycle driven by how far they moved, and a name tag. No outline pass: thin lines shimmer
 // at the reduced render resolution.
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT } from '@world/shared';
+import { EYE_HEIGHT, type ItemId } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
 import type { Engine } from './Engine';
-import { pistol } from './Gun';
+import { buildWeapon, weaponPalette } from './Weapons';
 
 let shadowTexture: DynamicTexture | null = null;
 
@@ -60,8 +60,8 @@ export class Avatar {
   private readonly armR: Mesh;
   private readonly shadow: Mesh;
   private readonly tag: Mesh;
-  private readonly gun: TransformNode;
-  private armed = false;
+  private readonly weapons = new Map<ItemId, TransformNode>();
+  private held: ItemId | null = null;
   private dead = false;
   private phase = 0;
   private lastX = 0;
@@ -114,18 +114,17 @@ export class Avatar {
     engine.glowLayer.addIncludedOnlyMesh(visor);
 
 
-    // Pistol at the end of the right arm; the arm points forward while armed so it reads as aiming.
-    this.gun = new TransformNode(`avatar-gun-${id}`, scene);
-    this.gun.parent = this.armR;
-    this.gun.position.set(0, -0.3, 0.12);
-    const metal = new StandardMaterial(`avatar-gun-metal-${id}`, scene);
-    metal.diffuseColor = new Color3(0.16, 0.17, 0.2);
-    metal.specularColor = Color3.Black();
-    const gripMat = new StandardMaterial(`avatar-gun-grip-${id}`, scene);
-    gripMat.diffuseColor = new Color3(0.3, 0.18, 0.12);
-    gripMat.specularColor = Color3.Black();
-    pistol(scene, `avatar-gun-${id}`, this.gun, metal, gripMat);
-    this.gun.setEnabled(false);
+    // Weapons hang off the right arm's hand; the arm points forward while holding one so it
+    // reads as aiming.
+    const pal = weaponPalette(scene, `avatar-weapon-${id}`);
+    for (const item of ['gun', 'sniper'] as ItemId[]) {
+      const node = new TransformNode(`avatar-${item}-${id}`, scene);
+      node.parent = this.armR;
+      node.position.set(0, -0.3, 0.12);
+      buildWeapon(scene, `avatar-${item}-${id}`, item, node, pal);
+      node.setEnabled(false);
+      this.weapons.set(item, node);
+    }
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.1);
     this.shadow.parent = this.root;
@@ -182,11 +181,12 @@ export class Avatar {
     this.legL.rotation.x = swing;
     this.legR.rotation.x = -swing;
     this.armL.rotation.x = -swing * 0.8;
-    this.armR.rotation.x = p.gun ? -Math.PI / 2 + p.pitch : swing * 0.8;
+    this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : swing * 0.8;
     this.body.position.y = airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.04;
-    if (p.gun !== this.armed) {
-      this.armed = p.gun;
-      this.gun.setEnabled(p.gun);
+    if (p.item !== this.held) {
+      if (this.held) this.weapons.get(this.held)!.setEnabled(false);
+      if (p.item) this.weapons.get(p.item)!.setEnabled(true);
+      this.held = p.item;
     }
     if (p.dead !== this.dead) {
       this.dead = p.dead;

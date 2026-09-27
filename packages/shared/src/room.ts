@@ -10,16 +10,15 @@ import {
   MAX_INPUT_QUEUE,
   MAX_NAME_LENGTH,
   MAX_PITCH,
-  GUN_SECONDS,
   MAX_PLAYERS,
   PLAYER_COLORS,
-  SHOT_COOLDOWN_TICKS,
   SPEEDY_SECONDS,
   TICK_DT,
   TICK_RATE,
 } from './sim/constants';
 import { parseCommand } from './commands';
 import { findHit } from './sim/combat';
+import { ITEMS, type ItemId } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
@@ -137,11 +136,13 @@ export class Room {
       }
       case 'shoot': {
         const me = seat.state;
-        if (me.gun <= 0 || me.dead || this.tick - seat.lastShotTick < SHOT_COOLDOWN_TICKS) return;
+        if (!me.item || me.dead) return;
+        const spec = ITEMS[me.item.id];
+        if (this.tick - seat.lastShotTick < spec.cooldownTicks) return;
         seat.lastShotTick = this.tick;
         me.yaw = msg.yaw;
         me.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, msg.pitch));
-        const hit = findHit(me, this.players);
+        const hit = findHit(me, this.players, spec.range);
         this.broadcast({ t: 'shot', id, hit: hit?.id ?? null });
         if (hit) {
           hit.dead = true;
@@ -202,19 +203,33 @@ export class Room {
         seat.state.boost = SPEEDY_SECONDS;
         this.broadcast({ t: 'system', text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
-      case 'gun':
-        if (seat.state.gun > GUN_SECONDS) {
-          this.broadcast({ t: 'system', text: `${seat.state.name} already has a gun` });
-          return;
-        }
-        seat.state.gun = GUN_SECONDS;
-        seat.link.send({ t: 'system', text: `you drew a gun for ${GUN_SECONDS}s. click to shoot.` });
-        this.broadcast({ t: 'system', text: `${seat.state.name} drew a gun` }, seat.state.id);
+      case 'equip':
+        this.equip(seat, command.item);
         return;
       case 'unknown':
         seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
         return;
     }
+  }
+
+  // One item at a time. A permanent holder can't swap; a timed holder must wait it out, but
+  // re-equipping the same item restarts its timer.
+  private equip(seat: Seat, id: ItemId): void {
+    const me = seat.state;
+    const held = me.item;
+    if (held?.permanent) {
+      if (held.id === id) this.broadcast({ t: 'system', text: `${me.name} already has a ${id}` });
+      else seat.link.send({ t: 'system', text: `you can't put down your ${held.id}` });
+      return;
+    }
+    if (held && held.id !== id) {
+      seat.link.send({ t: 'system', text: `you're holding a ${held.id} for another ${Math.ceil(held.left)}s` });
+      return;
+    }
+    const spec = ITEMS[id];
+    me.item = { id, left: spec.seconds, permanent: false };
+    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. J to shoot${spec.scope ? ', H to scope' : ''}.` });
+    this.broadcast({ t: 'system', text: `${me.name} drew a ${id}` }, me.id);
   }
 
   // Anywhere in the world, clear of the walls and not on top of a cube.

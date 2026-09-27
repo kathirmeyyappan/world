@@ -1,8 +1,22 @@
 // Hitscan shooting, resolved on the server from the shooter's own position and look direction.
 // A player is a vertical capsule from feet to just above the eyes; the nearest one the ray
 // passes through within range is the hit.
-import { EYE_HEIGHT, GUN_RANGE, HIT_RADIUS } from './constants';
-import type { PlayerState, Vec3 } from './types';
+import { EYE_HEIGHT, HIT_RADIUS } from './constants';
+import type { Vec3 } from './types';
+
+// Enough of a player to be shot at. PlayerState satisfies it; so does the client's remote view.
+export interface Target {
+  id: string;
+  pos: Vec3;
+  dead: boolean;
+}
+
+export interface Shooter {
+  id: string;
+  pos: Vec3;
+  yaw: number;
+  pitch: number;
+}
 
 // Unit vector the player is looking along. Matches the client camera: yaw 0 faces +z,
 // positive pitch looks down.
@@ -11,11 +25,11 @@ export function lookDirection(yaw: number, pitch: number): Vec3 {
   return { x: Math.sin(yaw) * c, y: -Math.sin(pitch), z: Math.cos(yaw) * c };
 }
 
-export function findHit(shooter: PlayerState, players: Iterable<PlayerState>): PlayerState | null {
+export function findHit<T extends Target>(shooter: Shooter, players: Iterable<T>, range: number): T | null {
   const dir = lookDirection(shooter.yaw, shooter.pitch);
   const o = shooter.pos;
-  let best: PlayerState | null = null;
-  let bestT = GUN_RANGE;
+  let best: T | null = null;
+  let bestT = range;
   for (const p of players) {
     if (p.id === shooter.id || p.dead) continue;
     const t = rayCapsule(o, dir, p.pos, bestT);
