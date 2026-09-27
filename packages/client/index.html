@@ -81,7 +81,7 @@
       <div id="home" class="hidden">
         <div class="card">
           <h1>KATHIR WORLD</h1>
-          <p class="tagline">a small 3D playground. bring friends.</p>
+          <p class="tagline">a small 3D playground. bring friends. <button id="home-guide" class="link" type="button">read the guide</button></p>
           <label>
             <span>NAME</span>
             <input id="home-name" type="text" maxlength="16" placeholder="who are you" autocomplete="off" spellcheck="false" />
@@ -103,6 +103,19 @@
           <h1>DISCONNECTED</h1>
           <p id="disconnected-reason"></p>
           <button id="disconnected-home" class="wide">BACK TO HOME</button>
+        </div>
+      </div>
+
+      <div id="guide" class="hidden">
+        <div class="guide-panel">
+          <div class="guide-bar">
+            <span>KATHIR WORLD GUIDE</span>
+            <span class="guide-actions">
+              <a id="guide-link" target="_blank" rel="noopener">open in new tab ↗</a>
+              <button id="guide-close" type="button" title="close">✕</button>
+            </span>
+          </div>
+          <iframe id="guide-frame" title="kathir world guide" loading="lazy" referrerpolicy="no-referrer"></iframe>
         </div>
       </div>
 
