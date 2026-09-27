@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, Room, WORLD_SHAPE, worldDistance, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
+import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, Room, WORLD_SHAPE, worldDistance, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -50,7 +50,7 @@ test('room seats players, applies inputs on step, and broadcasts', () => {
   assert.ok(alice.pos.z > before);
   assert.equal(alice.lastSeq, 1);
   assert.equal(alice.reading, 'aws');
-  assert.equal(snap.cubes.length, 6);
+  assert.equal(snap.cubes.length, CUBE_IDS.length);
 
   room.leave(idb);
   assert.equal(a.inbox.at(-1)?.t, 'leave');
