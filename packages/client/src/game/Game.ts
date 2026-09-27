@@ -12,7 +12,7 @@ import { IS_TOUCH } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { Avatar } from '../render/Avatar';
+import { createAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -250,7 +250,7 @@ export class Game {
 
   private addAvatar(p: PlayerState): void {
     if (this.avatars.has(p.id)) return;
-    const avatar = new Avatar(this.engine, p.id, p.name, p.color);
+    const avatar = createAvatar(this.engine, p);
     avatar.hide();
     this.avatars.set(p.id, avatar);
   }
@@ -287,8 +287,12 @@ export class Game {
     for (const rp of sampled.players) {
       seen.add(rp.id);
       let avatar = this.avatars.get(rp.id);
+      if (avatar && avatar.kind !== rp.avatar) {
+        avatar.dispose();
+        avatar = undefined;
+      }
       if (!avatar) {
-        avatar = new Avatar(this.engine, rp.id, rp.name, rp.color);
+        avatar = createAvatar(this.engine, rp);
         this.avatars.set(rp.id, avatar);
       }
       avatar.update(rp);

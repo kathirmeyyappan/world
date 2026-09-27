@@ -220,6 +220,14 @@ export class Room {
       case 'equip':
         this.equip(seat, command.item);
         return;
+      case 'avatar':
+        if (seat.state.avatar === command.avatar) {
+          seat.link.send({ t: 'system', text: `you're already ${command.avatar}` });
+          return;
+        }
+        seat.state.avatar = command.avatar;
+        this.broadcast({ t: 'system', text: `${seat.state.name} is now ${command.avatar}` });
+        return;
       case 'unknown':
         seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
         return;

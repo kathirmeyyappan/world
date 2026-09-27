@@ -178,3 +178,23 @@ test('a corpse that never rejoins is removed and its link closed', () => {
   assert.ok(closed, 'its socket was closed');
   assert.ok(a.inbox.some((m) => m.t === 'leave' && m.id === idb), 'everyone saw it leave');
 });
+
+test('avatars: ELIZABETH in the name or /elizabeth switches the look, nothing else', () => {
+  const room = new Room('av', { seed: 1 });
+  const a = link();
+  const b = link();
+  const ida = room.join('ELIZABETHann', a)!;
+  const idb = room.join('bob', b)!;
+  const ann = room.players.find((p) => p.id === ida)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  assert.equal(ann.avatar, 'elizabeth');
+  assert.equal(bob.avatar, 'standard');
+  room.receive(idb, { t: 'chat', text: '/elizabeth' });
+  assert.equal(bob.avatar, 'elizabeth');
+  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'bob is now elizabeth'));
+  room.receive(idb, { t: 'chat', text: '/elizabeth' });
+  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "you're already elizabeth" });
+  room.receive(idb, { t: 'chat', text: '/standard' });
+  assert.equal(bob.avatar, 'standard');
+  assert.equal(bob.item, null, 'looks change nothing else');
+});

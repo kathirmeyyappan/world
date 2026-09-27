@@ -1,3 +1,4 @@
+import type { AvatarId } from './avatars';
 import type { ItemState } from './items';
 
 export interface Vec3 {
@@ -19,6 +20,7 @@ export interface PlayerState {
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal
   item: ItemState | null; // what they're holding, if anything
+  avatar: AvatarId; // how they look; cosmetic only
   dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 
