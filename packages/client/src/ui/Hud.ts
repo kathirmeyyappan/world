@@ -38,7 +38,7 @@ export class Hud {
   constructor(roomId: string) {
     this.roomCode.textContent = roomId;
     this.roomCode.addEventListener('click', () => {
-      navigator.clipboard?.writeText(inviteLink(roomId)).then(() => this.system('invite link copied'));
+      navigator.clipboard?.writeText(inviteLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
     });
 
     this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
@@ -166,6 +166,18 @@ export class Hud {
     li.className = 'system';
     li.textContent = text;
     this.pushLine(li);
+  }
+
+  // A small note beside the thing that was just done (the copied room code), gone in a moment.
+  // Local feedback like this stays out of the chat log.
+  tip(anchor: HTMLElement, text: string): void {
+    anchor.parentElement?.querySelector('.tip')?.remove();
+    const el = document.createElement('span');
+    el.className = 'tip';
+    el.textContent = text;
+    anchor.insertAdjacentElement('afterend', el);
+    setTimeout(() => el.classList.add('gone'), 1200);
+    setTimeout(() => el.remove(), 1600);
   }
 
   // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot".

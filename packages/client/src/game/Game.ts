@@ -196,7 +196,7 @@ export class Game {
     if (!this.canFire()) {
       if (performance.now() - this.lastScopeNag > 2000) {
         this.lastScopeNag = performance.now();
-        this.hud.system(`the ${this.held.id} only fires while scoped${IS_TOUCH ? '' : ' (F)'}`);
+        this.hitNotice.note(`the ${this.held.id} only fires while scoped${IS_TOUCH ? '' : ' (F)'}`);
       }
       return;
     }
