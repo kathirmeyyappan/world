@@ -34,7 +34,8 @@ const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
-const HOVER_RANGE = 400;
+const HOVER_RANGE = 400; // sky objects can be read from anywhere
+const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const DEFAULT_FOV = 1.2;
 const SCOPED_FOV = 0.3;
 const HIP_KICK = 0.02;
@@ -70,6 +71,8 @@ export class Game {
   private canHit = false;
   private lastScopeNag = -Infinity;
   private shootWasHeld = false; // last frame's shoot level, for the press edge
+  private mouseFiring = false; // the current mouse/FIRE hold started as a shot, not a select
+  private mouseWasHeld = false;
   private localCooldownUntil = 0; // when the viewmodel may kick again; mirrors the server's cooldown
   private kick = 0; // camera recoil, radians of upward pitch that decays back
   private hoveredSky: SkyObject | null = null;
@@ -129,9 +132,10 @@ export class Game {
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
     // Shooting is not a click handler: the input layer samples the mouse button into the
-    // frame's actions like any key. A click only opens the cube under the crosshair.
+    // frame's actions like any key. A click only opens the cube under the crosshair, and only
+    // when the press started on it: a hold that began as a shot stays a shot.
     canvas.addEventListener('click', () => {
-      if (!this.isBlocked() && this.hovered) this.overlay.show(this.hovered.content);
+      if (!this.isBlocked() && this.hovered && !this.mouseFiring) this.overlay.show(this.hovered.content);
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -159,16 +163,22 @@ export class Game {
   }
 
   // The item actions to put in this tick's frame. Shoot is a level: key or mouse button down
-  // (a press shorter than a tick still counts), except over a cube, where a click selects.
-  // Scope is the local toggle, reported while on so the server's state follows it.
+  // (a press shorter than a tick still counts). A mouse press over a cube is a select, not a
+  // shot; one that started clear of a cube keeps firing however the crosshair moves until
+  // release. Scope is the local toggle, reported while on so the server's state follows it.
   private itemActions(): ItemAction[] {
+    const mouse = this.input.fireHeld;
+    if (mouse && !this.mouseWasHeld) this.mouseFiring = !this.hovered;
+    if (!mouse) this.mouseFiring = false;
+    this.mouseWasHeld = mouse;
+
     const held = this.held;
     if (!held || this.dead) return [];
     const spec = ITEMS[held.id];
     const actions: ItemAction[] = [];
     const shoot = spec.actions.shoot;
     const key = !!shoot && (this.input.isDown(shoot.key) || this.input.wasPressed(shoot.key));
-    if (shoot && (key || (this.input.fireHeld && !this.hovered))) actions.push('shoot');
+    if (shoot && (key || this.mouseFiring)) actions.push('shoot');
     if (spec.actions.scope && this.scoped) actions.push('scope');
     this.localEffects(actions.includes('shoot'));
     return actions;
@@ -394,7 +404,7 @@ export class Game {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
       const hit = this.engine.scene.pickWithRay(ray, (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'));
       if (hit?.pickedMesh) {
-        nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
+        if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
         nextSky = this.skyByMesh.get(hit.pickedMesh.name) ?? null;
       }
     }

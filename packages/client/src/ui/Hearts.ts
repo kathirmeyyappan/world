@@ -3,7 +3,9 @@
 // damage.
 import { MAX_HEARTS } from '@world/shared';
 
-// 9x8 pixel heart. '#' body, '+' highlight, '.' empty. The broken one has a crack down it.
+// 9x8 pixel heart. '#' body, '+' highlight, '.' empty. The broken one has a crack down it; the
+// half one is the broken one with everything left of the crack ('L') still red and the rest ('R')
+// grey, so the crack is where the heart stops.
 const FULL = [
   '.##...##.',
   '#+##.####',
@@ -25,6 +27,17 @@ const BROKEN = [
   '....#....',
 ];
 
+const HALF = [
+  '.LL...RR.',
+  'L+LL.RRRR',
+  'LLL.RRRRR',
+  'LLLL.RRRR',
+  '.LLLL.RR.',
+  '..LL.RR..',
+  '...L.R...',
+  '....L....',
+];
+
 export class Hearts {
   private readonly root = document.getElementById('hearts')!;
   private readonly hearts: HTMLElement[] = [];
@@ -34,7 +47,7 @@ export class Hearts {
     for (let i = 0; i < MAX_HEARTS; i++) {
       const heart = document.createElement('div');
       heart.className = 'heart';
-      heart.append(pixelSvg(FULL, 'full'), pixelSvg(BROKEN, 'broken'));
+      heart.append(pixelSvg(FULL, 'full'), pixelSvg(BROKEN, 'broken'), pixelSvg(HALF, 'half'));
       this.root.append(heart);
       this.hearts.push(heart);
     }
@@ -77,6 +90,7 @@ function pixelSvg(rows: string[], cls: string): SVGSVGElement {
       r.setAttribute('width', '1');
       r.setAttribute('height', '1');
       if (ch === '+') r.setAttribute('class', 'hi');
+      if (ch === 'R') r.setAttribute('class', 'grey');
       svg.append(r);
     });
   });

@@ -140,16 +140,15 @@ html, body {
 .heart svg { position: absolute; inset: 0; width: 100%; height: 100%; shape-rendering: crispEdges; }
 .heart svg rect { fill: #9c1f2c; }
 .heart svg rect.hi { fill: #b8404c; }
-.heart .broken { display: none; }
-.heart.lost .full { display: none; }
-.heart.lost .broken { display: block; }
+.heart svg.broken, .heart svg.half { display: none; }
+.heart.lost svg.full { display: none; }
+.heart.lost svg.broken { display: block; }
 .heart.lost svg rect { fill: #3a3d46; }
 .heart.lost svg rect.hi { fill: #4a4e58; }
-/* Half a heart: the cracked grey one underneath, the left half of the red one on top. */
-.heart.half .broken { display: block; }
-.heart.half .broken rect { fill: #3a3d46; }
-.heart.half .broken rect.hi { fill: #4a4e58; }
-.heart.half .full { display: block; clip-path: inset(0 50% 0 0); }
+/* Half a heart: red up to the crack, grey past it. */
+.heart.half svg.full { display: none; }
+.heart.half svg.half { display: block; }
+.heart.half svg rect.grey { fill: #3a3d46; }
 .heart.breaking { animation: heart-break 0.45s steps(6) both; }
 @keyframes heart-break {
   0% { transform: scale(1.35) rotate(-8deg); }
