@@ -258,6 +258,7 @@ html, body {
 #action-button { bottom: 122px; width: 84px; }
 #action-button.fire { color: #ff3b4e; border-color: rgba(255,59,78,0.7); }
 #action-button.fire.active { background: rgba(255,59,78,0.3); }
+#action-button.disabled { opacity: 0.5; font-size: 8px; }
 #scope-button { bottom: 178px; width: 84px; }
 #chat-button { top: 16px; }
 

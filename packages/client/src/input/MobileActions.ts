@@ -10,6 +10,7 @@ export interface MobileActionState {
   hot: boolean; // crosshair on something selectable
   item: ItemId | null;
   scoped: boolean;
+  canFire: boolean; // false for a scope-only weapon that isn't scoped
 }
 
 export interface MobileActionHandlers {
@@ -33,12 +34,13 @@ export class MobileActions {
 
   update(state: MobileActionState): void {
     if (!IS_TOUCH || !this.action || !this.scope) return;
-    const label = state.item ? 'FIRE' : state.hot ? 'SELECT' : '';
+    const label = state.item ? (state.canFire ? 'FIRE' : 'SCOPE TO FIRE') : state.hot ? 'SELECT' : '';
     if (label !== this.label) {
       this.label = label;
       this.action.textContent = label;
       this.action.classList.toggle('hidden', !label);
       this.action.classList.toggle('fire', label === 'FIRE');
+      this.action.classList.toggle('disabled', label === 'SCOPE TO FIRE');
     }
     const canScope = !!state.item && 'scope' in ITEMS[state.item].actions;
     this.scope.classList.toggle('hidden', !canScope);

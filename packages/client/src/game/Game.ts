@@ -55,6 +55,7 @@ export class Game {
   private dead = false;
   private scoped = false;
   private canHit = false;
+  private lastScopeNag = -Infinity;
   private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
@@ -149,7 +150,14 @@ export class Game {
   }
 
   private shoot(): void {
-    if (!this.canFire()) return;
+    if (!this.canFire()) {
+      // Trying to fire an unscoped sniper: say why nothing happened, but not on every press.
+      if (this.held && performance.now() - this.lastScopeNag > 2000) {
+        this.lastScopeNag = performance.now();
+        this.hud.system(`the ${this.held.id} only fires while scoped${IS_TOUCH ? '' : ' (F)'}`);
+      }
+      return;
+    }
     this.conn.send({ t: 'shoot', yaw: this.input.yaw, pitch: this.input.pitch, scoped: this.scoped });
     this.viewmodel.fire();
   }
@@ -269,7 +277,7 @@ export class Game {
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
     this.viewmodel.update(dt);
-    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH) : '');
+    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '');
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
@@ -295,7 +303,7 @@ export class Game {
     const hit = held && !this.dead && this.canFire()
       ? findHit({ id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch }, targets(sampled.players), ITEMS[held.id].range)
       : null;
-    this.mobileActions.update({ hot: !!this.hovered, item: held?.id ?? null, scoped: this.scoped });
+    this.mobileActions.update({ hot: !!this.hovered, item: held?.id ?? null, scoped: this.scoped, canFire: this.canFire() });
     if (!!hit !== this.canHit) {
       this.canHit = !!hit;
       this.hud.setCrosshairTarget(this.canHit);
@@ -348,9 +356,11 @@ export class Game {
 
 }
 
-function itemHint(id: ItemId, left: number | null, withKeys: boolean): string {
+// The hint bar's text. A scope-only weapon leads with the step that's missing.
+function itemHint(id: ItemId, left: number | null, withKeys: boolean, scoped: boolean): string {
   const parts = [id.toUpperCase()];
-  if (withKeys) parts.push(itemHelp(id, ' · '));
+  if (ITEMS[id].fireNeedsScope && !scoped) parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
+  else if (withKeys) parts.push(itemHelp(id, ' · '));
   if (left !== null) parts.push(`${Math.ceil(left)}s`);
   return parts.join(' · ');
 }
