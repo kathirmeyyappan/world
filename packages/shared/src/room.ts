@@ -18,7 +18,7 @@ import {
 } from './sim/constants';
 import { parseCommand } from './commands';
 import { findHit } from './sim/combat';
-import { ITEMS, type ItemId } from './sim/items';
+import { ITEMS, itemHelp, type ItemId } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
@@ -228,7 +228,7 @@ export class Room {
     }
     const spec = ITEMS[id];
     me.item = { id, left: spec.seconds, permanent: false };
-    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. J to shoot${spec.scope ? ', H to scope' : ''}.` });
+    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${itemHelp(id)}.` });
     this.broadcast({ t: 'system', text: `${me.name} drew a ${id}` }, me.id);
   }
 

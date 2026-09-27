@@ -2,8 +2,8 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, createRng, findHit, hashSeed,
-  type PlayerState, type ServerMessage,
+  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, findHit, hashSeed, itemHelp,
+  type ItemId, type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
 import { MobileControls } from '../input/MobileControls';
@@ -92,8 +92,12 @@ export class Game {
     window.addEventListener('keydown', (e) => {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
-      else if (e.code === 'KeyJ') this.shoot();
-      else if (e.code === 'KeyH') this.setScoped(!this.scoped);
+      else if (this.held) {
+        switch (actionForKey(this.held.id, e.code)) {
+          case 'shoot': this.shoot(); break;
+          case 'scope': this.setScoped(!this.scoped); break;
+        }
+      }
     });
     canvas.addEventListener('click', () => {
       if (this.isBlocked()) return;
@@ -129,7 +133,7 @@ export class Game {
 
   // Aim down the scope: narrow the camera, slow the look, swap the viewmodel for the overlay.
   private setScoped(on: boolean): void {
-    const can = !!this.held && ITEMS[this.held.id].scope;
+    const can = !!this.held && 'scope' in ITEMS[this.held.id].actions;
     on = on && can;
     if (on === this.scoped) return;
     this.scoped = on;
@@ -318,8 +322,8 @@ export class Game {
 
 }
 
-function itemHint(id: string, left: number | null): string {
-  const keys = ITEMS[id as keyof typeof ITEMS].scope ? 'J to shoot · H to scope' : 'J to shoot';
+function itemHint(id: ItemId, left: number | null): string {
+  const keys = itemHelp(id, ' · ');
   return left === null ? `${id.toUpperCase()} · ${keys}` : `${id.toUpperCase()} · ${keys} · ${Math.ceil(left)}s`;
 }
 
