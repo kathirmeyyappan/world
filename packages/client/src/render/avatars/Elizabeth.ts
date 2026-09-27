@@ -8,6 +8,7 @@ import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { buildWeapon, weaponPalette } from '../Weapons';
 import { box, createShadowBlob, createTag, type Avatar } from './common';
+import { HitFlash } from './HitFlash';
 
 const HEIGHT = 2.0;
 const RADIUS = 0.62; // body is this wide all the way up until the dome
@@ -25,6 +26,7 @@ export class ElizabethAvatar implements Avatar {
   private readonly footR: Mesh;
   private readonly shadow: Mesh;
   private readonly weapons = new Map<ItemId, TransformNode>();
+  private readonly hitFlash: HitFlash;
   private held: ItemId | null = null;
   private dead = false;
   private phase = 0;
@@ -41,6 +43,8 @@ export class ElizabethAvatar implements Avatar {
     const black = flat(scene, `eliz-black-${id}`, new Color3(0.03, 0.03, 0.04), 0);
     const orange = flat(scene, `eliz-orange-${id}`, new Color3(0.98, 0.66, 0.16), 0.22);
     const orangeDark = flat(scene, `eliz-orange-dark-${id}`, new Color3(0.72, 0.42, 0.06), 0.08);
+
+    this.hitFlash = new HitFlash([white, orange]);
 
     // Body: a capsule, straight-sided, rounding into a dome from DOME_FROM up.
     capsule(scene, `eliz-body-${id}`, this.body, white);
@@ -107,6 +111,7 @@ export class ElizabethAvatar implements Avatar {
   }
 
   update(p: RemotePlayer): void {
+    this.hitFlash.update();
     const moved = Math.hypot(p.x - this.lastX, p.z - this.lastZ);
     this.lastX = p.x;
     this.lastZ = p.z;
@@ -144,6 +149,10 @@ export class ElizabethAvatar implements Avatar {
     this.shadow.position.y = 0.02 - feetY;
     this.shadow.scaling.setAll(Math.max(0.5, 1 - feetY * 0.15));
     this.root.setEnabled(true);
+  }
+
+  flash(): void {
+    this.hitFlash.trigger();
   }
 
   hide(): void {

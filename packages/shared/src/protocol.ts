@@ -23,7 +23,8 @@ export type ServerMessage =
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; color: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
-  | { t: 'shot'; id: string; hit: string | null } // someone fired; clients play the effect
+  | { t: 'shot'; id: string } // someone fired; clients play the effect
+  | { t: 'hit'; shooter: string; victim: string; damage: number; headshot: boolean; hearts: number } // a shot landed
   | { t: 'kill'; shooter: string; victim: string }
   | { t: 'pong'; at: number }
   | { t: 'error'; message: string };

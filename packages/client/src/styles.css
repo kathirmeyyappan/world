@@ -131,6 +131,56 @@ html, body {
 #crosshair.target { color: #ff3b4e; text-shadow: 0 0 6px #ff3b4e, 0 0 12px rgba(255,59,78,0.7); }
 #crosshair.hit { color: #ff3b4e; transform: translate(-50%, -50%) scale(1.4); }
 
+/* Hearts: two rows of five pixel hearts, top centre. Lost ones grey out and crack. */
+#hearts {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 50; pointer-events: none;
+  display: grid; grid-template-columns: repeat(5, 27px); gap: 3px 4px;
+}
+.heart { position: relative; width: 27px; height: 24px; opacity: 0.8; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.7)); }
+.heart svg { position: absolute; inset: 0; width: 100%; height: 100%; shape-rendering: crispEdges; }
+.heart svg rect { fill: #9c1f2c; }
+.heart svg rect.hi { fill: #b8404c; }
+.heart .broken { display: none; }
+.heart.lost .full { display: none; }
+.heart.lost .broken { display: block; }
+.heart.lost svg rect { fill: #3a3d46; }
+.heart.lost svg rect.hi { fill: #4a4e58; }
+.heart.breaking { animation: heart-break 0.45s steps(6) both; }
+@keyframes heart-break {
+  0% { transform: scale(1.35) rotate(-8deg); }
+  35% { transform: scale(1.2) rotate(8deg); }
+  70% { transform: scale(1.05) rotate(-4deg); }
+  100% { transform: none; }
+}
+
+/* Red vignette when you're hit. */
+#damage-flash {
+  position: fixed; inset: 0; z-index: 95; pointer-events: none; opacity: 0; transition: opacity 0.4s;
+  background: radial-gradient(ellipse at center, rgba(255,40,60,0.12) 30%, rgba(255,40,60,0.7) 100%);
+}
+#damage-flash.on { opacity: 1; transition: none; }
+
+/* "hit bob -2" under the crosshair. */
+#hit-notice {
+  position: fixed; top: calc(50% + 26px); left: 50%; transform: translateX(-50%); z-index: 100; pointer-events: none;
+  font: 18px var(--mono); letter-spacing: 1px; color: #ff3b4e; text-shadow: 2px 2px 0 #000; white-space: pre;
+  opacity: 0; transition: opacity 0.3s;
+}
+#hit-notice.on { opacity: 1; transition: none; }
+#hit-notice.headshot { color: #ffd54a; font-weight: bold; }
+
+/* Onboarding banner across the screen after 30 s without using anything. */
+#command-hint {
+  position: fixed; top: 22%; left: 0; right: 0; z-index: 60; pointer-events: none; text-align: center;
+  padding: 14px 24px; background: rgba(11,13,20,0.82); border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+  font: 20px var(--mono); color: rgba(255,255,255,0.92); letter-spacing: 0.5px;
+  opacity: 0; transform: translateY(-12px); transition: opacity 0.25s, transform 0.25s;
+}
+#command-hint.on { opacity: 1; transform: none; animation: hint-flash 0.6s steps(2) 3; }
+#command-hint .text { display: block; max-width: 900px; margin: 0 auto; }
+#command-hint .count { display: block; margin-top: 6px; font-size: 15px; color: var(--accent); }
+@keyframes hint-flash { 50% { background: rgba(60,160,120,0.55); } }
+
 #item-hint {
   position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); padding: 6px 12px; z-index: 50;
   font: 19px var(--mono); color: rgba(255,255,255,0.85); letter-spacing: 1px; pointer-events: none;
@@ -276,4 +326,8 @@ html, body {
   #chat { bottom: 150px; width: min(300px, 60vw); }
   #chat-log li { font-size: 18px; }
   #item-hint { bottom: 82px; }
+  #command-hint { top: 26%; padding: 8px 16px; font-size: 14px; }
+  #command-hint .count { font-size: 12px; }
+  #hearts { top: 8px; grid-template-columns: repeat(5, 18px); gap: 2px 3px; }
+  .heart { width: 18px; height: 16px; }
 }

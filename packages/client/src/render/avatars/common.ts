@@ -9,6 +9,7 @@ export interface Avatar {
   readonly id: string;
   readonly kind: AvatarId;
   update(p: RemotePlayer): void;
+  flash(): void; // took a hit: blink red
   hide(): void;
   dispose(): void;
 }
