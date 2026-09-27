@@ -1,6 +1,7 @@
 // Touch controls: a square pad on the left that acts as a joystick, and a jump button on the
 // right. Both are plain DOM styled like the rest of the HUD. Only mounted on touch devices.
 import type { InputManager } from './InputManager';
+import { IS_TOUCH } from './touch';
 
 const RADIUS = 34;
 
@@ -12,7 +13,7 @@ export class MobileControls {
   private originY = 0;
 
   constructor(private readonly input: InputManager) {
-    if (!('ontouchstart' in window || navigator.maxTouchPoints > 0)) return;
+    if (!IS_TOUCH) return;
     const pad = this.pad;
     if (pad) {
       pad.addEventListener('touchstart', (e) => {

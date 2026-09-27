@@ -6,7 +6,9 @@ import {
   type ItemId, type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
+import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
+import { IS_TOUCH } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
@@ -37,6 +39,7 @@ export class Game {
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
+  private readonly mobileActions: MobileActions;
   private readonly overlay = new Overlay();
   private readonly hud: Hud;
   private readonly pins = new Pins();
@@ -86,6 +89,11 @@ export class Game {
 
     this.input = new InputManager(canvas);
     this.mobile = new MobileControls(this.input);
+    this.mobileActions = new MobileActions({
+      onAction: () => this.select(),
+      onScope: () => this.setScoped(!this.scoped),
+      onChat: () => this.hud.openChat(),
+    });
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => conn.send({ t: 'chat', text });
     this.hud.onChatOpenChange = () => this.syncBlocked();
@@ -100,9 +108,9 @@ export class Game {
       }
     });
     canvas.addEventListener('click', () => {
-      if (this.isBlocked()) return;
-      if (this.hovered) this.overlay.show(this.hovered.content);
-      else this.shoot();
+      // On touch a stray tap while turning must not fire; the FIRE button is the trigger there.
+      if (this.isBlocked() || (IS_TOUCH && !this.hovered)) return;
+      this.select();
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -123,6 +131,12 @@ export class Game {
 
   private get held() {
     return this.prediction?.state.item ?? null;
+  }
+
+  // What a click or the touch action button does: open the cube you're looking at, else shoot.
+  private select(): void {
+    if (this.hovered) this.overlay.show(this.hovered.content);
+    else this.shoot();
   }
 
   private shoot(): void {
@@ -163,7 +177,9 @@ export class Game {
         this.hud.setSelf(m.id);
         this.hud.setPlayers(m.players);
         for (const p of m.players) if (p.id !== m.id) this.addAvatar(p);
-        this.hud.system(`you are ${me.name}. WASD to move, click cubes, Enter to chat.`);
+        this.hud.system(IS_TOUCH
+          ? `you are ${me.name}. drag to look, pad to move, SELECT on a cube.`
+          : `you are ${me.name}. WASD to move, click cubes, Enter to chat.`);
         return;
       }
       case 'snap': {
@@ -244,7 +260,7 @@ export class Game {
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
     this.viewmodel.update(dt);
-    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left) : '');
+    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH) : '');
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
@@ -270,6 +286,7 @@ export class Game {
     const hit = held && !this.dead
       ? findHit({ id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch }, targets(sampled.players), ITEMS[held.id].range)
       : null;
+    this.mobileActions.update({ hot: !!this.hovered, item: held?.id ?? null, scoped: this.scoped });
     if (!!hit !== this.canHit) {
       this.canHit = !!hit;
       this.hud.setCrosshairTarget(this.canHit);
@@ -322,9 +339,11 @@ export class Game {
 
 }
 
-function itemHint(id: ItemId, left: number | null): string {
-  const keys = itemHelp(id, ' · ');
-  return left === null ? `${id.toUpperCase()} · ${keys}` : `${id.toUpperCase()} · ${keys} · ${Math.ceil(left)}s`;
+function itemHint(id: ItemId, left: number | null, withKeys: boolean): string {
+  const parts = [id.toUpperCase()];
+  if (withKeys) parts.push(itemHelp(id, ' · '));
+  if (left !== null) parts.push(`${Math.ceil(left)}s`);
+  return parts.join(' · ');
 }
 
 function targets(players: { id: string; x: number; y: number; z: number; dead: boolean }[]) {
