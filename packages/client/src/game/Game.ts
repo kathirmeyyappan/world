@@ -144,9 +144,13 @@ export class Game {
     else this.shoot();
   }
 
+  private canFire(): boolean {
+    return !!this.held && (!ITEMS[this.held.id].fireNeedsScope || this.scoped);
+  }
+
   private shoot(): void {
-    if (!this.held) return;
-    this.conn.send({ t: 'shoot', yaw: this.input.yaw, pitch: this.input.pitch });
+    if (!this.canFire()) return;
+    this.conn.send({ t: 'shoot', yaw: this.input.yaw, pitch: this.input.pitch, scoped: this.scoped });
     this.viewmodel.fire();
   }
 
@@ -288,7 +292,7 @@ export class Game {
     this.updateHover();
     // Red crosshair when a shot from here would land: same maths the server will run.
     const me = this.prediction.state;
-    const hit = held && !this.dead
+    const hit = held && !this.dead && this.canFire()
       ? findHit({ id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch }, targets(sampled.players), ITEMS[held.id].range)
       : null;
     this.mobileActions.update({ hot: !!this.hovered, item: held?.id ?? null, scoped: this.scoped });
