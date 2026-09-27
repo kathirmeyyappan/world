@@ -12,8 +12,8 @@ import { box, createShadowBlob, createTag, type Avatar } from './common';
 const HEIGHT = 2.0;
 const RADIUS = 0.62; // body is this wide all the way up until the dome
 const DOME_FROM = 0.6; // fraction of the height where the top starts rounding
-const EYE_Y = 1.52;
-const BEAK_Y = 1.24;
+const EYE_Y = 1.62;
+const BEAK_Y = 1.4;
 
 export class ElizabethAvatar implements Avatar {
   readonly kind = 'elizabeth' as const;
@@ -47,15 +47,16 @@ export class ElizabethAvatar implements Avatar {
 
     // Eyes: black ring, white iris, small pupil, three lashes fanning up and out.
     for (const side of [-1, 1]) {
-      const x = side * 0.18;
-      disc(scene, `eliz-eye-ring-${side}-${id}`, this.body, black, 0.32, x, EYE_Y, RADIUS - 0.02);
-      disc(scene, `eliz-eye-${side}-${id}`, this.body, white, 0.27, x, EYE_Y, RADIUS - 0.005);
-      const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.06, 0.06, 0.02, black, this.body);
-      pupil.position.set(x, EYE_Y - 0.01, RADIUS + 0.01);
-      for (const [i, off] of [-0.1, 0, 0.1].entries()) {
-        const lash = box(scene, `eliz-lash-${side}-${i}-${id}`, 0.02, 0.09, 0.02, black, this.body);
-        lash.position.set(x + off * 1.2, EYE_Y + 0.21 - Math.abs(off) * 0.3, RADIUS - 0.02);
-        lash.rotation.z = -off * 4; // outer lashes fan outward
+      // Small, far apart, simple: a thin ring, white, a dot.
+      const x = side * 0.22;
+      disc(scene, `eliz-eye-ring-${side}-${id}`, this.body, black, 0.19, x, EYE_Y, RADIUS - 0.02);
+      disc(scene, `eliz-eye-${side}-${id}`, this.body, white, 0.155, x, EYE_Y, RADIUS - 0.005);
+      const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.035, 0.035, 0.02, black, this.body);
+      pupil.position.set(x, EYE_Y, RADIUS + 0.01);
+      for (const [i, off] of [-0.06, 0, 0.06].entries()) {
+        const lash = box(scene, `eliz-lash-${side}-${i}-${id}`, 0.016, 0.06, 0.02, black, this.body);
+        lash.position.set(x + off * 1.3, EYE_Y + 0.13 - Math.abs(off) * 0.3, RADIUS - 0.02);
+        lash.rotation.z = -off * 6; // outer lashes fan outward
       }
     }
 
@@ -64,11 +65,11 @@ export class ElizabethAvatar implements Avatar {
     beak.convertToFlatShadedMesh();
     beak.material = orange;
     beak.parent = this.body;
-    beak.scaling.set(0.56, 0.2, 0.42);
+    beak.scaling.set(0.46, 0.27, 0.4);
     beak.position.set(0, BEAK_Y, RADIUS + 0.08);
     beak.isPickable = false;
-    const seam = box(scene, `eliz-beak-seam-${id}`, 0.5, 0.018, 0.3, orangeDark, this.body);
-    seam.position.set(0, BEAK_Y, RADIUS + 0.16);
+    const seam = box(scene, `eliz-beak-seam-${id}`, 0.42, 0.018, 0.3, orangeDark, this.body);
+    seam.position.set(0, BEAK_Y - 0.01, RADIUS + 0.16);
 
     // Flippers: short flat paddles hanging from the shoulders, pivot at the top.
     this.flipperL = box(scene, `eliz-flipperL-${id}`, 0.11, 0.58, 0.3, white, this.body);
