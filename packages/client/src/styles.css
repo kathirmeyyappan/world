@@ -188,7 +188,7 @@ html, body {
 
 /* Flamethrower tank, above the item hint. */
 #fuel {
-  position: fixed; bottom: 126px; left: 50%; transform: translateX(-50%); width: 220px; height: 12px; z-index: 50;
+  position: fixed; bottom: 146px; left: 50%; transform: translateX(-50%); width: 220px; height: 12px; z-index: 50;
   background: rgba(11,13,20,0.8); border: 2px solid rgba(255,140,40,0.7); box-shadow: 3px 3px 0 #000; pointer-events: none;
 }
 #fuel .fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff5a1f, #ffb347); transition: width 0.1s linear; }
@@ -341,7 +341,7 @@ html, body {
   #chat { bottom: 150px; width: min(300px, 60vw); }
   #chat-log li { font-size: 18px; }
   #item-hint { bottom: 82px; }
-  #fuel { bottom: 132px; width: 160px; height: 10px; }
+  #fuel { bottom: 146px; width: 160px; height: 10px; }
   #command-hint { top: 26%; padding: 8px 16px; font-size: 14px; }
   #command-hint .count { font-size: 12px; }
   #hearts { top: 8px; grid-template-columns: repeat(5, 18px); gap: 2px 3px; }
