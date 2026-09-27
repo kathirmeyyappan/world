@@ -138,6 +138,7 @@ export class Room {
         const me = seat.state;
         if (!me.item || me.dead) return;
         const spec = ITEMS[me.item.id];
+        if (spec.fireNeedsScope && !msg.scoped) return;
         if (this.tick - seat.lastShotTick < spec.cooldownTicks) return;
         seat.lastShotTick = this.tick;
         me.yaw = msg.yaw;
@@ -228,7 +229,8 @@ export class Room {
     }
     const spec = ITEMS[id];
     me.item = { id, left: spec.seconds, permanent: false };
-    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${itemHelp(id)}.` });
+    const how = spec.fireNeedsScope ? `${itemHelp(id)}. it only fires while scoped` : itemHelp(id);
+    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${how}.` });
     this.broadcast({ t: 'system', text: `${me.name} drew a ${id}` }, me.id);
   }
 
