@@ -48,14 +48,14 @@ export class ElizabethAvatar implements Avatar {
     // Eyes: black ring, white iris, small pupil, three lashes fanning up and out.
     for (const side of [-1, 1]) {
       // Small, far apart, simple: a thin ring, white, a dot.
-      const x = side * 0.22;
-      disc(scene, `eliz-eye-ring-${side}-${id}`, this.body, black, 0.19, x, EYE_Y, RADIUS - 0.02);
-      disc(scene, `eliz-eye-${side}-${id}`, this.body, white, 0.155, x, EYE_Y, RADIUS - 0.005);
-      const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.035, 0.035, 0.02, black, this.body);
+      const x = side * 0.205;
+      disc(scene, `eliz-eye-ring-${side}-${id}`, this.body, black, 0.21, x, EYE_Y, RADIUS - 0.02);
+      disc(scene, `eliz-eye-${side}-${id}`, this.body, white, 0.172, x, EYE_Y, RADIUS - 0.005);
+      const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.04, 0.04, 0.02, black, this.body);
       pupil.position.set(x, EYE_Y, RADIUS + 0.01);
       for (const [i, off] of [-0.06, 0, 0.06].entries()) {
         const lash = box(scene, `eliz-lash-${side}-${i}-${id}`, 0.016, 0.06, 0.02, black, this.body);
-        lash.position.set(x + off * 1.3, EYE_Y + 0.13 - Math.abs(off) * 0.3, RADIUS - 0.02);
+        lash.position.set(x + off * 1.3, EYE_Y + 0.14 - Math.abs(off) * 0.3, RADIUS - 0.02);
         lash.rotation.z = -off * 6; // outer lashes fan outward
       }
     }
