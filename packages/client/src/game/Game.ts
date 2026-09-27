@@ -80,7 +80,6 @@ export class Game {
     this.engine.scene.activeCamera = this.camera;
     this.viewmodel = new Viewmodel(this.engine, this.camera);
 
-    for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(roomId)))) this.skyByMesh.set(sky.mesh.name, sky);
 
     CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);
@@ -186,6 +185,9 @@ export class Game {
     switch (m.t) {
       case 'welcome': {
         this.myId = m.id;
+        // The sky is seeded by the room's key (the Modal session id), which welcome carries, so
+        // everyone in a session shares one sky and a new session gets a new one.
+        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(m.room)))) this.skyByMesh.set(sky.mesh.name, sky);
         const me = m.players.find((p) => p.id === m.id)!;
         this.prediction = new Prediction(me, WORLD_SHAPE);
         this.input.yaw = me.yaw;
@@ -348,9 +350,10 @@ export class Game {
     this.input.pitch = pitch;
   }
 
-  debug(): { id: string; pos: { x: number; y: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[] } {
+  debug(): { id: string; pos: { x: number; y: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[]; sky: { id: string; x: number; z: number }[] } {
     const remotes = this.interp.sample(performance.now(), this.myId).players.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z }));
-    return { id: this.myId, pos: { ...(this.prediction?.state.pos ?? { x: 0, y: 0, z: 0 }) }, remotes };
+    const sky = [...this.skyByMesh.values()].map((s) => ({ id: s.content.id, x: Math.round(s.mesh.position.x), z: Math.round(s.mesh.position.z) }));
+    return { id: this.myId, pos: { ...(this.prediction?.state.pos ?? { x: 0, y: 0, z: 0 }) }, remotes, sky };
   }
 
 

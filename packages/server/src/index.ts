@@ -2,7 +2,7 @@
 // that Modal's proxy stamps on the upgrade request, or by ?room= when running bare (local dev).
 import { createServer, type IncomingMessage } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { Room, type ClientLink, type ServerMessage } from '@world/shared';
+import { Room, hashSeed, type ClientLink, type ServerMessage } from '@world/shared';
 import { createStaticHandler } from './static';
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -27,7 +27,10 @@ function roomFor(key: string): Room {
   }
   let room = rooms.get(key);
   if (!room) {
+    // Seeded by the key (the Modal session id in production): the same session always gets the
+    // same cube layout and spawns, even if Node rebuilt the room after an empty spell.
     room = new Room(key, {
+      seed: hashSeed(key),
       log,
       onEmpty: () => {
         emptyTimers.set(
