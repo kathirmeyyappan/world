@@ -1,5 +1,4 @@
 import { showHome } from './app/home';
-import { mountGuide } from './ui/Guide';
 import { Game } from './game/Game';
 import { forgetRoom, homeUrl } from './net/lobby';
 
@@ -11,7 +10,6 @@ declare global {
 
 async function main(): Promise<void> {
   const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
-  mountGuide();
   const { connection, roomId } = await showHome();
 
   const loading = document.getElementById('loading')!;
