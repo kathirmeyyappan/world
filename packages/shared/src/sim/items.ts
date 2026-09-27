@@ -17,9 +17,9 @@ export interface ItemSpec {
 }
 
 export const ITEMS: Record<ItemId, ItemSpec> = {
-  gun: { id: 'gun', seconds: 30, range: 12, cooldownTicks: 10, actions: { shoot: 'Space' }, fireNeedsScope: false, nameTag: 'GUN' },
+  gun: { id: 'gun', seconds: 30, range: 12, cooldownTicks: 10, actions: { shoot: 'KeyK' }, fireNeedsScope: false, nameTag: 'GUN' },
   sniper: {
-    id: 'sniper', seconds: 30, range: 150, cooldownTicks: 30, actions: { shoot: 'Space', scope: 'KeyF' }, fireNeedsScope: true, nameTag: 'SNIPER',
+    id: 'sniper', seconds: 30, range: 150, cooldownTicks: 30, actions: { shoot: 'KeyK', scope: 'KeyF' }, fireNeedsScope: true, nameTag: 'SNIPER',
   },
 };
 
@@ -44,9 +44,12 @@ export function permanentItemFor(name: string): ItemId | null {
   return matches[0] ?? null;
 }
 
-// "SPACE to shoot, F to scope", for hints and chat notices.
+// "K or click to shoot, F to scope", for hints and chat notices. Shooting also works with a
+// click, so say so.
 export function itemHelp(id: ItemId, sep = ', '): string {
-  return Object.entries(ITEMS[id].actions).map(([action, code]) => `${keyLabel(code)} to ${action}`).join(sep);
+  return Object.entries(ITEMS[id].actions)
+    .map(([action, code]) => `${keyLabel(code)}${action === 'shoot' ? ' or click' : ''} to ${action}`)
+    .join(sep);
 }
 
 // Which of the item's actions a key press means, if any.

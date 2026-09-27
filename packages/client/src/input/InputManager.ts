@@ -9,7 +9,6 @@ export class InputManager {
   yaw = 0;
   pitch = 0;
   lookScale = 1; // <1 while scoped
-  spaceTaken = false; // a held weapon claims Space, so it no longer jumps
   joystick = { x: 0, y: 0 };
   pointerLocked = false;
 
@@ -27,7 +26,7 @@ export class InputManager {
       if (this.blocked || isTyping(e)) return;
       if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
       this.keys.add(e.code);
-      if (e.code === 'Space' && !this.spaceTaken) this.jumpRequested = true;
+      if (e.code === 'Space') this.jumpRequested = true;
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());

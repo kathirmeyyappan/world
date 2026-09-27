@@ -267,7 +267,6 @@ export class Game {
     this.environment.update(dt, this.camera.position);
     const held = this.held;
     if (!held) this.setScoped(false);
-    this.input.spaceTaken = !!held && !this.dead;
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
     this.viewmodel.update(dt);
     this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH) : '');
