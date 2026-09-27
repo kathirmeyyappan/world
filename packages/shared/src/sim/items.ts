@@ -42,7 +42,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     actions: { shoot: { key: 'KeyK', mode: 'tap' } }, fire: { kind: 'hitscan' }, fireNeedsScope: false, fuelSeconds: null, nameTag: 'GUN',
   },
   sniper: {
-    id: 'sniper', seconds: 45, range: 150, damage: 4, cooldownTicks: 30,
+    id: 'sniper', seconds: 45, range: 500, damage: 4, cooldownTicks: 30,
     actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } }, fire: { kind: 'hitscan' }, fireNeedsScope: true, fuelSeconds: null, nameTag: 'SNIPER',
   },
   flamethrower: {
