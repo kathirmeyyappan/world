@@ -1,10 +1,13 @@
 // Onboarding nudge: after IDLE_MS without holding an item or running a command, a banner
-// across the screen says what to type, then counts itself down over SHOW_MS. Using anything
-// hides it and restarts the clock. Pure DOM, driven once a frame by the Game.
+// across the screen says what to type, then counts itself down (FIRST_SHOW_MS the first time,
+// SHOW_MS after). Once the player has used anything, the tab remembers and never nags again,
+// across the reload a death causes. Pure DOM, driven once a frame by the Game.
 import { IS_TOUCH } from '../input/touch';
 
 const IDLE_MS = 30_000;
-const SHOW_MS = 10_000;
+const FIRST_SHOW_MS = 8_000;
+const SHOW_MS = 5_000;
+const DONE_KEY = 'world.hint-done'; // sessionStorage: this tab has used an item
 
 const WHERE = IS_TOUCH ? 'in the chat (CHAT button, top right)' : 'in the chat on the bottom left';
 const TEXT = `Hint: Try entering /gun or /speedy ${WHERE}. Go back to home screen and click on the guide for more info.`;
@@ -16,6 +19,8 @@ export class CommandHint {
   private lastUse = performance.now();
   private until: number | null = null; // showing until this time, else hidden
   private shownSeconds = -1;
+  private shows = 0;
+  private done = read(DONE_KEY);
 
   constructor() {
     this.text.textContent = TEXT;
@@ -24,15 +29,23 @@ export class CommandHint {
   // `active` is true while the player is using something: holding an item, boosted, or in a
   // non-standard avatar. `suppressed` (dead, chat open) freezes the whole thing.
   update(active: boolean, suppressed: boolean): void {
+    if (this.done) return;
     const now = performance.now();
-    if (active || suppressed) {
+    if (active) {
+      this.done = true;
+      write(DONE_KEY);
+      this.hide();
+      return;
+    }
+    if (suppressed) {
       this.lastUse = now;
       this.hide();
       return;
     }
     if (this.until === null) {
       if (now - this.lastUse >= IDLE_MS) {
-        this.until = now + SHOW_MS;
+        this.until = now + (this.shows === 0 ? FIRST_SHOW_MS : SHOW_MS);
+        this.shows++;
         this.el.classList.add('on');
       }
       return;
@@ -54,5 +67,21 @@ export class CommandHint {
     this.until = null;
     this.shownSeconds = -1;
     this.el.classList.remove('on');
+  }
+}
+
+function read(key: string): boolean {
+  try {
+    return sessionStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function write(key: string): void {
+  try {
+    sessionStorage.setItem(key, '1');
+  } catch {
+    // private mode or blocked storage: the hint just comes back after a reload
   }
 }
