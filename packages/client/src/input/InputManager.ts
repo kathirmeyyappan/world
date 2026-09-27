@@ -4,6 +4,12 @@ import { MAX_PITCH, type InputFrame, type ItemAction } from '@world/shared';
 
 const LOOK_SENSITIVITY = 0.002;
 const TOUCH_LOOK_MULTIPLIER = 3; // a thumb travels far fewer pixels than a mouse
+// Chrome can report one enormous movementX/Y right after the pointer locks (the distance the
+// cursor travelled while unlocked, or a synthetic jump), which reads as the view snapping to a
+// random direction. Motion inside this window after a lock change is dropped, and any single
+// event past this many pixels is treated as such a glitch, not a flick.
+const LOCK_SETTLE_MS = 150;
+const MAX_EVENT_MOTION = 400;
 
 export class InputManager {
   yaw = 0;
@@ -22,6 +28,7 @@ export class InputManager {
   private dragging = false;
   private lastX = 0;
   private lastY = 0;
+  private lockChangedAt = -Infinity;
 
   constructor(canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', (e) => {
@@ -39,10 +46,13 @@ export class InputManager {
     });
     document.addEventListener('pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === canvas;
+      this.lockChangedAt = performance.now();
     });
     document.addEventListener('mousemove', (e) => {
       if (this.blocked) return;
       if (this.pointerLocked) {
+        if (performance.now() - this.lockChangedAt < LOCK_SETTLE_MS) return;
+        if (Math.abs(e.movementX) > MAX_EVENT_MOTION || Math.abs(e.movementY) > MAX_EVENT_MOTION) return;
         this.lookDx += e.movementX;
         this.lookDy += e.movementY;
       } else if (this.dragging) {
