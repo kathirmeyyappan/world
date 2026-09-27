@@ -136,15 +136,15 @@ html, body {
   position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 50; pointer-events: none;
   display: grid; grid-template-columns: repeat(5, 27px); gap: 3px 4px;
 }
-.heart { position: relative; width: 27px; height: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.8)); }
+.heart { position: relative; width: 27px; height: 24px; opacity: 0.8; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.7)); }
 .heart svg { position: absolute; inset: 0; width: 100%; height: 100%; shape-rendering: crispEdges; }
-.heart svg rect { fill: #ff3b4e; }
-.heart svg rect.hi { fill: #ff8a95; }
+.heart svg rect { fill: #9c1f2c; }
+.heart svg rect.hi { fill: #b8404c; }
 .heart .broken { display: none; }
 .heart.lost .full { display: none; }
 .heart.lost .broken { display: block; }
-.heart.lost svg rect { fill: #3a3d46; }
-.heart.lost svg rect.hi { fill: #4a4e58; }
+.heart.lost svg rect { fill: #262930; }
+.heart.lost svg rect.hi { fill: #31343c; }
 .heart.breaking { animation: heart-break 0.45s steps(6) both; }
 @keyframes heart-break {
   0% { transform: scale(1.35) rotate(-8deg); }
