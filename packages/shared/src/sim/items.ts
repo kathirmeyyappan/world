@@ -47,12 +47,12 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   },
   flamethrower: {
     id: 'flamethrower', seconds: 45, range: 10, damage: 0.5, cooldownTicks: 15,
-    actions: { shoot: { key: 'KeyK', mode: 'hold' } }, fire: { kind: 'cone', halfAngle: Math.PI / 8 }, fireNeedsScope: false, fuelSeconds: 10, nameTag: 'FLAMETHROWER',
+    actions: { shoot: { key: 'KeyK', mode: 'hold' } }, fire: { kind: 'cone', halfAngle: Math.PI / 8 }, fireNeedsScope: false, fuelSeconds: 7.5, nameTag: 'FLAMETHROWER',
   },
 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
-export const FUEL_REFILL_RATE = 1 / 3; // of the burn rate: a 10 s tank takes 30 s to refill
+export const FUEL_REFILL_RATE = 7.5 / 25; // of the burn rate: a 7.5 s tank takes 25 s to refill
 
 // What a player is holding. `left` counts down in the sim unless `permanent`; `fuel` is seconds
 // of fire left for hold items, null otherwise.
