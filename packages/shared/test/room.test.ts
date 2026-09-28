@@ -82,14 +82,18 @@ test('players spawn at random spots across the whole world, clear of walls', () 
   assert.ok(new Set(spots.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`)).size === spots.length, 'all different');
 });
 
-test('/speedy is a command: boosts the sender and tells everyone in grey', () => {
+test('/speedy and /s boost the sender and tell everyone in grey', () => {
   const room = new Room('cmd', { seed: 1 });
   const a = link();
   const b = link();
   const ida = room.join('alice', a)!;
   room.join('bob', b);
-  room.receive(ida, { t: 'chat', text: '/speedy' });
-  assert.equal(room.players.find((p) => p.id === ida)!.boost, 20);
+  const alice = room.players.find((p) => p.id === ida)!;
+  for (const command of ['/speedy', '/s']) {
+    alice.boost = 0;
+    room.receive(ida, { t: 'chat', text: command });
+    assert.equal(alice.boost, 20);
+  }
   const notice = b.inbox.at(-1)!;
   assert.deepEqual(notice, { t: 'system', text: 'alice increased their movement speed for 20s' });
   assert.ok(!b.inbox.some((m) => m.t === 'chat'), 'the command itself is not broadcast as chat');
@@ -145,7 +149,7 @@ test('weapon command shortcuts equip the matching item', () => {
   const playerId = room.join('alice', link())!;
   const player = room.players.find((candidate) => candidate.id === playerId)!;
 
-  for (const [command, item] of [['/g', 'gun'], ['/ft', 'flamethrower'], ['/s', 'sniper']] as const) {
+  for (const [command, item] of [['/g', 'gun'], ['/ft', 'flamethrower']] as const) {
     room.receive(playerId, { t: 'chat', text: command });
     assert.equal(player.item?.id, item);
   }
