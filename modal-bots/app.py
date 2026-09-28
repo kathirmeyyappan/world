@@ -16,7 +16,7 @@ from common.deployment import (
 async def run_bot(
     bot: str,
     room: str,
-    seconds: float = 30,
+    seconds: float = 300,
 ) -> dict[str, Any]:
     """Run a named bot in a given room for a given duration. It plays as ``<bot>-bot``."""
     return await get_bot_invocation(bot)(

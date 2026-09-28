@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, Room, WORLD_SHAPE, worldDistance, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
+import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, Room, WORLD_SHAPE, worldDistance, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -344,4 +344,56 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   assert.ok(botClosed, 'closing the room disconnects the bot');
   assert.equal(botCloseReason, 'room closed', 'and says why, unlike a corpse (dead)');
   assert.equal(room.playerCount, 0);
+});
+
+test('/circle-bot asks the host to start a bot in this room; capped, people only, default 300 s', async () => {
+  const spawned: BotRequest[] = [];
+  let fail = false;
+  const room = new Room('sess-1', {
+    seed: 4,
+    spawnBot: async (req) => {
+      if (fail) throw new Error('modal down');
+      spawned.push(req);
+    },
+  });
+  const a = link();
+  const ida = room.join('alice', a, { room: 'late-night' })!;
+  const b = link();
+  const idb = room.join('circle-bot', b, { bot: true, room: 'late-night' })!;
+
+  room.receive(ida, { t: 'chat', text: '/circle-bot 60' });
+  await Promise.resolve();
+  assert.deepEqual(spawned, [{ bot: 'circle', room: 'late-night', seconds: 60, caller: 'alice' }]);
+  assert.ok(b.inbox.some((m) => m.t === 'system' && m.text === 'alice called circle-bot for 60s'), 'everyone hears');
+
+  room.receive(ida, { t: 'chat', text: '/observer' });
+  await Promise.resolve();
+  assert.equal(spawned[1].seconds, 300, 'no number: the default');
+  room.receive(ida, { t: 'chat', text: '/circle 9999' });
+  await Promise.resolve();
+  assert.equal(spawned[2].seconds, 3500, 'capped');
+  room.receive(ida, { t: 'chat', text: '/circle-bot soon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'usage: /circle-bot [seconds]' });
+
+  room.receive(idb, { t: 'chat', text: '/circle-bot' });
+  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "bots can't call bots" });
+
+  // one seated bot + three on their way = the cap
+  room.receive(ida, { t: 'chat', text: '/observer-bot' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room already has 4 bots' });
+  assert.equal(spawned.length, 3);
+
+  fail = true;
+  const c = link();
+  const room2 = new Room('sess-2', { seed: 1, spawnBot: async () => { throw new Error('modal down'); } });
+  const idc = room2.join('carol', c, { room: 'x' })!;
+  room2.receive(idc, { t: 'chat', text: '/circle-bot' });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(c.inbox.at(-1), { t: 'system', text: "couldn't call circle-bot" });
+
+  const d = link();
+  const room3 = new Room('sess-3', { seed: 1 });
+  const idd = room3.join('dave', d, { room: 'x' })!;
+  room3.receive(idd, { t: 'chat', text: '/circle-bot' });
+  assert.deepEqual(d.inbox.at(-1), { t: 'system', text: "bots can't be called in this room" });
 });

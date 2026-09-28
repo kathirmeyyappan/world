@@ -3,6 +3,7 @@
 import { createServer, type IncomingMessage } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { Room, hashSeed, type ClientLink, type ServerMessage } from '@world/shared';
+import { createBotSpawner } from './bots';
 import { createStaticHandler } from './static';
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -13,6 +14,7 @@ const SIM_JITTER_MS = Number(process.env.SIM_JITTER_MS ?? 0);
 const STATIC_DIR = process.env.STATIC_DIR;
 
 const rooms = new Map<string, Room>();
+const spawnBot = createBotSpawner(log) ?? undefined;
 const emptyTimers = new Map<string, NodeJS.Timeout>();
 
 function log(msg: string): void {
@@ -32,6 +34,7 @@ function roomFor(key: string): Room {
     room = new Room(key, {
       seed: hashSeed(key),
       log,
+      spawnBot,
       onEmpty: () => {
         emptyTimers.set(
           key,
@@ -95,7 +98,10 @@ http.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => {
     const room = roomFor(roomKey(req, url));
     // ?bot=1 is the bot framework declaring itself; the browser client never sends it.
-    const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), { bot: url.searchParams.get('bot') === '1' });
+    const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), {
+      bot: url.searchParams.get('bot') === '1',
+      room: url.searchParams.get('room') ?? undefined,
+    });
     if (!id) {
       ws.close(1008, 'room full');
       return;
