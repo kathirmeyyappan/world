@@ -63,7 +63,16 @@ html, body {
 }
 #disconnected p { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 8px; }
 
-#loading h1 { font: 16px var(--pixel); margin-bottom: 24px; letter-spacing: 2px; color: var(--accent); }
+#loading h1 { font: 16px var(--pixel); margin-bottom: 14px; letter-spacing: 2px; color: var(--accent); }
+#loading .powered { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; font: 8px var(--pixel); letter-spacing: 2px; color: rgba(255,255,255,0.55); }
+#loading .powered svg { height: 16px; width: auto; shape-rendering: crispEdges; }
+#loading .mascot svg { height: 100px; width: auto; shape-rendering: crispEdges; margin-bottom: 20px; }
+.elizabeth .k { fill: #141414; }
+.elizabeth .c { fill: #fffce6; }
+.elizabeth .w { fill: #ffffff; }
+.elizabeth .o { fill: #f5be5a; }
+.modal-logo rect { fill: #62de61; }
+.modal-logo .d { fill: #09af58; }
 .loader { width: 48px; height: 48px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
