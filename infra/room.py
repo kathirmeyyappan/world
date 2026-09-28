@@ -9,8 +9,9 @@ import subprocess
 
 import modal
 
+from .bot_sidecar import start_bot_sidecar
 from .common import app, room_image
-from .config import APP_NAME, ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
+from .config import APP_NAME, BOT_SIDECAR_PORT, ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
 
 
 def lobby_url() -> str:
@@ -47,6 +48,9 @@ def lobby_url() -> str:
 class Room:
     @modal.enter()
     def start(self):
+        # Bots called from chat: Node posts to this sidecar, which spawns them with this
+        # container's own Modal credentials.
+        self.sidecar = start_bot_sidecar(BOT_SIDECAR_PORT)
         self.proc = subprocess.Popen(
             ["node", "packages/server/dist/server.cjs"],
             cwd="/app",
@@ -55,10 +59,12 @@ class Room:
                 "PATH": "/usr/local/bin:/usr/bin:/bin",
                 "STATIC_DIR": "/app/packages/client/dist",
                 "LOBBY_URL": lobby_url(),
+                "BOT_SPAWNER_URL": f"http://127.0.0.1:{BOT_SIDECAR_PORT}/bots",
             },
         )
 
     @modal.exit()
     def stop(self):
+        self.sidecar.shutdown()
         self.proc.terminate()
         self.proc.wait(timeout=10)

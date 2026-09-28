@@ -72,6 +72,11 @@ the game's WebSocket is then same-origin so the cookie covers it. The page there
 Room host while playing. The served page carries the lobby's URL in a meta tag, so a pasted Room
 host URL still joins through the lobby.
 
+Bots called from chat (`/circle-bot 60`) are Modal function calls: the Node room server posts the
+request to a localhost sidecar (`infra/bot_sidecar.py`) in the same container, and that Python
+process spawns `kathir-world-bots/run_bot` with the container's own credentials. Without a sidecar
+(local dev) the command says bots can't be called.
+
 GitHub Pages (`.github/workflows/deploy.yml`) keeps serving a copy of the client at
 world.kathirm.com as a launcher: set the `LOBBY_URL` repository variable to the lobby's URL and
 its join buttons navigate to the lobby. Without it, that copy offers offline mode only. Pushing to

@@ -290,12 +290,12 @@ html, body {
 #info-card .description ul { padding-left: 0; list-style: none; }
 #info-card .description li { margin-bottom: 8px; padding-left: 18px; position: relative; }
 #info-card .description li::before { content: '>'; position: absolute; left: 0; color: var(--accent); }
-#info-card .close-hint { padding: 10px 20px 14px; font: 18px var(--mono); color: rgba(255,255,255,0.8); text-align: right; letter-spacing: 1px; }
-#info-card .close-hint kbd {
+#info-card .close-hint, #commands .close-hint { padding: 10px 20px 14px; font: 18px var(--mono); color: rgba(255,255,255,0.8); text-align: right; letter-spacing: 1px; }
+#info-card .close-hint kbd, #commands .close-hint kbd {
   display: inline-block; min-width: 26px; text-align: center; margin: 0 6px; padding: 2px 6px 0;
   background: var(--accent); color: #05070c; font: 13px/16px var(--pixel); border-bottom: 3px solid #2f6db3; vertical-align: middle;
 }
-#info-card .cursor { display: inline-block; margin-left: 4px; color: var(--accent); animation: blink 1s steps(1) infinite; }
+#info-card .cursor, #commands .cursor { display: inline-block; margin-left: 4px; color: var(--accent); animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
 /* Mobile */
@@ -365,7 +365,10 @@ html, body {
 /* Commands menu: every chat command, grouped. */
 #commands { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); pointer-events: none; }
 #commands.hidden { display: none; }
-#commands .card { max-width: 720px; max-height: 88vh; overflow: auto; pointer-events: auto; }
+#commands .card { max-width: 720px; max-height: 88vh; display: flex; flex-direction: column; pointer-events: auto; }
+#commands .body { overflow: auto; min-height: 0; }
+#commands .footer { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 12px; border-top: 2px solid rgba(100,181,246,0.35); padding-top: 10px; }
+#commands .guide { font: 18px var(--mono); color: rgba(255,255,255,0.6); letter-spacing: 1px; }
 #commands .how { font-size: 20px; color: rgba(255,255,255,0.7); margin-bottom: 16px; }
 #commands .groups { display: flex; flex-direction: column; gap: 18px; }
 #commands section h2 { font: 10px var(--pixel); color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; }
@@ -373,14 +376,14 @@ html, body {
 #commands li { display: flex; flex-direction: column; margin-bottom: 8px; }
 #commands .cmd { font: 20px var(--mono); color: #fff; }
 #commands .note { font: 15px var(--mono); color: rgba(255,255,255,0.6); }
-#commands .foot { font: 14px var(--mono); color: rgba(255,255,255,0.45); margin-top: 4px; }
-#commands .close { font: 16px var(--mono); color: rgba(255,255,255,0.7); margin-top: 16px; text-align: right; letter-spacing: 1px; }
-#commands .close kbd { font: inherit; padding: 0 4px; border: 1px solid rgba(255,255,255,0.4); }
+#commands .empty { font: 15px var(--mono); color: rgba(255,255,255,0.45); }
+#commands .close-hint { padding: 0; }
 @media (pointer: coarse) {
   #commands .card { padding: 14px; max-width: 92vw; }
   #commands .groups { gap: 10px; }
   #commands ul { gap: 4px 16px; }
   #commands .cmd { font-size: 16px; }
-  #commands .note, #commands .foot { font-size: 12px; }
-  #commands .how, #commands .close { font-size: 14px; margin-bottom: 8px; }
+  #commands .note, #commands .empty { font-size: 12px; }
+  #commands .how { font-size: 14px; margin-bottom: 8px; }
+  #commands .close-hint, #commands .guide { font-size: 13px; }
 }
