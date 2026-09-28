@@ -8,3 +8,8 @@ ROOM_PORT = 8000
 SESSION_IDLE_TIMEOUT = 300
 MAX_SESSIONS_PER_CONTAINER = 64
 TARGET_SESSIONS_PER_CONTAINER = 2
+
+# The bots app (modal-bots/) and the function the room's sidecar spawns for chat commands.
+BOTS_APP_NAME = "kathir-world-bots"
+BOTS_FUNCTION_NAME = "run_bot"
+BOT_SIDECAR_PORT = 8001
