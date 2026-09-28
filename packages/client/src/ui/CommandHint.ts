@@ -4,7 +4,7 @@
 // across the reload a death causes. Pure DOM, driven once a frame by the Game.
 import { IS_TOUCH } from '../input/touch';
 
-const IDLE_MS = 15_000;
+const IDLE_MS = 12_000; // inside the first ten seconds of play
 const FIRST_SHOW_MS = 8_000;
 const SHOW_MS = 5_000;
 const DONE_KEY = 'world.hint-done'; // sessionStorage: this tab has used an item
