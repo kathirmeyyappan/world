@@ -34,20 +34,21 @@ export interface ItemSpec {
   fireNeedsScope: boolean; // can only shoot while scoped
   fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at FUEL_REFILL_RATE
   nameTag: string; // a name containing this spawns with the item permanently
+  blurb: string; // one plain line for the commands menu
 }
 
 export const ITEMS: Record<ItemId, ItemSpec> = {
   gun: {
     id: 'gun', seconds: 45, range: 20, damage: 2, cooldownTicks: 7,
-    actions: { shoot: { key: 'KeyK', mode: 'tap' } }, fire: { kind: 'hitscan' }, fireNeedsScope: false, fuelSeconds: null, nameTag: 'GUN',
+    actions: { shoot: { key: 'KeyK', mode: 'tap' } }, fire: { kind: 'hitscan' }, fireNeedsScope: false, fuelSeconds: null, nameTag: 'GUN', blurb: 'equip a handgun',
   },
   sniper: {
     id: 'sniper', seconds: 45, range: 500, damage: 4, cooldownTicks: 30,
-    actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } }, fire: { kind: 'hitscan' }, fireNeedsScope: true, fuelSeconds: null, nameTag: 'SNIPER',
+    actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } }, fire: { kind: 'hitscan' }, fireNeedsScope: true, fuelSeconds: null, nameTag: 'SNIPER', blurb: 'equip a sniper rifle',
   },
   flamethrower: {
     id: 'flamethrower', seconds: 45, range: 10, damage: 0.5, cooldownTicks: 15,
-    actions: { shoot: { key: 'KeyK', mode: 'hold' } }, fire: { kind: 'cone', halfAngle: Math.PI / 8 }, fireNeedsScope: false, fuelSeconds: 7.5, nameTag: 'FLAMETHROWER',
+    actions: { shoot: { key: 'KeyK', mode: 'hold' } }, fire: { kind: 'cone', halfAngle: Math.PI / 8 }, fireNeedsScope: false, fuelSeconds: 7.5, nameTag: 'FLAMETHROWER', blurb: 'equip a flamethrower',
   },
 };
 
