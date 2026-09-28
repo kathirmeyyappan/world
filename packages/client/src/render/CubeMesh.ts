@@ -9,6 +9,10 @@ import { loadPixelated } from './pixelate';
 
 const SIZE = 1.8;
 export const LOGO_PIXELS = 40;
+// Edge widths: idle, being read by someone, under your crosshair.
+const EDGE_IDLE = 10;
+const EDGE_READ = 12.5;
+const EDGE_HOT = 15;
 const FRAME_IDLE = new Color3(0.75, 0.78, 0.85);
 const FRAME_HOT = new Color3(1, 1, 1);
 const FRAME_READ = new Color3(0.55, 0.6, 0.7);
@@ -52,7 +56,7 @@ export class CubeMesh {
 
     this.mesh.enableEdgesRendering();
     engine.glowLayer.addIncludedOnlyMesh(this.mesh);
-    this.setFrame(FRAME_IDLE, 4, 1);
+    this.setFrame(FRAME_IDLE, EDGE_IDLE, 1);
 
     this.shadow = createShadowBlob(engine, `cube-shadow-${content.id}`, 2.6);
   }
@@ -70,9 +74,9 @@ export class CubeMesh {
     this.mesh.rotation.set(snap.rx, snap.ry, 0);
     this.shadow.position.set(snap.x, 0.02, snap.z);
     this.shadow.scaling.setAll(Math.max(0.6, 1.3 - snap.y * 0.12));
-    if (this.hovered) this.setFrame(FRAME_HOT, 6, 1.1);
-    else if (this.readers > 0) this.setFrame(FRAME_READ, 5, 1.04);
-    else this.setFrame(FRAME_IDLE, 4, 1);
+    if (this.hovered) this.setFrame(FRAME_HOT, EDGE_HOT, 1.1);
+    else if (this.readers > 0) this.setFrame(FRAME_READ, EDGE_READ, 1.04);
+    else this.setFrame(FRAME_IDLE, EDGE_IDLE, 1);
   }
 
   private setFrame(color: Color3, width: number, scale: number): void {
