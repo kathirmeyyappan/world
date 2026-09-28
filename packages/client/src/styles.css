@@ -359,7 +359,7 @@ html, body {
   #jump-button { display: flex; }
   .touch-button { display: block; }
   .touch-button.hidden { display: none; }
-  #instructions, #minimap, #chat-input.hidden + #chat-hint, #info-card .close-hint { display: none; }
+  #instructions, #minimap, #chat-input.hidden + #chat-hint { display: none; }
   /* Chat sits above the pad; the log stays short so it doesn't cover the world. */
   #chat { bottom: 150px; width: min(300px, 60vw); }
   #chat-log li { font-size: 18px; }
@@ -388,6 +388,7 @@ html, body {
 #commands .empty { font: 15px var(--mono); color: rgba(255,255,255,0.45); }
 #commands .close-hint { padding: 0; }
 @media (pointer: coarse) {
+  #commands { pointer-events: auto; } /* a tap anywhere, backdrop included, closes it */
   #commands .card { padding: 14px; max-width: 92vw; }
   #commands .groups { gap: 10px; }
   #commands ul { gap: 4px 16px; }

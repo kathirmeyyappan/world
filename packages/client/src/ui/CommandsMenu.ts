@@ -1,8 +1,9 @@
 // The commands menu: every chat command, grouped, built from the item and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
-// or the touch button; purely informational. Blocks game input while open, like the cube card.
+// or the touch button, closed with Q/C or, on touch, a tap anywhere on it; purely informational.
+// Blocks game input while open, like the cube card.
 import { AVATARS, AVATAR_IDS, BOTS, BOT_DEFAULT_SECONDS, BOT_IDS, COMMAND_SHORTCUTS, ITEMS, ITEM_IDS } from '@world/shared';
-import { IS_TOUCH } from '../input/touch';
+import { IS_TOUCH, onTap } from '../input/touch';
 
 interface Group {
   title: string;
@@ -18,7 +19,7 @@ export class CommandsMenu {
   constructor() {
     const groups = buildGroups();
     const how = IS_TOUCH ? 'tap CHAT, type a command, send' : 'press Enter, type a command, Enter again';
-    const close = IS_TOUCH ? 'TAP CMDS TO CLOSE' : 'PRESS <kbd>Q</kbd> TO CLOSE';
+    const close = IS_TOUCH ? 'TAP TO CLOSE' : 'PRESS <kbd>Q</kbd> TO CLOSE';
     // The body scrolls; the footer (guide note + close hint) stays put under it.
     this.el.innerHTML = `
       <div class="card">
@@ -32,6 +33,7 @@ export class CommandsMenu {
           <div class="close-hint">${close}<span class="cursor">▮</span></div>
         </div>
       </div>`;
+    onTap(this.el, () => this.set(false));
   }
 
   get isOpen(): boolean {
