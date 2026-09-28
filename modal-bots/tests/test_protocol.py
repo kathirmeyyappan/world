@@ -47,3 +47,17 @@ def test_non_snapshot_messages_are_events(kind: str) -> None:
 def test_rejects_malformed_messages(payload: str) -> None:
     with pytest.raises(ProtocolError):
         decode(payload)
+
+
+def test_ignores_fields_added_later() -> None:
+    """A new server field on a player, item, cube or position must not break old bots."""
+    data = welcome()
+    data["players"][0]["armour"] = 3
+    data["players"][0]["pos"]["w"] = 1
+    data["players"][0]["item"] = {"id": "gun", "left": 45, "permanent": False, "fuel": None, "ammo": 6}
+    data["cubes"][0]["spin"] = 2
+    joined = decode(json.dumps(data))
+    assert isinstance(joined, Welcome)
+    assert joined.players[0].item is not None and joined.players[0].item.id == "gun"
+    assert joined.players[0].kills == 0
+    assert joined.cubes[0].id == "aws"

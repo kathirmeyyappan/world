@@ -28,6 +28,7 @@ class FakeConnection:
             avatar="standard",
             avatar_left=None,
             hearts=10,
+            kills=0,
             dead=False,
         )
         self.id = me.id

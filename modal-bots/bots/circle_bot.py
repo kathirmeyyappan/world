@@ -61,6 +61,8 @@ async def run_circle_bot(
                 if state.me is None:
                     break
                 if state.me.dead:
+                    # The fatal hit arrives first; the kill event that names the killer and
+                    # weapon is the next message.
                     if isinstance(message, Event) and message.t == "kill":
                         log_death(
                             name,
@@ -68,9 +70,8 @@ async def run_circle_bot(
                             item=message.data["item"],
                             headshot=message.data["headshot"],
                         )
-                    else:
-                        log_death(name)
-                    break
+                        break
+                    continue
 
                 target = _steer(state, controls)
                 next_target = target.id if target else "origin"

@@ -27,6 +27,7 @@ def player(
         "avatar": "standard",
         "avatarLeft": None,
         "hearts": hearts,
+        "kills": 0,
         "dead": dead,
     }
 

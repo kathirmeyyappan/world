@@ -145,6 +145,7 @@ with concurrent receive and input loops.
 
 - Server snapshots are 30 Hz and authoritative. Do not implement browser interpolation.
 - Yaw `0` faces `+z`; positive pitch looks down; player position is eye position.
+- `Player.hearts` and `Player.kills` are the scoreboard.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.
 - Snapshots reveal all players and combat currently has no wall/cube occlusion. Human-like
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.

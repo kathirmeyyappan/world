@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
-from typing import Any, Mapping, TypeAlias
+from dataclasses import asdict, dataclass, fields
+from typing import Any, Mapping, TypeAlias, TypeVar
 
 
 class ProtocolError(ValueError):
@@ -44,6 +44,7 @@ class Player:
     avatar: str
     avatar_left: float | None
     hearts: float
+    kills: int
     dead: bool
 
 
@@ -112,31 +113,41 @@ def decode(payload: str | bytes) -> Message:
         raise ProtocolError("malformed server message") from exc
 
 
+T = TypeVar("T")
+
+
+def _pick(cls: type[T], data: Mapping[str, Any]) -> T:
+    """Build a dataclass from the wire fields it knows about. Extra fields the server adds
+    later are ignored; missing ones still fail, so a real protocol break is still caught."""
+    return cls(**{f.name: data[f.name] for f in fields(cls)})  # type: ignore[arg-type]
+
+
 def player(data: Mapping[str, Any]) -> Player:
     item_data = data["item"]
     return Player(
         id=data["id"],
         name=data["name"],
         color=data["color"],
-        pos=Vec3(**data["pos"]),
+        pos=_pick(Vec3, data["pos"]),
         vy=data["vy"],
         yaw=data["yaw"],
         pitch=data["pitch"],
         last_seq=data["lastSeq"],
         reading=data["reading"],
         boost=data["boost"],
-        item=None if item_data is None else Item(**item_data),
+        item=None if item_data is None else _pick(Item, item_data),
         scoped=data["scoped"],
         firing=data["firing"],
         avatar=data["avatar"],
         avatar_left=data["avatarLeft"],
         hearts=data["hearts"],
+        kills=data["kills"],
         dead=data["dead"],
     )
 
 
 def cube(data: Mapping[str, Any]) -> Cube:
-    return Cube(**data)
+    return _pick(Cube, data)
 
 
 def to_dict(value: Player | Cube) -> dict[str, Any]:
