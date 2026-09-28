@@ -93,7 +93,7 @@ Two ways to start one:
 
 - By hand: `modal run modal-bots/app.py --bot circle --room late-night --seconds 60`.
 - From chat: `/circle-bot 60` (or `/observer-bot`; seconds default to 300, max 3500). The Room checks
-  the caller is a person and the room has fewer than 4 bots seated or pending, then the Node server
+  the caller is a person and the room has a free seat, then the Node server
   posts the request to a localhost sidecar (`infra/bot_sidecar.py`) in the same container, and that
   Python process spawns `kathir-world-bots/run_bot` with the container's own Modal credentials. Node
   never holds a token. Without a sidecar (local dev) the command says bots can't be called.

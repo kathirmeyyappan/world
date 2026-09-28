@@ -204,8 +204,7 @@ Use an isolated room such as `bot-smoke`, not `global`, for automated or manual 
 `/circle-bot [seconds]` and `/observer-bot [seconds]` (the `-bot` suffix is optional) start a bot in
 the caller's room; seconds default to 300 and cap at 3500. The registry for that is
 `packages/shared/src/sim/bots.ts` (id, player name, blurb), which also fills the commands menu.
-The Room validates (people only, at most `MAX_BOTS_PER_ROOM` seated or pending, host must have a
-spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it as one POST
+The Room validates (people only, a free seat, host must have a spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it as one POST
 to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room container's Python
 process runs. The sidecar spawns `kathir-world-bots/run_bot` with `{bot, room, seconds}` using the
 container's own Modal credentials; Node never holds a token. A new bot therefore needs a row in
