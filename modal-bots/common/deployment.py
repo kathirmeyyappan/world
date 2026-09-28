@@ -16,7 +16,6 @@ MAX_BOT_SECONDS = 3500
 TARGET_BOTS_PER_CONTAINER = 16
 MAX_BOTS_PER_CONTAINER = 64
 MAX_BOT_CONTAINERS = 10
-BOT_CONTAINER_CPU = 1.0
 
 app = modal.App("kathir-world-bots")
 bot_config = modal.Secret.from_name("kathir-world-bots-config")

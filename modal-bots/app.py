@@ -7,7 +7,6 @@ import modal  # type: ignore[import-not-found]
 
 from bots import get_bot_invocation
 from common.deployment import (
-    BOT_CONTAINER_CPU,
     BOT_TIMEOUT_SECONDS,
     MAX_BOT_CONTAINERS,
     MAX_BOTS_PER_CONTAINER,
@@ -22,7 +21,6 @@ from common.deployment import (
     image=bot_image,
     secrets=[bot_config],
     timeout=BOT_TIMEOUT_SECONDS,
-    cpu=BOT_CONTAINER_CPU,
     max_containers=MAX_BOT_CONTAINERS,
 )
 @modal.concurrent(max_inputs=MAX_BOTS_PER_CONTAINER, target_inputs=TARGET_BOTS_PER_CONTAINER)
