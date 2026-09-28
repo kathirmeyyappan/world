@@ -69,3 +69,20 @@ export const ROBOT = [
   '.#.##.#.',
   '.######.',
 ];
+
+// 24x12 Modal mark, traced from the brand SVG: two mirrored hexagons meeting at the notch,
+// '#' the lit faces, 'd' the shaded bottom face. Rendered by mountPoweredBy() on the loading screen.
+export const MODAL_LOGO = [
+  '....######....######....',
+  '....######....######....',
+  '...########..########...',
+  '...##################...',
+  '..#####dddddddddd#####..',
+  '.#####ddddd..ddddd#####.',
+  '.#####dddd....dddd#####.',
+  '#####ddddd....ddddd#####',
+  '####ddddd......ddddd####',
+  '.###ddddd......ddddd###.',
+  '.##ddddd........ddddd##.',
+  '..#dddd..........dddd#..',
+];

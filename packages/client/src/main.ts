@@ -1,6 +1,7 @@
 import { showHome } from './app/home';
 import { Game } from './game/Game';
 import { forgetRoom, homeUrl } from './net/lobby';
+import { mountPoweredBy } from './ui/PoweredBy';
 
 declare global {
   interface Window {
@@ -10,6 +11,7 @@ declare global {
 }
 
 async function main(): Promise<void> {
+  mountPoweredBy();
   const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
   const { connection, roomId } = await showHome();
 
