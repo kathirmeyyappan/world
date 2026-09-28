@@ -28,7 +28,7 @@ export class CommandsMenu {
           <div class="groups">${groups.map(groupHtml).join('')}</div>
         </div>
         <div class="footer">
-          <div class="guide">MORE IN THE GUIDE: GO BACK TO HOME</div>
+          <div class="guide">SEE GUIDE IN HOME MENU FOR MORE INFO</div>
           <div class="close-hint">${close}<span class="cursor">▮</span></div>
         </div>
       </div>`;
