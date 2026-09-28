@@ -18,7 +18,6 @@ export const BOTS: Record<BotId, BotSpec> = {
 export const BOT_IDS = Object.keys(BOTS) as BotId[];
 export const BOT_DEFAULT_SECONDS = 300;
 export const BOT_MAX_SECONDS = 3500; // the Modal worker's own cap (MAX_BOT_SECONDS)
-export const MAX_BOTS_PER_ROOM = 4; // seated or on their way
 
 export function isBotId(v: unknown): v is BotId {
   return typeof v === 'string' && v in BOTS;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, Room, WORLD_SHAPE, worldDistance, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
+import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, MAX_PLAYERS, Room, WORLD_SHAPE, worldDistance, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -343,7 +343,7 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   assert.equal(room.playerCount, 0);
 });
 
-test('/circle-bot asks the host to start a bot in this room; capped, people only, default 300 s', async () => {
+test('/circle-bot asks the host to start a bot in this room; people only, default 300 s, full room', async () => {
   const spawned: BotRequest[] = [];
   let fail = false;
   const room = new Room('sess-1', {
@@ -375,9 +375,10 @@ test('/circle-bot asks the host to start a bot in this room; capped, people only
   room.receive(idb, { t: 'chat', text: '/circle-bot' });
   assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "bots can't call bots" });
 
-  // one seated bot + three on their way = the cap
+  // no bot cap: the only limit is the room's seats
+  while (room.playerCount < MAX_PLAYERS) room.join('bot', link(), { bot: true });
   room.receive(ida, { t: 'chat', text: '/observer-bot' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room already has 4 bots' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room is full' });
   assert.equal(spawned.length, 3);
 
   fail = true;
