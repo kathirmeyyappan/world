@@ -140,6 +140,17 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   assert.ok(welcome.t === 'welcome' && welcome.players.find((p) => p.id === idb)!.dead, 'late joiners see who is dead');
 });
 
+test('weapon command shortcuts equip the matching item', () => {
+  const room = new Room('item-shortcuts', { seed: 6 });
+  const playerId = room.join('alice', link())!;
+  const player = room.players.find((candidate) => candidate.id === playerId)!;
+
+  for (const [command, item] of [['/g', 'gun'], ['/ft', 'flamethrower'], ['/s', 'sniper']] as const) {
+    room.receive(playerId, { t: 'chat', text: command });
+    assert.equal(player.item?.id, item);
+  }
+});
+
 test('commands swap items freely, items time out, and the gun only reaches 20 m', () => {
   const room = new Room('items', { seed: 6 });
   const a = link();
