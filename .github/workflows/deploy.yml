@@ -44,7 +44,7 @@ jobs:
           cache-dependency-path: modal-bots/pyproject.toml
 
       - name: Install bot dependencies
-        run: python -m pip install -e './modal-bots[test]'
+        run: python -m pip install -e './modal-bots[test]' -r infra/requirements.txt
 
       - name: Test Modal bots
         run: python -m pytest modal-bots/tests infra/tests
