@@ -208,6 +208,10 @@ process runs. The sidecar spawns `kathir-world-bots/run_bot` with `{bot, room, s
 container's own Modal credentials; Node never holds a token. A new bot therefore needs a row in
 `bots.ts` as well as its Python module.
 
+Rooms also start with bots: the first person to join brings the line-up from
+`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`, two circle bots for now). Edit that
+function for per-room profiles; the Room spawns them once, with `caller: 'room'`.
+
 ## Modal configuration
 
 - `kathir-world-bots-config` must contain `WORLD_LOBBY_URL`.

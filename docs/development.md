@@ -99,6 +99,10 @@ Two ways to start one:
   Python process spawns `kathir-world-bots/run_bot` with the container's own Modal credentials. Node
   never holds a token. Without a sidecar (local dev) the command says bots can't be called.
 
+Rooms also start with bots: the first person in brings the line-up from
+`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`, two circle bots for now), spawned the
+same way with `caller: 'room'`.
+
 Deploy the bots app separately: `modal deploy modal-bots/app.py`, with the `kathir-world-bots-config`
 Secret holding `WORLD_LOBBY_URL`. The contract for writing a bot is in `CLAUDE.md` and `AGENTS.md`.
 
