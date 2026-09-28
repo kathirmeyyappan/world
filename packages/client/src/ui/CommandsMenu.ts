@@ -1,13 +1,13 @@
 // The commands menu: every chat command, grouped, built from the item and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
 // or the touch button; purely informational. Blocks game input while open, like the cube card.
-import { AVATARS, AVATAR_IDS, ITEMS, ITEM_IDS, SPEEDY_SECONDS, itemHelp, itemStats } from '@world/shared';
+import { AVATARS, AVATAR_IDS, COMMAND_SHORTCUTS, ITEMS, ITEM_IDS } from '@world/shared';
 import { IS_TOUCH } from '../input/touch';
 
 interface Group {
   title: string;
   rows: [command: string, note: string][];
-  foot?: string;
+  empty?: string;
 }
 
 export class CommandsMenu {
@@ -18,13 +18,19 @@ export class CommandsMenu {
   constructor() {
     const groups = buildGroups();
     const how = IS_TOUCH ? 'tap CHAT, type a command, send' : 'press Enter, type a command, Enter again';
-    const close = IS_TOUCH ? 'swipe to scroll · tap CMDS to close' : 'SCROLL OR <kbd>↑</kbd><kbd>↓</kbd> · PRESS <kbd>Q</kbd> OR <kbd>C</kbd> TO CLOSE';
+    const close = IS_TOUCH ? 'TAP CMDS TO CLOSE' : 'PRESS <kbd>Q</kbd> TO CLOSE';
+    // The body scrolls; the footer (guide note + close hint) stays put under it.
     this.el.innerHTML = `
       <div class="card">
-        <h1>COMMANDS</h1>
-        <p class="how">${how}</p>
-        <div class="groups">${groups.map(groupHtml).join('')}</div>
-        <p class="close">${close}</p>
+        <div class="body">
+          <h1>COMMANDS</h1>
+          <p class="how">${how}</p>
+          <div class="groups">${groups.map(groupHtml).join('')}</div>
+        </div>
+        <div class="footer">
+          <div class="guide">SEE GUIDE IN HOME MENU FOR MORE INFO</div>
+          <div class="close-hint">${close}<span class="cursor">▮</span></div>
+        </div>
       </div>`;
   }
 
@@ -35,7 +41,7 @@ export class CommandsMenu {
   // The card is a little page: scroll it from keys or the wheel (the wheel goes to the locked
   // canvas, not the card, so the Game forwards it); touch swipes scroll it natively.
   scroll(dy: number): void {
-    this.el.querySelector('.card')?.scrollBy({ top: dy });
+    this.el.querySelector('.body')?.scrollBy({ top: dy });
   }
 
   toggle(): void {
@@ -51,23 +57,24 @@ export class CommandsMenu {
 }
 
 function buildGroups(): Group[] {
+  // Skins: the default look last, so the ones you'd actually try come first.
+  const skins = [...AVATAR_IDS].sort((a, b) => Number(a === 'standard') - Number(b === 'standard'));
   return [
-    {
-      title: 'equip item',
-      rows: ITEM_IDS.map((id) => [`/${id}`, `${ITEMS[id].seconds}s · ${itemHelp(id)} · ${itemStats(id)}`]),
-      foot: `${ITEM_IDS.map((id) => ITEMS[id].nameTag).join(', ')} in your name: yours for good`,
-    },
-    {
-      title: 'wear skin',
-      rows: AVATAR_IDS.map((id) => [`/${id}`, AVATARS[id].seconds ? `${AVATARS[id].seconds}s` : 'back to normal']),
-      foot: `${AVATAR_IDS.map((id) => AVATARS[id].nameTag).filter(Boolean).join(', ')} in your name: yours for good`,
-    },
-    { title: 'boost', rows: [['/speedy', `${SPEEDY_SECONDS}s of 1.8x speed`]] },
-    { title: 'call bot', rows: [], foot: 'nothing here yet' },
+    { title: 'equip item', rows: ITEM_IDS.map((id) => [commandLabel(id), ITEMS[id].blurb]) },
+    { title: 'call bot', rows: [], empty: 'nothing here yet' },
+    { title: 'wear skin', rows: skins.map((id) => [`/${id}`, AVATARS[id].blurb]) },
+    { title: 'other', rows: [[commandLabel('speedy'), 'run faster for a bit']] },
   ];
+}
+
+function commandLabel(name: string): string {
+  const shortcuts = Object.entries(COMMAND_SHORTCUTS)
+    .filter(([, command]) => command === name)
+    .map(([shortcut]) => `/${shortcut}`);
+  return [`/${name}`, ...shortcuts].join(', ');
 }
 
 function groupHtml(g: Group): string {
   const rows = g.rows.map(([c, n]) => `<li><span class="cmd">${c}</span><span class="note">${n}</span></li>`).join('');
-  return `<section><h2>${g.title}</h2><ul>${rows}</ul>${g.foot ? `<p class="foot">${g.foot}</p>` : ''}</section>`;
+  return `<section><h2>${g.title}</h2>${rows ? `<ul>${rows}</ul>` : `<p class="empty">${g.empty ?? ''}</p>`}</section>`;
 }

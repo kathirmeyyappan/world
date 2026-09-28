@@ -10,10 +10,10 @@ export type Command =
   | { name: 'avatar'; avatar: AvatarId }
   | { name: 'unknown'; raw: string };
 
-const ITEM_SHORTCUTS: Partial<Record<string, ItemId>> = {
+export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | 'speedy'>>> = {
   g: 'gun',
   ft: 'flamethrower',
-  s: 'sniper',
+  s: 'speedy',
 };
 
 export function parseCommand(text: string): Command | null {
@@ -21,7 +21,7 @@ export function parseCommand(text: string): Command | null {
 
   const [raw] = text.slice(1).trim().split(/\s+/);
   const name = raw.toLowerCase();
-  const normalized = ITEM_SHORTCUTS[name] ?? name;
+  const normalized = COMMAND_SHORTCUTS[name] ?? name;
 
   if (normalized === 'speedy') return { name: 'speedy' };
   if (isItemId(normalized)) return { name: 'equip', item: normalized };
