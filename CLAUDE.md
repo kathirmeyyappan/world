@@ -10,6 +10,9 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
   `https://raw.githubusercontent.com/kathirmeyyappan/world/screenshots/pr-<number>/<file>.png`.
   Capture them headless (Playwright with the swiftshader flags; `window.__world.debug()` and
   `setLook()` are exposed for scripting) and include a mobile shot when the HUD changes.
+- Architecture diagrams live in `docs/` with their SVG-in-HTML sources in `docs/src/`. When a flow
+  changes, edit the source and re-render the PNG with headless Chromium at 2x (a 1560 px viewport,
+  `deviceScaleFactor: 2`, full page).
 
 ## Adding a Modal bot
 
