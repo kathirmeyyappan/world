@@ -10,7 +10,7 @@ export type Command =
   | { name: 'avatar'; avatar: AvatarId }
   | { name: 'unknown'; raw: string };
 
-const COMMAND_SHORTCUTS: Partial<Record<string, ItemId | 'speedy'>> = {
+export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | 'speedy'>>> = {
   g: 'gun',
   ft: 'flamethrower',
   s: 'speedy',
