@@ -419,7 +419,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   assert.deepEqual(d.inbox.at(-1), { t: 'system', text: "bots can't be called in this room" });
 });
 
-test("a bot's corpse stays until its run ends; a browser's is dropped after the death screen", () => {
+test("a bot corpse lingers for 5 s while a browser gets the full death screen", () => {
   const room = new Room('corpses', { seed: 5 });
   const ida = room.join('SNIPERalice', link())!;
   let botClosed = false;
@@ -435,8 +435,15 @@ test("a bot's corpse stays until its run ends; a browser's is dropped after the 
   press(room, ida, 0, true);
   assert.ok(bob.dead);
 
-  for (let i = 0; i < 30 * 20; i++) room.step();
-  assert.ok(humanClosed, "bob's browser reloaded long ago; the seat is gone");
-  assert.ok(!botClosed, 'the bot still lies there');
-  assert.ok(room.players.some((p) => p.id === idb && p.dead));
+  for (let i = 0; i < 30 * 3; i++) room.step();
+  assert.ok(!botClosed, 'the bot corpse is still visible before 5 s');
+  assert.ok(!humanClosed, 'the browser corpse is still visible');
+
+  for (let i = 0; i < 30 * 2; i++) room.step();
+  assert.ok(botClosed, "the bot's connection was closed after about 5 s");
+  assert.ok(!room.players.some((p) => p.id === idb), "the bot's corpse is gone");
+  assert.ok(!humanClosed, 'the browser still has time to use its death screen');
+
+  for (let i = 0; i < 30 * 9; i++) room.step();
+  assert.ok(humanClosed, "the browser's fallback cleanup eventually closed it");
 });

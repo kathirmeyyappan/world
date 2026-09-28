@@ -33,10 +33,10 @@ declare function setInterval(cb: () => void, ms: number): unknown;
 declare function clearInterval(handle: unknown): void;
 
 const SPAWN_WALL_MARGIN = 3;
-// A dead player's own client reloads after the death screen; a browser still connected after
-// this (a backgrounded tab) is removed so corpses don't pile up. Bots are bounded by their own
-// run time, so their corpses lie there until it ends.
-const CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
+// Browsers leave whenever the player rejoins during the death screen, with a little extra time
+// as a fallback. Bots cannot rejoin themselves, so approximate that window's midpoint.
+const BOT_CORPSE_TICKS = 5 * TICK_RATE;
+const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 
 export interface ClientLink {
@@ -233,7 +233,8 @@ export class Room {
 
   step(): void {
     for (const [id, seat] of this.seats) {
-      if (seat.diedTick !== null && !seat.state.bot && this.tick - seat.diedTick >= CORPSE_TICKS) {
+      const corpseTicks = seat.state.bot ? BOT_CORPSE_TICKS : BROWSER_CORPSE_TICKS;
+      if (seat.diedTick !== null && this.tick - seat.diedTick >= corpseTicks) {
         this.leave(id);
         seat.link.close?.('dead');
         continue;
