@@ -52,13 +52,17 @@ export function showHome(): Promise<HomeResult> {
       buttons.forEach((b) => (b.disabled = true));
       status.textContent = `connecting to ${roomId}...`;
       localStorage.setItem(NAME_KEY, name);
+      // The wait is mostly the lobby round trip and the room's session start, and on the
+      // launcher that is a page navigation this page stays visible through. Show the loading
+      // screen for it, so the join looks like one continuous load; a failure brings the form back.
+      root.classList.add('hidden');
+      loading.classList.remove('hidden');
       try {
         const connection = await joinRoom(roomId, name);
         if (SERVED_BY_ROOM_HOST) {
           rememberRoom(roomId, name);
           history.replaceState(null, '', location.pathname);
         }
-        root.classList.add('hidden');
         resolve({ connection, roomId, name });
       } catch (err) {
         showForm();
