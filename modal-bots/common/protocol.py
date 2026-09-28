@@ -42,7 +42,7 @@ class Player:
     scoped: bool
     firing: bool
     avatar: str
-    avatar_left: float | None
+    avatar_locked: bool
     hearts: float
     kills: int
     bot: bool
@@ -140,7 +140,7 @@ def player(data: Mapping[str, Any]) -> Player:
         scoped=data["scoped"],
         firing=data["firing"],
         avatar=data["avatar"],
-        avatar_left=data["avatarLeft"],
+        avatar_locked=data["avatarLocked"],
         hearts=data["hearts"],
         kills=data["kills"],
         bot=data["bot"],

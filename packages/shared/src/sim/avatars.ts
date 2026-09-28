@@ -1,19 +1,18 @@
 // Avatar types: how a player looks. Purely cosmetic; movement, hit capsule and items are the
-// same for all of them. A name containing an avatar's tag spawns as it for good; the chat
-// command gives it for `seconds`, then you revert. Adding one means a row here and a builder in
-// the client's render/avatars/.
+// same for all of them. The chat command switches for good; a name containing an avatar's tag
+// spawns as it and can't switch at all. Adding one means a row here and a builder in the
+// client's render/avatars/.
 export type AvatarId = 'standard' | 'elizabeth';
 
 export interface AvatarSpec {
   id: AvatarId;
   nameTag: string | null; // a name containing this spawns with the avatar
-  seconds: number; // how long the chat command lasts; 0 for the default look
   blurb: string; // one plain line for the commands menu
 }
 
 export const AVATARS: Record<AvatarId, AvatarSpec> = {
-  standard: { id: 'standard', nameTag: null, seconds: 0, blurb: 'back to your normal self' },
-  elizabeth: { id: 'elizabeth', nameTag: 'ELIZABETH', seconds: 60, blurb: 'become elizabeth from gintama' },
+  standard: { id: 'standard', nameTag: null, blurb: 'back to your normal self' },
+  elizabeth: { id: 'elizabeth', nameTag: 'ELIZABETH', blurb: 'become elizabeth from gintama' },
 };
 
 export const AVATAR_IDS = Object.keys(AVATARS) as AvatarId[];

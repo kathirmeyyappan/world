@@ -23,7 +23,7 @@ export interface PlayerState {
   scoped: boolean; // aiming down the sniper's scope (reported by the client, kept here so everyone sees it)
   firing: boolean; // a hold item is spraying this tick
   avatar: AvatarId; // how they look; cosmetic only
-  avatarLeft: number | null; // seconds until they revert to standard; null when not timed
+  avatarLocked: boolean; // the name chose the avatar; commands can't change it
   hearts: number; // MAX_HEARTS at spawn, down to 0 when shot enough
   kills: number; // players this one has finished off this life
   bot: boolean; // declared by the client at join; a headless player, shown as one, and never keeps a room open
