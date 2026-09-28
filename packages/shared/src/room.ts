@@ -20,6 +20,7 @@ import { parseCommand, type Command } from './commands';
 import { resolveFire } from './sim/combat';
 import { applyDamage, damageFor } from './sim/health';
 import { BOTS, type BotId, type BotRequest } from './sim/bots';
+import { defaultBotsFor } from './sim/defaultBots';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
@@ -145,7 +146,25 @@ export class Room {
     link.send({ t: 'welcome', id, room: this.id, tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
+    if (!state.bot && this.humanCount === 1) this.addDefaultBots();
     return id;
+  }
+
+  // The room's starting bots (see sim/defaultBots.ts), spawned once, when the first person
+  // arrives. Needs a host that can spawn and the room's public name, like callBot.
+  private defaultBotsAdded = false;
+  private addDefaultBots(): void {
+    if (this.defaultBotsAdded || !this.spawnBot || !this.publicName) return;
+    this.defaultBotsAdded = true;
+    const bots = defaultBotsFor(this.publicName);
+    if (bots.length === 0) return;
+    const names = bots.map((b) => BOTS[b.bot].playerName).join(', ');
+    this.broadcast({ t: 'system', text: `${names} on the way` });
+    for (const { bot, seconds } of bots) {
+      this.spawnBot({ bot, room: this.publicName, seconds, caller: 'room' }).catch((err: unknown) => {
+        this.log(`default bot ${bot} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
   }
 
   leave(id: string): void {

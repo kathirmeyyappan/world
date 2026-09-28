@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, MAX_PLAYERS, Room, WORLD_SHAPE, worldDistance, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
+import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, MAX_PLAYERS, Room, WORLD_SHAPE, worldDistance, defaultBotsFor, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -345,6 +345,25 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   assert.equal(room.playerCount, 0);
 });
 
+test('the first person in brings the room\'s default bots; nobody else does', async () => {
+  const spawned: BotRequest[] = [];
+  const room = new Room('sess-d', { seed: 4, spawnBot: async (req) => { spawned.push(req); } });
+  assert.equal(room.join('circle-bot', link(), { bot: true, room: 'global' }), null, 'a bot alone is refused, so it never triggers them');
+  const a = link();
+  room.join('alice', a, { room: 'global' });
+  await Promise.resolve();
+  const expected = defaultBotsFor('global').map(({ bot, seconds }) => ({ bot, room: 'global', seconds, caller: 'room' }));
+  assert.deepEqual(spawned, expected);
+  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'circle-bot, circle-bot on the way'));
+  room.join('bob', link(), { room: 'global' });
+  room.join('circle-bot', link(), { bot: true, room: 'global' });
+  await Promise.resolve();
+  assert.equal(spawned.length, expected.length, 'only the first person');
+
+  const quiet = new Room('sess-q', { seed: 4 });
+  assert.ok(quiet.join('carol', link(), { room: 'global' }), 'no spawner: joins fine, no bots');
+});
+
 test('/circle-bot asks the host to start a bot in this room; people only, default 300 s, full room', async () => {
   const spawned: BotRequest[] = [];
   let fail = false;
@@ -359,6 +378,8 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   const ida = room.join('alice', a, { room: 'late-night' })!;
   const b = link();
   const idb = room.join('circle-bot', b, { bot: true, room: 'late-night' })!;
+  await Promise.resolve();
+  spawned.length = 0; // alice's arrival spawned the room's default bots; this test is about calls
 
   room.receive(ida, { t: 'chat', text: '/circle-bot 60' });
   await Promise.resolve();

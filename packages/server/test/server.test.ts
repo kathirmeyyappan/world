@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import WebSocket from 'ws';
-import type { ServerMessage } from '@world/shared';
+import { defaultBotsFor, type ServerMessage } from '@world/shared';
 
 async function startServer(port: number, env: Record<string, string> = {}) {
   const proc = spawn(process.execPath, ['--import', 'tsx', new URL('../src/index.ts', import.meta.url).pathname], {
@@ -94,10 +94,12 @@ test('/circle-bot posts the room request to the bot sidecar', async () => {
     const a = connect(port, 'late-night', 'kathir');
     await a.next((m) => m.t === 'welcome');
     a.send({ t: 'chat', text: '/circle-bot 60' });
-    const said = await a.next((m) => m.t === 'system');
+    const said = await a.next((m) => m.t === 'system' && m.text.includes('called'));
     assert.equal(said.t === 'system' && said.text, 'kathir called circle-bot for 60s');
-    for (let i = 0; i < 50 && received.length === 0; i++) await new Promise((r) => setTimeout(r, 20));
-    assert.deepEqual(received, [{ url: '/bots', body: { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' } }]);
+    for (let i = 0; i < 50 && received.length < 3; i++) await new Promise((r) => setTimeout(r, 20));
+    // the first person in brings the room's default bots (sim/defaultBots.ts), then the call
+    const defaults = defaultBotsFor('late-night').map(({ bot, seconds }) => ({ url: '/bots', body: { bot, room: 'late-night', seconds, caller: 'room' } }));
+    assert.deepEqual(received, [...defaults, { url: '/bots', body: { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' } }]);
     a.ws.close();
   } finally {
     proc.kill();
