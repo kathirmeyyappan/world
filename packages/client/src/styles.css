@@ -341,6 +341,7 @@ html, body {
 #action-button.disabled { opacity: 0.5; font-size: 8px; }
 #scope-button { bottom: 178px; width: 84px; }
 #chat-button { top: 16px; }
+#commands-button { top: 70px; }
 
 @media (pointer: coarse) {
   #pad { display: block; }
@@ -357,4 +358,25 @@ html, body {
   #command-hint .count { font-size: 12px; }
   #hearts { top: 8px; grid-template-columns: repeat(5, 18px); gap: 2px 3px; }
   .heart { width: 18px; height: 16px; }
+}
+
+/* Commands menu: every chat command, grouped. */
+#commands { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); pointer-events: none; }
+#commands.hidden { display: none; }
+#commands .card { max-width: 720px; max-height: 88vh; overflow: auto; pointer-events: auto; }
+#commands .how { font-size: 20px; color: rgba(255,255,255,0.7); margin-bottom: 16px; }
+#commands .groups { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+#commands section h2 { font: 10px var(--pixel); color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; }
+#commands ul { list-style: none; }
+#commands li { display: flex; flex-direction: column; margin-bottom: 8px; }
+#commands .cmd { font: 20px var(--mono); color: #fff; }
+#commands .note { font: 15px var(--mono); color: rgba(255,255,255,0.6); }
+#commands .foot { font: 14px var(--mono); color: rgba(255,255,255,0.45); margin-top: 4px; }
+#commands .close { font-size: 16px; color: rgba(255,255,255,0.5); margin-top: 16px; text-align: right; }
+@media (pointer: coarse) {
+  #commands .card { padding: 14px; max-width: 92vw; }
+  #commands .groups { gap: 8px 16px; }
+  #commands .cmd { font-size: 16px; }
+  #commands .note, #commands .foot { font-size: 12px; }
+  #commands .how, #commands .close { font-size: 14px; margin-bottom: 8px; }
 }

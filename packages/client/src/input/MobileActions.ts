@@ -18,12 +18,14 @@ export interface MobileActionHandlers {
   onActionUp: () => void;
   onScope: () => void;
   onChat: () => void;
+  onCommands: () => void;
 }
 
 export class MobileActions {
   private readonly action = document.getElementById('action-button') as HTMLButtonElement | null;
   private readonly scope = document.getElementById('scope-button') as HTMLButtonElement | null;
   private readonly chat = document.getElementById('chat-button') as HTMLButtonElement | null;
+  private readonly commands = document.getElementById('commands-button') as HTMLButtonElement | null;
   private label = '';
 
   constructor(handlers: MobileActionHandlers) {
@@ -31,6 +33,7 @@ export class MobileActions {
     tap(this.action, handlers.onActionDown, handlers.onActionUp);
     tap(this.scope, handlers.onScope);
     tap(this.chat, handlers.onChat);
+    tap(this.commands, handlers.onCommands);
   }
 
   update(state: MobileActionState): void {

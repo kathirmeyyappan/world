@@ -1,5 +1,5 @@
-// Onboarding nudge: after IDLE_MS without holding an item or running a command, a banner
-// across the screen says what to type, then counts itself down (FIRST_SHOW_MS the first time,
+// Onboarding nudge: after IDLE_MS without holding an item, running a command or opening the
+// commands menu, a banner across the screen points at the menu, then counts itself down (FIRST_SHOW_MS the first time,
 // SHOW_MS after). Once the player has used anything, the tab remembers and never nags again,
 // across the reload a death causes. Pure DOM, driven once a frame by the Game.
 import { IS_TOUCH } from '../input/touch';
@@ -9,8 +9,9 @@ const FIRST_SHOW_MS = 8_000;
 const SHOW_MS = 5_000;
 const DONE_KEY = 'world.hint-done'; // sessionStorage: this tab has used an item
 
-const WHERE = IS_TOUCH ? 'in the chat (CHAT button, top right)' : 'in the chat on the bottom left';
-const TEXT = `Hint: Try entering /gun or /speedy ${WHERE}. Go back to home screen and click on the guide for more info.`;
+const TEXT = IS_TOUCH
+  ? 'Hint: tap CMDS (top right) for the list of commands: weapons, skins and more. Type them in the chat.'
+  : 'Hint: press C for the list of commands: weapons, skins and more. Enter opens the chat to type them.';
 
 export class CommandHint {
   private readonly el = document.getElementById('command-hint')!;

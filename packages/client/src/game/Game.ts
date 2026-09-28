@@ -20,6 +20,7 @@ import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
+import { CommandsMenu } from '../ui/CommandsMenu';
 import { DamageFlash } from '../ui/DamageFlash';
 import { Death } from '../ui/Death';
 import { Fuel } from '../ui/Fuel';
@@ -64,6 +65,7 @@ export class Game {
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();
   private readonly commandHint = new CommandHint();
+  private readonly commandsMenu = new CommandsMenu();
   private readonly damageFlash = new DamageFlash();
   private readonly hitNotice = new HitNotice();
   private readonly viewmodel: Viewmodel;
@@ -118,6 +120,7 @@ export class Game {
       onActionUp: () => (this.input.fireHeld = false),
       onScope: () => this.setScoped(!this.scoped),
       onChat: () => this.hud.openChat(),
+      onCommands: () => this.commandsMenu.toggle(),
     });
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => conn.send({ t: 'chat', text });
@@ -130,6 +133,7 @@ export class Game {
     window.addEventListener('keydown', (e) => {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
+      else if (e.code === 'KeyC') this.commandsMenu.toggle();
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
     // Shooting is not a click handler: the input layer samples the mouse button into the
@@ -359,7 +363,7 @@ export class Game {
     this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '', held ? itemStats(held.id) : '');
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
-    this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard', this.dead || this.hud.isChatOpen());
+    this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened, this.dead || this.hud.isChatOpen());
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
