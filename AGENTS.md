@@ -214,6 +214,9 @@ container's own Modal credentials; Node never holds a token. A new bot therefore
 - Run:
   `modal run modal-bots/app.py --bot <registry-key> --room <room> --seconds <n>`.
 - Registered bots share the default image, Secret, CPU, and timeout.
+- Bots run many to a container: `run_bot` is async, so up to `MAX_BOTS_PER_CONTAINER` bots share
+  one event loop, the autoscaler adds a container past `TARGET_BOTS_PER_CONTAINER`, and
+  `MAX_BOT_CONTAINERS` bounds the fleet. A bot must never block the loop (no sync sleeps or I/O).
 - A GPU bot or one requiring materially different dependencies/resources should use a separate
   worker rather than conditional resource logic in `run_bot`.
 - Add dependencies to both `modal-bots/pyproject.toml` and `bot_image` in

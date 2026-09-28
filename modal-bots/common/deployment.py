@@ -10,6 +10,13 @@ ROOT = Path(__file__).resolve().parent.parent
 BOT_TIMEOUT_SECONDS = 3600
 MAX_BOT_SECONDS = 3500
 
+# Bots are async and cheap (a WebSocket plus 30 Hz JSON), so one container runs many on its event
+# loop. The autoscaler adds a container past TARGET_BOTS_PER_CONTAINER; a container takes up to
+# MAX_BOTS_PER_CONTAINER; MAX_BOT_CONTAINERS bounds the whole fleet whatever chat asks for.
+TARGET_BOTS_PER_CONTAINER = 16
+MAX_BOTS_PER_CONTAINER = 64
+MAX_BOT_CONTAINERS = 10
+
 app = modal.App("kathir-world-bots")
 bot_config = modal.Secret.from_name("kathir-world-bots-config")
 
