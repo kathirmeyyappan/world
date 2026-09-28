@@ -39,7 +39,7 @@ const SPAWN_CUBE_MARGIN = 4;
 
 export interface ClientLink {
   send(msg: ServerMessage): void;
-  close?(): void; // the room is done with this client (e.g. a corpse that never rejoined)
+  close?(reason: string): void; // the room is done with this client; the reason reaches it as the close reason
 }
 
 interface Seat {
@@ -108,7 +108,7 @@ export class Room {
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    for (const seat of this.seats.values()) seat.link.close?.();
+    for (const seat of this.seats.values()) seat.link.close?.('room closed');
     this.seats.clear();
   }
 
@@ -195,7 +195,7 @@ export class Room {
     for (const [id, seat] of this.seats) {
       if (seat.diedTick !== null && this.tick - seat.diedTick >= CORPSE_TICKS) {
         this.leave(id);
-        seat.link.close?.();
+        seat.link.close?.('dead');
         continue;
       }
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
