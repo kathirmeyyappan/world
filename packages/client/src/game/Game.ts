@@ -43,6 +43,7 @@ const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can se
 const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;
+const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
 
 export class Game {
   private readonly engine: Engine;
@@ -131,12 +132,21 @@ export class Game {
       if (!open && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
     };
     window.addEventListener('keydown', (e) => {
+      if (this.commandsMenu.isOpen) {
+        // The menu is a little page: Q or C closes it (like the cube card), arrows and W/S scroll.
+        if (e.code === 'KeyQ' || e.code === 'KeyC') this.commandsMenu.set(false);
+        else if (e.code === 'ArrowDown' || e.code === 'KeyS') this.commandsMenu.scroll(MENU_SCROLL_PX);
+        else if (e.code === 'ArrowUp' || e.code === 'KeyW') this.commandsMenu.scroll(-MENU_SCROLL_PX);
+        return;
+      }
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
-      else if (e.code === 'KeyC') this.commandsMenu.toggle();
-      else if (e.code === 'KeyQ') this.commandsMenu.set(false); // Q closes menus, like the cube card
+      else if (e.code === 'KeyC') this.commandsMenu.set(true);
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
+    window.addEventListener('wheel', (e) => {
+      if (this.commandsMenu.isOpen) this.commandsMenu.scroll(e.deltaY);
+    }, { passive: true });
     // Shooting is not a click handler: the input layer samples the mouse button into the
     // frame's actions like any key. A click only opens the cube under the crosshair, and only
     // when the press started on it: a hold that began as a shot stays a shot.
@@ -230,7 +240,7 @@ export class Game {
   }
 
   private isBlocked(): boolean {
-    return this.dead || this.overlay.isVisible() || this.hud.isChatOpen();
+    return this.dead || this.overlay.isVisible() || this.hud.isChatOpen() || this.commandsMenu.isOpen;
   }
 
   private syncBlocked(): void {

@@ -1,6 +1,6 @@
 // The commands menu: every chat command, grouped, built from the item and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
-// or the touch button; purely informational.
+// or the touch button; purely informational. Blocks game input while open, like the cube card.
 import { AVATARS, AVATAR_IDS, ITEMS, ITEM_IDS, SPEEDY_SECONDS, itemHelp, itemStats } from '@world/shared';
 import { IS_TOUCH } from '../input/touch';
 
@@ -18,7 +18,7 @@ export class CommandsMenu {
   constructor() {
     const groups = buildGroups();
     const how = IS_TOUCH ? 'tap CHAT, type a command, send' : 'press Enter, type a command, Enter again';
-    const close = IS_TOUCH ? 'tap CMDS to close' : 'PRESS <kbd>Q</kbd> OR <kbd>C</kbd> TO CLOSE';
+    const close = IS_TOUCH ? 'swipe to scroll · tap CMDS to close' : 'SCROLL OR <kbd>↑</kbd><kbd>↓</kbd> · PRESS <kbd>Q</kbd> OR <kbd>C</kbd> TO CLOSE';
     this.el.innerHTML = `
       <div class="card">
         <h1>COMMANDS</h1>
@@ -30,6 +30,12 @@ export class CommandsMenu {
 
   get isOpen(): boolean {
     return this.open;
+  }
+
+  // The card is a little page: scroll it from keys or the wheel (the wheel goes to the locked
+  // canvas, not the card, so the Game forwards it); touch swipes scroll it natively.
+  scroll(dy: number): void {
+    this.el.querySelector('.card')?.scrollBy({ top: dy });
   }
 
   toggle(): void {

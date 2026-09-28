@@ -365,9 +365,9 @@ html, body {
 #commands.hidden { display: none; }
 #commands .card { max-width: 720px; max-height: 88vh; overflow: auto; pointer-events: auto; }
 #commands .how { font-size: 20px; color: rgba(255,255,255,0.7); margin-bottom: 16px; }
-#commands .groups { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+#commands .groups { display: flex; flex-direction: column; gap: 18px; }
 #commands section h2 { font: 10px var(--pixel); color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; }
-#commands ul { list-style: none; }
+#commands ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
 #commands li { display: flex; flex-direction: column; margin-bottom: 8px; }
 #commands .cmd { font: 20px var(--mono); color: #fff; }
 #commands .note { font: 15px var(--mono); color: rgba(255,255,255,0.6); }
@@ -376,7 +376,8 @@ html, body {
 #commands .close kbd { font: inherit; padding: 0 4px; border: 1px solid rgba(255,255,255,0.4); }
 @media (pointer: coarse) {
   #commands .card { padding: 14px; max-width: 92vw; }
-  #commands .groups { gap: 8px 16px; }
+  #commands .groups { gap: 10px; }
+  #commands ul { gap: 4px 16px; }
   #commands .cmd { font-size: 16px; }
   #commands .note, #commands .foot { font-size: 12px; }
   #commands .how, #commands .close { font-size: 14px; margin-bottom: 8px; }
