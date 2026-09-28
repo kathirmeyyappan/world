@@ -18,7 +18,7 @@ export class CommandsMenu {
   constructor() {
     const groups = buildGroups();
     const how = IS_TOUCH ? 'tap CHAT, type a command, send' : 'press Enter, type a command, Enter again';
-    const close = IS_TOUCH ? 'tap CMDS to close' : 'C to close';
+    const close = IS_TOUCH ? 'tap CMDS to close' : 'PRESS <kbd>Q</kbd> OR <kbd>C</kbd> TO CLOSE';
     this.el.innerHTML = `
       <div class="card">
         <h1>COMMANDS</h1>

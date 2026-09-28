@@ -372,7 +372,8 @@ html, body {
 #commands .cmd { font: 20px var(--mono); color: #fff; }
 #commands .note { font: 15px var(--mono); color: rgba(255,255,255,0.6); }
 #commands .foot { font: 14px var(--mono); color: rgba(255,255,255,0.45); margin-top: 4px; }
-#commands .close { font-size: 16px; color: rgba(255,255,255,0.5); margin-top: 16px; text-align: right; }
+#commands .close { font: 16px var(--mono); color: rgba(255,255,255,0.7); margin-top: 16px; text-align: right; letter-spacing: 1px; }
+#commands .close kbd { font: inherit; padding: 0 4px; border: 1px solid rgba(255,255,255,0.4); }
 @media (pointer: coarse) {
   #commands .card { padding: 14px; max-width: 92vw; }
   #commands .groups { gap: 8px 16px; }

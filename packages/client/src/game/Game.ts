@@ -134,6 +134,7 @@ export class Game {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
       else if (e.code === 'KeyC') this.commandsMenu.toggle();
+      else if (e.code === 'KeyQ') this.commandsMenu.set(false); // Q closes menus, like the cube card
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
     // Shooting is not a click handler: the input layer samples the mouse button into the
