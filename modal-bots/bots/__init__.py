@@ -3,6 +3,7 @@
 from collections.abc import Awaitable
 from typing import Any, Protocol
 
+from .circle_bot import run_circle_bot
 from .observer_bot import run_observer_bot
 
 class BotInvocation(Protocol):
@@ -17,6 +18,7 @@ class BotInvocation(Protocol):
     ) -> Awaitable[dict[str, Any]]: ...
 
 BOT_INVOCATIONS: dict[str, BotInvocation] = {
+    "circle": run_circle_bot,
     "observer": run_observer_bot,
 }
 

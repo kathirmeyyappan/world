@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import os
 import selectors
 import shutil
@@ -12,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
 from common import Snapshot, connect
 
@@ -119,3 +121,45 @@ def test_observer_reports_real_snapshots(room_server: str) -> None:
     assert report["event_counts"]["welcome"] == 1
     assert report["event_counts"]["snap"] == report["snapshots"]
     assert report["final_state"]["self_id"] == report["observer_id"]
+
+
+def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
+    async def scenario() -> tuple[dict[str, object], list[tuple[float, float]], str]:
+        target = await connect(
+            None,
+            "python-circle",
+            "target",
+            direct_url=room_server,
+        )
+        positions: list[tuple[float, float]] = []
+        circle = asyncio.create_task(
+            run_circle_bot(
+                "python-circle",
+                "circle",
+                seconds=0.6,
+                direct_ws_url=room_server,
+            )
+        )
+        try:
+            while not circle.done():
+                message = await asyncio.wait_for(target.receive(), timeout=2)
+                if isinstance(message, Snapshot):
+                    player = next(
+                        (player for player in message.players if player.name == "circle"),
+                        None,
+                    )
+                    if player:
+                        positions.append((player.pos.x, player.pos.z))
+            return await circle, positions, target.id
+        finally:
+            await target.close()
+
+    report, positions, target_id = asyncio.run(scenario())
+
+    assert report["completed"]
+    assert report["target"] == target_id
+    assert len(positions) >= 2
+    assert math.hypot(
+        positions[-1][0] - positions[0][0],
+        positions[-1][1] - positions[0][1],
+    ) > 0.5

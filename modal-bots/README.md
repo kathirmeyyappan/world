@@ -36,6 +36,18 @@ modal secret create kathir-world-bots-config \
 
 The deployed function is named `run_bot` in the `kathir-world-bots` app.
 
+## Circle bot
+
+The `circle` bot orbits the nearest live player at a 20 m radius. When alone, it orbits the world
+origin instead:
+
+```bash
+modal run modal-bots/app.py \
+  --bot circle \
+  --room global \
+  --seconds 30
+```
+
 ## Python API
 
 ```python

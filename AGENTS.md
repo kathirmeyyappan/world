@@ -138,7 +138,8 @@ finally:
 
 A dead player is closed by the server after roughly thirteen seconds. A respawning bot must stop
 input, close, wait for its policy's respawn delay, and reconnect. Reconnection creates a new player
-ID; there is no resume protocol.
+ID; there is no resume protocol. Use `circle_bot.py` as the concrete reference for an active bot
+with concurrent receive and input loops.
 
 ## State and policy constraints
 
