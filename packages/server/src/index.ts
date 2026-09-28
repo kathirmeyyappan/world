@@ -103,7 +103,7 @@ http.on('upgrade', (req, socket, head) => {
       room: url.searchParams.get('room') ?? undefined,
     });
     if (!id) {
-      ws.close(1008, 'room full');
+      ws.close(1008, 'join refused'); // the room already sent the reason
       return;
     }
     let alive = true;

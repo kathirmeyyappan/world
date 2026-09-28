@@ -50,11 +50,16 @@ async def session_alive(room_url: str, token: str) -> bool:
         return False
 
 
-async def get_or_start_session(room_id: str, room_url: str) -> dict:
-    """Get the room's session, starting a new one if there is none or the cached one is dead."""
+async def live_session(room_id: str, room_url: str) -> dict | None:
+    """The room's cached session, if it is still alive."""
     entry_info = await rooms.get.aio(room_id)
     if entry_info is not None and await session_alive(room_url, entry_info["token"]):
         return entry_info
+    return None
+
+
+async def start_session(room_id: str) -> dict:
+    """Start a fresh session for the room and cache it."""
     session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
     entry_info = {
         "session_id": session.session_id, 
@@ -83,16 +88,22 @@ def build_api(warm=warm_room):
     api = FastAPI()
 
     @api.get("/join/{room_id}")
-    async def join(request: Request, room_id: str, name: str = ""):
-        """Join a room, creating one if necessary"""
+    async def join(request: Request, room_id: str, name: str = "", bot: str = ""):
+        """Join a room, creating one if necessary. A bot (`bot=1`, what the bot framework sends)
+        only joins a room that is already running: bots don't keep rooms open, so one must never
+        start a room either."""
         print(f"Attempting to join room {room_id} with name {name}")
-        
+
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
-        
+
         room_url = (await room_server().get_url.aio()).rstrip("/")
-        entry_info = await get_or_start_session(room_id, room_url)
+        entry_info = await live_session(room_id, room_url)
+        if entry_info is None:
+            if bot == "1":
+                raise HTTPException(409, "no one here")
+            entry_info = await start_session(room_id)
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         # Where the player came from (the launcher), so the room page can send them back to it.
         home = urlparse(request.headers.get("referer", ""))

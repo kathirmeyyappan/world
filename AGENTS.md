@@ -152,6 +152,9 @@ with concurrent receive and input loops.
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.
 - Bots are visible players and count against the 32-player room limit. `connect` joins with `bot=1`:
   `Player.bot` is true, the roster shows a robot icon, and a room with only bots left closes.
+- A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
+  so a bot that spawns after everyone left never starts a room nothing would close. Local tests
+  seat a person first with `connect(..., bot=False)`.
 
 ## Logging
 
