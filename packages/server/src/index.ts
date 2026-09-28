@@ -94,7 +94,8 @@ http.on('upgrade', (req, socket, head) => {
   }
   wss.handleUpgrade(req, socket, head, (ws) => {
     const room = roomFor(roomKey(req, url));
-    const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws));
+    // ?bot=1 is the bot framework declaring itself; the browser client never sends it.
+    const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), { bot: url.searchParams.get('bot') === '1' });
     if (!id) {
       ws.close(1008, 'room full');
       return;

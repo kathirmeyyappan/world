@@ -7,10 +7,11 @@ import { FUEL_REFILL_RATE, ITEMS, createItem, permanentItemFor } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, clampToWorld, type WorldPart } from './world';
 
-export function createPlayer(id: string, name: string, color: string, spawn: Vec3): PlayerState {
+export function createPlayer(id: string, name: string, color: string, spawn: Vec3, bot = false): PlayerState {
   return {
     id,
     name,
+    bot,
     color,
     pos: { x: spawn.x, y: spawn.y, z: spawn.z },
     vy: 0,

@@ -57,3 +57,15 @@ export const SKULL = [
   '..#.#.#.',
   '..#.#.#.',
 ];
+
+// 8x8 robot head: antenna, visor eyes, a mouth grille.
+export const ROBOT = [
+  '...##...',
+  '...##...',
+  '.######.',
+  '#.#..#.#',
+  '#.#..#.#',
+  '#.####.#',
+  '.#.##.#.',
+  '.######.',
+];

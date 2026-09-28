@@ -1,6 +1,6 @@
 // Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events.
 import { MAX_CHAT_LENGTH, MAX_HEARTS } from '@world/shared';
-import { HEART, KNIFE, SKULL, pixelSvg } from './pixelIcons';
+import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
 
@@ -219,7 +219,9 @@ export class Hud {
       const dot = document.createElement('span');
       dot.className = 'dot';
       dot.style.background = p.color;
-      li.append(dot, document.createTextNode(p.name + (id === this.myId ? ' (you)' : '')));
+      li.append(dot);
+      if (p.bot) li.append(pixelSvg(ROBOT, 'robot'));
+      li.append(document.createTextNode(p.name + (id === this.myId ? ' (you)' : '')));
       const stats = document.createElement('span');
       stats.className = 'stats';
       // Dead: just the skull. Alive: hearts and kills.
@@ -238,6 +240,7 @@ interface RosterPlayer {
   id: string;
   name: string;
   color: string;
+  bot?: boolean;
   hearts?: number;
   kills?: number;
   dead?: boolean;
@@ -246,13 +249,14 @@ interface RosterPlayer {
 interface RosterEntry {
   name: string;
   color: string;
+  bot: boolean;
   hearts: number;
   kills: number;
   dead: boolean;
 }
 
 function entry(p: RosterPlayer): RosterEntry {
-  return { name: p.name, color: p.color, hearts: p.hearts ?? MAX_HEARTS, kills: p.kills ?? 0, dead: !!p.dead };
+  return { name: p.name, color: p.color, bot: !!p.bot, hearts: p.hearts ?? MAX_HEARTS, kills: p.kills ?? 0, dead: !!p.dead };
 }
 
 function text(s: string): Text {

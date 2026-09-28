@@ -51,6 +51,10 @@ interface Seat {
   queue: InputFrame[];
 }
 
+export interface JoinOptions {
+  bot?: boolean; // the client says it's a bot (the browser never does; the bot framework always does)
+}
+
 export interface RoomOptions {
   seed?: number;
   worldShape?: WorldPart[];
@@ -84,6 +88,13 @@ export class Room {
     return this.seats.size;
   }
 
+  // People, not bots. A room lives while it has one of these.
+  get humanCount(): number {
+    let n = 0;
+    for (const seat of this.seats.values()) if (!seat.state.bot) n++;
+    return n;
+  }
+
   get players(): PlayerState[] {
     return [...this.seats.values()].map((s) => s.state);
   }
@@ -93,23 +104,26 @@ export class Room {
     this.timer = setInterval(() => this.step(), 1000 / TICK_RATE);
   }
 
+  // Stops ticking and disconnects whoever is still seated (bots, when the last person left).
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    for (const seat of this.seats.values()) seat.link.close?.();
+    this.seats.clear();
   }
 
   // Seats a new player and sends them the world. Returns null when the room is full.
-  join(rawName: string, link: ClientLink): string | null {
+  join(rawName: string, link: ClientLink, opts: JoinOptions = {}): string | null {
     if (this.seats.size >= MAX_PLAYERS) {
       link.send({ t: 'error', message: 'room is full' });
       return null;
     }
     const id = `p${this.nextPlayerId++}`;
-    const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), this.spawnPoint());
+    const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), this.spawnPoint(), !!opts.bot);
     this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, shootHeld: false, diedTick: null });
     link.send({ t: 'welcome', id, room: this.id, tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
     this.broadcast({ t: 'join', p: state }, id);
-    this.log(`${state.name} (${id}) joined ${this.id}, ${this.seats.size} online`);
+    this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
     return id;
   }
 
@@ -119,7 +133,7 @@ export class Room {
     this.seats.delete(id);
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
-    if (this.seats.size === 0) this.onEmpty?.();
+    if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
   }
 
   receive(id: string, raw: unknown): void {
