@@ -133,8 +133,9 @@ finally:
 
 The observer is intentionally simpler because it never sends input. Use `circle_bot.py` as the
 reference for an active receive loop plus 30 Hz input task. Browser clients respawn by reloading
-after ten seconds; the server closes a dead client after roughly thirteen seconds. A bot that
-should respawn must detect `state.me.dead`, stop its input task, close, wait for the chosen respawn
+after ten seconds and the server drops their seat after roughly thirteen; a dead bot's seat is
+kept, so its corpse lies there until its run ends (stop the input task and keep receiving, as
+`circle_bot.py` does). A bot that should respawn instead must close, wait for the chosen respawn
 delay, and call `connect` again. Reconnection creates a fresh player ID; there is no resume
 protocol.
 

@@ -394,3 +394,25 @@ test('/circle-bot asks the host to start a bot in this room; capped, people only
   room3.receive(idd, { t: 'chat', text: '/circle-bot' });
   assert.deepEqual(d.inbox.at(-1), { t: 'system', text: "bots can't be called in this room" });
 });
+
+test("a bot's corpse stays until its run ends; a browser's is dropped after the death screen", () => {
+  const room = new Room('corpses', { seed: 5 });
+  const ida = room.join('SNIPERalice', link())!;
+  let botClosed = false;
+  const idb = room.join('circle-bot', { ...link(), close: () => { botClosed = true; } }, { bot: true })!;
+  let humanClosed = false;
+  const idc = room.join('bob', { ...link(), close: () => { humanClosed = true; } })!;
+  const [alice, bot, bob] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
+  bot.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
+  press(room, ida, 0, true);
+  assert.ok(bot.dead, 'sniper headshot');
+  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
+  for (let i = 0; i < ITEMS.sniper.cooldownTicks; i++) room.step();
+  press(room, ida, 0, true);
+  assert.ok(bob.dead);
+
+  for (let i = 0; i < 30 * 20; i++) room.step();
+  assert.ok(humanClosed, "bob's browser reloaded long ago; the seat is gone");
+  assert.ok(!botClosed, 'the bot still lies there');
+  assert.ok(room.players.some((p) => p.id === idb && p.dead));
+});

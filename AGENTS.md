@@ -136,8 +136,9 @@ finally:
         await connection.close(reason=f"{name} complete")
 ```
 
-A dead player is closed by the server after roughly thirteen seconds. A respawning bot must stop
-input, close, wait for its policy's respawn delay, and reconnect. Reconnection creates a new player
+A dead browser player is dropped by the server after roughly thirteen seconds; a dead bot's seat
+is kept until its run ends, so it lies there as a corpse. A respawning bot must instead close, wait
+for its policy's respawn delay, and reconnect. Reconnection creates a new player
 ID; there is no resume protocol. Use `circle_bot.py` as the concrete reference for an active bot
 with concurrent receive and input loops.
 
