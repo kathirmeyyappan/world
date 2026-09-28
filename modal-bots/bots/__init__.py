@@ -1,11 +1,20 @@
 """Modal bots to make kathir world peak."""
 
-from collections.abc import Awaitable, Callable
-from typing import Any
+from collections.abc import Awaitable
+from typing import Any, Protocol
 
 from .observer_bot import run_observer_bot
 
-BotInvocation = Callable[..., Awaitable[dict[str, Any]]]
+class BotInvocation(Protocol):
+    def __call__(
+        self,
+        room: str,
+        name: str,
+        seconds: float,
+        *,
+        lobby_url: str | None,
+        direct_ws_url: str | None = None,
+    ) -> Awaitable[dict[str, Any]]: ...
 
 BOT_INVOCATIONS: dict[str, BotInvocation] = {
     "observer": run_observer_bot,

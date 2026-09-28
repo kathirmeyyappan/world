@@ -48,10 +48,31 @@ async with client:
         state.apply(message)
 ```
 
-The four reusable files are deliberately small:
+Active bots use `Controls` and one 30 Hz sender:
+
+```python
+from common import Controls, run_input_loop
+
+controls = Controls(client)
+stop = asyncio.Event()
+inputs = asyncio.create_task(run_input_loop(controls, stop))
+
+controls.move(forward=1)
+controls.look_at(state.me.pos, target.pos)
+controls.jump()
+controls.fire_once()
+await controls.chat("hello")
+await controls.command("sniper")
+```
+
+There is no generic network click. Use `read_cube` for the browser's cube-reading state and
+`fire_once` or `shoot` for attack clicks.
+
+The reusable files are deliberately small:
 
 ```text
 common/connection.py  lobby admission and authenticated WebSocket
+common/controls.py    movement, look, interaction, and 30 Hz input loop
 common/deployment.py  shared Modal app and default image
 common/logging.py     structured kill, death, and custom Modal logs
 common/protocol.py    typed world messages
@@ -74,6 +95,16 @@ log_kill("hunter", "alice", item="sniper")
 log_death("hunter", "bob")
 log_message("hunter", "target acquired", distance=12.5)
 ```
+
+## Adding a bot
+
+1. Add `bots/<name>_bot.py` with `run_<name>_bot(...)` matching `BotInvocation`.
+2. Use only the shared connection, state, controls, and logging APIs.
+3. Import it and add `<name>: run_<name>_bot` to `BOT_INVOCATIONS` in `bots/__init__.py`.
+4. Add unit tests and a real local Node-server test using `direct_ws_url`.
+
+The complete contract, lifecycle template, interaction semantics, and verification checklist are
+in the repository's `CLAUDE.md` and `AGENTS.md`.
 
 ## Tests
 
