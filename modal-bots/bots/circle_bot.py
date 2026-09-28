@@ -22,8 +22,8 @@ from common import (
 )
 from common.deployment import validate_duration
 
-ORBIT_RADIUS = 6
-RADIAL_CORRECTION_DISTANCE = 3
+ORBIT_RADIUS = 12
+RADIAL_CORRECTION_DISTANCE = 6
 
 
 async def run_circle_bot(
@@ -62,8 +62,8 @@ async def run_circle_bot(
                     break
                 if state.me.dead:
                     # The fatal hit arrives first; the kill event that names the killer and
-                    # weapon is the next message. Then lie there until the run ends: the
-                    # server keeps a bot's corpse, and input from the dead does nothing.
+                    # weapon is the next message. Then wait for the server to remove the
+                    # corpse and close the connection; input from the dead does nothing.
                     if isinstance(message, Event) and message.t == "kill":
                         log_death(
                             name,
