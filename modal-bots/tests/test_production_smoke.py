@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from bots.observer_bot import observe_room
+from bots.observer_bot import run_observer_bot
 
 
 def test_production_modal_join_flow() -> None:
@@ -18,7 +18,7 @@ def test_production_modal_join_flow() -> None:
         pytest.fail("WORLD_LOBBY_URL is required for the production smoke test")
 
     report = asyncio.run(
-        observe_room(
+        run_observer_bot(
             room=os.environ.get("WORLD_SMOKE_ROOM", "bot-smoke"),
             name="observer-smoke",
             seconds=0.5,

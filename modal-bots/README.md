@@ -21,20 +21,20 @@ responses are handled by the client library.
 Run it directly on Modal:
 
 ```bash
-modal run modal-bots/app.py::spawn_bot \
+modal run modal-bots/app.py::run_bot \
   --bot observer \
   --room global \
-  --seconds 30 \
-  --lobby-url https://your-lobby.modal.run
+  --seconds 30
 ```
 
-To make the lobby URL the deployment default:
+Configure the lobby URL once for the app:
 
 ```bash
-WORLD_LOBBY_URL=https://your-lobby.modal.run modal deploy modal-bots/app.py
+modal secret create kathir-world-bots-config \
+  WORLD_LOBBY_URL=https://your-lobby.modal.run
 ```
 
-The deployed function is named `spawn_bot` in the `kathir-world-bots` app.
+The deployed function is named `run_bot` in the `kathir-world-bots` app.
 
 ## Python API
 
@@ -57,7 +57,7 @@ common/protocol.py    typed world messages
 common/state.py       current authoritative world state
 bots/__init__.py      bot name registry
 bots/observer_bot.py  observer behavior
-app.py                generic `spawn_bot` Modal function
+app.py                generic `run_bot` Modal function
 ```
 
 `connect` obtains a lobby ticket and authenticates the WebSocket with

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from bots.observer_bot import observe_room
+from bots.observer_bot import run_observer_bot
 from common import Snapshot, connect
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -102,7 +102,7 @@ def test_connects_and_decodes_real_room_server(room_server: str) -> None:
 
 def test_observer_reports_real_snapshots(room_server: str) -> None:
     report = asyncio.run(
-        observe_room(
+        run_observer_bot(
             "python-observer",
             "observer",
             seconds=0.25,

@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import modal  # type: ignore[import-not-found]
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_LOBBY_URL = os.environ.get("WORLD_LOBBY_URL", "")
 BOT_TIMEOUT_SECONDS = 3600
 MAX_BOT_SECONDS = 3500
 
 app = modal.App("kathir-world-bots")
+bot_config = modal.Secret.from_name("kathir-world-bots-config")
 
 bot_image = (
     modal.Image.debian_slim(python_version="3.12")

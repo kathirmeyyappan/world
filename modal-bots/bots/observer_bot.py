@@ -18,7 +18,17 @@ async def run_observer_bot(
     lobby_url: str | None = None,
     direct_ws_url: str | None = None,
 ) -> dict[str, Any]:
-    """Join visibly as a normal player and observe without gameplay input."""
+    """Join visibly as a normal player and observe without gameplay input.
+
+    Args:
+        room: The room to observe.
+        name: The name of the observer.
+        seconds: The duration to observe the room for.
+        lobby_url: The URL of the lobby to use.
+        direct_ws_url: The URL of the direct WebSocket to use.
+
+    Report observed room state.
+    """
 
     validate_duration(seconds)
 
