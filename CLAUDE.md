@@ -145,6 +145,8 @@ protocol.
 - Look is client-authoritative; movement, jumping, shooting, damage, and death are
   server-authoritative.
 - `Player.pos` is eye position. Yaw `0` faces `+z`; positive pitch looks down.
+- `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
+  server drops the seat.
 - Snapshots reveal players globally and current combat has no wall or cube occlusion. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.
