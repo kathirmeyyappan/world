@@ -199,10 +199,11 @@ Never use `global` for automated testing.
 the caller's room; seconds default to 300 and cap at 3500. The registry for that is
 `packages/shared/src/sim/bots.ts` (id, player name, blurb), which also fills the commands menu.
 The Room validates (people only, at most `MAX_BOTS_PER_ROOM` seated or pending, host must have a
-spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it with the
-Modal JS SDK by spawning `kathir-world-bots/run_bot` with `{bot, room, seconds}`. The Room host
-needs the `kathir-world-room-config` Secret (`MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`). A new bot
-therefore needs a row in `bots.ts` as well as its Python module.
+spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it as one POST
+to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room container's Python
+process runs. The sidecar spawns `kathir-world-bots/run_bot` with `{bot, room, seconds}` using the
+container's own Modal credentials; Node never holds a token. A new bot therefore needs a row in
+`bots.ts` as well as its Python module.
 
 ## Modal configuration
 

@@ -5,13 +5,13 @@ session and stamps `x-modal-server-session-id` on it; the Node server keys rooms
 Node process serves the client bundle so page and WebSocket share an origin.
 """
 
-import os
 import subprocess
 
 import modal
 
+from .bot_sidecar import start_bot_sidecar
 from .common import app, room_image
-from .config import APP_NAME, ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
+from .config import APP_NAME, BOT_SIDECAR_PORT, ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
 
 
 def lobby_url() -> str:
@@ -34,16 +34,9 @@ def lobby_url() -> str:
         return ""
 
 
-# A Modal token the Node room server uses to start bots (the JS SDK reads MODAL_TOKEN_ID and
-# MODAL_TOKEN_SECRET). Create it once:
-#   modal secret create kathir-world-room-config MODAL_TOKEN_ID=... MODAL_TOKEN_SECRET=...
-room_config = modal.Secret.from_name("kathir-world-room-config")
-
-
 @app.server(
     image=room_image,
     port=ROOM_PORT,
-    secrets=[room_config],
     target_concurrency=TARGET_SESSIONS_PER_CONTAINER,
     max_concurrency=MAX_SESSIONS_PER_CONTAINER,
     min_containers=1, # keep startup kinda warm
@@ -55,6 +48,9 @@ room_config = modal.Secret.from_name("kathir-world-room-config")
 class Room:
     @modal.enter()
     def start(self):
+        # Bots called from chat: Node posts to this sidecar, which spawns them with this
+        # container's own Modal credentials.
+        self.sidecar = start_bot_sidecar(BOT_SIDECAR_PORT)
         self.proc = subprocess.Popen(
             ["node", "packages/server/dist/server.cjs"],
             cwd="/app",
@@ -63,11 +59,12 @@ class Room:
                 "PATH": "/usr/local/bin:/usr/bin:/bin",
                 "STATIC_DIR": "/app/packages/client/dist",
                 "LOBBY_URL": lobby_url(),
-                **{k: os.environ[k] for k in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET") if k in os.environ},
+                "BOT_SPAWNER_URL": f"http://127.0.0.1:{BOT_SIDECAR_PORT}/bots",
             },
         )
 
     @modal.exit()
     def stop(self):
+        self.sidecar.shutdown()
         self.proc.terminate()
         self.proc.wait(timeout=10)
