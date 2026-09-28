@@ -21,7 +21,7 @@ from common.deployment import validate_duration
 
 async def run_observer_bot(
     room: str,
-    name: str = "observer",
+    name: str = "observer-bot",
     seconds: float = 30,
     *,
     lobby_url: str | None = None,

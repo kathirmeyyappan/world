@@ -26,6 +26,7 @@ export interface PlayerState {
   avatarLeft: number | null; // seconds until they revert to standard; null when not timed
   hearts: number; // MAX_HEARTS at spawn, down to 0 when shot enough
   kills: number; // players this one has finished off this life
+  bot: boolean; // declared by the client at join; a headless player, shown as one, and never keeps a room open
   dead: boolean; // stays dead until they leave; a rejoin is a new player
 }
 

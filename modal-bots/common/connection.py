@@ -240,12 +240,13 @@ async def _welcome(
 
 
 def _websocket_url(base: str, room: str, name: str) -> str:
+    """The room WebSocket URL. ``bot=1`` declares this player a bot to the server and everyone
+    in the room; the browser client never sends it."""
     parts = urlsplit(base)
     if parts.scheme not in {"ws", "wss"} or not parts.netloc:
         raise RoomConnectionError("room WebSocket URL must be absolute ws:// or wss://")
-    return urlunsplit(
-        (parts.scheme, parts.netloc, "/ws", urlencode({"room": room, "name": name}), "")
-    )
+    query = urlencode({"room": room, "name": name, "bot": "1"})
+    return urlunsplit((parts.scheme, parts.netloc, "/ws", query, ""))
 
 
 def _http_url(value: str, label: str) -> str:

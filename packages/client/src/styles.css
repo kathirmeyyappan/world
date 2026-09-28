@@ -228,6 +228,8 @@ html, body {
 #player-list .stats .knife rect.guard { fill: #8a9099; }
 #player-list .stats .knife rect.hilt { fill: #6b4a2e; }
 #player-list .stats .skull rect { fill: #e8e8ee; }
+#player-list .robot { width: 12px; height: 12px; shape-rendering: crispEdges; flex: none; }
+#player-list .robot rect { fill: var(--accent); }
 
 #death {
   position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;

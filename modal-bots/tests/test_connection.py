@@ -51,7 +51,7 @@ def test_lobby_ticket_is_small_and_redacted() -> None:
 
     ticket = asyncio.run(scenario())
     assert ticket.url == (
-        "wss://room.example.test:8443/ws?room=test-room&name=observer+name"
+        "wss://room.example.test:8443/ws?room=test-room&name=observer+name&bot=1"
     )
     assert ticket.token == "secret"
     assert "secret" not in repr(ticket)

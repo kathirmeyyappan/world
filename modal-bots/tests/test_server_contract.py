@@ -89,6 +89,8 @@ def test_connects_and_decodes_real_room_server(room_server: str) -> None:
             assert connection.transport == "direct"
             assert connection.welcome.room == "python-contract"
             assert connection.welcome.id.startswith("p")
+            me = next(p for p in connection.welcome.players if p.id == connection.id)
+            assert me.bot, "the server flags us as a bot from the join URL"
 
             while True:
                 message = await asyncio.wait_for(connection.receive(), timeout=2)
@@ -135,7 +137,6 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
         circle = asyncio.create_task(
             run_circle_bot(
                 "python-circle",
-                "circle",
                 seconds=0.6,
                 direct_ws_url=room_server,
             )
@@ -145,7 +146,7 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
                 message = await asyncio.wait_for(target.receive(), timeout=2)
                 if isinstance(message, Snapshot):
                     player = next(
-                        (player for player in message.players if player.name == "circle"),
+                        (player for player in message.players if player.name == "circle-bot"),
                         None,
                     )
                     if player:

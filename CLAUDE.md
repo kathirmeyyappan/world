@@ -52,7 +52,7 @@ BOT_INVOCATIONS = {
 }
 ```
 
-The registry key is the `--bot` CLI value and the in-game player name. Do not use dynamic module
+The registry key is the `--bot` CLI value; the in-game player name is `<key>-bot`. Do not use dynamic module
 discovery: an explicit registry is easier to audit and gives invalid names a deterministic error.
 No change to `app.py` should be needed for an ordinary bot.
 
@@ -150,7 +150,9 @@ protocol.
 - Snapshots reveal players globally and current combat has no wall or cube occlusion. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.
-- Room capacity is 32 players. A bot is a visible player and occupies a seat.
+- Room capacity is 32 players. A bot is a visible player and occupies a seat. `connect` joins with
+  `bot=1`, so `Player.bot` is true for every bot, the roster shows a robot icon, and a room with only
+  bots left closes like an empty one (the server disconnects them).
 
 ### Logging
 

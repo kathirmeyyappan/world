@@ -324,3 +324,24 @@ test('a tap weapon fires once per press however long the key is held', () => {
   hold(room, ida, 60);
   assert.equal(bob.hearts, MAX_HEARTS - 5, 'one headshot, not six');
 });
+
+test('bots are flagged at join, never keep a room open, and are dropped when it closes', () => {
+  let empties = 0;
+  let botClosed = false;
+  const room = new Room('bots', { seed: 4, onEmpty: () => empties++ });
+  let botCloseReason = '';
+  const bot = { ...link(), close: (reason: string) => { botClosed = true; botCloseReason = reason; } };
+  const idb = room.join('circle-bot', bot, { bot: true })!;
+  const ida = room.join('alice', link())!;
+  assert.equal(room.players.find((p) => p.id === idb)!.bot, true);
+  assert.equal(room.players.find((p) => p.id === ida)!.bot, false);
+  assert.equal(room.humanCount, 1);
+  assert.equal(room.playerCount, 2);
+
+  room.leave(ida);
+  assert.equal(empties, 1, 'the last person leaving empties the room even with a bot seated');
+  room.stop();
+  assert.ok(botClosed, 'closing the room disconnects the bot');
+  assert.equal(botCloseReason, 'room closed', 'and says why, unlike a corpse (dead)');
+  assert.equal(room.playerCount, 0);
+});

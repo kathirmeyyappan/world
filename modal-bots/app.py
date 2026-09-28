@@ -18,10 +18,10 @@ async def run_bot(
     room: str,
     seconds: float = 30,
 ) -> dict[str, Any]:
-    """Run a named bot in a given room for a given duration."""
+    """Run a named bot in a given room for a given duration. It plays as ``<bot>-bot``."""
     return await get_bot_invocation(bot)(
         room=room,
-        name=bot,
+        name=f"{bot}-bot",
         seconds=seconds,
         lobby_url=os.environ["WORLD_LOBBY_URL"],
     )

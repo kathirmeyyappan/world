@@ -28,7 +28,7 @@ RADIAL_CORRECTION_DISTANCE = 3
 
 async def run_circle_bot(
     room: str,
-    name: str = "circle",
+    name: str = "circle-bot",
     seconds: float = 30,
     *,
     lobby_url: str | None = None,

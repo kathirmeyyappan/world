@@ -51,7 +51,7 @@ BOT_INVOCATIONS = {
 }
 ```
 
-The key is both the `--bot` value and in-game player name. Do not implement dynamic discovery.
+The key is the `--bot` value; the in-game player name is `<key>-bot`. Do not implement dynamic discovery.
 An ordinary bot requires no change to `app.py`.
 
 ## Mandatory shared APIs
@@ -149,7 +149,8 @@ with concurrent receive and input loops.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.
 - Snapshots reveal all players and combat currently has no wall/cube occlusion. Human-like
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.
-- Bots are visible players and count against the 32-player room limit.
+- Bots are visible players and count against the 32-player room limit. `connect` joins with `bot=1`:
+  `Player.bot` is true, the roster shows a robot icon, and a room with only bots left closes.
 
 ## Logging
 
