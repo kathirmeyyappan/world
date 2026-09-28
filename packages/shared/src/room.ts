@@ -16,7 +16,7 @@ import {
   TICK_DT,
   TICK_RATE,
 } from './sim/constants';
-import { parseCommand } from './commands';
+import { parseCommand, type Command } from './commands';
 import { resolveFire } from './sim/combat';
 import { applyDamage, damageFor } from './sim/health';
 import { AVATARS } from './sim/avatars';
@@ -225,7 +225,7 @@ export class Room {
     return best;
   }
 
-  private runCommand(seat: Seat, command: NonNullable<ReturnType<typeof parseCommand>>): void {
+  private runCommand(seat: Seat, command: Command): void {
     switch (command.name) {
       case 'speedy':
         seat.state.boost = SPEEDY_SECONDS;

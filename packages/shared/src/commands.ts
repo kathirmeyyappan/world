@@ -4,14 +4,27 @@
 import { isAvatarId, type AvatarId } from './sim/avatars';
 import { isItemId, type ItemId } from './sim/items';
 
-export type Command = { name: 'speedy' } | { name: 'equip'; item: ItemId } | { name: 'avatar'; avatar: AvatarId };
+export type Command =
+  | { name: 'speedy' }
+  | { name: 'equip'; item: ItemId }
+  | { name: 'avatar'; avatar: AvatarId }
+  | { name: 'unknown'; raw: string };
 
-export function parseCommand(text: string): Command | { name: 'unknown'; raw: string } | null {
+const ITEM_SHORTCUTS: Partial<Record<string, ItemId>> = {
+  g: 'gun',
+  ft: 'flamethrower',
+  s: 'sniper',
+};
+
+export function parseCommand(text: string): Command | null {
   if (!text.startsWith('/')) return null;
-  const [word] = text.slice(1).trim().split(/\s+/);
-  const lower = word.toLowerCase();
-  if (lower === 'speedy') return { name: 'speedy' };
-  if (isItemId(lower)) return { name: 'equip', item: lower }; // /gun, /sniper, ...
-  if (isAvatarId(lower)) return { name: 'avatar', avatar: lower }; // /elizabeth, /standard
-  return { name: 'unknown', raw: word };
+
+  const [raw] = text.slice(1).trim().split(/\s+/);
+  const name = raw.toLowerCase();
+  const normalized = ITEM_SHORTCUTS[name] ?? name;
+
+  if (normalized === 'speedy') return { name: 'speedy' };
+  if (isItemId(normalized)) return { name: 'equip', item: normalized };
+  if (isAvatarId(normalized)) return { name: 'avatar', avatar: normalized };
+  return { name: 'unknown', raw };
 }
