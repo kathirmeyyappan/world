@@ -309,6 +309,7 @@ export class Game {
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) {
           this.dead = true;
+          this.commandHint.markUsed(); // they've been in a fight; no onboarding after the reload
           this.setScoped(false);
           this.syncBlocked();
           this.death.show(this.hud.playerName(m.shooter));
