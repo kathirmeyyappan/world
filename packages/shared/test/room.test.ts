@@ -325,7 +325,8 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   let empties = 0;
   let botClosed = false;
   const room = new Room('bots', { seed: 4, onEmpty: () => empties++ });
-  const bot = { ...link(), close: () => { botClosed = true; } };
+  let botCloseReason = '';
+  const bot = { ...link(), close: (reason: string) => { botClosed = true; botCloseReason = reason; } };
   const idb = room.join('circle-bot', bot, { bot: true })!;
   const ida = room.join('alice', link())!;
   assert.equal(room.players.find((p) => p.id === idb)!.bot, true);
@@ -337,5 +338,6 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   assert.equal(empties, 1, 'the last person leaving empties the room even with a bot seated');
   room.stop();
   assert.ok(botClosed, 'closing the room disconnects the bot');
+  assert.equal(botCloseReason, 'room closed', 'and says why, unlike a corpse (dead)');
   assert.equal(room.playerCount, 0);
 });
