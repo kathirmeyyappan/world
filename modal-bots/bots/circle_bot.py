@@ -62,7 +62,8 @@ async def run_circle_bot(
                     break
                 if state.me.dead:
                     # The fatal hit arrives first; the kill event that names the killer and
-                    # weapon is the next message.
+                    # weapon is the next message. Then lie there until the run ends: the
+                    # server keeps a bot's corpse, and input from the dead does nothing.
                     if isinstance(message, Event) and message.t == "kill":
                         log_death(
                             name,
@@ -70,7 +71,7 @@ async def run_circle_bot(
                             item=message.data["item"],
                             headshot=message.data["headshot"],
                         )
-                        break
+                        stop.set()
                     continue
 
                 target = _steer(state, controls)
