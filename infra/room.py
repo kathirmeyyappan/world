@@ -11,15 +11,7 @@ import modal
 
 from .bot_sidecar import start_bot_sidecar
 from .common import app, room_image
-from .config import (
-    APP_NAME,
-    BOT_SIDECAR_PORT,
-    MAX_SESSIONS_PER_CONTAINER,
-    ROOM_PORT,
-    ROOM_SCALEDOWN_WINDOW,
-    SESSION_QUEUE_TIMEOUT,
-    TARGET_SESSIONS_PER_CONTAINER,
-)
+from .config import APP_NAME, BOT_SIDECAR_PORT, ROOM_PORT, MAX_SESSIONS_PER_CONTAINER, TARGET_SESSIONS_PER_CONTAINER
 
 
 def lobby_url() -> str:
@@ -47,12 +39,10 @@ def lobby_url() -> str:
     port=ROOM_PORT,
     target_concurrency=TARGET_SESSIONS_PER_CONTAINER,
     max_concurrency=MAX_SESSIONS_PER_CONTAINER,
-    min_containers=0,  # the lobby warms one up when the launcher loads (see lobby.py)
-    max_containers=10,  # guard against runaway scaling
-    scaledown_window=ROOM_SCALEDOWN_WINDOW,
+    min_containers=1, # keep startup kinda warm
+    max_containers=10, # guard against runaway scaling
     startup_timeout=120,
     exit_grace_period=30,
-    experimental_options={"queue_timeout": SESSION_QUEUE_TIMEOUT},  # session starts wait for a cold boot
 )
 @modal.sessioned()
 class Room:

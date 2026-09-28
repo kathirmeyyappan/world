@@ -14,7 +14,7 @@ text{fill:#e6e8ef;font-size:13px}
 .lbl{font-size:12px}.lbl2{font-size:11px;fill:#9aa3b5}.nav{fill:#6ea8fe}.ctl{fill:#f6c453}.ws{fill:#5ee6a8}
 .step{font-weight:700;fill:#0f1117;font-size:11px}
 </style></head><body>
-<svg width="1560" height="922" viewBox="0 0 1560 922" xmlns="http://www.w3.org/2000/svg">
+<svg width="1560" height="900" viewBox="0 0 1560 900" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e6e8ef"/></marker>
 <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#6ea8fe"/></marker>
@@ -31,7 +31,7 @@ text{fill:#e6e8ef;font-size:13px}
 <rect x="340" y="90" width="200" height="60" class="box browser"/><text x="440" y="114" text-anchor="middle" class="lane">GitHub Pages</text><text x="440" y="134" text-anchor="middle" class="sub">world.kathirm.com · static launcher</text>
 <rect x="640" y="90" width="220" height="60" class="box modal"/><text x="750" y="114" text-anchor="middle" class="lane">lobby</text><text x="750" y="134" text-anchor="middle" class="tag">@app.function + asgi_app</text>
 <rect x="960" y="90" width="200" height="60" class="box proxy"/><text x="1060" y="114" text-anchor="middle" class="lane">FPRS</text><text x="1060" y="134" text-anchor="middle" class="sub">Modal's proxy</text>
-<rect x="1260" y="90" width="260" height="60" class="box modal"/><text x="1390" y="114" text-anchor="middle" class="lane">Room container</text><text x="1390" y="134" text-anchor="middle" class="sub">@modal.sessioned() · scale to zero · Node</text>
+<rect x="1260" y="90" width="260" height="60" class="box modal"/><text x="1390" y="114" text-anchor="middle" class="lane">Room container</text><text x="1390" y="134" text-anchor="middle" class="sub">@modal.sessioned() · min_containers=1 · Node</text>
 <line x1="140" y1="150" x2="140" y2="740" class="lifeline"/><line x1="440" y1="150" x2="440" y2="740" class="lifeline"/><line x1="750" y1="150" x2="750" y2="740" class="lifeline"/><line x1="1060" y1="150" x2="1060" y2="740" class="lifeline"/><line x1="1390" y1="150" x2="1390" y2="740" class="lifeline"/>
 </g>
 
@@ -39,8 +39,7 @@ text{fill:#e6e8ef;font-size:13px}
 <circle cx="160" cy="190" r="9" fill="#6ea8fe"/><text x="160" y="194" text-anchor="middle" class="step">1</text>
 <line x1="175" y1="190" x2="435" y2="190" class="a"/><text x="305" y="182" text-anchor="middle" class="code">GET world.kathirm.com</text>
 <line x1="435" y1="220" x2="147" y2="220" class="a"/><text x="290" y="238" text-anchor="middle" class="lbl2">home screen · LOBBY_URL baked in by the Pages build</text>
-<line x1="175" y1="262" x2="945" y2="262" class="a" stroke-dasharray="4 4"/><text x="560" y="254" text-anchor="middle" class="code">fetch lobby/healthz (fire and forget): wakes the lobby, which starts a 5 s session so a Room container boots too</text>
-<text x="40" y="284" class="lbl2">address bar: world.kathirm.com</text>
+<text x="40" y="262" class="lbl2">address bar: world.kathirm.com</text>
 
 <!-- 2 -->
 <circle cx="160" cy="300" r="9" fill="#6ea8fe"/><text x="160" y="304" text-anchor="middle" class="step">2</text>
@@ -78,11 +77,10 @@ text{fill:#e6e8ef;font-size:13px}
 <text x="700" y="712" text-anchor="middle" class="lbl2">from here: input frames (movement, look, item actions) and chat up; snapshots and events down (protocol.ts)</text>
 
 <!-- footer -->
-<rect x="40" y="760" width="1480" height="142" class="panel"/>
+<rect x="40" y="760" width="1480" height="120" class="panel"/>
 <text x="56" y="784" class="h">Notes</text>
 <text x="56" y="808" class="lbl">• The browser never holds a token in JavaScript: the lobby redirects with it once, the proxy turns it into an HttpOnly cookie. A pasted Room host URL lands on the home screen and joins via the lobby again; invites are lobby/join/&lt;room&gt;.</text>
-<text x="56" y="830" class="lbl">• Cached sessions die on redeploy, 60 s idle or the 25 h token lifetime; the lobby checks before redirecting. Node closes a room 30 s after its last person leaves (bots don't count). </text>
-<text x="56" y="852" class="lbl">• No Room is kept warm: the launcher's /healthz ping makes the lobby start a 5 s throwaway session, which boots a container that then waits 5 min for the join. A cold session start queues (queue_timeout) instead of failing.</text>
-<text x="56" y="874" class="lbl">• Deploys: push to main → Pages (launcher); modal deploy -m infra.app → lobby + Room; modal deploy modal-bots/app.py → bots. Client changes need the first two, since the Room image bundles its own client. Bots: see bot-flow.png.</text>
-<text x="56" y="896" class="lbl2">Why not the token in the WebSocket URL: FPRS answers with the same 307 and WebSocket clients cannot follow redirects. Why not play on kathirm.com: the cookie is __Host- and SameSite=Lax, so only the Room host can carry it.</text>
+<text x="56" y="830" class="lbl">• Cached sessions die on redeploy, 5 min idle or the 25 h token lifetime; the lobby checks before redirecting. Node closes a room 30 s after its last person leaves (bots don't count). min_containers=1: session start does not scale the Room up from zero.</text>
+<text x="56" y="852" class="lbl">• Deploys: push to main → Pages (launcher); modal deploy -m infra.app → lobby + Room; modal deploy modal-bots/app.py → bots. Client changes need the first two, since the Room image bundles its own client. Bots: see bot-flow.png.</text>
+<text x="56" y="874" class="lbl2">Why not the token in the WebSocket URL: FPRS answers with the same 307 and WebSocket clients cannot follow redirects. Why not play on kathirm.com: the cookie is __Host- and SameSite=Lax, so only the Room host can carry it.</text>
 </svg></body></html>
