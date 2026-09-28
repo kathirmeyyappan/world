@@ -53,6 +53,7 @@ The four reusable files are deliberately small:
 ```text
 common/connection.py  lobby admission and authenticated WebSocket
 common/deployment.py  shared Modal app and default image
+common/logging.py     structured kill, death, and custom Modal logs
 common/protocol.py    typed world messages
 common/state.py       current authoritative world state
 bots/__init__.py      bot name registry
@@ -63,6 +64,16 @@ app.py                generic `run_bot` Modal function
 `connect` obtains a lobby ticket and authenticates the WebSocket with
 `Modal-Authorization`. A 401/403 causes one fresh lobby admission attempt.
 Session tokens and raw WebSockets stay inside `common/connection.py`.
+
+Bot events are structured JSON in Modal's normal function logs:
+
+```python
+from common import log_death, log_kill, log_message
+
+log_kill("hunter", "alice", item="sniper")
+log_death("hunter", "bob")
+log_message("hunter", "target acquired", distance=12.5)
+```
 
 ## Tests
 

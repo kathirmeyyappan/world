@@ -6,7 +6,16 @@ import asyncio
 import time
 from typing import Any
 
-from common import RoomConnectionError, Snapshot, WorldState, connect
+from common import (
+    Event,
+    RoomConnectionError,
+    Snapshot,
+    WorldState,
+    connect,
+    log_death,
+    log_kill,
+    log_message,
+)
 from common.deployment import validate_duration
 
 
@@ -48,9 +57,12 @@ async def run_observer_bot(
     close_reason = ""
     observed_until = connected_at
 
-    print(
-        f"observer {connection.id} joined {connection.room} "
-        f"via {connection.transport}"
+    log_message(
+        name,
+        "joined room",
+        player_id=connection.id,
+        room=connection.room,
+        transport=connection.transport,
     )
 
     deadline = connected_at + seconds
@@ -73,6 +85,17 @@ async def run_observer_bot(
             event_counts[message.t] = event_counts.get(message.t, 0) + 1
             if isinstance(message, Snapshot):
                 snapshots += 1
+            elif isinstance(message, Event) and message.t == "kill":
+                shooter = message.data["shooter"]
+                victim = message.data["victim"]
+                details = {
+                    "item": message.data["item"],
+                    "headshot": message.data["headshot"],
+                }
+                if shooter == connection.id:
+                    log_kill(name, _player_name(state, victim), **details)
+                if victim == connection.id:
+                    log_death(name, _player_name(state, shooter), **details)
             state.apply(message)
     finally:
         observed_until = time.monotonic()
@@ -102,8 +125,17 @@ async def run_observer_bot(
         "close_reason": close_reason,
         "final_state": state.to_dict(),
     }
-    print(
-        f"observer {connection.id} finished after {report['observed_seconds']:.2f}s: "
-        f"{snapshots} snapshots, tick {connection.welcome.tick}->{state.tick}"
+    log_message(
+        name,
+        "finished",
+        observed_seconds=report["observed_seconds"],
+        snapshots=snapshots,
+        first_tick=connection.welcome.tick,
+        last_tick=state.tick,
     )
     return report
+
+
+def _player_name(state: WorldState, player_id: str) -> str:
+    player = state.players.get(player_id)
+    return player.name if player else player_id
