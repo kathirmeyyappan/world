@@ -124,7 +124,10 @@ export class Game {
       onCommands: () => this.commandsMenu.toggle(),
     });
     this.hud = new Hud(roomId);
-    this.hud.onChat = (text) => conn.send({ t: 'chat', text });
+    this.hud.onChat = (text) => {
+      conn.send({ t: 'chat', text });
+      this.commandHint.markUsed(); // sending anything, command or not, means they found the chat
+    };
     this.hud.onChatOpenChange = (open) => {
       this.syncBlocked();
       // Sending or cancelling a message is a key press, so the browser lets us take the mouse
