@@ -16,6 +16,7 @@ Useful while iterating:
 npm run typecheck                  # all packages
 npm test                           # sim + room unit tests, and a real-server integration test
 npm run e2e                        # two headless browsers in one room (needs Chromium; set CHROMIUM_PATH if not default)
+python -m pytest modal-bots/tests  # headless Python protocol + real-server contract tests
 SIM_LATENCY_MS=120 SIM_JITTER_MS=40 npm run dev:server   # watch prediction/reconciliation under lag
 ```
 
@@ -26,6 +27,7 @@ packages/shared    @world/shared   pure TS: sim (movement, cubes, combat, items,
 packages/client    @world/client   Vite + Babylon: home screen, rendering, input, prediction, interpolation, HUD
 packages/server    @world/server   Node: WebSocket room server, one process hosts many rooms, serves the client on Modal
 infra/                             Modal: lobby web function + sessioned Room server (Python package)
+modal-bots/                        Separate Modal app: headless Python clients and shared connection framework
 docs/                              this file and the diagrams
 ```
 
