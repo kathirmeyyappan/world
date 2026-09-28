@@ -11,12 +11,13 @@ server by id, from the ids Modal hands every container of the running app, which
 `modal serve` (ephemeral app, no name to look up) and `modal deploy`.
 """
 
+import asyncio
 import re
 
 import modal
 
 from .common import app, lobby_image, rooms
-from .config import APP_NAME, SESSION_IDLE_TIMEOUT
+from .config import APP_NAME, SESSION_IDLE_TIMEOUT, WARMUP_SESSION_IDLE_TIMEOUT
 
 ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
 
@@ -63,7 +64,17 @@ async def get_or_start_session(room_id: str, room_url: str) -> dict:
     return entry_info
 
 
-def build_api():
+async def warm_room() -> None:
+    """Boot a Room container before anyone needs it: a session start is what makes the Room scale up
+    from zero, so start one that ends five seconds later. The container then waits its scaledown
+    window for the real join. Best effort; a failure here only costs the head start."""
+    try:
+        await room_server().sessions.start.aio(idle_timeout=WARMUP_SESSION_IDLE_TIMEOUT)
+    except Exception as e:  # noqa: BLE001
+        print(f"room warm-up failed: {e}")
+
+
+def build_api(warm=warm_room):
     from urllib.parse import urlencode, urlparse
 
     from fastapi import FastAPI, HTTPException, Request
@@ -93,13 +104,15 @@ def build_api():
 
     @api.get("/healthz")
     async def healthz():
+        """The launcher pings this on load: it wakes the lobby and, in the background, a Room."""
+        asyncio.create_task(warm())
         return {"ok": True}
 
     return api
 
 
-# Not kept warm: the launcher pings /healthz on load, which wakes a container before Join is
-# clicked. The longer idle window gives the player five minutes to click it.
+# Not kept warm: the launcher pings /healthz on load, which wakes this container (and a Room, see
+# warm_room) before Join is clicked. The longer idle window gives the player five minutes to click it.
 @app.function(image=lobby_image, scaledown_window=300)
 @modal.asgi_app()
 def lobby():
