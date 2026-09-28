@@ -1,7 +1,7 @@
 // The commands menu: every chat command, grouped, built from the item and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
 // or the touch button; purely informational. Blocks game input while open, like the cube card.
-import { AVATARS, AVATAR_IDS, COMMAND_SHORTCUTS, ITEMS, ITEM_IDS } from '@world/shared';
+import { AVATARS, AVATAR_IDS, BOTS, BOT_DEFAULT_SECONDS, BOT_IDS, COMMAND_SHORTCUTS, ITEMS, ITEM_IDS } from '@world/shared';
 import { IS_TOUCH } from '../input/touch';
 
 interface Group {
@@ -61,7 +61,10 @@ function buildGroups(): Group[] {
   const skins = [...AVATAR_IDS].sort((a, b) => Number(a === 'standard') - Number(b === 'standard'));
   return [
     { title: 'equip item', rows: ITEM_IDS.map((id) => [commandLabel(id), ITEMS[id].blurb]) },
-    { title: 'call bot', rows: [], empty: 'nothing here yet' },
+    {
+      title: 'call bot',
+      rows: BOT_IDS.map((id) => [`/${BOTS[id].playerName} [seconds]`, `${BOTS[id].blurb} · ${BOT_DEFAULT_SECONDS}s unless you say`]),
+    },
     { title: 'wear skin', rows: skins.map((id) => [`/${id}`, AVATARS[id].blurb]) },
     { title: 'other', rows: [[commandLabel('speedy'), 'run faster for a bit']] },
   ];

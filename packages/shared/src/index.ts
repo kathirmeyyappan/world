@@ -8,6 +8,7 @@ export * from './sim/combat';
 export * from './sim/health';
 export * from './sim/items';
 export * from './sim/avatars';
+export * from './sim/bots';
 export * from './protocol';
 export * from './commands';
 export * from './room';

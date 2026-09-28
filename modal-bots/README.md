@@ -11,6 +11,9 @@ modal run modal-bots/app.py --bot observer --room global --seconds 30
 modal run modal-bots/app.py --bot circle --room global --seconds 30
 ```
 
+Or from the game's chat: `/circle-bot 60`, `/observer-bot` (300 s by default, 3500 max). The room
+server spawns the same `run_bot` function; see `CLAUDE.md`.
+
 - `observer` joins, stands still, and returns a report of what it saw.
 - `circle` orbits the nearest live player at 6 m, or the world origin when alone.
 

@@ -24,7 +24,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     scoped: false,
     firing: false,
     avatar: avatarFor(name),
-    avatarLeft: null,
+    avatarLocked: avatarFor(name) !== 'standard',
     hearts: MAX_HEARTS,
     kills: 0,
     dead: false,
@@ -80,13 +80,6 @@ export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number,
 
   const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1);
   p.boost = Math.max(0, p.boost - dt);
-  if (p.avatarLeft !== null) {
-    p.avatarLeft -= dt;
-    if (p.avatarLeft <= 0) {
-      p.avatar = 'standard';
-      p.avatarLeft = null;
-    }
-  }
   if (p.item && !p.item.permanent) {
     p.item.left -= dt;
     if (p.item.left <= 0) p.item = null;

@@ -10,6 +10,9 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
   `https://raw.githubusercontent.com/kathirmeyyappan/world/screenshots/pr-<number>/<file>.png`.
   Capture them headless (Playwright with the swiftshader flags; `window.__world.debug()` and
   `setLook()` are exposed for scripting) and include a mobile shot when the HUD changes.
+- Architecture diagrams live in `docs/` with their SVG-in-HTML sources in `docs/src/`. When a flow
+  changes, edit the source and re-render the PNG with headless Chromium at 2x (a 1560 px viewport,
+  `deviceScaleFactor: 2`, full page).
 
 ## Adding a Modal bot
 
@@ -133,8 +136,9 @@ finally:
 
 The observer is intentionally simpler because it never sends input. Use `circle_bot.py` as the
 reference for an active receive loop plus 30 Hz input task. Browser clients respawn by reloading
-after ten seconds; the server closes a dead client after roughly thirteen seconds. A bot that
-should respawn must detect `state.me.dead`, stop its input task, close, wait for the chosen respawn
+after ten seconds and the server drops their seat after roughly thirteen; a dead bot's seat is
+kept, so its corpse lies there until its run ends (stop the input task and keep receiving, as
+`circle_bot.py` does). A bot that should respawn instead must close, wait for the chosen respawn
 delay, and call `connect` again. Reconnection creates a fresh player ID; there is no resume
 protocol.
 
@@ -194,6 +198,18 @@ python -m pytest modal-bots/tests/test_production_smoke.py
 ```
 
 Use an isolated room such as `bot-smoke`, not `global`, for automated or manual tests.
+
+### Calling bots from chat
+
+`/circle-bot [seconds]` and `/observer-bot [seconds]` (the `-bot` suffix is optional) start a bot in
+the caller's room; seconds default to 300 and cap at 3500. The registry for that is
+`packages/shared/src/sim/bots.ts` (id, player name, blurb), which also fills the commands menu.
+The Room validates (people only, at most `MAX_BOTS_PER_ROOM` seated or pending, host must have a
+spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it as one POST
+to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room container's Python
+process runs. The sidecar spawns `kathir-world-bots/run_bot` with `{bot, room, seconds}` using the
+container's own Modal credentials; Node never holds a token. A new bot therefore needs a row in
+`bots.ts` as well as its Python module.
 
 ### Modal and dependency constraints
 

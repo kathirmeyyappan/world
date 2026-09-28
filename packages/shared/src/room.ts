@@ -19,7 +19,7 @@ import {
 import { parseCommand, type Command } from './commands';
 import { resolveFire } from './sim/combat';
 import { applyDamage, damageFor } from './sim/health';
-import { AVATARS } from './sim/avatars';
+import { BOTS, MAX_BOTS_PER_ROOM, type BotId, type BotRequest } from './sim/bots';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
@@ -30,10 +30,12 @@ import { WORLD_SHAPE, randomPointInWorld, type WorldPart } from './sim/world';
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
 declare function clearInterval(handle: unknown): void;
+declare function setTimeout(cb: () => void, ms: number): unknown;
 
 const SPAWN_WALL_MARGIN = 3;
-// A dead player's own client reloads after the death screen; anything still connected after
-// this (a bot, a backgrounded tab) is removed so corpses don't pile up.
+// A dead player's own client reloads after the death screen; a browser still connected after
+// this (a backgrounded tab) is removed so corpses don't pile up. Bots are bounded by their own
+// run time, so their corpses lie there until it ends.
 const CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 
@@ -53,14 +55,21 @@ interface Seat {
 
 export interface JoinOptions {
   bot?: boolean; // the client says it's a bot (the browser never does; the bot framework always does)
+  room?: string; // the public room code the client asked for; bots called from here join it
 }
+
+// Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
+export type BotSpawner = (request: BotRequest) => Promise<void>;
 
 export interface RoomOptions {
   seed?: number;
   worldShape?: WorldPart[];
   onEmpty?: () => void;
   log?: (msg: string) => void;
+  spawnBot?: BotSpawner; // absent: bots can't be called from this room
 }
+
+const PENDING_BOT_MS = 60_000; // a called bot counts toward the room's cap until it joins or this passes
 
 export class Room {
   readonly id: string;
@@ -72,6 +81,9 @@ export class Room {
   private readonly rng: Rng;
   private readonly onEmpty?: () => void;
   private readonly log: (msg: string) => void;
+  private readonly spawnBot?: BotSpawner;
+  private publicName: string | null = null; // the room code clients asked for, learnt at the first join
+  private readonly pendingBots = new Set<object>();
   private timer: unknown = null;
   private nextPlayerId = 1;
 
@@ -82,6 +94,7 @@ export class Room {
     this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
     this.onEmpty = opts.onEmpty;
     this.log = opts.log ?? (() => {});
+    this.spawnBot = opts.spawnBot;
   }
 
   get playerCount(): number {
@@ -93,6 +106,10 @@ export class Room {
     let n = 0;
     for (const seat of this.seats.values()) if (!seat.state.bot) n++;
     return n;
+  }
+
+  get botCount(): number {
+    return this.seats.size - this.humanCount;
   }
 
   get players(): PlayerState[] {
@@ -120,6 +137,8 @@ export class Room {
     }
     const id = `p${this.nextPlayerId++}`;
     const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), this.spawnPoint(), !!opts.bot);
+    if (opts.room && !this.publicName) this.publicName = opts.room;
+    if (opts.bot) this.settlePendingBot();
     this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, shootHeld: false, diedTick: null });
     link.send({ t: 'welcome', id, room: this.id, tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
     this.broadcast({ t: 'join', p: state }, id);
@@ -193,7 +212,7 @@ export class Room {
 
   step(): void {
     for (const [id, seat] of this.seats) {
-      if (seat.diedTick !== null && this.tick - seat.diedTick >= CORPSE_TICKS) {
+      if (seat.diedTick !== null && !seat.state.bot && this.tick - seat.diedTick >= CORPSE_TICKS) {
         this.leave(id);
         seat.link.close?.('dead');
         continue;
@@ -249,26 +268,54 @@ export class Room {
         this.equip(seat, command.item);
         return;
       case 'avatar': {
+        // Like a name-given item: a name-given look can't be changed; anyone else switches for good.
         const me = seat.state;
-        const spec = AVATARS[command.avatar];
-        if (me.avatar === command.avatar && me.avatarLeft === null) {
-          seat.link.send({ t: 'system', text: `you're already ${command.avatar}` });
-          return;
-        }
-        // A name-tagged look is for keeps; the command can't take it away.
-        if (me.avatarLeft === null && me.avatar !== 'standard') {
+        if (me.avatarLocked) {
           seat.link.send({ t: 'system', text: `you're ${me.avatar} for good` });
           return;
         }
+        if (me.avatar === command.avatar) {
+          seat.link.send({ t: 'system', text: `you're already ${command.avatar}` });
+          return;
+        }
         me.avatar = command.avatar;
-        me.avatarLeft = spec.seconds > 0 ? spec.seconds : null;
-        this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}${spec.seconds ? ` for ${spec.seconds}s` : ''}` });
+        this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}` });
         return;
       }
+      case 'bot':
+        this.callBot(seat, command.bot, command.seconds);
+        return;
       case 'unknown':
         seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
         return;
     }
+  }
+
+  // "/circle-bot 60": ask the host to start a bot in this room. People only, a few per room,
+  // and only where the host can reach Modal.
+  private callBot(seat: Seat, id: BotId, seconds: number | null): void {
+    const me = seat.state;
+    const bot = BOTS[id];
+    const tell = (text: string) => seat.link.send({ t: 'system', text });
+    if (seconds === null) return tell(`usage: /${bot.playerName} [seconds]`);
+    if (me.bot) return tell("bots can't call bots");
+    if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
+    if (this.botCount + this.pendingBots.size >= MAX_BOTS_PER_ROOM) return tell(`this room already has ${MAX_BOTS_PER_ROOM} bots`);
+
+    const pending = {};
+    this.pendingBots.add(pending);
+    setTimeout(() => this.pendingBots.delete(pending), PENDING_BOT_MS);
+    this.broadcast({ t: 'system', text: `${me.name} called ${bot.playerName} for ${seconds}s` });
+    this.spawnBot({ bot: id, room: this.publicName, seconds, caller: me.name }).catch((err: unknown) => {
+      this.pendingBots.delete(pending);
+      this.log(`bot ${id} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
+      tell(`couldn't call ${bot.playerName}`);
+    });
+  }
+
+  private settlePendingBot(): void {
+    const first = this.pendingBots.values().next().value;
+    if (first) this.pendingBots.delete(first);
   }
 
   // One item at a time. A permanent holder can't swap; anyone else can, and re-equipping the

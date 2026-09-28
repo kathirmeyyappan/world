@@ -47,7 +47,7 @@ jobs:
         run: python -m pip install -e './modal-bots[test]'
 
       - name: Test Modal bots
-        run: python -m pytest modal-bots/tests
+        run: python -m pytest modal-bots/tests infra/tests
 
       - name: Build
         run: npm run build

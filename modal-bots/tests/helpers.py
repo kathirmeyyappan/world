@@ -25,7 +25,7 @@ def player(
         "scoped": False,
         "firing": False,
         "avatar": "standard",
-        "avatarLeft": None,
+        "avatarLocked": False,
         "hearts": hearts,
         "kills": 0,
         "bot": False,

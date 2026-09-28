@@ -28,7 +28,8 @@ packages/client    @world/client   Vite + Babylon: home screen, rendering, input
 packages/server    @world/server   Node: WebSocket room server, one process hosts many rooms, serves the client on Modal
 infra/                             Modal: lobby web function + sessioned Room server (Python package)
 modal-bots/                        Separate Modal app: headless Python clients and shared connection framework
-docs/                              this file and the diagrams
+modal-bots/                        headless Python players run as a Modal app (see Bots below)
+docs/                              this file and the diagrams (sources in docs/src, rendered with headless Chromium)
 ```
 
 `packages/shared` has no DOM or Node dependencies on purpose: the same `stepPlayer` runs on the
@@ -79,3 +80,25 @@ main deploys Pages; the Modal side is a separate `modal deploy`, and client chan
 the Room image bundles its own copy of the client.
 
 ![how a player gets into a room](join-flow.png)
+
+## Bots
+
+A bot is a headless Python player (`modal-bots/`) that speaks the same WebSocket protocol as a
+browser: it joins through the lobby, receives snapshots at 30 Hz, and sends input frames. It joins
+with `bot=1`, so `PlayerState.bot` is true, the roster shows a robot icon, and a room with only bots
+left closes like an empty one. Bots are named `<key>-bot` and never respawn; a killed bot's corpse
+stays until its run ends.
+
+Two ways to start one:
+
+- By hand: `modal run modal-bots/app.py --bot circle --room late-night --seconds 60`.
+- From chat: `/circle-bot 60` (or `/observer-bot`; seconds default to 300, max 3500). The Room checks
+  the caller is a person and the room has fewer than 4 bots seated or pending, then the Node server
+  posts the request to a localhost sidecar (`infra/bot_sidecar.py`) in the same container, and that
+  Python process spawns `kathir-world-bots/run_bot` with the container's own Modal credentials. Node
+  never holds a token. Without a sidecar (local dev) the command says bots can't be called.
+
+Deploy the bots app separately: `modal deploy modal-bots/app.py`, with the `kathir-world-bots-config`
+Secret holding `WORLD_LOBBY_URL`. The contract for writing a bot is in `CLAUDE.md` and `AGENTS.md`.
+
+![how a bot gets into a room](bot-flow.png)

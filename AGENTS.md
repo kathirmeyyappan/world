@@ -136,8 +136,9 @@ finally:
         await connection.close(reason=f"{name} complete")
 ```
 
-A dead player is closed by the server after roughly thirteen seconds. A respawning bot must stop
-input, close, wait for its policy's respawn delay, and reconnect. Reconnection creates a new player
+A dead browser player is dropped by the server after roughly thirteen seconds; a dead bot's seat
+is kept until its run ends, so it lies there as a corpse. A respawning bot must instead close, wait
+for its policy's respawn delay, and reconnect. Reconnection creates a new player
 ID; there is no resume protocol. Use `circle_bot.py` as the concrete reference for an active bot
 with concurrent receive and input loops.
 
@@ -192,6 +193,18 @@ python -m pytest modal-bots/tests/test_production_smoke.py
 ```
 
 Never use `global` for automated testing.
+
+### Calling bots from chat
+
+`/circle-bot [seconds]` and `/observer-bot [seconds]` (the `-bot` suffix is optional) start a bot in
+the caller's room; seconds default to 300 and cap at 3500. The registry for that is
+`packages/shared/src/sim/bots.ts` (id, player name, blurb), which also fills the commands menu.
+The Room validates (people only, at most `MAX_BOTS_PER_ROOM` seated or pending, host must have a
+spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it as one POST
+to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room container's Python
+process runs. The sidecar spawns `kathir-world-bots/run_bot` with `{bot, room, seconds}` using the
+container's own Modal credentials; Node never holds a token. A new bot therefore needs a row in
+`bots.ts` as well as its Python module.
 
 ## Modal configuration
 

@@ -26,7 +26,7 @@ class FakeConnection:
             scoped=False,
             firing=False,
             avatar="standard",
-            avatar_left=None,
+            avatar_locked=False,
             hearts=10,
             kills=0,
             bot=False,

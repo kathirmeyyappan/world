@@ -2,13 +2,14 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { createServer } from 'node:http';
 import { test } from 'node:test';
 import WebSocket from 'ws';
 import type { ServerMessage } from '@world/shared';
 
-async function startServer(port: number) {
+async function startServer(port: number, env: Record<string, string> = {}) {
   const proc = spawn(process.execPath, ['--import', 'tsx', new URL('../src/index.ts', import.meta.url).pathname], {
-    env: { ...process.env, PORT: String(port) },
+    env: { ...process.env, PORT: String(port), ...env },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   await new Promise<void>((resolve) => {
@@ -72,5 +73,34 @@ test('two clients in one room see each other move', async () => {
     b.ws.close();
   } finally {
     proc.kill();
+  }
+});
+
+test('/circle-bot posts the room request to the bot sidecar', async () => {
+  const received: unknown[] = [];
+  const sidecar = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      received.push({ url: req.url, body: JSON.parse(body) });
+      res.writeHead(202).end('fc-test');
+    });
+  });
+  await new Promise<void>((r) => sidecar.listen(0, '127.0.0.1', r));
+  const sidecarPort = (sidecar.address() as { port: number }).port;
+  const port = 18790 + Math.floor(Math.random() * 100);
+  const proc = await startServer(port, { BOT_SPAWNER_URL: `http://127.0.0.1:${sidecarPort}/bots` });
+  try {
+    const a = connect(port, 'late-night', 'kathir');
+    await a.next((m) => m.t === 'welcome');
+    a.send({ t: 'chat', text: '/circle-bot 60' });
+    const said = await a.next((m) => m.t === 'system');
+    assert.equal(said.t === 'system' && said.text, 'kathir called circle-bot for 60s');
+    for (let i = 0; i < 50 && received.length === 0; i++) await new Promise((r) => setTimeout(r, 20));
+    assert.deepEqual(received, [{ url: '/bots', body: { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' } }]);
+    a.ws.close();
+  } finally {
+    proc.kill();
+    sidecar.close();
   }
 });
