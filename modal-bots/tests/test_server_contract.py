@@ -15,7 +15,7 @@ import pytest
 
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
-from common import Snapshot, connect
+from common import RoomConnectionError, Snapshot, connect
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -77,8 +77,22 @@ def room_server() -> Iterator[str]:
             process.wait(timeout=5)
 
 
+async def seat_person(room_server: str, room: str):
+    """A bot can't join a room with no people in it, so every scenario seats one first."""
+    return await connect(None, room, "person", direct_url=room_server, bot=False)
+
+
+def test_a_bot_never_joins_an_empty_room(room_server: str) -> None:
+    async def scenario() -> None:
+        with pytest.raises(RoomConnectionError, match="no one here"):
+            await connect(None, "python-empty", "observer", direct_url=room_server)
+
+    asyncio.run(scenario())
+
+
 def test_connects_and_decodes_real_room_server(room_server: str) -> None:
     async def scenario() -> None:
+        person = await seat_person(room_server, "python-contract")
         connection = await connect(
             None,
             "python-contract",
@@ -100,19 +114,25 @@ def test_connects_and_decodes_real_room_server(room_server: str) -> None:
                     break
         finally:
             await connection.close()
+            await person.close()
 
     asyncio.run(scenario())
 
 
 def test_observer_reports_real_snapshots(room_server: str) -> None:
-    report = asyncio.run(
-        run_observer_bot(
-            "python-observer",
-            "observer",
-            seconds=0.25,
-            direct_ws_url=room_server,
-        )
-    )
+    async def scenario() -> dict:
+        person = await seat_person(room_server, "python-observer")
+        try:
+            return await run_observer_bot(
+                "python-observer",
+                "observer",
+                seconds=0.25,
+                direct_ws_url=room_server,
+            )
+        finally:
+            await person.close()
+
+    report = asyncio.run(scenario())
 
     assert report["completed"]
     assert report["transport"] == "direct"
@@ -132,6 +152,7 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
             "python-circle",
             "target",
             direct_url=room_server,
+            bot=False,
         )
         positions: list[tuple[float, float]] = []
         circle = asyncio.create_task(

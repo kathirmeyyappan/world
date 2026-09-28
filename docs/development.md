@@ -85,7 +85,8 @@ the Room image bundles its own copy of the client.
 
 A bot is a headless Python player (`modal-bots/`) that speaks the same WebSocket protocol as a
 browser: it joins through the lobby, receives snapshots at 30 Hz, and sends input frames. It joins
-with `bot=1`, so `PlayerState.bot` is true, the roster shows a robot icon, and a room with only bots
+with `bot=1`, so `PlayerState.bot` is true, the roster shows a robot icon, a bot can't join a room with no
+people in it (the lobby and Node both refuse), and a room with only bots
 left closes like an empty one. Bots are named `<key>-bot` and never respawn; a killed bot's corpse
 stays until its run ends.
 

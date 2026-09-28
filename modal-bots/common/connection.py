@@ -94,11 +94,13 @@ async def connect(
     *,
     direct_url: str | None = None,
     timeout: float = 10,
+    bot: bool = True,
 ) -> Connection:
     """Join a room and return only after its initial ``welcome``.
 
     Production bots pass ``lobby_url``. Tests and local tools may instead pass
-    ``direct_url="ws://localhost:8787/ws"``.
+    ``direct_url="ws://localhost:8787/ws"``. A bot can't join a room with no people in it, so
+    tests seat one first with ``bot=False``; production bots never do.
     """
 
     room = room.strip().lower()
@@ -108,14 +110,14 @@ async def connect(
         )
 
     if direct_url:
-        websocket = await _dial(_websocket_url(direct_url, room, name), {}, timeout)
+        websocket = await _dial(_websocket_url(direct_url, room, name, bot), {}, timeout)
         return await _welcome(websocket, room, name, "direct", timeout)
     if not lobby_url:
         raise RoomConnectionError("lobby_url is required")
 
     last_error: RoomConnectionError | None = None
     for _attempt in range(2):
-        ticket = await _request_ticket(lobby_url, room, name, timeout=timeout)
+        ticket = await _request_ticket(lobby_url, room, name, bot, timeout=timeout)
         try:
             websocket = await _dial(
                 ticket.url,
@@ -138,6 +140,7 @@ async def _request_ticket(
     lobby_url: str,
     room: str,
     name: str,
+    bot: bool = True,
     *,
     timeout: float,
     client: httpx.AsyncClient | None = None,
@@ -149,7 +152,7 @@ async def _request_ticket(
         try:
             response = await client.get(
                 f"{lobby_url}/join/{room}",
-                params={"name": name},
+                params={"name": name, "bot": "1"} if bot else {"name": name},
                 follow_redirects=False,
             )
         except httpx.HTTPError:
@@ -239,13 +242,13 @@ async def _welcome(
     return Connection(room, name, message, transport, websocket)
 
 
-def _websocket_url(base: str, room: str, name: str) -> str:
+def _websocket_url(base: str, room: str, name: str, bot: bool = True) -> str:
     """The room WebSocket URL. ``bot=1`` declares this player a bot to the server and everyone
     in the room; the browser client never sends it."""
     parts = urlsplit(base)
     if parts.scheme not in {"ws", "wss"} or not parts.netloc:
         raise RoomConnectionError("room WebSocket URL must be absolute ws:// or wss://")
-    query = urlencode({"room": room, "name": name, "bot": "1"})
+    query = urlencode({"room": room, "name": name, "bot": "1"} if bot else {"room": room, "name": name})
     return urlunsplit((parts.scheme, parts.netloc, "/ws", query, ""))
 
 

@@ -328,8 +328,10 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   const room = new Room('bots', { seed: 4, onEmpty: () => empties++ });
   let botCloseReason = '';
   const bot = { ...link(), close: (reason: string) => { botClosed = true; botCloseReason = reason; } };
-  const idb = room.join('circle-bot', bot, { bot: true })!;
+  assert.equal(room.join('circle-bot', bot, { bot: true }), null, 'a bot never starts a room on its own');
+  assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: 'no one here' });
   const ida = room.join('alice', link())!;
+  const idb = room.join('circle-bot', bot, { bot: true })!;
   assert.equal(room.players.find((p) => p.id === idb)!.bot, true);
   assert.equal(room.players.find((p) => p.id === ida)!.bot, false);
   assert.equal(room.humanCount, 1);

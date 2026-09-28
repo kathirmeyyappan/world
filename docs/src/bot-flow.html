@@ -14,7 +14,7 @@ text{fill:#e6e8ef;font-size:13px}
 .lbl{font-size:12px}.lbl2{font-size:11px;fill:#9aa3b5}.nav{fill:#6ea8fe}.ctl{fill:#f6c453}.ws{fill:#5ee6a8}
 .step{font-weight:700;fill:#0f1117;font-size:11px}
 </style></head><body>
-<svg width="1560" height="960" viewBox="0 0 1560 960" xmlns="http://www.w3.org/2000/svg">
+<svg width="1560" height="982" viewBox="0 0 1560 982" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e6e8ef"/></marker>
 <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#6ea8fe"/></marker>
@@ -59,7 +59,7 @@ text{fill:#e6e8ef;font-size:13px}
 
 <!-- 4 lobby -->
 <circle cx="1060" cy="555" r="9" fill="#f6c453"/><text x="1060" y="559" text-anchor="middle" class="step">4</text>
-<line x1="1075" y1="555" x2="1375" y2="555" class="a ctl"/><text x="1225" y="547" text-anchor="middle" class="code ctl">GET lobby/join/late-night?name=circle-bot  (no redirect follow)</text>
+<line x1="1075" y1="555" x2="1375" y2="555" class="a ctl"/><text x="1225" y="547" text-anchor="middle" class="code ctl">GET lobby/join/late-night?name=circle-bot&amp;bot=1  (no redirect follow)</text>
 <line x1="1375" y1="585" x2="1047" y2="585" class="a"/><text x="1225" y="602" text-anchor="middle" class="code">302 Location: room-host/?modal_session_token=…  → read the token, drop the URL</text>
 <text x="940" y="625" class="lbl2">Same Dict lookup as a browser: the live session for "late-night", so the bot lands in kathir's room.</text>
 
@@ -74,11 +74,12 @@ text{fill:#e6e8ef;font-size:13px}
 <text x="726" y="735" text-anchor="middle" class="lbl2">Roster shows a robot icon. The bot's report goes to Modal function logs when it ends.</text>
 
 <!-- footer -->
-<rect x="40" y="790" width="1480" height="150" class="panel"/>
+<rect x="40" y="790" width="1480" height="172" class="panel"/>
 <text x="56" y="814" class="h">How it ends</text>
 <text x="56" y="838" class="lbl">• Time's up (default 300 s, max 3500): the bot closes its socket; Node removes the seat.</text>
 <text x="56" y="860" class="lbl">• Killed: no respawn. The seat is kept (no 13 s corpse cleanup for bots), so it lies there until its time is up; a browser's corpse is dropped after the death screen.</text>
 <text x="56" y="882" class="lbl">• Last person leaves: bots don't keep a room open. 30 s later Node closes the room and closes every bot socket with reason "room closed"; the function returns its report.</text>
 <text x="56" y="904" class="lbl">• No bot cap: the room's 32 seats are the only limit. A full room answers the caller "this room is full"; a bot that finds it full by the time it arrives fails in Modal logs.</text>
-<text x="56" y="926" class="lbl2">Local dev: no sidecar, so "/circle-bot" answers "bots can't be called in this room"; bots are run by hand with direct_ws_url. The manual path (modal run … --bot circle) is the same function without steps 1 to 3.</text>
+<text x="56" y="926" class="lbl">• No people there: a bot can't join a room with no one in it (lobby 409, Node "no one here"), so a bot that spawns after everyone left never starts a room nothing would close.</text>
+<text x="56" y="948" class="lbl2">Local dev: no sidecar, so "/circle-bot" answers "bots can't be called in this room"; bots are run by hand with direct_ws_url. The manual path (modal run … --bot circle) is the same function without steps 1 to 3.</text>
 </svg></body></html>
