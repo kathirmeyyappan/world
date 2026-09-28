@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, itemStats, resolveFire,
+  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, itemStats, parseCommand, resolveFire,
   type ItemAction, type ItemId, type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -20,6 +20,7 @@ import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
+import { CommandsMenu } from '../ui/CommandsMenu';
 import { DamageFlash } from '../ui/DamageFlash';
 import { Death } from '../ui/Death';
 import { Fuel } from '../ui/Fuel';
@@ -42,6 +43,7 @@ const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can se
 const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;
+const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
 
 export class Game {
   private readonly engine: Engine;
@@ -64,6 +66,7 @@ export class Game {
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();
   private readonly commandHint = new CommandHint();
+  private readonly commandsMenu = new CommandsMenu();
   private readonly damageFlash = new DamageFlash();
   private readonly hitNotice = new HitNotice();
   private readonly viewmodel: Viewmodel;
@@ -118,9 +121,13 @@ export class Game {
       onActionUp: () => (this.input.fireHeld = false),
       onScope: () => this.setScoped(!this.scoped),
       onChat: () => this.hud.openChat(),
+      onCommands: () => this.commandsMenu.toggle(),
     });
     this.hud = new Hud(roomId);
-    this.hud.onChat = (text) => conn.send({ t: 'chat', text });
+    this.hud.onChat = (text) => {
+      conn.send({ t: 'chat', text });
+      if (parseCommand(text)) this.commandHint.markUsed(); // a command, even a bad one, means they know
+    };
     this.hud.onChatOpenChange = (open) => {
       this.syncBlocked();
       // Sending or cancelling a message is a key press, so the browser lets us take the mouse
@@ -128,10 +135,21 @@ export class Game {
       if (!open && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
     };
     window.addEventListener('keydown', (e) => {
+      if (this.commandsMenu.isOpen) {
+        // The menu is a little page: Q or C closes it (like the cube card), arrows and W/S scroll.
+        if (e.code === 'KeyQ' || e.code === 'KeyC') this.commandsMenu.set(false);
+        else if (e.code === 'ArrowDown' || e.code === 'KeyS') this.commandsMenu.scroll(MENU_SCROLL_PX);
+        else if (e.code === 'ArrowUp' || e.code === 'KeyW') this.commandsMenu.scroll(-MENU_SCROLL_PX);
+        return;
+      }
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
+      else if (e.code === 'KeyC') this.commandsMenu.set(true);
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
+    window.addEventListener('wheel', (e) => {
+      if (this.commandsMenu.isOpen) this.commandsMenu.scroll(e.deltaY);
+    }, { passive: true });
     // Shooting is not a click handler: the input layer samples the mouse button into the
     // frame's actions like any key. A click only opens the cube under the crosshair, and only
     // when the press started on it: a hold that began as a shot stays a shot.
@@ -225,7 +243,7 @@ export class Game {
   }
 
   private isBlocked(): boolean {
-    return this.dead || this.overlay.isVisible() || this.hud.isChatOpen();
+    return this.dead || this.overlay.isVisible() || this.hud.isChatOpen() || this.commandsMenu.isOpen;
   }
 
   private syncBlocked(): void {
@@ -291,6 +309,7 @@ export class Game {
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) {
           this.dead = true;
+          this.commandHint.markUsed(); // they've been in a fight; no onboarding after the reload
           this.setScoped(false);
           this.syncBlocked();
           this.death.show(this.hud.playerName(m.shooter));
@@ -359,7 +378,7 @@ export class Game {
     this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '', held ? itemStats(held.id) : '');
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
-    this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard', this.dead || this.hud.isChatOpen());
+    this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened, this.dead || this.hud.isChatOpen());
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
