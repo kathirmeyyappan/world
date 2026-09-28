@@ -19,7 +19,6 @@ import {
 import { parseCommand, type Command } from './commands';
 import { resolveFire } from './sim/combat';
 import { applyDamage, damageFor } from './sim/health';
-import { AVATARS } from './sim/avatars';
 import { BOTS, MAX_BOTS_PER_ROOM, type BotId, type BotRequest } from './sim/bots';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
@@ -268,20 +267,18 @@ export class Room {
         this.equip(seat, command.item);
         return;
       case 'avatar': {
+        // Like a name-given item: a name-given look can't be changed; anyone else switches for good.
         const me = seat.state;
-        const spec = AVATARS[command.avatar];
-        if (me.avatar === command.avatar && me.avatarLeft === null) {
-          seat.link.send({ t: 'system', text: `you're already ${command.avatar}` });
-          return;
-        }
-        // A name-tagged look is for keeps; the command can't take it away.
-        if (me.avatarLeft === null && me.avatar !== 'standard') {
+        if (me.avatarLocked) {
           seat.link.send({ t: 'system', text: `you're ${me.avatar} for good` });
           return;
         }
+        if (me.avatar === command.avatar) {
+          seat.link.send({ t: 'system', text: `you're already ${command.avatar}` });
+          return;
+        }
         me.avatar = command.avatar;
-        me.avatarLeft = spec.seconds > 0 ? spec.seconds : null;
-        this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}${spec.seconds ? ` for ${spec.seconds}s` : ''}` });
+        this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}` });
         return;
       }
       case 'bot':
