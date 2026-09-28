@@ -2,7 +2,7 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, itemStats, resolveFire,
+  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, itemStats, parseCommand, resolveFire,
   type ItemAction, type ItemId, type PlayerState, type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
@@ -126,7 +126,7 @@ export class Game {
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => {
       conn.send({ t: 'chat', text });
-      this.commandHint.markUsed(); // sending anything, command or not, means they found the chat
+      if (parseCommand(text)) this.commandHint.markUsed(); // a command, even a bad one, means they know
     };
     this.hud.onChatOpenChange = (open) => {
       this.syncBlocked();

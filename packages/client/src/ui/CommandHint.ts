@@ -1,5 +1,5 @@
-// Onboarding nudge: after IDLE_MS without holding an item, running a command, sending a chat
-// message or opening the commands menu, a banner across the screen points at the menu, then counts itself down (FIRST_SHOW_MS the first time,
+// Onboarding nudge: after IDLE_MS without holding an item, sending a command or opening the
+// commands menu, a banner across the screen points at the menu, then counts itself down (FIRST_SHOW_MS the first time,
 // SHOW_MS after). Once the player has used anything, the tab remembers and never nags again,
 // across the reload a death causes. Pure DOM, driven once a frame by the Game.
 import { IS_TOUCH } from '../input/touch';
