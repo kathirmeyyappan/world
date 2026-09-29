@@ -41,7 +41,8 @@ export function isClientMessage(v: unknown): v is ClientMessage {
         isNum(f.mx) && isNum(f.my) && isNum(f.yaw) && isNum(f.pitch) &&
         typeof f.jump === 'boolean' &&
         (f.reading === null || typeof f.reading === 'string') &&
-        Array.isArray(f.actions) && f.actions.every(isItemAction)
+        Array.isArray(f.actions) && f.actions.every(isItemAction) &&
+        (f.view === undefined || isNum(f.view))
       );
     }
     case 'chat':

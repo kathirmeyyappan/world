@@ -140,7 +140,7 @@ export class InputManager {
   }
 
   // Once per sim tick: everything the server needs to move us, plus the item actions in play.
-  sampleFrame(seq: number, reading: string | null, actions: ItemAction[]): InputFrame {
+  sampleFrame(seq: number, reading: string | null, actions: ItemAction[], view?: number): InputFrame {
     let mx = this.joystick.x;
     let my = this.joystick.y;
     if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) my += 1;
@@ -155,7 +155,7 @@ export class InputManager {
     const jump = this.jumpRequested;
     this.jumpRequested = false;
     this.pressed.clear();
-    return { seq, mx, my, yaw: this.yaw, pitch: this.pitch, jump, reading, actions };
+    return { seq, mx, my, yaw: this.yaw, pitch: this.pitch, jump, reading, actions, view };
   }
 }
 

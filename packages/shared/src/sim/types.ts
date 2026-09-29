@@ -40,6 +40,7 @@ export interface InputFrame {
   jump: boolean;
   reading: string | null;
   actions: ItemAction[]; // item actions held this tick (tap ones on the press, toggles while on)
+  view?: number; // server tick the player was seeing others at; shots are judged there (rewind.ts)
 }
 
 export interface CubeState {

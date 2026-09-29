@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, MAX_PLAYERS, Room, WORLD_SHAPE, worldDistance, defaultBotsFor, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
+import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, MAX_PLAYERS, MAX_REWIND_TICKS, MOVE_SPEED, Room, TICK_DT, WORLD_SHAPE, worldDistance, defaultBotsFor, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -142,6 +142,39 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   room.join('carol', c);
   const welcome = c.inbox[0];
   assert.ok(welcome.t === 'welcome' && welcome.players.find((p) => p.id === idb)!.dead, 'late joiners see who is dead');
+});
+
+test('lag compensation: a shot is judged where the target was on the shooter\'s screen', () => {
+  const room = new Room('rewind', { seed: 5 });
+  const ida = room.join('alice', link())!;
+  const idb = room.join('bob', link())!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  room.receive(ida, { t: 'chat', text: '/gun' });
+  const chest = Math.atan2(0.8, 8);
+  const shoot = (view?: number) => {
+    room.receive(ida, { t: 'input', f: { ...frame(chest, ['shoot']), view } });
+    room.step();
+    room.receive(ida, { t: 'input', f: frame(chest, []) });
+    for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) room.step();
+  };
+
+  // Bob is dead ahead at tick `seen`, then strafes 6 ticks at run speed: 1.6 m to the side.
+  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 8 };
+  room.step();
+  const seen = room.tick;
+  for (let i = 0; i < 6; i++) {
+    bob.pos = { ...bob.pos, x: bob.pos.x + MOVE_SPEED * TICK_DT };
+    room.step();
+  }
+
+  shoot(seen);
+  assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, 'alice saw bob dead ahead: a hit');
+  shoot();
+  assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, 'no view: judged against now, and bob has moved on');
+  assert.ok(room.tick - seen > MAX_REWIND_TICKS);
+  shoot(seen);
+  assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, 'too far back to rewind: clamped, so it misses');
 });
 
 test('weapon command shortcuts equip the matching item', () => {
