@@ -194,7 +194,7 @@ html, body {
   opacity: 0; transform: translateY(-12px); transition: opacity 0.25s, transform 0.25s;
 }
 #command-hint.on { opacity: 1; transform: none; }
-#command-hint .text { display: block; max-width: 900px; margin: 0 auto; }
+#command-hint .text { display: block; font: 18px/28px var(--pixel); letter-spacing: 2px; color: #fff; text-shadow: 2px 2px 0 #000; }
 #command-hint .count { display: block; margin-top: 6px; font-size: 15px; color: var(--accent); }
 
 /* Flamethrower tank, above the item hint. */
@@ -300,10 +300,11 @@ html, body {
 #info-card .description li { margin-bottom: 8px; padding-left: 18px; position: relative; }
 #info-card .description li::before { content: '>'; position: absolute; left: 0; color: var(--accent); }
 #info-card .close-hint, #commands .close-hint { padding: 10px 20px 14px; font: 18px var(--mono); color: rgba(255,255,255,0.8); text-align: right; letter-spacing: 1px; }
-#info-card .close-hint kbd, #commands .close-hint kbd {
+#info-card .close-hint kbd, #commands .close-hint kbd, #command-hint kbd {
   display: inline-block; min-width: 26px; text-align: center; margin: 0 6px; padding: 2px 6px 0;
   background: var(--accent); color: #05070c; font: 13px/16px var(--pixel); border-bottom: 3px solid #2f6db3; vertical-align: middle;
 }
+#command-hint kbd { font-size: 16px; line-height: 20px; margin: 0 10px; text-shadow: none; }
 #info-card .cursor, #commands .cursor { display: inline-block; margin-left: 4px; color: var(--accent); animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -365,7 +366,8 @@ html, body {
   #chat-log li { font-size: 18px; }
   #item-hint { bottom: 82px; }
   #fuel { bottom: 146px; width: 160px; height: 10px; }
-  #command-hint { top: 26%; padding: 8px 16px; font-size: 14px; }
+  #command-hint { top: 26%; padding: 8px 16px; }
+  #command-hint .text { font-size: 12px; line-height: 22px; letter-spacing: 1px; }
   #command-hint .count { font-size: 12px; }
   #hearts { top: 8px; grid-template-columns: repeat(5, 18px); gap: 2px 3px; }
   .heart { width: 18px; height: 16px; }

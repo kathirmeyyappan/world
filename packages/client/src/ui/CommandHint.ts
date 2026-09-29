@@ -9,9 +9,8 @@ const FIRST_SHOW_MS = 8_000;
 const SHOW_MS = 5_000;
 const DONE_KEY = 'world.hint-done'; // sessionStorage: this tab has used an item
 
-const TEXT = IS_TOUCH
-  ? 'Hint: tap CMDS (top right) for the list of commands: weapons, skins and more. Type them in the chat.'
-  : 'Hint: press C for the list of commands: weapons, skins and more. Enter opens the chat to type them.';
+// Short and loud; the key is drawn like the Q in the windows' close hints.
+const TEXT = IS_TOUCH ? 'TAP <kbd>CMDS</kbd> FOR LIST OF COMMANDS' : 'PRESS <kbd>C</kbd> FOR LIST OF COMMANDS';
 
 export class CommandHint {
   private readonly el = document.getElementById('command-hint')!;
@@ -24,7 +23,7 @@ export class CommandHint {
   private done = read(DONE_KEY);
 
   constructor() {
-    this.text.textContent = TEXT;
+    this.text.innerHTML = TEXT;
   }
 
   // Something the player did counts as knowing the ropes: the hint is off for good in this tab.
