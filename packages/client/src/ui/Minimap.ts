@@ -45,7 +45,9 @@ export class Minimap {
 
   setView(view: MinimapView): void {
     this.view = view;
-    for (const el of this.toggleBar.querySelectorAll<HTMLElement>('[data-view]')) el.classList.toggle('on', el.dataset.view === view);
+    for (const el of this.toggleBar.querySelectorAll<HTMLElement>('[data-view]')) {
+      el.classList.toggle('on', el.dataset.view === view);
+    }
   }
 
   get active(): boolean {
