@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Mapping
+from typing import Any, Self
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import httpx
-from websockets.asyncio.client import ClientConnection, connect as open_websocket
+from websockets.asyncio.client import ClientConnection
+from websockets.asyncio.client import connect as open_websocket
 from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidURI
 
 from .protocol import Event, Message, Welcome, decode
@@ -74,7 +76,7 @@ class Connection:
         except RoomConnectionError:
             raise StopAsyncIteration from None
 
-    async def __aenter__(self) -> Connection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_args: object) -> None:

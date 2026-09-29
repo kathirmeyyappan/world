@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, fields
-from typing import Any, Mapping, TypeAlias, TypeVar
+from typing import Any, TypeAlias, TypeVar
 
 
 class ProtocolError(ValueError):

@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
 from common import Connection, RoomConnectionError, Snapshot, connect

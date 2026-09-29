@@ -30,6 +30,7 @@ class WorldState:
             self.players = {value.id: value for value in message.players}
             self.cubes = {value.id: value for value in message.cubes}
         elif isinstance(message, Welcome):
+            self.requested_room = self.requested_room or message.room
             self._reset(message)
         elif message.t == "join":
             joined = player(message.data["p"])

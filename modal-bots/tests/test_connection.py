@@ -5,9 +5,8 @@ import json
 
 import httpx
 import pytest
+from common import RoomConnectionError, connection
 
-import common.connection as connection
-from common import RoomConnectionError
 from tests.helpers import welcome
 
 

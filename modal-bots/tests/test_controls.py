@@ -5,7 +5,6 @@ import math
 from typing import Any
 
 import pytest
-
 from common import Controls, Cube, Player, Vec3, Welcome
 
 

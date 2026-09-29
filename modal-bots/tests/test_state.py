@@ -4,6 +4,7 @@ import json
 
 from common import Welcome, WorldState
 from common.protocol import Message, decode
+
 from tests.helpers import cube, player, welcome
 
 

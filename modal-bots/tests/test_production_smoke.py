@@ -4,7 +4,6 @@ import asyncio
 import os
 
 import pytest
-
 from bots.observer_bot import run_observer_bot
 
 

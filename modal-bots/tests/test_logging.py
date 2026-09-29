@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from common import log_death, log_kill, log_message
 
 

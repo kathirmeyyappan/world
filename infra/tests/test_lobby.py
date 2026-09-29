@@ -32,7 +32,7 @@ def test_healthz_warms_a_room_without_waiting_for_it() -> None:
 
 def test_join_never_starts_a_room_for_a_bot(monkeypatch: pytest.MonkeyPatch) -> None:
     """A person joining a room with no live session gets a fresh one; a bot gets turned away."""
-    import infra.lobby as lobby
+    from infra import lobby
 
     started: list[str] = []
 

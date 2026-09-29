@@ -14,7 +14,7 @@ server by id, from the ids Modal hands every container of the running app, which
 import asyncio
 import re
 from collections.abc import Callable, Coroutine
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import modal
 
@@ -106,10 +106,8 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
 
-        room_url = await room_server().get_url.aio()
-        if not room_url:
-            raise HTTPException(503, "the room server has no URL yet")
-        room_url = room_url.rstrip("/")
+        # get_url() is typed Optional; a deployed Server always has one. cast() is a no-op at runtime.
+        room_url = cast(str, await room_server().get_url.aio()).rstrip("/")
         entry_info = await live_session(room_id, room_url)
         if entry_info is None:
             if bot == "1":
@@ -130,7 +128,8 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         query = urlencode(params)
         return RedirectResponse(f"{room_url}/?{query}", status_code=302)
 
-    @api.get("/healthz")
+    # response_model=None: FastAPI would otherwise turn the return annotation into a response model.
+    @api.get("/healthz", response_model=None)
     async def healthz() -> dict[str, bool]:
         """The launcher pings this on load: it wakes the lobby and, in the background, a Room."""
         asyncio.create_task(warm())
