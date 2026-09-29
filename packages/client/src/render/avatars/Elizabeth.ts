@@ -40,7 +40,6 @@ export class ElizabethAvatar implements Avatar {
     const white = flat(scene, `eliz-white-${id}`, new Color3(0.97, 0.96, 0.98), 0.55);
     const black = flat(scene, `eliz-black-${id}`, new Color3(0.03, 0.03, 0.04), 0);
     const orange = flat(scene, `eliz-orange-${id}`, new Color3(0.98, 0.66, 0.16), 0.22);
-    const orangeDark = flat(scene, `eliz-orange-dark-${id}`, new Color3(0.72, 0.42, 0.06), 0.08);
 
     this.hitFlash = new HitFlash([white, orange]);
 
@@ -62,16 +61,24 @@ export class ElizabethAvatar implements Avatar {
       }
     }
 
-    // Beak: a flattened oval about half the face wide, with a darker seam for the mouth.
+    // Beak: a flattened oval about half the face wide, with a black line round its middle for
+    // the mouth. The line is a thin disc a few percent wider than the beak, so only its rim
+    // shows, wrapping the surface like a drawn line.
+    const BEAK_SIZE = new Vector3(0.46, 0.27, 0.4);
+    const beakAt = new Vector3(0, BEAK_Y, RADIUS + 0.08);
     const beak = MeshBuilder.CreateSphere(`eliz-beak-${id}`, { diameter: 1, segments: 6 }, scene);
     beak.convertToFlatShadedMesh();
     beak.material = orange;
     beak.parent = this.body;
-    beak.scaling.set(0.46, 0.27, 0.4);
-    beak.position.set(0, BEAK_Y, RADIUS + 0.08);
+    beak.scaling.copyFrom(BEAK_SIZE);
+    beak.position.copyFrom(beakAt);
     beak.isPickable = false;
-    const seam = box(scene, `eliz-beak-seam-${id}`, 0.42, 0.018, 0.3, orangeDark, this.body);
-    seam.position.set(0, BEAK_Y - 0.01, RADIUS + 0.16);
+    const mouth = MeshBuilder.CreateCylinder(`eliz-beak-mouth-${id}`, { diameter: 1, height: 1, tessellation: 16 }, scene);
+    mouth.material = black;
+    mouth.parent = this.body;
+    mouth.scaling.set(BEAK_SIZE.x * 1.04, 0.018, BEAK_SIZE.z * 1.04);
+    mouth.position.set(beakAt.x, beakAt.y - 0.01, beakAt.z);
+    mouth.isPickable = false;
 
     // Flippers: short flat paddles hanging from the shoulders, pivot at the top.
     this.flipperL = box(scene, `eliz-flipperL-${id}`, 0.11, 0.58, 0.3, white, this.body);
