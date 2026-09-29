@@ -48,8 +48,11 @@ export class InputManager {
       this.pointerLocked = document.pointerLockElement === canvas;
       this.lockChangedAt = performance.now();
     });
-    document.addEventListener('mousemove', (e) => {
-      if (this.blocked) return;
+    // Pointer events, not mouse events: Babylon preventDefaults every canvas pointerdown, which
+    // suppresses the compatibility mousedown/mousemove/mouseup while a button is held (always in
+    // Firefox, unlocked in Chrome). Touch has its own handlers below.
+    document.addEventListener('pointermove', (e) => {
+      if (this.blocked || e.pointerType === 'touch') return;
       if (this.pointerLocked) {
         const sinceLock = performance.now() - this.lockChangedAt;
         const spike = Math.abs(e.movementX) > MAX_EVENT_MOTION || Math.abs(e.movementY) > MAX_EVENT_MOTION;
@@ -69,8 +72,8 @@ export class InputManager {
         this.lastY = e.clientY;
       }
     });
-    canvas.addEventListener('mousedown', (e) => {
-      if (e.button !== 0 || this.blocked) return;
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || this.blocked || e.pointerType === 'touch') return;
       if (this.pointerLocked) this.fireHeld = true;
       else {
         this.dragging = true;
@@ -78,10 +81,13 @@ export class InputManager {
         this.lastY = e.clientY;
       }
     });
-    window.addEventListener('mouseup', () => {
+    const release = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return; // the touch FIRE button owns fireHeld on touch
       this.dragging = false;
       this.fireHeld = false;
-    });
+    };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
 
     let touchId: number | null = null;
     canvas.addEventListener('touchstart', (e) => {
