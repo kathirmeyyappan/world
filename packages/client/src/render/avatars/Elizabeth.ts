@@ -40,6 +40,7 @@ export class ElizabethAvatar implements Avatar {
     const white = flat(scene, `eliz-white-${id}`, new Color3(0.97, 0.96, 0.98), 0.55);
     const black = flat(scene, `eliz-black-${id}`, new Color3(0.03, 0.03, 0.04), 0);
     const orange = flat(scene, `eliz-orange-${id}`, new Color3(0.98, 0.66, 0.16), 0.22);
+    const brown = flat(scene, `eliz-brown-${id}`, new Color3(0.3, 0.16, 0.05), 0);
 
     this.hitFlash = new HitFlash([white, orange]);
 
@@ -61,7 +62,7 @@ export class ElizabethAvatar implements Avatar {
       }
     }
 
-    // Beak: a flattened oval about half the face wide, with a black line round its middle for
+    // Beak: a flattened oval about half the face wide, with a dark brown line round its middle for
     // the mouth. The line is a thin disc a few percent wider than the beak, so only its rim
     // shows, wrapping the surface like a drawn line.
     const BEAK_SIZE = new Vector3(0.46, 0.27, 0.4);
@@ -74,7 +75,7 @@ export class ElizabethAvatar implements Avatar {
     beak.position.copyFrom(beakAt);
     beak.isPickable = false;
     const mouth = MeshBuilder.CreateCylinder(`eliz-beak-mouth-${id}`, { diameter: 1, height: 1, tessellation: 16 }, scene);
-    mouth.material = black;
+    mouth.material = brown;
     mouth.parent = this.body;
     mouth.scaling.set(BEAK_SIZE.x * 1.04, 0.018, BEAK_SIZE.z * 1.04);
     mouth.position.set(beakAt.x, beakAt.y - 0.01, beakAt.z);
