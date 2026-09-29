@@ -14,6 +14,17 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
   changes, edit the source and re-render the PNG with headless Chromium at 2x (a 1560 px viewport,
   `deviceScaleFactor: 2`, full page).
 
+## Tests
+
+Don't overtest; the suite is already near the point of bloat. Before adding a test:
+
+- Test behavior that would break silently and isn't covered yet. One test per behavior, and
+  extend an existing test or fixture before writing a new one.
+- Skip tests for copy, styling, constants, and one-line wiring; check those by running the app.
+- Measurement, load, and screenshot scripts are throwaway: keep them in the scratchpad, report
+  their numbers in the PR, and don't commit them.
+- If a change seems to need many new tests, the change is probably too big.
+
 ## Adding a Modal bot
 
 Keep this section synchronized with `AGENTS.md`. A bot is a headless Python client in
@@ -154,6 +165,9 @@ protocol.
 - Snapshots reveal players globally and current combat has no wall or cube occlusion. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.
+- Shots are lag-compensated: `Controls` sends the newest snapshot tick as `view`, and the server
+  judges the shot against where targets were at that tick (`packages/shared/src/sim/rewind.ts`,
+  at most `MAX_REWIND_TICKS` back). Aim at the snapshot you have; don't lead.
 - Room capacity is 32 players. A bot is a visible player and occupies a seat. `connect` joins with
   `bot=1`, so `Player.bot` is true for every bot, the roster shows a robot icon, and a room with only
   bots left closes like an empty one (the server disconnects them).
