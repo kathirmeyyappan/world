@@ -43,7 +43,9 @@ export class Hud {
     });
 
     this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
-    this.panelToggle.addEventListener('click', () => this.setPanelCollapsed(!this.panel.classList.contains('collapsed')));
+    this.panelToggle.addEventListener('click', () =>
+      this.setPanelCollapsed(!this.panel.classList.contains('collapsed')),
+    );
 
     this.chatInput.classList.add('hidden');
     window.addEventListener('keydown', (e) => {
@@ -256,7 +258,14 @@ interface RosterEntry {
 }
 
 function entry(p: RosterPlayer): RosterEntry {
-  return { name: p.name, color: p.color, bot: !!p.bot, hearts: p.hearts ?? MAX_HEARTS, kills: p.kills ?? 0, dead: !!p.dead };
+  return {
+    name: p.name,
+    color: p.color,
+    bot: !!p.bot,
+    hearts: p.hearts ?? MAX_HEARTS,
+    kills: p.kills ?? 0,
+    dead: !!p.dead,
+  };
 }
 
 function text(s: string): Text {

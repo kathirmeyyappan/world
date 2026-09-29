@@ -16,21 +16,30 @@ export class MobileControls {
     if (!IS_TOUCH) return;
     const pad = this.pad;
     if (pad) {
-      pad.addEventListener('touchstart', (e) => {
-        if (this.touchId !== null) return;
-        const t = e.changedTouches[0];
-        const r = pad.getBoundingClientRect();
-        this.touchId = t.identifier;
-        this.originX = r.left + r.width / 2;
-        this.originY = r.top + r.height / 2;
-        pad.classList.add('active');
-        this.move(t.clientX, t.clientY);
-        e.preventDefault();
-      }, { passive: false });
-      pad.addEventListener('touchmove', (e) => {
-        for (const t of Array.from(e.changedTouches)) if (t.identifier === this.touchId) this.move(t.clientX, t.clientY);
-        e.preventDefault();
-      }, { passive: false });
+      pad.addEventListener(
+        'touchstart',
+        (e) => {
+          if (this.touchId !== null) return;
+          const t = e.changedTouches[0];
+          const r = pad.getBoundingClientRect();
+          this.touchId = t.identifier;
+          this.originX = r.left + r.width / 2;
+          this.originY = r.top + r.height / 2;
+          pad.classList.add('active');
+          this.move(t.clientX, t.clientY);
+          e.preventDefault();
+        },
+        { passive: false },
+      );
+      pad.addEventListener(
+        'touchmove',
+        (e) => {
+          for (const t of Array.from(e.changedTouches))
+            if (t.identifier === this.touchId) this.move(t.clientX, t.clientY);
+          e.preventDefault();
+        },
+        { passive: false },
+      );
       const end = (e: TouchEvent) => {
         for (const t of Array.from(e.changedTouches)) if (t.identifier === this.touchId) this.release();
       };
@@ -38,11 +47,15 @@ export class MobileControls {
       pad.addEventListener('touchcancel', end);
     }
     const jump = document.getElementById('jump-button');
-    jump?.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      jump.classList.add('active');
-      input.requestJump();
-    }, { passive: false });
+    jump?.addEventListener(
+      'touchstart',
+      (e) => {
+        e.preventDefault();
+        jump.classList.add('active');
+        input.requestJump();
+      },
+      { passive: false },
+    );
     jump?.addEventListener('touchend', () => jump.classList.remove('active'));
   }
 

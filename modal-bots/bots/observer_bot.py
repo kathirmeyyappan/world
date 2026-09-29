@@ -117,9 +117,7 @@ async def run_observer_bot(
         "first_tick": connection.welcome.tick,
         "last_tick": state.tick,
         "snapshots": snapshots,
-        "snapshot_hz": (
-            round(snapshots / observed_seconds, 3) if observed_seconds else 0.0
-        ),
+        "snapshot_hz": (round(snapshots / observed_seconds, 3) if observed_seconds else 0.0),
         "event_counts": event_counts,
         "close_code": close_code,
         "close_reason": close_reason,

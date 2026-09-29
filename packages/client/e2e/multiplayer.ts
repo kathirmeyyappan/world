@@ -10,7 +10,11 @@ import { chromium, type Page } from 'playwright';
 declare global {
   interface Window {
     __world?: {
-      debug: () => { id: string; pos: { x: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[] };
+      debug: () => {
+        id: string;
+        pos: { x: number; z: number };
+        remotes: { id: string; name: string; x: number; z: number }[];
+      };
       setLook: (yaw: number, pitch?: number) => void;
     };
   }
@@ -23,7 +27,13 @@ const SERVER_PORT = 8790;
 const CLIENT_PORT = 5190;
 const ROOM = 'e2e';
 
-function start(cmd: string, args: string[], cwd: string, ready: string, env: Record<string, string> = {}): Promise<ChildProcess> {
+function start(
+  cmd: string,
+  args: string[],
+  cwd: string,
+  ready: string,
+  env: Record<string, string> = {},
+): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, args, { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
     const onData = (d: Buffer) => {
@@ -42,10 +52,18 @@ async function debug(page: Page) {
 
 async function main() {
   mkdirSync(out, { recursive: true });
-  const server = await start(process.execPath, ['--import', 'tsx', 'packages/server/src/index.ts'], root, 'listening', { PORT: String(SERVER_PORT) });
-  const client = await start(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), '--port', String(CLIENT_PORT), '--strictPort'], join(root, 'packages/client'), 'Local:', {
-    VITE_ROOM_WS_URL: `ws://localhost:${SERVER_PORT}/ws`,
+  const server = await start(process.execPath, ['--import', 'tsx', 'packages/server/src/index.ts'], root, 'listening', {
+    PORT: String(SERVER_PORT),
   });
+  const client = await start(
+    process.execPath,
+    [join(root, 'node_modules/vite/bin/vite.js'), '--port', String(CLIENT_PORT), '--strictPort'],
+    join(root, 'packages/client'),
+    'Local:',
+    {
+      VITE_ROOM_WS_URL: `ws://localhost:${SERVER_PORT}/ws`,
+    },
+  );
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
@@ -66,7 +84,9 @@ async function main() {
     await alice.waitForFunction(() => document.querySelectorAll('#player-list li').length === 2);
     console.log('both players seated');
 
-    const fps = await alice.evaluate<number>('new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else r(n); }; requestAnimationFrame(f); })');
+    const fps = await alice.evaluate<number>(
+      'new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else r(n); }; requestAnimationFrame(f); })',
+    );
     console.log(`alice renders at ~${fps} fps`);
     const before = await debug(alice);
     await alice.keyboard.down('KeyW');
@@ -81,7 +101,9 @@ async function main() {
     const seenByBob = (await debug(bob)).remotes.find((r) => r.name === 'alice');
     if (!seenByBob) throw new Error('bob does not see alice');
     const err = Math.hypot(seenByBob.x - after.pos.x, seenByBob.z - after.pos.z);
-    console.log(`bob sees alice at (${seenByBob.x.toFixed(2)}, ${seenByBob.z.toFixed(2)}), ${err.toFixed(2)}m from her predicted spot`);
+    console.log(
+      `bob sees alice at (${seenByBob.x.toFixed(2)}, ${seenByBob.z.toFixed(2)}), ${err.toFixed(2)}m from her predicted spot`,
+    );
     if (err > 1) throw new Error('bob sees alice far from where she is');
 
     // Turn bob to face alice so she is on screen, then chat.

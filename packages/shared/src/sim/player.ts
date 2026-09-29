@@ -1,6 +1,14 @@
 // Player movement. Runs identically on the server (authoritative) and the client (prediction),
 // so it must stay pure: no Babylon, no DOM, no time reads.
-import { EYE_HEIGHT, GRAVITY, JUMP_VELOCITY, MAX_PITCH, MOVE_SPEED, PLAYER_PADDING, SPEEDY_MULTIPLIER } from './constants';
+import {
+  EYE_HEIGHT,
+  GRAVITY,
+  JUMP_VELOCITY,
+  MAX_PITCH,
+  MOVE_SPEED,
+  PLAYER_PADDING,
+  SPEEDY_MULTIPLIER,
+} from './constants';
 import { avatarFor } from './avatars';
 import { MAX_HEARTS } from './health';
 import { FUEL_REFILL_RATE, ITEMS, createItem, permanentItemFor } from './items';
@@ -69,7 +77,12 @@ export function isGrounded(p: PlayerState): boolean {
 }
 
 // Advances one player by `dt`. A null input means "no frame arrived": gravity still applies.
-export function stepPlayer(p: PlayerState, input: InputFrame | null, dt: number, shape: WorldPart[] = WORLD_SHAPE): void {
+export function stepPlayer(
+  p: PlayerState,
+  input: InputFrame | null,
+  dt: number,
+  shape: WorldPart[] = WORLD_SHAPE,
+): void {
   if (input) {
     p.yaw = input.yaw;
     p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));

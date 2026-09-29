@@ -92,13 +92,19 @@ function distribute(count: number, disc: Disc, rng: Rng): { x: number; z: number
   while (out.length < count) {
     let placed = false;
     for (let i = 0; i < 50 && !placed; i++) {
-      const p = at(rng() * Math.PI * 2, CUBE_MIN_CENTER_DISTANCE + Math.sqrt(rng()) * Math.max(0, maxRadius - CUBE_MIN_CENTER_DISTANCE));
+      const p = at(
+        rng() * Math.PI * 2,
+        CUBE_MIN_CENTER_DISTANCE + Math.sqrt(rng()) * Math.max(0, maxRadius - CUBE_MIN_CENTER_DISTANCE),
+      );
       if (valid(p, out, disc)) {
         out.push(p);
         placed = true;
       }
     }
-    if (!placed) out.push(at(rng() * Math.PI * 2, CUBE_MIN_CENTER_DISTANCE + rng() * Math.max(0, maxRadius - CUBE_MIN_CENTER_DISTANCE)));
+    if (!placed)
+      out.push(
+        at(rng() * Math.PI * 2, CUBE_MIN_CENTER_DISTANCE + rng() * Math.max(0, maxRadius - CUBE_MIN_CENTER_DISTANCE)),
+      );
   }
   return out;
 }

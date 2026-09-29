@@ -1,13 +1,33 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  EYE_HEIGHT, ITEMS, JUMP_VELOCITY, SPEEDY_MULTIPLIER, SPEEDY_SECONDS, TICK_DT, WORLD_SHAPE,
-  clonePlayer, createCubes, createPlayer, createRng, stepCubes, stepPlayer, worldDistance,
+  EYE_HEIGHT,
+  ITEMS,
+  JUMP_VELOCITY,
+  SPEEDY_MULTIPLIER,
+  SPEEDY_SECONDS,
+  TICK_DT,
+  WORLD_SHAPE,
+  clonePlayer,
+  createCubes,
+  createPlayer,
+  createRng,
+  stepCubes,
+  stepPlayer,
+  worldDistance,
   type InputFrame,
 } from '@world/shared';
 
 const frame = (seq: number, over: Partial<InputFrame> = {}): InputFrame => ({
-  seq, mx: 0, my: 0, yaw: 0, pitch: 0, jump: false, reading: null, actions: [], ...over,
+  seq,
+  mx: 0,
+  my: 0,
+  yaw: 0,
+  pitch: 0,
+  jump: false,
+  reading: null,
+  actions: [],
+  ...over,
 });
 
 test('stepPlayer is deterministic: same inputs give identical state', () => {

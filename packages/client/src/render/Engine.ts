@@ -1,8 +1,15 @@
 // Babylon engine, scene, lights and post-processing. The retro look comes from rendering at a
 // reduced internal resolution and letting the browser upscale with nearest-neighbour filtering.
 import {
-  Color3, Color4, DefaultRenderingPipeline, DirectionalLight, Engine as BabylonEngine, GlowLayer,
-  HemisphericLight, Scene, Vector3,
+  Color3,
+  Color4,
+  DefaultRenderingPipeline,
+  DirectionalLight,
+  Engine as BabylonEngine,
+  GlowLayer,
+  HemisphericLight,
+  Scene,
+  Vector3,
 } from '@babylonjs/core';
 
 // CSS pixels per internal pixel. 2 keeps the chunky look on a 1080p screen without turning text

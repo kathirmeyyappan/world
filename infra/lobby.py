@@ -118,7 +118,13 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         # Where the player came from (the launcher), so the room page can send them back to it.
         home = urlparse(request.headers.get("referer", ""))
-        params = {"modal_session_token": entry_info["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
+        params = {
+            "modal_session_token": entry_info["token"],
+            "room": room_id,
+            "direct": "1",
+            "name": name,
+            "lobby": lobby_url,
+        }
         if home.scheme and home.netloc:
             params["home"] = f"{home.scheme}://{home.netloc}"
         query = urlencode(params)

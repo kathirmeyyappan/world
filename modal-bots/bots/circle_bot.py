@@ -133,11 +133,7 @@ def _nearest_player(state: WorldState) -> Player | None:
     me = state.me
     if me is None:
         return None
-    candidates = (
-        player
-        for player in state.players.values()
-        if player.id != me.id and not player.dead
-    )
+    candidates = (player for player in state.players.values() if player.id != me.id and not player.dead)
     return min(
         candidates,
         key=lambda player: math.hypot(

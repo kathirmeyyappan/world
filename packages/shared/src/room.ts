@@ -69,7 +69,6 @@ export interface RoomOptions {
   spawnBot?: BotSpawner; // absent: bots can't be called from this room
 }
 
-
 export class Room {
   readonly id: string;
   readonly worldShape: WorldPart[];
@@ -189,7 +188,10 @@ export class Room {
         return;
       }
       case 'chat': {
-        const text = msg.text.replace(/[\u0000-\u001f]/g, '').trim().slice(0, MAX_CHAT_LENGTH);
+        const text = msg.text
+          .replace(/[\u0000-\u001f]/g, '')
+          .trim()
+          .slice(0, MAX_CHAT_LENGTH);
         if (!text) return;
         const command = parseCommand(text);
         if (command) this.runCommand(seat, command);
@@ -216,7 +218,8 @@ export class Room {
     if (!wants || this.tick - seat.lastShotTick < spec.cooldownTicks) return;
     seat.lastShotTick = this.tick;
     if (shoot.mode === 'tap') this.broadcast({ t: 'shot', id: me.id });
-    for (const hit of resolveFire(spec, me, this.players)) this.damage(seat, hit.target, damageFor(spec, hit.headshot), hit.headshot);
+    for (const hit of resolveFire(spec, me, this.players))
+      this.damage(seat, hit.target, damageFor(spec, hit.headshot), hit.headshot);
   }
 
   // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero. A kill is one
@@ -284,7 +287,10 @@ export class Room {
     switch (command.name) {
       case 'speedy':
         seat.state.boost = SPEEDY_SECONDS;
-        this.broadcast({ t: 'system', text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
+        this.broadcast({
+          t: 'system',
+          text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s`,
+        });
         return;
       case 'equip':
         this.equip(seat, command.item);
@@ -344,7 +350,13 @@ export class Room {
     const spec = ITEMS[id];
     me.item = createItem(id, false);
     seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${howTo(spec)}.` });
-    this.broadcast({ t: 'system', text: held && held.id !== id ? `${me.name} swapped their ${held.id} for a ${id}` : `${me.name} drew a ${id}` }, me.id);
+    this.broadcast(
+      {
+        t: 'system',
+        text: held && held.id !== id ? `${me.name} swapped their ${held.id} for a ${id}` : `${me.name} drew a ${id}`,
+      },
+      me.id,
+    );
   }
 
   // Anywhere in the world, clear of the walls and not on top of a cube.
@@ -366,7 +378,10 @@ function howTo(spec: ItemSpec): string {
 }
 
 export function sanitizeName(raw: string): string {
-  const cleaned = raw.replace(/[\u0000-\u001f]/g, '').trim().slice(0, MAX_NAME_LENGTH);
+  const cleaned = raw
+    .replace(/[\u0000-\u001f]/g, '')
+    .trim()
+    .slice(0, MAX_NAME_LENGTH);
   return cleaned || 'guest';
 }
 

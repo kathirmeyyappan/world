@@ -1,7 +1,15 @@
 // Visual for one info cube. Position and rotation come from the server every frame. Cubes are
 // neutral: a pale frame and a logo downsampled to a coarse pixel grid. Hover and "being read"
 // change the frame only, so the logo stays readable.
-import { Color3, DynamicTexture, FresnelParameters, Mesh, MeshBuilder, StandardMaterial, Texture } from '@babylonjs/core';
+import {
+  Color3,
+  DynamicTexture,
+  FresnelParameters,
+  Mesh,
+  MeshBuilder,
+  StandardMaterial,
+  Texture,
+} from '@babylonjs/core';
 import type { CubeContent, CubeSnapshot } from '@world/shared';
 import { createShadowBlob } from './avatars/common';
 import type { Engine } from './Engine';
@@ -21,7 +29,10 @@ export class CubeMesh {
   private hovered = false;
   private readers = 0;
 
-  constructor(engine: Engine, readonly content: CubeContent) {
+  constructor(
+    engine: Engine,
+    readonly content: CubeContent,
+  ) {
     const scene = engine.scene;
     this.mesh = MeshBuilder.CreateBox(`cube-${content.id}`, { size: SIZE, wrap: true }, scene);
     this.material = new StandardMaterial(`mat-${content.id}`, scene);
@@ -30,7 +41,13 @@ export class CubeMesh {
     this.material.specularColor = new Color3(0.1, 0.1, 0.1);
     this.material.specularPower = 24;
     if (content.logo) {
-      const tex = new DynamicTexture(`logo-${content.id}`, { width: LOGO_PIXELS, height: LOGO_PIXELS }, scene, false, Texture.NEAREST_NEAREST_MIPLINEAR);
+      const tex = new DynamicTexture(
+        `logo-${content.id}`,
+        { width: LOGO_PIXELS, height: LOGO_PIXELS },
+        scene,
+        false,
+        Texture.NEAREST_NEAREST_MIPLINEAR,
+      );
       tex.hasAlpha = false;
       loadPixelated(content.logo, LOGO_PIXELS).then((canvas) => {
         const ctx = tex.getContext() as CanvasRenderingContext2D;

@@ -35,7 +35,11 @@ export function lookDirection(yaw: number, pitch: number): Vec3 {
 
 // Everyone an item's shot reaches, per its fire shape: one player for hitscan, all of them
 // for a cone.
-export function resolveFire<T extends Target>(spec: Pick<ItemSpec, 'fire' | 'range'>, shooter: Shooter, players: Iterable<T>): Hit<T>[] {
+export function resolveFire<T extends Target>(
+  spec: Pick<ItemSpec, 'fire' | 'range'>,
+  shooter: Shooter,
+  players: Iterable<T>,
+): Hit<T>[] {
   if (spec.fire.kind === 'cone') return findConeHits(shooter, players, spec.range, spec.fire.halfAngle);
   const hit = findHit(shooter, players, spec.range);
   return hit ? [hit] : [];
@@ -43,7 +47,12 @@ export function resolveFire<T extends Target>(spec: Pick<ItemSpec, 'fire' | 'ran
 
 // Every live player with any part of their capsule inside the cone: within `range` of the eye
 // and within `halfAngle` of the look direction, widened by the capsule radius. No headshots.
-export function findConeHits<T extends Target>(shooter: Shooter, players: Iterable<T>, range: number, halfAngle: number): Hit<T>[] {
+export function findConeHits<T extends Target>(
+  shooter: Shooter,
+  players: Iterable<T>,
+  range: number,
+  halfAngle: number,
+): Hit<T>[] {
   const dir = lookDirection(shooter.yaw, shooter.pitch);
   const o = shooter.pos;
   const hits: Hit<T>[] = [];

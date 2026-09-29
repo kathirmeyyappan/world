@@ -71,16 +71,25 @@ export class Minimap {
   private transform(me: MinimapFrame['me']): Transform {
     if (this.view === 'near') {
       return {
-        ox: me.x, oz: me.z, scale: (NEAR_RANGE * 2) / SIZE,
-        fx: Math.sin(me.yaw), fz: Math.cos(me.yaw),
-        rx: Math.cos(me.yaw), rz: -Math.sin(me.yaw),
+        ox: me.x,
+        oz: me.z,
+        scale: (NEAR_RANGE * 2) / SIZE,
+        fx: Math.sin(me.yaw),
+        fz: Math.cos(me.yaw),
+        rx: Math.cos(me.yaw),
+        rz: -Math.sin(me.yaw),
       };
     }
     const b = this.bounds;
     const span = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) + 8;
     return {
-      ox: (b.minX + b.maxX) / 2, oz: (b.minZ + b.maxZ) / 2, scale: span / SIZE,
-      fx: 0, fz: 1, rx: 1, rz: 0,
+      ox: (b.minX + b.maxX) / 2,
+      oz: (b.minZ + b.maxZ) / 2,
+      scale: span / SIZE,
+      fx: 0,
+      fz: 1,
+      rx: 1,
+      rz: 0,
     };
   }
 
@@ -98,8 +107,8 @@ export class Minimap {
         let a = 0;
         if (Math.abs(d) < t.scale * EDGE_PIXELS) a = 230;
         else if (d < 0) {
-          const gx = Math.abs(((wx % GRID_SPACING) + GRID_SPACING) % GRID_SPACING - GRID_SPACING / 2);
-          const gz = Math.abs(((wz % GRID_SPACING) + GRID_SPACING) % GRID_SPACING - GRID_SPACING / 2);
+          const gx = Math.abs((((wx % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
+          const gz = Math.abs((((wz % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
           const onLine = gx > GRID_SPACING / 2 - t.scale * 0.6 || gz > GRID_SPACING / 2 - t.scale * 0.6;
           a = onLine ? 70 : 28;
         }

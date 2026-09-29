@@ -21,7 +21,12 @@ export class FlameJet {
   private readonly particles: Particle[] = [];
   private on = false;
 
-  constructor(engine: Engine, name: string, parent: TransformNode, private readonly length: number) {
+  constructor(
+    engine: Engine,
+    name: string,
+    parent: TransformNode,
+    private readonly length: number,
+  ) {
     const scene = engine.scene;
     for (let i = 0; i < COUNT; i++) {
       const mesh = MeshBuilder.CreateBox(`${name}-flame-${i}`, { size: 1 }, scene);

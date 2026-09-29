@@ -182,7 +182,10 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
     assert report["completed"]
     assert report["target"] == target_id
     assert len(positions) >= 2
-    assert math.hypot(
-        positions[-1][0] - positions[0][0],
-        positions[-1][1] - positions[0][1],
-    ) > 0.5
+    assert (
+        math.hypot(
+            positions[-1][0] - positions[0][0],
+            positions[-1][1] - positions[0][1],
+        )
+        > 0.5
+    )
