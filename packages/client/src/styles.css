@@ -809,18 +809,39 @@ body {
   color: rgba(255, 255, 255, 0.55);
   white-space: nowrap;
 }
-#minimap-view {
-  font: 9px var(--pixel);
-  color: var(--accent-soft);
-}
 #minimap-coords {
   color: rgba(255, 255, 255, 0.8);
 }
-#minimap kbd {
-  background: rgba(100, 181, 246, 0.2);
-  border: 1px solid rgba(100, 181, 246, 0.5);
-  padding: 0 5px;
-  font-family: inherit;
+#minimap-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font: 10px var(--pixel);
+  letter-spacing: 1px;
+}
+#minimap-toggle kbd {
+  display: inline-block;
+  min-width: 24px;
+  text-align: center;
+  padding: 3px 6px 1px;
+  margin-right: 4px;
+  background: var(--accent);
+  color: #05070c;
+  font: 11px/14px var(--pixel);
+  border-bottom: 3px solid #2f6db3;
+}
+#minimap-toggle span {
+  flex: 1;
+  text-align: center;
+  padding: 4px 0 3px;
+  color: rgba(255, 255, 255, 0.35);
+  border: 2px solid rgba(100, 181, 246, 0.25);
+}
+#minimap-toggle span.on {
+  color: #05070c;
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
 }
 
 #instructions {

@@ -108,6 +108,5 @@ async def run_input_loop(controls: Controls, stop: asyncio.Event) -> None:
         await controls.send_input()
         next_tick += TICK_SECONDS
         now = loop.time()
-        if next_tick < now:
-            next_tick = now
+        next_tick = max(next_tick, now)
         await asyncio.sleep(next_tick - now)

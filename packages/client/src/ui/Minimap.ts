@@ -23,7 +23,7 @@ const ACCENT = [100, 181, 246] as const;
 export class Minimap {
   private readonly root = document.getElementById('minimap')!;
   private readonly canvas = document.getElementById('minimap-canvas') as HTMLCanvasElement;
-  private readonly label = document.getElementById('minimap-view')!;
+  private readonly toggleBar = document.getElementById('minimap-toggle')!;
   private readonly coords = document.getElementById('minimap-coords')!;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly image: ImageData;
@@ -45,7 +45,9 @@ export class Minimap {
 
   setView(view: MinimapView): void {
     this.view = view;
-    this.label.textContent = view === 'near' ? 'NEAR' : 'WORLD';
+    for (const el of this.toggleBar.querySelectorAll<HTMLElement>('[data-view]')) {
+      el.classList.toggle('on', el.dataset.view === view);
+    }
   }
 
   get active(): boolean {

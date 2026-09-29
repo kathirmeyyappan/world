@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from common.protocol import Event, ProtocolError, Snapshot, Welcome, decode, to_dict
+
 from tests.helpers import cube, player, welcome
 
 

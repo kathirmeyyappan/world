@@ -3,8 +3,7 @@
 import os
 from typing import Any
 
-import modal  # type: ignore[import-not-found]
-
+import modal
 from bots import get_bot_invocation
 from common.deployment import (
     BOT_TIMEOUT_SECONDS,

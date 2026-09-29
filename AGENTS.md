@@ -182,7 +182,10 @@ For every new bot:
 
 ```bash
 python -m pytest modal-bots/tests
-ruff check modal-bots
+ruff format --check modal-bots infra
+ruff check modal-bots infra
+mypy
+npm run lint
 npm run typecheck
 npm test
 ```
@@ -227,6 +230,16 @@ function for per-room profiles; the Room spawns them once, with `caller: 'room'`
   worker rather than conditional resource logic in `run_bot`.
 - Add dependencies to both `modal-bots/pyproject.toml` and `bot_image` in
   `modal-bots/common/deployment.py`, then execute a real `modal run`.
+
+## Formatting and type checks
+
+CI fails on any of these, so run them before pushing:
+
+- `npm run format` (Prettier: TS, CSS, HTML, JSON) and `ruff format modal-bots infra` (Python).
+- `npm run lint` checks formatting and bans explicit `any` and `@ts-` comments; `npm run typecheck` is
+  strict `tsc`. Type the thing instead of casting around it: no `as unknown as`.
+- `mypy` from the repo root is strict over `modal-bots/` and `infra/`. `Any` is for JSON at the wire,
+  nowhere else.
 
 ## Tests
 

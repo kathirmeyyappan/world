@@ -57,7 +57,7 @@ def lobby_url() -> str:
 @modal.sessioned()
 class Room:
     @modal.enter()
-    def start(self):
+    def start(self) -> None:
         # Bots called from chat: Node posts to this sidecar, which spawns them with this
         # container's own Modal credentials.
         self.sidecar = start_bot_sidecar(BOT_SIDECAR_PORT)
@@ -74,7 +74,7 @@ class Room:
         )
 
     @modal.exit()
-    def stop(self):
+    def stop(self) -> None:
         self.sidecar.shutdown()
         self.proc.terminate()
         self.proc.wait(timeout=10)
