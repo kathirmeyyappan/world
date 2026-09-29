@@ -5,7 +5,14 @@ import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData 
 import { partDistance, worldBounds, type WorldPart } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
-  GROUND_FRAGMENT, GROUND_VERTEX, MAX_BRIDGES, MAX_DISCS, SKY_FRAGMENT, SKY_VERTEX, WALL_FRAGMENT, WALL_VERTEX,
+  GROUND_FRAGMENT,
+  GROUND_VERTEX,
+  MAX_BRIDGES,
+  MAX_DISCS,
+  SKY_FRAGMENT,
+  SKY_VERTEX,
+  WALL_FRAGMENT,
+  WALL_VERTEX,
 } from './shaders';
 
 const WALL_REVEAL_DISTANCE = 16;
@@ -23,7 +30,10 @@ export class Environment {
   private readonly span: number;
   private time = 0;
 
-  constructor(private readonly engine: Engine, private readonly shape: WorldPart[]) {
+  constructor(
+    private readonly engine: Engine,
+    private readonly shape: WorldPart[],
+  ) {
     this.bounds = worldBounds(shape);
     this.span = Math.max(this.bounds.maxX - this.bounds.minX, this.bounds.maxZ - this.bounds.minZ);
     Effect.ShadersStore['worldGroundVertexShader'] = GROUND_VERTEX;
@@ -46,8 +56,20 @@ export class Environment {
     const mat = new ShaderMaterial('groundMat', scene, 'worldGround', {
       attributes: ['position'],
       uniforms: [
-        'world', 'worldViewProjection', 'cameraPos', 'lineColor', 'majorColor', 'floorColor', 'fogColor', 'fogScale', 'time',
-        'discs', 'bridges', 'bridgeWidths', 'discCount', 'bridgeCount',
+        'world',
+        'worldViewProjection',
+        'cameraPos',
+        'lineColor',
+        'majorColor',
+        'floorColor',
+        'fogColor',
+        'fogScale',
+        'time',
+        'discs',
+        'bridges',
+        'bridgeWidths',
+        'discCount',
+        'bridgeCount',
       ],
     });
     mat.setColor3('lineColor', new Color3(0.2, 0.9, 0.5));
@@ -75,7 +97,8 @@ export class Environment {
     }
     const discCount = Math.min(discs.length / 3, MAX_DISCS);
     const bridgeCount = Math.min(widths.length, MAX_BRIDGES);
-    if (discs.length / 3 > MAX_DISCS || widths.length > MAX_BRIDGES) console.warn('world shape exceeds shader limits; floor will be wrong');
+    if (discs.length / 3 > MAX_DISCS || widths.length > MAX_BRIDGES)
+      console.warn('world shape exceeds shader limits; floor will be wrong');
     while (discs.length < MAX_DISCS * 3) discs.push(0, 0, 0);
     while (bridges.length < MAX_BRIDGES * 4) bridges.push(0, 0, 0, 0);
     while (widths.length < MAX_BRIDGES) widths.push(0);
@@ -88,7 +111,11 @@ export class Environment {
 
   private createSky(): void {
     const scene = this.engine.scene;
-    const sky = MeshBuilder.CreateSphere('sky', { diameter: this.span * 15, segments: 16, sideOrientation: Mesh.BACKSIDE }, scene);
+    const sky = MeshBuilder.CreateSphere(
+      'sky',
+      { diameter: this.span * 15, segments: 16, sideOrientation: Mesh.BACKSIDE },
+      scene,
+    );
     sky.isPickable = false;
     sky.infiniteDistance = true;
     sky.applyFog = false;

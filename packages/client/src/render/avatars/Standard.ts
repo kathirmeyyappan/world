@@ -27,7 +27,12 @@ export class StandardAvatar implements Avatar {
   private lastX = 0;
   private lastZ = 0;
 
-  constructor(engine: Engine, readonly id: string, name: string, color: string) {
+  constructor(
+    engine: Engine,
+    readonly id: string,
+    name: string,
+    color: string,
+  ) {
     const scene = engine.scene;
     const c = Color3.FromHexString(color);
     this.root = new TransformNode(`avatar-${id}`, scene);
@@ -75,10 +80,16 @@ export class StandardAvatar implements Avatar {
     visor.position.set(0, 0.04, 0.23);
     engine.glowLayer.addIncludedOnlyMesh(visor);
 
-
     // Items go in the right hand; the arm points forward while holding one so it reads as aiming.
     // The flamethrower's tank sits on the back of the torso.
-    this.items = new HeldItems(engine, `avatar-${id}`, this.armR, new Vector3(0, -0.32, 0.04), this.body, new Vector3(0, 1.12, -0.28));
+    this.items = new HeldItems(
+      engine,
+      `avatar-${id}`,
+      this.armR,
+      new Vector3(0, -0.32, 0.04),
+      this.body,
+      new Vector3(0, 1.12, -0.28),
+    );
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.1);
     this.shadow.parent = this.root;

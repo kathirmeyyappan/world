@@ -98,8 +98,14 @@ test('/circle-bot posts the room request to the bot sidecar', async () => {
     assert.equal(said.t === 'system' && said.text, 'kathir called circle-bot for 60s');
     for (let i = 0; i < 50 && received.length < 3; i++) await new Promise((r) => setTimeout(r, 20));
     // the first person in brings the room's default bots (sim/defaultBots.ts), then the call
-    const defaults = defaultBotsFor('late-night').map(({ bot, seconds }) => ({ url: '/bots', body: { bot, room: 'late-night', seconds, caller: 'room' } }));
-    assert.deepEqual(received, [...defaults, { url: '/bots', body: { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' } }]);
+    const defaults = defaultBotsFor('late-night').map(({ bot, seconds }) => ({
+      url: '/bots',
+      body: { bot, room: 'late-night', seconds, caller: 'room' },
+    }));
+    assert.deepEqual(received, [
+      ...defaults,
+      { url: '/bots', body: { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' } },
+    ]);
     a.ws.close();
   } finally {
     proc.kill();

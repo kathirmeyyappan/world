@@ -1,0 +1,7 @@
+# Generated or vendored
+**/dist/
+node_modules/
+package-lock.json
+# Hand-drawn diagram sources and prose: formatting would only churn them
+docs/
+*.md

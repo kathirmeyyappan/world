@@ -33,18 +33,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck and test
-        run: npm run typecheck && npm test
+      - name: Format, lint, typecheck and test
+        run: npm run lint && npm run typecheck && npm test
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
           cache: pip
           cache-dependency-path: modal-bots/pyproject.toml
 
       - name: Install bot dependencies
         run: python -m pip install -e './modal-bots[test]' -r infra/requirements.txt
+
+      - name: Format, lint and typecheck Python
+        run: ruff format --check modal-bots infra && ruff check modal-bots infra && mypy
 
       - name: Test Modal bots
         run: python -m pytest modal-bots/tests infra/tests

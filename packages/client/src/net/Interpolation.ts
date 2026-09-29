@@ -1,6 +1,13 @@
 // Snapshot buffer for everything the server owns: remote players and cubes. Renders a few ticks
 // behind the newest snapshot and lerps between the two that bracket that time.
-import { INTERP_DELAY_TICKS, TICK_RATE, type CubeSnapshot, type PlayerState, type ItemId, type AvatarId } from '@world/shared';
+import {
+  INTERP_DELAY_TICKS,
+  TICK_RATE,
+  type CubeSnapshot,
+  type PlayerState,
+  type ItemId,
+  type AvatarId,
+} from '@world/shared';
 
 interface Snapshot {
   tick: number;
@@ -33,7 +40,11 @@ export class Interpolation {
 
   push(tick: number, players: PlayerState[], cubes: CubeSnapshot[], now: number): void {
     if (this.buffer.length && tick <= this.buffer[this.buffer.length - 1].tick) return;
-    this.buffer.push({ tick, players: new Map(players.map((p) => [p.id, p])), cubes: new Map(cubes.map((c) => [c.id, c])) });
+    this.buffer.push({
+      tick,
+      players: new Map(players.map((p) => [p.id, p])),
+      cubes: new Map(cubes.map((c) => [c.id, c])),
+    });
     this.lastTick = tick;
     this.lastAt = now;
     while (this.buffer.length > 1 && this.buffer[0].tick < tick - KEEP_TICKS) this.buffer.shift();

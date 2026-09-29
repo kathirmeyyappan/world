@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "ruff==0.16.9", "mypy==2.3.1"]  # pinned: CI and local must agree
 
 [tool.setuptools.packages.find]
 where = ["."]

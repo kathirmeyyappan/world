@@ -5,9 +5,8 @@ import json
 
 import httpx
 import pytest
+from common import RoomConnectionError, connection
 
-import common.connection as connection
-from common import RoomConnectionError
 from tests.helpers import welcome
 
 
@@ -19,7 +18,8 @@ class FakeWebSocket:
 
     async def recv(self) -> str:
         if self.payload is None:
-            await asyncio.Future()
+            await asyncio.Future()  # never resolves: a server that never speaks
+        assert self.payload is not None
         return self.payload
 
     async def close(self, code: int = 1000, reason: str = "") -> None:
@@ -27,17 +27,12 @@ class FakeWebSocket:
 
 
 def test_lobby_ticket_is_small_and_redacted() -> None:
-    async def scenario():
+    async def scenario() -> connection._Ticket:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/join/test-room"
             return httpx.Response(
                 302,
-                headers={
-                    "location": (
-                        "https://room.example.test:8443/"
-                        "?modal_session_token=secret&room=test-room"
-                    )
-                },
+                headers={"location": ("https://room.example.test:8443/?modal_session_token=secret&room=test-room")},
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -50,20 +45,14 @@ def test_lobby_ticket_is_small_and_redacted() -> None:
             )
 
     ticket = asyncio.run(scenario())
-    assert ticket.url == (
-        "wss://room.example.test:8443/ws?room=test-room&name=observer+name&bot=1"
-    )
+    assert ticket.url == ("wss://room.example.test:8443/ws?room=test-room&name=observer+name&bot=1")
     assert ticket.token == "secret"
     assert "secret" not in repr(ticket)
 
 
 def test_lobby_failure_is_clear() -> None:
     async def scenario() -> None:
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(
-                lambda _request: httpx.Response(400)
-            )
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _request: httpx.Response(400))) as client:
             await connection._request_ticket(
                 "https://lobby.example.test",
                 "bad-room",

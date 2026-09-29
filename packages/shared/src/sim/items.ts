@@ -39,16 +39,43 @@ export interface ItemSpec {
 
 export const ITEMS: Record<ItemId, ItemSpec> = {
   gun: {
-    id: 'gun', seconds: 45, range: 20, damage: 2, cooldownTicks: 7,
-    actions: { shoot: { key: 'KeyK', mode: 'tap' } }, fire: { kind: 'hitscan' }, fireNeedsScope: false, fuelSeconds: null, nameTag: 'GUN', blurb: 'equip a handgun',
+    id: 'gun',
+    seconds: 45,
+    range: 20,
+    damage: 2,
+    cooldownTicks: 7,
+    actions: { shoot: { key: 'KeyK', mode: 'tap' } },
+    fire: { kind: 'hitscan' },
+    fireNeedsScope: false,
+    fuelSeconds: null,
+    nameTag: 'GUN',
+    blurb: 'equip a handgun',
   },
   sniper: {
-    id: 'sniper', seconds: 45, range: 500, damage: 4, cooldownTicks: 30,
-    actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } }, fire: { kind: 'hitscan' }, fireNeedsScope: true, fuelSeconds: null, nameTag: 'SNIPER', blurb: 'equip a sniper rifle',
+    id: 'sniper',
+    seconds: 45,
+    range: 500,
+    damage: 4,
+    cooldownTicks: 30,
+    actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } },
+    fire: { kind: 'hitscan' },
+    fireNeedsScope: true,
+    fuelSeconds: null,
+    nameTag: 'SNIPER',
+    blurb: 'equip a sniper rifle',
   },
   flamethrower: {
-    id: 'flamethrower', seconds: 45, range: 10, damage: 0.5, cooldownTicks: 15,
-    actions: { shoot: { key: 'KeyK', mode: 'hold' } }, fire: { kind: 'cone', halfAngle: Math.PI / 8 }, fireNeedsScope: false, fuelSeconds: 7.5, nameTag: 'FLAMETHROWER', blurb: 'equip a flamethrower',
+    id: 'flamethrower',
+    seconds: 45,
+    range: 10,
+    damage: 0.5,
+    cooldownTicks: 15,
+    actions: { shoot: { key: 'KeyK', mode: 'hold' } },
+    fire: { kind: 'cone', halfAngle: Math.PI / 8 },
+    fireNeedsScope: false,
+    fuelSeconds: 7.5,
+    nameTag: 'FLAMETHROWER',
+    blurb: 'equip a flamethrower',
   },
 };
 
@@ -89,7 +116,10 @@ export function permanentItemFor(name: string): ItemId | null {
 // click, so say so; hold items say hold.
 export function itemHelp(id: ItemId, sep = ', '): string {
   return Object.entries(ITEMS[id].actions)
-    .map(([action, spec]) => `${spec.mode === 'hold' ? 'hold ' : ''}${keyLabel(spec.key)}${action === 'shoot' ? ' or click' : ''} to ${action === 'shoot' && spec.mode === 'hold' ? 'spray' : action}`)
+    .map(
+      ([action, spec]) =>
+        `${spec.mode === 'hold' ? 'hold ' : ''}${keyLabel(spec.key)}${action === 'shoot' ? ' or click' : ''} to ${action === 'shoot' && spec.mode === 'hold' ? 'spray' : action}`,
+    )
     .join(sep);
 }
 
@@ -98,7 +128,7 @@ export function itemHelp(id: ItemId, sep = ', '): string {
 export function itemStats(id: ItemId): string {
   const spec = ITEMS[id];
   const parts = [`range: ${spec.range}m`];
-  if (spec.actions.shoot?.mode === 'hold') parts.push(`dps: ${round(spec.damage * TICK_RATE / spec.cooldownTicks)}`);
+  if (spec.actions.shoot?.mode === 'hold') parts.push(`dps: ${round((spec.damage * TICK_RATE) / spec.cooldownTicks)}`);
   else parts.push(`dmg: ${spec.damage}${spec.fire.kind === 'hitscan' ? ` (headshot ${HEADSHOT_MULTIPLIER}x)` : ''}`);
   return parts.join(', ');
 }

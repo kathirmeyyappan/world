@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from common.protocol import Event, ProtocolError, Snapshot, Welcome, decode, to_dict
+
 from tests.helpers import cube, player, welcome
 
 
@@ -16,11 +16,7 @@ def test_decodes_world_messages() -> None:
     assert joined.players[0].pos.y == 1.7
     assert joined.cubes[0].id == "aws"
 
-    snapshot = decode(
-        json.dumps(
-            {"t": "snap", "tick": 43, "players": [player()], "cubes": [cube()]}
-        )
-    )
+    snapshot = decode(json.dumps({"t": "snap", "tick": 43, "players": [player()], "cubes": [cube()]}))
     assert isinstance(snapshot, Snapshot)
     assert snapshot.tick == 43
     assert to_dict(snapshot.players[0])["last_seq"] == 0

@@ -43,7 +43,12 @@ export function worldDistance(x: number, z: number, shape: WorldPart[] = WORLD_S
   return d;
 }
 
-export function worldBounds(shape: WorldPart[] = WORLD_SHAPE): { minX: number; maxX: number; minZ: number; maxZ: number } {
+export function worldBounds(shape: WorldPart[] = WORLD_SHAPE): {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+} {
   const b = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
   const grow = (x: number, z: number, r: number) => {
     b.minX = Math.min(b.minX, x - r);

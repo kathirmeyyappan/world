@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Mapping
+from typing import Any, Self
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import httpx
-from websockets.asyncio.client import ClientConnection, connect as open_websocket
+from websockets.asyncio.client import ClientConnection
+from websockets.asyncio.client import connect as open_websocket
 from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidURI
 
 from .protocol import Event, Message, Welcome, decode
@@ -50,20 +52,14 @@ class Connection:
             return decode(await self._websocket.recv())
         except ConnectionClosed as exc:
             self.close_code, self.close_reason = exc.code, exc.reason
-            raise RoomConnectionError(
-                f"room closed ({exc.code}): {exc.reason or 'no reason'}"
-            ) from exc
+            raise RoomConnectionError(f"room closed ({exc.code}): {exc.reason or 'no reason'}") from exc
 
     async def send(self, message: Mapping[str, Any]) -> None:
         try:
-            await self._websocket.send(
-                json.dumps(message, separators=(",", ":"), allow_nan=False)
-            )
+            await self._websocket.send(json.dumps(message, separators=(",", ":"), allow_nan=False))
         except ConnectionClosed as exc:
             self.close_code, self.close_reason = exc.code, exc.reason
-            raise RoomConnectionError(
-                f"room closed ({exc.code}): {exc.reason or 'no reason'}"
-            ) from exc
+            raise RoomConnectionError(f"room closed ({exc.code}): {exc.reason or 'no reason'}") from exc
 
     async def close(self, reason: str = "client complete") -> None:
         await self._websocket.close(code=1000, reason=reason)
@@ -80,7 +76,7 @@ class Connection:
         except RoomConnectionError:
             raise StopAsyncIteration from None
 
-    async def __aenter__(self) -> Connection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_args: object) -> None:
@@ -105,9 +101,7 @@ async def connect(
 
     room = room.strip().lower()
     if not _ROOM_ID.fullmatch(room):
-        raise RoomConnectionError(
-            "room must be 1-24 lowercase letters, digits, or dashes"
-        )
+        raise RoomConnectionError("room must be 1-24 lowercase letters, digits, or dashes")
 
     if direct_url:
         websocket = await _dial(_websocket_url(direct_url, room, name, bot), {}, timeout)
@@ -126,9 +120,7 @@ async def connect(
             )
         except _UpgradeError as exc:
             if exc.status in {401, 403}:
-                last_error = RoomConnectionError(
-                    "Modal rejected the room session; admission was retried"
-                )
+                last_error = RoomConnectionError("Modal rejected the room session; admission was retried")
                 continue
             raise RoomConnectionError(str(exc)) from None
         return await _welcome(websocket, room, name, "modal-header", timeout)
@@ -162,9 +154,7 @@ async def _request_ticket(
             await client.aclose()
 
     if response.status_code != 302:
-        raise RoomConnectionError(
-            f"lobby rejected room admission with HTTP {response.status_code}"
-        )
+        raise RoomConnectionError(f"lobby rejected room admission with HTTP {response.status_code}")
     location = response.headers.get("location")
     if not location:
         raise RoomConnectionError("lobby admission had no Location header")
@@ -175,9 +165,7 @@ async def _request_ticket(
         parts = urlsplit(str(redirect))
         if parts.scheme not in {"http", "https"} or not parts.netloc or not token:
             raise ValueError
-        websocket_base = urlunsplit(
-            ("wss" if parts.scheme == "https" else "ws", parts.netloc, "/ws", "", "")
-        )
+        websocket_base = urlunsplit(("wss" if parts.scheme == "https" else "ws", parts.netloc, "/ws", "", ""))
     except (KeyError, TypeError, ValueError):
         # URL parser errors can echo the credential-bearing Location.
         raise RoomConnectionError("lobby returned an invalid room ticket") from None
@@ -207,8 +195,7 @@ async def _dial(
         response = getattr(exc, "response", None)
         status = getattr(response, "status_code", None)
         raise _UpgradeError(
-            "room WebSocket upgrade failed"
-            + (f" with HTTP {status}" if isinstance(status, int) else ""),
+            "room WebSocket upgrade failed" + (f" with HTTP {status}" if isinstance(status, int) else ""),
             status if isinstance(status, int) else None,
         ) from None
     except (InvalidURI, OSError, TimeoutError) as exc:
@@ -233,9 +220,7 @@ async def _welcome(
 
     if isinstance(message, Event) and message.t == "error":
         await websocket.close(code=1008, reason="join rejected")
-        raise RoomConnectionError(
-            f"room rejected join: {message.data.get('message', 'unknown error')}"
-        )
+        raise RoomConnectionError(f"room rejected join: {message.data.get('message', 'unknown error')}")
     if not isinstance(message, Welcome):
         await websocket.close(code=1002, reason="welcome required")
         raise RoomConnectionError("first room message was not 'welcome'")

@@ -131,7 +131,11 @@ http.on('upgrade', (req, socket, head) => {
 });
 
 http.listen(PORT, '0.0.0.0', () => {
-  log(`room server listening on :${PORT}` + (STATIC_DIR ? ` serving ${STATIC_DIR}` : '') + (SIM_LATENCY_MS ? ` (simulated latency ${SIM_LATENCY_MS}+${SIM_JITTER_MS}ms)` : ''));
+  log(
+    `room server listening on :${PORT}` +
+      (STATIC_DIR ? ` serving ${STATIC_DIR}` : '') +
+      (SIM_LATENCY_MS ? ` (simulated latency ${SIM_LATENCY_MS}+${SIM_JITTER_MS}ms)` : ''),
+  );
 });
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
