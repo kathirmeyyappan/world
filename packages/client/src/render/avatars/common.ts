@@ -49,14 +49,21 @@ export function createShadowBlob(engine: Engine, name: string, diameter: number)
   return disc;
 }
 
-export function box(scene: Engine['scene'], name: string, w: number, h: number, d: number, mat: StandardMaterial, parent: TransformNode): Mesh {
+export function box(
+  scene: Engine['scene'],
+  name: string,
+  w: number,
+  h: number,
+  d: number,
+  mat: StandardMaterial,
+  parent: TransformNode,
+): Mesh {
   const m = MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
   m.material = mat;
   m.parent = parent;
   m.isPickable = false;
   return m;
 }
-
 
 export function createTag(engine: Engine, id: string, name: string, color: string): Mesh {
   const scene = engine.scene;

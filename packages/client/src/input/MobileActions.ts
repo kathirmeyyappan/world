@@ -56,11 +56,15 @@ export class MobileActions {
 // about for buttons that are held. Touch only, so a synthesized click never double-fires.
 function tap(button: HTMLButtonElement | null, onDown: () => void, onUp?: () => void): void {
   if (!button) return;
-  button.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    button.classList.add('active');
-    onDown();
-  }, { passive: false });
+  button.addEventListener(
+    'touchstart',
+    (e) => {
+      e.preventDefault();
+      button.classList.add('active');
+      onDown();
+    },
+    { passive: false },
+  );
   const up = () => {
     button.classList.remove('active');
     onUp?.();

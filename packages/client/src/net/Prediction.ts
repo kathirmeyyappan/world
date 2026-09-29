@@ -8,7 +8,10 @@ export class Prediction {
   private pending: InputFrame[] = [];
   private seq = 0;
 
-  constructor(initial: PlayerState, private readonly shape: WorldPart[]) {
+  constructor(
+    initial: PlayerState,
+    private readonly shape: WorldPart[],
+  ) {
     this.state = clonePlayer(initial);
   }
 

@@ -43,7 +43,8 @@ export class LobbyUnavailableError extends Error {}
 // the page (a tab that never went through the lobby), else the build-time launcher setting.
 export function lobbyUrl(): string | null {
   const meta = document.querySelector<HTMLMetaElement>('meta[name="world-lobby"]')?.content;
-  const url = sessionStorage.getItem('world.lobby') || meta || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
+  const url =
+    sessionStorage.getItem('world.lobby') || meta || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
   return url ? url.replace(/\/$/, '') : null;
 }
 

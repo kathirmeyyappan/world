@@ -11,7 +11,11 @@ export function createBotSpawner(log: (msg: string) => void): BotSpawner | null 
   const url = process.env.BOT_SPAWNER_URL;
   if (!url) return null;
   return async (req) => {
-    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req) });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(req),
+    });
     if (!res.ok) throw new Error(`bot sidecar answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
     log(`${req.caller} called ${req.bot} for ${req.seconds}s in ${req.room}: ${await res.text()}`);
   };

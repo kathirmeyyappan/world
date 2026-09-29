@@ -12,7 +12,11 @@ export class HitFlash {
   private lit = false;
 
   constructor(materials: StandardMaterial[]) {
-    this.originals = materials.map((mat) => ({ mat, diffuse: mat.diffuseColor.clone(), emissive: mat.emissiveColor.clone() }));
+    this.originals = materials.map((mat) => ({
+      mat,
+      diffuse: mat.diffuseColor.clone(),
+      emissive: mat.emissiveColor.clone(),
+    }));
   }
 
   trigger(): void {

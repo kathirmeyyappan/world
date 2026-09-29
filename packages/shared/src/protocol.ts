@@ -11,10 +11,7 @@ export interface CubeSnapshot {
   ry: number;
 }
 
-export type ClientMessage =
-  | { t: 'input'; f: InputFrame }
-  | { t: 'chat'; text: string }
-  | { t: 'ping'; at: number };
+export type ClientMessage = { t: 'input'; f: InputFrame } | { t: 'chat'; text: string } | { t: 'ping'; at: number };
 
 export type ServerMessage =
   | { t: 'welcome'; id: string; room: string; tick: number; players: PlayerState[]; cubes: CubeSnapshot[] }
@@ -38,10 +35,14 @@ export function isClientMessage(v: unknown): v is ClientMessage {
       return (
         !!f &&
         Number.isInteger(f.seq) &&
-        isNum(f.mx) && isNum(f.my) && isNum(f.yaw) && isNum(f.pitch) &&
+        isNum(f.mx) &&
+        isNum(f.my) &&
+        isNum(f.yaw) &&
+        isNum(f.pitch) &&
         typeof f.jump === 'boolean' &&
         (f.reading === null || typeof f.reading === 'string') &&
-        Array.isArray(f.actions) && f.actions.every(isItemAction) &&
+        Array.isArray(f.actions) &&
+        f.actions.every(isItemAction) &&
         (f.view === undefined || isNum(f.view))
       );
     }

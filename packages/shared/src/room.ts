@@ -70,7 +70,6 @@ export interface RoomOptions {
   spawnBot?: BotSpawner; // absent: bots can't be called from this room
 }
 
-
 export class Room {
   readonly id: string;
   readonly worldShape: WorldPart[];
@@ -191,7 +190,10 @@ export class Room {
         return;
       }
       case 'chat': {
-        const text = msg.text.replace(/[\u0000-\u001f]/g, '').trim().slice(0, MAX_CHAT_LENGTH);
+        const text = msg.text
+          .replace(/[\u0000-\u001f]/g, '')
+          .trim()
+          .slice(0, MAX_CHAT_LENGTH);
         if (!text) return;
         const command = parseCommand(text);
         if (command) this.runCommand(seat, command);
@@ -221,8 +223,14 @@ export class Room {
     // Judge the shot where the targets were on the shooter's screen (rewind.ts); the shooter
     // fires from where they are now, which is what their own prediction showed them.
     const at = rewindTick(frame.view, this.tick);
-    const targets = this.players.map((p) => ({ id: p.id, dead: p.dead, pos: this.history.at(p.id, at) ?? p.pos, player: p }));
-    for (const hit of resolveFire(spec, me, targets)) this.damage(seat, hit.target.player, damageFor(spec, hit.headshot), hit.headshot);
+    const targets = this.players.map((p) => ({
+      id: p.id,
+      dead: p.dead,
+      pos: this.history.at(p.id, at) ?? p.pos,
+      player: p,
+    }));
+    for (const hit of resolveFire(spec, me, targets))
+      this.damage(seat, hit.target.player, damageFor(spec, hit.headshot), hit.headshot);
   }
 
   // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero. A kill is one
@@ -292,7 +300,10 @@ export class Room {
     switch (command.name) {
       case 'speedy':
         seat.state.boost = SPEEDY_SECONDS;
-        this.broadcast({ t: 'system', text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
+        this.broadcast({
+          t: 'system',
+          text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s`,
+        });
         return;
       case 'equip':
         this.equip(seat, command.item);
@@ -352,7 +363,13 @@ export class Room {
     const spec = ITEMS[id];
     me.item = createItem(id, false);
     seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${howTo(spec)}.` });
-    this.broadcast({ t: 'system', text: held && held.id !== id ? `${me.name} swapped their ${held.id} for a ${id}` : `${me.name} drew a ${id}` }, me.id);
+    this.broadcast(
+      {
+        t: 'system',
+        text: held && held.id !== id ? `${me.name} swapped their ${held.id} for a ${id}` : `${me.name} drew a ${id}`,
+      },
+      me.id,
+    );
   }
 
   // Anywhere in the world, clear of the walls and not on top of a cube.
@@ -374,7 +391,10 @@ function howTo(spec: ItemSpec): string {
 }
 
 export function sanitizeName(raw: string): string {
-  const cleaned = raw.replace(/[\u0000-\u001f]/g, '').trim().slice(0, MAX_NAME_LENGTH);
+  const cleaned = raw
+    .replace(/[\u0000-\u001f]/g, '')
+    .trim()
+    .slice(0, MAX_NAME_LENGTH);
   return cleaned || 'guest';
 }
 

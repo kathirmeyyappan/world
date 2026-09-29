@@ -7,29 +7,11 @@ import { HEART as FULL, pixelSvg } from './pixelIcons';
 // 9x8 pixel heart. '#' body, '+' highlight, '.' empty. The broken one has a crack down it; the
 // half one is the broken one with everything left of the crack ('L') still red and the rest ('R')
 // grey, so the crack is where the heart stops.
-const BROKEN = [
-  '.##...##.',
-  '#+##.####',
-  '###.#####',
-  '####.####',
-  '.####.##.',
-  '..##.##..',
-  '...#.#...',
-  '....#....',
-];
+const BROKEN = ['.##...##.', '#+##.####', '###.#####', '####.####', '.####.##.', '..##.##..', '...#.#...', '....#....'];
 
-const HALF = [
-  '.LL...RR.',
-  'L+LL.RRRR',
-  'LLL.RRRRR',
-  'LLLL.RRRR',
-  '.LLLL.RR.',
-  '..LL.RR..',
-  '...L.R...',
-  '....L....',
-];
+const HALF = ['.LL...RR.', 'L+LL.RRRR', 'LLL.RRRRR', 'LLLL.RRRR', '.LLLL.RR.', '..LL.RR..', '...L.R...', '....L....'];
 
-const PIX = { '+': 'hi', 'R': 'grey' };
+const PIX = { '+': 'hi', R: 'grey' };
 
 export class Hearts {
   private readonly root = document.getElementById('hearts')!;

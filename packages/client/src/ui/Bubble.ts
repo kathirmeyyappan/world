@@ -19,7 +19,10 @@ export class Bubble {
     this.el.id = 'bubble';
     this.el.classList.add('hidden');
     this.text = document.createElement('span');
-    this.el.append(this.text, Object.assign(document.createElement('span'), { className: 'bubble-cursor', textContent: '▮' }));
+    this.el.append(
+      this.text,
+      Object.assign(document.createElement('span'), { className: 'bubble-cursor', textContent: '▮' }),
+    );
     document.getElementById('hud')!.appendChild(this.el);
   }
 
@@ -74,7 +77,12 @@ export class Bubble {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     const behind = Vector3.TransformCoordinates(this.anchor, camera.getViewMatrix()).z < 0;
-    const s = Vector3.Project(this.anchor, Matrix.Identity(), scene.getTransformMatrix(), camera.viewport.toGlobal(w, h));
+    const s = Vector3.Project(
+      this.anchor,
+      Matrix.Identity(),
+      scene.getTransformMatrix(),
+      camera.viewport.toGlobal(w, h),
+    );
     const visible = !behind && s.x > -100 && s.x < w + 100 && s.y > -50 && s.y < h + 50;
     this.el.style.visibility = visible ? 'visible' : 'hidden';
     const x = Math.min(w - 20, Math.max(20, s.x));

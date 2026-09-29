@@ -2,8 +2,22 @@
 // player, interpolates everyone else, and forwards input to the room host through a Connection.
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
-  CUBES, ITEMS, SKY_OBJECTS, TICK_DT, WORLD_SHAPE, actionForKey, createRng, hashSeed, itemHelp, itemStats, parseCommand, resolveFire,
-  type ItemAction, type ItemId, type PlayerState, type ServerMessage,
+  CUBES,
+  ITEMS,
+  SKY_OBJECTS,
+  TICK_DT,
+  WORLD_SHAPE,
+  actionForKey,
+  createRng,
+  hashSeed,
+  itemHelp,
+  itemStats,
+  parseCommand,
+  resolveFire,
+  type ItemAction,
+  type ItemId,
+  type PlayerState,
+  type ServerMessage,
 } from '@world/shared';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
@@ -103,7 +117,6 @@ export class Game {
     this.engine.scene.activeCamera = this.camera;
     this.viewmodel = new Viewmodel(this.engine, this.camera);
 
-
     CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);
       this.cubes.set(content.id, cube);
@@ -147,9 +160,13 @@ export class Game {
       else if (e.code === 'KeyC') this.commandsMenu.set(true);
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
-    window.addEventListener('wheel', (e) => {
-      if (this.commandsMenu.isOpen) this.commandsMenu.scroll(e.deltaY);
-    }, { passive: true });
+    window.addEventListener(
+      'wheel',
+      (e) => {
+        if (this.commandsMenu.isOpen) this.commandsMenu.scroll(e.deltaY);
+      },
+      { passive: true },
+    );
     // Shooting is not a click handler: the input layer samples the mouse button into the
     // frame's actions like any key. A click only opens the cube under the crosshair, and only
     // when the press started on it: a hold that began as a shot stays a shot.
@@ -219,7 +236,7 @@ export class Game {
       return;
     }
     if (spec.actions.shoot?.mode !== 'tap' || performance.now() < this.localCooldownUntil) return;
-    this.localCooldownUntil = performance.now() + (spec.cooldownTicks * TICK_DT) * 1000;
+    this.localCooldownUntil = performance.now() + spec.cooldownTicks * TICK_DT * 1000;
     this.viewmodel.fire();
     // Recoil the camera up and let it settle. Bigger for the sniper, whose viewmodel is hidden
     // behind the scope, and flash the scope so the shot is unmistakable.
@@ -257,7 +274,8 @@ export class Game {
         this.myId = m.id;
         // The sky is seeded by the room's key (the Modal session id), which welcome carries, so
         // everyone in a session shares one sky and a new session gets a new one.
-        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(m.room)))) this.skyByMesh.set(sky.mesh.name, sky);
+        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(m.room))))
+          this.skyByMesh.set(sky.mesh.name, sky);
         const me = m.players.find((p) => p.id === m.id)!;
         this.prediction = new Prediction(me, WORLD_SHAPE);
         this.input.yaw = me.yaw;
@@ -266,9 +284,11 @@ export class Game {
         this.hud.setSelf(m.id);
         this.hud.setPlayers(m.players);
         for (const p of m.players) if (p.id !== m.id) this.addAvatar(p);
-        this.hud.system(IS_TOUCH
-          ? `you are ${me.name}. drag to look, pad to move, SELECT on a cube.`
-          : `you are ${me.name}. WASD to move, click cubes, Enter to chat.`);
+        this.hud.system(
+          IS_TOUCH
+            ? `you are ${me.name}. drag to look, pad to move, SELECT on a cube.`
+            : `you are ${me.name}. WASD to move, click cubes, Enter to chat.`,
+        );
         return;
       }
       case 'snap': {
@@ -354,7 +374,12 @@ export class Game {
     this.accumulator += Math.min(dt, TICK_DT * MAX_TICKS_PER_FRAME);
     while (this.accumulator >= TICK_DT) {
       this.accumulator -= TICK_DT;
-      const frame = this.input.sampleFrame(this.prediction.nextSeq(), this.overlay.reading, this.itemActions(), this.interp.viewTick);
+      const frame = this.input.sampleFrame(
+        this.prediction.nextSeq(),
+        this.overlay.reading,
+        this.itemActions(),
+        this.interp.viewTick,
+      );
       this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
@@ -375,10 +400,16 @@ export class Game {
     const self = this.prediction.state;
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
-    this.hud.setItemHint(held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '', held ? itemStats(held.id) : '');
+    this.hud.setItemHint(
+      held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '',
+      held ? itemStats(held.id) : '',
+    );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
-    this.commandHint.update(!!held || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened, this.dead || this.hud.isChatOpen());
+    this.commandHint.update(
+      !!held || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened,
+      this.dead || this.hud.isChatOpen(),
+    );
 
     const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
@@ -400,14 +431,30 @@ export class Game {
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
-    this.minimap.update({ me: { x: p.x, z: p.z, yaw: this.input.yaw }, players: sampled.players, cubes: sampled.cubes });
+    this.minimap.update({
+      me: { x: p.x, z: p.z, yaw: this.input.yaw },
+      players: sampled.players,
+      cubes: sampled.cubes,
+    });
 
     this.updateHover();
     // Red crosshair when a shot from here would land: same maths the server will run.
     const me = this.prediction.state;
-    const hit = !!held && !this.dead && this.canFire()
-      && resolveFire(ITEMS[held.id], { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch }, targets(sampled.players)).length > 0;
-    this.mobileActions.update({ hot: !!this.hovered, item: held?.id ?? null, scoped: this.scoped, canFire: this.canFire() });
+    const hit =
+      !!held &&
+      !this.dead &&
+      this.canFire() &&
+      resolveFire(
+        ITEMS[held.id],
+        { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch },
+        targets(sampled.players),
+      ).length > 0;
+    this.mobileActions.update({
+      hot: !!this.hovered,
+      item: held?.id ?? null,
+      scoped: this.scoped,
+      canFire: this.canFire(),
+    });
     if (hit !== this.canHit) {
       this.canHit = hit;
       this.hud.setCrosshairTarget(this.canHit);
@@ -425,7 +472,10 @@ export class Game {
     let nextSky: SkyObject | null = null;
     if (!this.isBlocked()) {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
-      const hit = this.engine.scene.pickWithRay(ray, (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'));
+      const hit = this.engine.scene.pickWithRay(
+        ray,
+        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'),
+      );
       if (hit?.pickedMesh) {
         if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
         nextSky = this.skyByMesh.get(hit.pickedMesh.name) ?? null;
@@ -452,19 +502,29 @@ export class Game {
     this.input.pitch = pitch;
   }
 
-  debug(): { id: string; pos: { x: number; y: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[]; sky: { id: string; x: number; z: number }[] } {
-    const remotes = this.interp.sample(performance.now(), this.myId).players.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z }));
-    const sky = [...this.skyByMesh.values()].map((s) => ({ id: s.content.id, x: Math.round(s.mesh.position.x), z: Math.round(s.mesh.position.z) }));
+  debug(): {
+    id: string;
+    pos: { x: number; y: number; z: number };
+    remotes: { id: string; name: string; x: number; z: number }[];
+    sky: { id: string; x: number; z: number }[];
+  } {
+    const remotes = this.interp
+      .sample(performance.now(), this.myId)
+      .players.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z }));
+    const sky = [...this.skyByMesh.values()].map((s) => ({
+      id: s.content.id,
+      x: Math.round(s.mesh.position.x),
+      z: Math.round(s.mesh.position.z),
+    }));
     return { id: this.myId, pos: { ...(this.prediction?.state.pos ?? { x: 0, y: 0, z: 0 }) }, remotes, sky };
   }
-
-
 }
 
 // The hint bar's text. A scope-only weapon leads with the step that's missing.
 function itemHint(id: ItemId, left: number | null, withKeys: boolean, scoped: boolean): string {
   const parts = [id.toUpperCase()];
-  if (ITEMS[id].fireNeedsScope && !scoped) parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
+  if (ITEMS[id].fireNeedsScope && !scoped)
+    parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
   else if (withKeys) parts.push(itemHelp(id, ' · '));
   if (left !== null) parts.push(`${Math.ceil(left)}s`);
   return parts.join(' · ');

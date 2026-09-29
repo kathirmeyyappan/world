@@ -61,10 +61,7 @@ async def live_session(room_id: str, room_url: str) -> dict | None:
 async def start_session(room_id: str) -> dict:
     """Start a fresh session for the room and cache it."""
     session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
-    entry_info = {
-        "session_id": session.session_id, 
-        "token": session.token
-    }
+    entry_info = {"session_id": session.session_id, "token": session.token}
     await rooms.put.aio(room_id, entry_info)
     return entry_info
 
@@ -107,7 +104,13 @@ def build_api(warm=warm_room):
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         # Where the player came from (the launcher), so the room page can send them back to it.
         home = urlparse(request.headers.get("referer", ""))
-        params = {"modal_session_token": entry_info["token"], "room": room_id, "direct": "1", "name": name, "lobby": lobby_url}
+        params = {
+            "modal_session_token": entry_info["token"],
+            "room": room_id,
+            "direct": "1",
+            "name": name,
+            "lobby": lobby_url,
+        }
         if home.scheme and home.netloc:
             params["home"] = f"{home.scheme}://{home.netloc}"
         query = urlencode(params)

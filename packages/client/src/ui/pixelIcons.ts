@@ -35,40 +35,13 @@ export const HEART = [
 ];
 
 // 8x8 dagger: blade from the top right ('#'), guard ('G'), hilt ('H').
-export const KNIFE = [
-  '......##',
-  '.....###',
-  '....###.',
-  '...###..',
-  'GG###...',
-  '.GG.....',
-  'HGG.....',
-  'H.......',
-];
+export const KNIFE = ['......##', '.....###', '....###.', '...###..', 'GG###...', '.GG.....', 'HGG.....', 'H.......'];
 
 // 8x8 skull with eye holes and teeth.
-export const SKULL = [
-  '..####..',
-  '.######.',
-  '##.##.##',
-  '##.##.##',
-  '########',
-  '.######.',
-  '..#.#.#.',
-  '..#.#.#.',
-];
+export const SKULL = ['..####..', '.######.', '##.##.##', '##.##.##', '########', '.######.', '..#.#.#.', '..#.#.#.'];
 
 // 8x8 robot head: antenna, visor eyes, a mouth grille.
-export const ROBOT = [
-  '...##...',
-  '...##...',
-  '.######.',
-  '#.#..#.#',
-  '#.#..#.#',
-  '#.####.#',
-  '.#.##.#.',
-  '.######.',
-];
+export const ROBOT = ['...##...', '...##...', '.######.', '#.#..#.#', '#.#..#.#', '#.####.#', '.#.##.#.', '.######.'];
 
 // 24x12 Modal mark, traced from the brand SVG: two mirrored hexagons meeting at the notch,
 // '#' the lit faces, 'd' the shaded bottom face. Rendered by mountPoweredBy() on the loading screen.

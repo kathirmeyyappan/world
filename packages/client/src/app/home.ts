@@ -3,7 +3,14 @@
 // Resolves with a live Connection. Also honours ?room=&name= for invite links and tests.
 import { isValidRoomId, sanitizeName } from '@world/shared';
 import { LocalConnection, type Connection } from '../net/Connection';
-import { LobbyUnavailableError, SERVED_BY_ROOM_HOST, joinRoom, rememberRoom, rememberedRoom, warmLobby } from '../net/lobby';
+import {
+  LobbyUnavailableError,
+  SERVED_BY_ROOM_HOST,
+  joinRoom,
+  rememberRoom,
+  rememberedRoom,
+  warmLobby,
+} from '../net/lobby';
 
 export interface HomeResult {
   connection: Connection;
@@ -90,7 +97,7 @@ export function showHome(): Promise<HomeResult> {
       if (e.code === 'Enter') joinTyped();
     });
     nameInput.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter') (roomInput.value ? joinTyped() : roomInput.focus());
+      if (e.code === 'Enter') roomInput.value ? joinTyped() : roomInput.focus();
     });
     globalBtn.addEventListener('click', () => attempt(GLOBAL_ROOM));
     offlineBtn.addEventListener('click', () => {

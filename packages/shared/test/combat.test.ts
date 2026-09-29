@@ -29,7 +29,11 @@ test('findHit picks the nearest live player in front, within range and radius', 
   dead.dead = true;
   assert.equal(findHit(at('me', 0, 0), [dead], GUN), null, 'the dead are not targets');
   assert.equal(findHit(at('me', 0, 0), [at('x', 0, GUN + 2)], GUN), null, 'out of gun range');
-  assert.equal(findHit(at('me', 0, 0), [at('x', 0, GUN + 2)], ITEMS.sniper.range)?.target.id, 'x', 'the sniper reaches it');
+  assert.equal(
+    findHit(at('me', 0, 0), [at('x', 0, GUN + 2)], ITEMS.sniper.range)?.target.id,
+    'x',
+    'the sniper reaches it',
+  );
   assert.equal(findHit(at('me', 0, 0), [at('x', 0.3, 5)], GUN)?.target.id, 'x', 'slightly off centre still counts');
 });
 
@@ -49,7 +53,18 @@ test('resolveFire: hitscan picks one, a cone takes everyone inside it', () => {
   const beside = at('beside', 1.5, 6);
   const far = at('far', 0, 12);
   const wide = at('wide', 5, 6);
-  assert.deepEqual(resolveFire(ITEMS.gun, me, [near, beside, far, wide]).map((h) => h.target.id), ['near']);
-  assert.deepEqual(resolveFire(ITEMS.flamethrower, me, [near, beside, far, wide]).map((h) => h.target.id).sort(), ['beside', 'near']);
-  assert.ok(resolveFire(ITEMS.flamethrower, me, [near]).every((h) => !h.headshot), 'no headshots from a cone');
+  assert.deepEqual(
+    resolveFire(ITEMS.gun, me, [near, beside, far, wide]).map((h) => h.target.id),
+    ['near'],
+  );
+  assert.deepEqual(
+    resolveFire(ITEMS.flamethrower, me, [near, beside, far, wide])
+      .map((h) => h.target.id)
+      .sort(),
+    ['beside', 'near'],
+  );
+  assert.ok(
+    resolveFire(ITEMS.flamethrower, me, [near]).every((h) => !h.headshot),
+    'no headshots from a cone',
+  );
 });

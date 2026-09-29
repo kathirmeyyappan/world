@@ -31,7 +31,12 @@ export class ElizabethAvatar implements Avatar {
   private lastX = 0;
   private lastZ = 0;
 
-  constructor(engine: Engine, readonly id: string, name: string, color: string) {
+  constructor(
+    engine: Engine,
+    readonly id: string,
+    name: string,
+    color: string,
+  ) {
     const scene = engine.scene;
     this.root = new TransformNode(`avatar-${id}`, scene);
     this.body = new TransformNode(`avatar-body-${id}`, scene);
@@ -89,7 +94,14 @@ export class ElizabethAvatar implements Avatar {
 
     // Items hang off the right flipper's tip; the flipper points forward while holding one. The
     // flamethrower's tank rides on the back of the egg.
-    this.items = new HeldItems(engine, `eliz-${id}`, this.flipperR, new Vector3(0.02, -0.32, 0.04), this.body, new Vector3(0, 1.15, -(RADIUS + 0.1)));
+    this.items = new HeldItems(
+      engine,
+      `eliz-${id}`,
+      this.flipperR,
+      new Vector3(0.02, -0.32, 0.04),
+      this.body,
+      new Vector3(0, 1.15, -(RADIUS + 0.1)),
+    );
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.5);
     this.shadow.parent = this.root;
@@ -162,7 +174,12 @@ function flat(scene: Engine['scene'], name: string, color: Color3, glow: number)
 // Flat shaded so it stays low-poly like everything else.
 function capsule(scene: Engine['scene'], name: string, parent: TransformNode, mat: StandardMaterial): Mesh {
   const domeStart = HEIGHT * DOME_FROM;
-  const shape = [new Vector3(0, 0, 0), new Vector3(RADIUS * 0.8, 0, 0), new Vector3(RADIUS, 0.1, 0), new Vector3(RADIUS, domeStart, 0)];
+  const shape = [
+    new Vector3(0, 0, 0),
+    new Vector3(RADIUS * 0.8, 0, 0),
+    new Vector3(RADIUS, 0.1, 0),
+    new Vector3(RADIUS, domeStart, 0),
+  ];
   const steps = 6;
   for (let i = 1; i <= steps; i++) {
     const a = (i / steps) * (Math.PI / 2);
@@ -177,7 +194,16 @@ function capsule(scene: Engine['scene'], name: string, parent: TransformNode, ma
 }
 
 // A thin disc facing +z, for the eyes.
-function disc(scene: Engine['scene'], name: string, parent: TransformNode, mat: StandardMaterial, diameter: number, x: number, y: number, z: number): Mesh {
+function disc(
+  scene: Engine['scene'],
+  name: string,
+  parent: TransformNode,
+  mat: StandardMaterial,
+  diameter: number,
+  x: number,
+  y: number,
+  z: number,
+): Mesh {
   const m = MeshBuilder.CreateCylinder(name, { diameter, height: 0.02, tessellation: 10 }, scene);
   m.rotation.x = Math.PI / 2;
   m.material = mat;

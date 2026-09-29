@@ -12,7 +12,11 @@ const MAX_OUTSIDE = 85;
 export class SkyObject {
   readonly mesh: Mesh;
 
-  constructor(engine: Engine, readonly content: SkyContent, position: Vector3) {
+  constructor(
+    engine: Engine,
+    readonly content: SkyContent,
+    position: Vector3,
+  ) {
     const scene = engine.scene;
     this.mesh = MeshBuilder.CreatePlane(`sky-${content.id}`, { size: BASE_SIZE }, scene);
     this.mesh.position = position;

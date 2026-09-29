@@ -1,6 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CUBE_IDS, HEADSHOT_MULTIPLIER, ITEMS, MAX_HEARTS, MAX_PLAYERS, MAX_REWIND_TICKS, MOVE_SPEED, Room, TICK_DT, WORLD_SHAPE, worldDistance, defaultBotsFor, type BotRequest, type InputFrame, type ItemAction, type ServerMessage } from '@world/shared';
+import {
+  CUBE_IDS,
+  HEADSHOT_MULTIPLIER,
+  ITEMS,
+  MAX_HEARTS,
+  MAX_PLAYERS,
+  MAX_REWIND_TICKS,
+  MOVE_SPEED,
+  Room,
+  TICK_DT,
+  WORLD_SHAPE,
+  worldDistance,
+  defaultBotsFor,
+  type BotRequest,
+  type InputFrame,
+  type ItemAction,
+  type ServerMessage,
+} from '@world/shared';
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -38,8 +55,14 @@ test('room seats players, applies inputs on step, and broadcasts', () => {
   assert.equal(b.inbox[0].t === 'welcome' && b.inbox[0].players.length, 2);
   assert.equal(a.inbox[1].t === 'join' && a.inbox[1].p.name, 'guest');
 
-  room.receive(ida, { t: 'input', f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: false, reading: 'aws', actions: [] } });
-  room.receive(ida, { t: 'input', f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: false, reading: null, actions: [] } });
+  room.receive(ida, {
+    t: 'input',
+    f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: false, reading: 'aws', actions: [] },
+  });
+  room.receive(ida, {
+    t: 'input',
+    f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: false, reading: null, actions: [] },
+  });
   room.receive(ida, { t: 'nonsense' });
   const before = room.players.find((p) => p.id === ida)!.pos.z;
   room.step();
@@ -77,8 +100,14 @@ test('players spawn at random spots across the whole world, clear of walls', () 
     assert.ok(worldDistance(me.pos.x, me.pos.z, WORLD_SHAPE) <= -3 + 1e-9, 'inside, clear of the wall');
     room.leave(id);
   }
-  assert.ok(spots.some((p) => p.x > 82), 'some spawn in the annex');
-  assert.ok(spots.some((p) => p.x < 50), 'some spawn in the main disc');
+  assert.ok(
+    spots.some((p) => p.x > 82),
+    'some spawn in the annex',
+  );
+  assert.ok(
+    spots.some((p) => p.x < 50),
+    'some spawn in the main disc',
+  );
   assert.ok(new Set(spots.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`)).size === spots.length, 'all different');
 });
 
@@ -119,9 +148,13 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   assert.deepEqual(alice.item, { id: 'gun', left: 45, permanent: false, fuel: null });
   const chest = Math.atan2(0.8, 8);
   press(room, ida, chest, false);
-  assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, 'a body shot takes the gun\'s damage');
+  assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, "a body shot takes the gun's damage");
   assert.ok(!bob.dead, 'bob is directly ahead but not dead yet');
-  assert.ok(b.inbox.some((m) => m.t === 'hit' && m.victim === idb && m.shooter === ida && m.damage === 2 && !m.headshot && m.hearts === 8));
+  assert.ok(
+    b.inbox.some(
+      (m) => m.t === 'hit' && m.victim === idb && m.shooter === ida && m.damage === 2 && !m.headshot && m.hearts === 8,
+    ),
+  );
   while (!bob.dead) {
     for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) room.step();
     press(room, ida, chest, false);
@@ -129,12 +162,18 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   assert.equal(bob.hearts, 0);
   assert.equal(b.inbox.filter((m) => m.t === 'hit').length, 5, 'ten hearts, two a shot');
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === idb && m.shooter === ida));
-  assert.ok(b.inbox.some((m) => m.t === 'kill' && m.item === 'gun' && !m.headshot), 'the kill says what did it');
+  assert.ok(
+    b.inbox.some((m) => m.t === 'kill' && m.item === 'gun' && !m.headshot),
+    'the kill says what did it',
+  );
   assert.equal(alice.kills, 1, 'and counts for the shooter');
   assert.equal(bob.kills, 0);
 
   const before = { ...bob.pos };
-  room.receive(idb, { t: 'input', f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: true, reading: null, actions: [] } });
+  room.receive(idb, {
+    t: 'input',
+    f: { seq: 1, mx: 0, my: 1, yaw: 0, pitch: 0, jump: true, reading: null, actions: [] },
+  });
   room.step();
   assert.deepEqual(bob.pos, before, 'dead players cannot move or jump');
 
@@ -144,7 +183,7 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   assert.ok(welcome.t === 'welcome' && welcome.players.find((p) => p.id === idb)!.dead, 'late joiners see who is dead');
 });
 
-test('lag compensation: a shot is judged where the target was on the shooter\'s screen', () => {
+test("lag compensation: a shot is judged where the target was on the shooter's screen", () => {
   const room = new Room('rewind', { seed: 5 });
   const ida = room.join('alice', link())!;
   const idb = room.join('bob', link())!;
@@ -182,7 +221,10 @@ test('weapon command shortcuts equip the matching item', () => {
   const playerId = room.join('alice', link())!;
   const player = room.players.find((candidate) => candidate.id === playerId)!;
 
-  for (const [command, item] of [['/g', 'gun'], ['/ft', 'flamethrower']] as const) {
+  for (const [command, item] of [
+    ['/g', 'gun'],
+    ['/ft', 'flamethrower'],
+  ] as const) {
     room.receive(playerId, { t: 'chat', text: command });
     assert.equal(player.item?.id, item);
   }
@@ -244,7 +286,12 @@ test('a corpse that never rejoins is removed and its link closed', () => {
   const room = new Room('corpse', { seed: 5 });
   const a = link();
   let closed = false;
-  const bLink = { ...link(), close: () => { closed = true; } };
+  const bLink = {
+    ...link(),
+    close: () => {
+      closed = true;
+    },
+  };
   const ida = room.join('alice', a)!;
   const idb = room.join('bot', bLink)!;
   const alice = room.players.find((p) => p.id === ida)!;
@@ -254,11 +301,17 @@ test('a corpse that never rejoins is removed and its link closed', () => {
   press(room, ida, 0, true);
   assert.ok(bot.dead, 'a scoped sniper headshot');
   for (let i = 0; i < 30 * 12; i++) room.step();
-  assert.ok(room.players.some((p) => p.id === idb), 'still a corpse at 12 s');
+  assert.ok(
+    room.players.some((p) => p.id === idb),
+    'still a corpse at 12 s',
+  );
   for (let i = 0; i < 30 * 2; i++) room.step();
   assert.ok(!room.players.some((p) => p.id === idb), 'gone after the death screen would have reloaded');
   assert.ok(closed, 'its socket was closed');
-  assert.ok(a.inbox.some((m) => m.t === 'leave' && m.id === idb), 'everyone saw it leave');
+  assert.ok(
+    a.inbox.some((m) => m.t === 'leave' && m.id === idb),
+    'everyone saw it leave',
+  );
 });
 
 test('avatars: /elizabeth is for good; ELIZABETH in the name locks the look', () => {
@@ -360,7 +413,13 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   let botClosed = false;
   const room = new Room('bots', { seed: 4, onEmpty: () => empties++ });
   let botCloseReason = '';
-  const bot = { ...link(), close: (reason: string) => { botClosed = true; botCloseReason = reason; } };
+  const bot = {
+    ...link(),
+    close: (reason: string) => {
+      botClosed = true;
+      botCloseReason = reason;
+    },
+  };
   assert.equal(room.join('circle-bot', bot, { bot: true }), null, 'a bot never starts a room on its own');
   assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: 'no one here' });
   const ida = room.join('alice', link())!;
@@ -378,14 +437,28 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   assert.equal(room.playerCount, 0);
 });
 
-test('the first person in brings the room\'s default bots; nobody else does', async () => {
+test("the first person in brings the room's default bots; nobody else does", async () => {
   const spawned: BotRequest[] = [];
-  const room = new Room('sess-d', { seed: 4, spawnBot: async (req) => { spawned.push(req); } });
-  assert.equal(room.join('circle-bot', link(), { bot: true, room: 'global' }), null, 'a bot alone is refused, so it never triggers them');
+  const room = new Room('sess-d', {
+    seed: 4,
+    spawnBot: async (req) => {
+      spawned.push(req);
+    },
+  });
+  assert.equal(
+    room.join('circle-bot', link(), { bot: true, room: 'global' }),
+    null,
+    'a bot alone is refused, so it never triggers them',
+  );
   const a = link();
   room.join('alice', a, { room: 'global' });
   await Promise.resolve();
-  const expected = defaultBotsFor('global').map(({ bot, seconds }) => ({ bot, room: 'global', seconds, caller: 'room' }));
+  const expected = defaultBotsFor('global').map(({ bot, seconds }) => ({
+    bot,
+    room: 'global',
+    seconds,
+    caller: 'room',
+  }));
   assert.deepEqual(spawned, expected);
   assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'circle-bot, circle-bot on the way'));
   room.join('bob', link(), { room: 'global' });
@@ -417,7 +490,10 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   room.receive(ida, { t: 'chat', text: '/circle-bot 60' });
   await Promise.resolve();
   assert.deepEqual(spawned, [{ bot: 'circle', room: 'late-night', seconds: 60, caller: 'alice' }]);
-  assert.ok(b.inbox.some((m) => m.t === 'system' && m.text === 'alice called circle-bot for 60s'), 'everyone hears');
+  assert.ok(
+    b.inbox.some((m) => m.t === 'system' && m.text === 'alice called circle-bot for 60s'),
+    'everyone hears',
+  );
 
   room.receive(ida, { t: 'chat', text: '/observer' });
   await Promise.resolve();
@@ -439,7 +515,12 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
 
   fail = true;
   const c = link();
-  const room2 = new Room('sess-2', { seed: 1, spawnBot: async () => { throw new Error('modal down'); } });
+  const room2 = new Room('sess-2', {
+    seed: 1,
+    spawnBot: async () => {
+      throw new Error('modal down');
+    },
+  });
   const idc = room2.join('carol', c, { room: 'x' })!;
   room2.receive(idc, { t: 'chat', text: '/circle-bot' });
   await new Promise((r) => setTimeout(r, 0));
@@ -452,13 +533,27 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   assert.deepEqual(d.inbox.at(-1), { t: 'system', text: "bots can't be called in this room" });
 });
 
-test("a bot corpse lingers for 5 s while a browser gets the full death screen", () => {
+test('a bot corpse lingers for 5 s while a browser gets the full death screen', () => {
   const room = new Room('corpses', { seed: 5 });
   const ida = room.join('SNIPERalice', link())!;
   let botClosed = false;
-  const idb = room.join('circle-bot', { ...link(), close: () => { botClosed = true; } }, { bot: true })!;
+  const idb = room.join(
+    'circle-bot',
+    {
+      ...link(),
+      close: () => {
+        botClosed = true;
+      },
+    },
+    { bot: true },
+  )!;
   let humanClosed = false;
-  const idc = room.join('bob', { ...link(), close: () => { humanClosed = true; } })!;
+  const idc = room.join('bob', {
+    ...link(),
+    close: () => {
+      humanClosed = true;
+    },
+  })!;
   const [alice, bot, bob] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
   bot.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
   press(room, ida, 0, true);

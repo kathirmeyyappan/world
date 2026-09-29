@@ -8,23 +8,23 @@ export interface SkyContent {
 
 export const SKY_OBJECTS: SkyContent[] = [
   {
-    id: "moon",
-    image: "/assets/textures/sky/moon.png",
-    line: "Zelda and Mario games are peak. Nintendo only creates goated media.",
+    id: 'moon',
+    image: '/assets/textures/sky/moon.png',
+    line: 'Zelda and Mario games are peak. Nintendo only creates goated media.',
   },
   {
-    id: "mugiwara",
-    image: "/assets/textures/sky/mugiwara.png",
+    id: 'mugiwara',
+    image: '/assets/textures/sky/mugiwara.png',
     line: "Visit anime.kathirm.com if you're curious.",
   },
   {
-    id: "patriots",
-    image: "/assets/textures/sky/patriots.png",
-    line: "Sometimes you hit a rough patch. Just trust the process.",
+    id: 'patriots',
+    image: '/assets/textures/sky/patriots.png',
+    line: 'Sometimes you hit a rough patch. Just trust the process.',
   },
   {
-    id: "drake-maye",
-    image: "/assets/textures/sky/drake_maye.png",
-    line: "All hail glorious king Drake Maye.",
+    id: 'drake-maye',
+    image: '/assets/textures/sky/drake_maye.png',
+    line: 'All hail glorious king Drake Maye.',
   },
 ];

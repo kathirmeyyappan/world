@@ -32,12 +32,7 @@ def test_lobby_ticket_is_small_and_redacted() -> None:
             assert request.url.path == "/join/test-room"
             return httpx.Response(
                 302,
-                headers={
-                    "location": (
-                        "https://room.example.test:8443/"
-                        "?modal_session_token=secret&room=test-room"
-                    )
-                },
+                headers={"location": ("https://room.example.test:8443/?modal_session_token=secret&room=test-room")},
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -50,20 +45,14 @@ def test_lobby_ticket_is_small_and_redacted() -> None:
             )
 
     ticket = asyncio.run(scenario())
-    assert ticket.url == (
-        "wss://room.example.test:8443/ws?room=test-room&name=observer+name&bot=1"
-    )
+    assert ticket.url == ("wss://room.example.test:8443/ws?room=test-room&name=observer+name&bot=1")
     assert ticket.token == "secret"
     assert "secret" not in repr(ticket)
 
 
 def test_lobby_failure_is_clear() -> None:
     async def scenario() -> None:
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(
-                lambda _request: httpx.Response(400)
-            )
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _request: httpx.Response(400))) as client:
             await connection._request_ticket(
                 "https://lobby.example.test",
                 "bad-room",

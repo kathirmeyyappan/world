@@ -16,7 +16,14 @@ export class HeldItems {
 
   // `hand` points the barrel along its local -y when raised (see the avatars), so the shapes,
   // built barrel-along-+z, are turned 90 degrees inside it.
-  constructor(engine: Engine, name: string, hand: TransformNode, handOffset: Vector3, back: TransformNode, backOffset: Vector3) {
+  constructor(
+    engine: Engine,
+    name: string,
+    hand: TransformNode,
+    handOffset: Vector3,
+    back: TransformNode,
+    backOffset: Vector3,
+  ) {
     const scene = engine.scene;
     const pal = weaponPalette(scene, `${name}-weapon`);
     let nozzle: TransformNode | null = null;
