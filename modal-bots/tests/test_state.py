@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 
 from common import Welcome, WorldState
-from common.protocol import decode
+from common.protocol import Message, decode
 from tests.helpers import cube, player, welcome
 
 
-def message(payload: dict[str, object]):
+def message(payload: dict[str, object]) -> Message:
     return decode(json.dumps(payload))
 
 

@@ -10,7 +10,7 @@ from common import Controls, Cube, Player, Vec3, Welcome
 
 
 class FakeConnection:
-    def __init__(self):
+    def __init__(self) -> None:
         me = Player(
             id="p1",
             name="bot",

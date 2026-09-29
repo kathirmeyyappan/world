@@ -6,6 +6,16 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
 
+// What the client exposes for scripting (packages/client/src/main.ts), as seen inside page.evaluate.
+declare global {
+  interface Window {
+    __world?: {
+      debug: () => { id: string; pos: { x: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[] };
+      setLook: (yaw: number, pitch?: number) => void;
+    };
+  }
+}
+
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..', '..');
 const out = join(here, 'out');
@@ -27,7 +37,7 @@ function start(cmd: string, args: string[], cwd: string, ready: string, env: Rec
 }
 
 async function debug(page: Page) {
-  return page.evaluate(() => (window as unknown as { __world: { debug: () => { id: string; pos: { x: number; z: number }; remotes: { id: string; name: string; x: number; z: number }[] } } }).__world.debug());
+  return page.evaluate(() => window.__world!.debug());
 }
 
 async function main() {
@@ -46,7 +56,7 @@ async function main() {
       const page = await ctx.newPage();
       page.on('pageerror', (e) => console.error(`[${name} pageerror]`, e.message));
       await page.goto(`http://localhost:${CLIENT_PORT}/?room=${ROOM}&name=${name}`);
-      await page.waitForFunction(() => !!(window as unknown as { __world?: unknown }).__world);
+      await page.waitForFunction(() => !!window.__world);
       await page.waitForFunction(() => document.querySelectorAll('#player-list li').length >= 1);
       return page;
     };
@@ -78,8 +88,7 @@ async function main() {
     const bobState = await debug(bob);
     const yaw = Math.atan2(after.pos.x - bobState.pos.x, after.pos.z - bobState.pos.z);
     await bob.evaluate((y) => {
-      const w = window as unknown as { __world: { setLook?: (y: number) => void } };
-      w.__world.setLook?.(y);
+      window.__world!.setLook(y);
     }, yaw);
     await alice.keyboard.press('Enter');
     await alice.keyboard.type('hi bob');

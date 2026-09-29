@@ -11,6 +11,9 @@ from .protocol import Message, Player, Snapshot, Welcome, player, to_dict
 class WorldState:
     def __init__(self, welcome: Welcome, requested_room: str | None = None):
         self.requested_room = requested_room or welcome.room
+        self._reset(welcome)
+
+    def _reset(self, welcome: Welcome) -> None:
         self.session_room = welcome.room
         self.self_id = welcome.id
         self.tick = welcome.tick
@@ -27,7 +30,7 @@ class WorldState:
             self.players = {value.id: value for value in message.players}
             self.cubes = {value.id: value for value in message.cubes}
         elif isinstance(message, Welcome):
-            self.__init__(message, self.requested_room)
+            self._reset(message)
         elif message.t == "join":
             joined = player(message.data["p"])
             self.players[joined.id] = joined

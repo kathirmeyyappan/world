@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import modal  # type: ignore[import-not-found]
+import modal
 
 ROOT = Path(__file__).resolve().parent.parent
 BOT_TIMEOUT_SECONDS = 3600

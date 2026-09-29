@@ -10,12 +10,13 @@ import subprocess
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
-from common import RoomConnectionError, Snapshot, connect
+from common import Connection, RoomConnectionError, Snapshot, connect
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -54,8 +55,8 @@ def room_server() -> Iterator[str]:
         if process.poll() is not None:
             stderr = process.stderr.read() if process.stderr else ""
             raise RuntimeError(f"room server exited early: {stderr}")
-        for key, _events in selector.select(timeout=0.1):
-            line = key.fileobj.readline()
+        for _key, _events in selector.select(timeout=0.1):
+            line = process.stdout.readline()
             if "listening" in line:
                 ready = True
                 break
@@ -77,7 +78,7 @@ def room_server() -> Iterator[str]:
             process.wait(timeout=5)
 
 
-async def seat_person(room_server: str, room: str):
+async def seat_person(room_server: str, room: str) -> Connection:
     """A bot can't join a room with no people in it, so every scenario seats one first."""
     return await connect(None, room, "person", direct_url=room_server, bot=False)
 
@@ -120,7 +121,7 @@ def test_connects_and_decodes_real_room_server(room_server: str) -> None:
 
 
 def test_observer_reports_real_snapshots(room_server: str) -> None:
-    async def scenario() -> dict:
+    async def scenario() -> dict[str, Any]:
         person = await seat_person(room_server, "python-observer")
         try:
             return await run_observer_bot(

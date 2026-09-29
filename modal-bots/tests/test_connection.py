@@ -19,7 +19,8 @@ class FakeWebSocket:
 
     async def recv(self) -> str:
         if self.payload is None:
-            await asyncio.Future()
+            await asyncio.Future()  # never resolves: a server that never speaks
+        assert self.payload is not None
         return self.payload
 
     async def close(self, code: int = 1000, reason: str = "") -> None:
@@ -27,7 +28,7 @@ class FakeWebSocket:
 
 
 def test_lobby_ticket_is_small_and_redacted() -> None:
-    async def scenario():
+    async def scenario() -> connection._Ticket:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/join/test-room"
             return httpx.Response(
