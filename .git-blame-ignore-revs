@@ -1,0 +1,4 @@
+# Mechanical reformats for git blame to skip. GitHub reads this automatically; locally run:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# CI fmt + type checks: Prettier, ESLint (no any), ruff, strict mypy (#67)
+95b2436a20c9167dba0950318d7f1b891e5d712f
