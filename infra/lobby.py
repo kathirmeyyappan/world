@@ -140,7 +140,7 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
 
 # Not kept warm: the launcher pings /healthz on load, which wakes this container (and a Room, see
 # warm_room) before Join is clicked. The longer idle window gives the player five minutes to click it.
-@app.function(image=lobby_image, scaledown_window=300)
+@app.function(image=lobby_image, scaledown_window=300, max_containers=1)
 @modal.asgi_app()
 def lobby() -> "FastAPI":
     return build_api()
