@@ -14,12 +14,17 @@
     "build": "npm run build -w @world/server && npm run build -w @world/client",
     "typecheck": "tsc -p packages/shared && tsc -p packages/shared/test && tsc -p packages/server && tsc -p packages/client && tsc -p packages/client/e2e",
     "test": "node --import tsx --test packages/shared/test/*.test.ts packages/server/test/*.test.ts",
-    "e2e": "node --import tsx packages/client/e2e/multiplayer.ts"
+    "e2e": "node --import tsx packages/client/e2e/multiplayer.ts",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "concurrently": "^9.1.0",
+    "eslint": "9.39.5",
+    "prettier": "3.9.9",
     "tsx": "4.23.13",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "8.71.0"
   }
 }

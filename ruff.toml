@@ -1,0 +1,3 @@
+# Python in modal-bots/ and infra/: `ruff format` for layout, `ruff check` for lint.
+line-length = 120
+target-version = "py311"

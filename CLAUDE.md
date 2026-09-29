@@ -14,6 +14,16 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
   changes, edit the source and re-render the PNG with headless Chromium at 2x (a 1560 px viewport,
   `deviceScaleFactor: 2`, full page).
 
+## Formatting and type checks
+
+CI fails on any of these, so run them before pushing:
+
+- `npm run format` (Prettier: TS, CSS, HTML, JSON) and `ruff format modal-bots infra` (Python).
+- `npm run lint` checks formatting and bans explicit `any` and `@ts-` comments; `npm run typecheck` is
+  strict `tsc`. Type the thing instead of casting around it: no `as unknown as`.
+- `mypy` from the repo root is strict over `modal-bots/` and `infra/`. `Any` is for JSON at the wire,
+  nowhere else.
+
 ## Adding a Modal bot
 
 Keep this section synchronized with `AGENTS.md`. A bot is a headless Python client in
@@ -184,7 +194,10 @@ Do not log every snapshot or input frame. Modal already timestamps stdout; the l
 
 ```bash
 python -m pytest modal-bots/tests
-ruff check modal-bots
+ruff format --check modal-bots infra
+ruff check modal-bots infra
+mypy
+npm run lint
 npm run typecheck
 npm test
 ```

@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "ruff", "mypy"]
 
 [tool.setuptools.packages.find]
 where = ["."]
