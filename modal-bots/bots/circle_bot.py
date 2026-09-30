@@ -42,6 +42,8 @@ async def run_circle_bot(
     *,
     lobby_url: str | None = None,
     direct_ws_url: str | None = None,
+    spawn: Vec3 | None = None,
+    avatar: str | None = None,
 ) -> dict[str, Any]:
     validate_duration(seconds)
     connect_started = time.monotonic()
@@ -50,6 +52,8 @@ async def run_circle_bot(
         room,
         name,
         direct_url=direct_ws_url,
+        spawn=spawn,
+        avatar=avatar,
     )
     connected_at = time.monotonic()
     state = WorldState(connection.welcome, connection.room)
@@ -71,9 +75,10 @@ async def run_circle_bot(
                 if state.me is None:
                     break
                 if state.me.dead:
-                    # The fatal hit arrives first; the kill event that names the killer and
-                    # weapon is the next message. Then wait for the server to remove the
-                    # corpse and close the connection; input from the dead does nothing.
+                    # Input from the dead does nothing, so stop sending it and wait for the server
+                    # to remove the corpse and close the connection. A shot death's kill event,
+                    # naming the killer and weapon, follows the fatal hit; /kill-bots sends none.
+                    stop.set()
                     if isinstance(message, Event) and message.t == "kill":
                         log_death(
                             name,
@@ -81,7 +86,6 @@ async def run_circle_bot(
                             item=message.data["item"],
                             headshot=message.data["headshot"],
                         )
-                        stop.set()
                     continue
 
                 if spin.blocked(state.tick, state.me.pos, controls):
@@ -174,7 +178,7 @@ def _steer(state: WorldState, controls: Controls, direction: int) -> Player | No
     if me is None:
         return None
 
-    target = _nearest_player(state)
+    target = state.nearest_player()
     center = target.pos if target else Vec3(0, me.pos.y, 0)
     controls.look_at(me.pos, center)
 
@@ -185,23 +189,6 @@ def _steer(state: WorldState, controls: Controls, direction: int) -> Player | No
     )
     controls.move(forward=radial, right=direction)
     return target
-
-
-def _nearest_player(state: WorldState) -> Player | None:
-    me = state.me
-    if me is None:
-        return None
-    candidates = (player for player in state.players.values() if player.id != me.id and not player.dead)
-    return min(
-        candidates,
-        # Straight-line distance: someone on a floor above isn't next to us.
-        key=lambda player: math.hypot(
-            player.pos.x - me.pos.x,
-            player.pos.y - me.pos.y,
-            player.pos.z - me.pos.z,
-        ),
-        default=None,
-    )
 
 
 def _player_name(state: WorldState, player_id: str) -> str:

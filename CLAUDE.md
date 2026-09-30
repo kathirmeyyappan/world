@@ -127,6 +127,8 @@ async def run_example_bot(
     *,
     lobby_url: str | None,
     direct_ws_url: str | None = None,
+    spawn: Vec3 | None = None,
+    avatar: str | None = None,
 ) -> dict[str, Any]:
     ...
 ```
@@ -135,6 +137,7 @@ async def run_example_bot(
 - Call `validate_duration(seconds)` before starting work.
 - Return a JSON-serializable dictionary. Never return a live connection, dataclass, task, or token.
 - `lobby_url` is used in production. `direct_ws_url` exists only for local tests.
+- Pass `spawn` and `avatar` straight through to `connect` (see the placement fact below).
 - Do not add a Modal decorator to a bot. `modal-bots/app.py::run_bot` is the one shared Modal
   worker; it chooses a registered invocation and supplies the lobby URL from the
   `kathir-world-bots-config` Secret.
@@ -162,6 +165,7 @@ Bots must use the modules under `modal-bots/common/`:
   one retry on stale authentication, welcome validation, JSON transport, and clean close.
 - `WorldState(connection.welcome, connection.room)` owns the latest authoritative players, cubes,
   health, deaths, and server tick. Apply every received message before making the next decision.
+  `state.nearest_player(people_only=...)` is the closest living player in a straight line.
 - `Controls(connection)` owns input sequence numbers and persistent input intent.
 - `run_input_loop(controls, stop)` sends that intent at the server's 30 Hz tick rate without drift.
 - `log_kill`, `log_death`, and `log_message` write structured JSON to Modal's normal function logs.
@@ -206,6 +210,8 @@ connection = await connect(
     room,
     name,
     direct_url=direct_ws_url,
+    spawn=spawn,
+    avatar=avatar,
 )
 state = WorldState(connection.welcome, connection.room)
 controls = Controls(connection)
@@ -233,7 +239,8 @@ The observer is intentionally simpler because it never sends input. Use `circle_
 reference for an active receive loop plus 30 Hz input task. Browser clients respawn by reloading
 after ten seconds and the server drops their seat after roughly thirteen; a dead bot's seat is
 kept, so its corpse lies there until its run ends (stop the input task and keep receiving, as
-`circle_bot.py` does). A bot that should respawn instead must close, wait for the chosen respawn
+`circle_bot.py` does). A death from `/kill-bots` has no kill event, so react to `state.me.dead`,
+not to the event. A bot that should respawn instead must close, wait for the chosen respawn
 delay, and call `connect` again. Reconnection creates a fresh player ID; there is no resume
 protocol.
 
@@ -257,6 +264,11 @@ protocol.
 - Room capacity is 32 players. A bot is a visible player and occupies a seat. `connect` joins with
   `bot=1`, so `Player.bot` is true for every bot, the roster shows a robot icon, and a room with only
   bots left closes like an empty one (the server disconnects them).
+- A bot may choose where it spawns and how it looks: pass `spawn` (a feet position, `Vec3`) and
+  `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,
+  clamping the spot inside the world and standing the bot on the surface under it; the avatar is
+  fixed for the run. Any avatar id works, including ones people can't wear (`AVATARS[id].wearable`
+  is false for `sahur`, so no chat command or menu row reaches it).
 - A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
   so a bot that spawns after everyone left never starts a room nothing would close. Local tests
   seat a person first with `connect(..., bot=False)`.
@@ -307,18 +319,23 @@ Use an isolated room such as `bot-smoke`, not `global`, for automated or manual 
 
 ### Calling bots from chat
 
-`/circle-bot [seconds]` and `/observer-bot [seconds]` (the `-bot` suffix is optional) start a bot in
-the caller's room; seconds default to 300 and cap at 3500. The registry for that is
-`packages/shared/src/sim/bots.ts` (id, player name, blurb), which also fills the commands menu.
-The Room validates (people only, a free seat, host must have a spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it as one POST
-to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room container's Python
-process runs. The sidecar spawns `kathir-world-bots/run_bot` with `{bot, room, seconds}` using the
-container's own Modal credentials; Node never holds a token. A new bot therefore needs a row in
-`bots.ts` as well as its Python module.
+`/circle-bot [seconds]` and `/stalker-bot [seconds]` (the `-bot` suffix is
+optional) start a bot in the caller's room; seconds default to 300 and cap at 3500. `/kill-bots` drops every living bot in the room dead where it
+stands, with no kill event; each corpse is removed like any bot's, which closes its connection and
+ends its run. The registry is `packages/shared/src/sim/bots.ts` (id, player name, blurb), which
+also fills the commands menu. The Room validates (people only, a free seat, host
+must have a spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it
+as one POST to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room
+container's Python process runs. The sidecar spawns `kathir-world-bots/run_bot` with
+`{bot, room, seconds}` plus the request's placement (`spawn`, `avatar`) using the container's own
+Modal credentials; Node never holds a token. A bot called from chat therefore needs a row in `bots.ts` as
+well as its Python module; one without a row (the observer) is started only with `modal run`.
 
 Rooms also start with bots: the first person to join brings the line-up from
-`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`, two circle bots for now). Edit that
-function for per-room profiles; the Room spawns them once, with `caller: 'room'`.
+`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`: two circle bots anywhere, and a
+Tung Tung Tung Sahur stalker in the middle of each of the tower's lower three floors), all staying 3500 s. Each entry may carry a
+`BotPlacement` (`spawn`, a feet position, and `avatar`); edit that function for per-room profiles.
+The Room spawns them once, with `caller: 'room'`.
 
 ### Modal and dependency constraints
 

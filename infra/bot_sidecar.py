@@ -2,8 +2,9 @@
 
 The Room container's Python process already carries the container's Modal credentials, so it,
 not Node, spawns `kathir-world-bots/run_bot`. One route: POST /bots with the JSON BotRequest
-that packages/shared defines ({bot, room, seconds, caller}); 202 with the function call id when
-queued, 4xx for a bad request, 502 when Modal refuses. Bound to 127.0.0.1 only.
+that packages/shared defines ({bot, room, seconds, caller}, and optionally spawn {x, y, z} and
+avatar); 202 with the function call id when queued, 4xx for a bad request, 502 when Modal
+refuses. Bound to 127.0.0.1 only.
 """
 
 from __future__ import annotations
@@ -12,18 +13,32 @@ import json
 import threading
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
 from .config import BOTS_APP_NAME, BOTS_FUNCTION_NAME
 
+# Where a bot stands and how it looks (BotPlacement): `spawn` {x, y, z} and `avatar`, each only when
+# the request set it, passed through to run_bot as keyword arguments.
+Placement = dict[str, Any]
+
 # Spawns a bot and returns an id for the logs. Swapped for a fake in tests.
-Spawner = Callable[[str, str, float], str]
+Spawner = Callable[[str, str, float, Placement], str]
 
 
-def spawn_on_modal(bot: str, room: str, seconds: float) -> str:
+def spawn_on_modal(bot: str, room: str, seconds: float, placement: Placement) -> str:
     import modal
 
     fn = modal.Function.from_name(BOTS_APP_NAME, BOTS_FUNCTION_NAME)
-    return fn.spawn(bot=bot, room=room, seconds=seconds).object_id
+    return fn.spawn(bot=bot, room=room, seconds=seconds, **placement).object_id
+
+
+def _placement(body: dict[str, Any]) -> Placement:
+    placement: Placement = {}
+    if "spawn" in body:
+        placement["spawn"] = {axis: float(body["spawn"][axis]) for axis in ("x", "y", "z")}
+    if "avatar" in body:
+        placement["avatar"] = str(body["avatar"])
+    return placement
 
 
 def start_bot_sidecar(port: int, spawn: Spawner = spawn_on_modal) -> ThreadingHTTPServer:
@@ -36,10 +51,11 @@ def start_bot_sidecar(port: int, spawn: Spawner = spawn_on_modal) -> ThreadingHT
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("content-length", "0"))))
                 bot, room, seconds = str(body["bot"]), str(body["room"]), float(body["seconds"])
+                placement = _placement(body)
             except (ValueError, KeyError, TypeError):
-                return self._reply(400, "expected {bot, room, seconds}")
+                return self._reply(400, "expected {bot, room, seconds}, optionally spawn {x, y, z} and avatar")
             try:
-                call_id = spawn(bot, room, seconds)
+                call_id = spawn(bot, room, seconds, placement)
             except Exception as exc:  # noqa: BLE001 (any Modal failure is a 502 to Node)
                 return self._reply(502, f"{type(exc).__name__}: {exc}")
             self._reply(202, call_id)

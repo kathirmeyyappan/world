@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   CUBE_IDS,
+  EYE_HEIGHT,
   HEADSHOT_MULTIPLIER,
   ITEMS,
   MAX_HEARTS,
@@ -10,6 +11,7 @@ import {
   MOVE_SPEED,
   Room,
   TICK_DT,
+  TICK_RATE,
   WORLD_SHAPE,
   worldDistance,
   defaultBotsFor,
@@ -338,6 +340,8 @@ test('avatars: /elizabeth is for good; ELIZABETH in the name locks the look', ()
   room.receive(idb, { t: 'chat', text: '/standard' });
   assert.equal(bob.avatar, 'standard', 'and back by choice');
 
+  room.receive(idb, { t: 'chat', text: '/sahur' });
+  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /sahur' }, 'a bot-only look');
   room.receive(ida, { t: 'chat', text: '/standard' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
   assert.equal(ann.avatar, 'elizabeth');
@@ -437,6 +441,52 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   assert.equal(room.playerCount, 0);
 });
 
+test("a bot stands where it asks, looking how it asks; a person can't choose", () => {
+  const room = new Room('placed', { seed: 4 });
+  const human = room.join('alice', link(), { spawn: { x: 5, y: 0, z: 5 }, avatar: 'elizabeth' })!;
+  const alice = room.players.find((p) => p.id === human)!;
+  assert.notDeepEqual([alice.pos.x, alice.pos.z], [5, 5]);
+  assert.equal(alice.avatar, 'standard');
+
+  const onFloor = room.join('stalker-bot', link(), { bot: true, spawn: { x: 112, y: 20, z: 0 }, avatar: 'elizabeth' })!;
+  const stalker = room.players.find((p) => p.id === onFloor)!;
+  assert.deepEqual(stalker.pos, { x: 112, y: 20 + EYE_HEIGHT, z: 0 }, "on the tower's first floor");
+  assert.equal(stalker.avatar, 'elizabeth');
+  assert.ok(stalker.avatarLocked, 'and stays that way');
+
+  const outside = room.join('circle-bot', link(), { bot: true, spawn: { x: 0, y: 30, z: 500 } })!;
+  const lost = room.players.find((p) => p.id === outside)!;
+  assert.ok(worldDistance(lost.pos.x, lost.pos.z) <= -1 + 1e-9, 'clamped inside the outline');
+  assert.equal(lost.pos.y, EYE_HEIGHT, 'and standing on what is under it');
+});
+
+test('/kill-bots drops every living bot where it stands, people only', () => {
+  const room = new Room('cull', { seed: 4 });
+  const a = link();
+  const ida = room.join('alice', a)!;
+  const bots = [link(), link()].map((l) => {
+    let closed = '';
+    const id = room.join('circle-bot', { ...l, close: (reason: string) => (closed = reason) }, { bot: true })!;
+    return { id, l, closed: () => closed };
+  });
+  room.receive(bots[0].id, { t: 'chat', text: '/kill-bots' });
+  assert.deepEqual(bots[0].l.inbox.at(-1), { t: 'system', text: "bots can't kill bots" });
+
+  room.receive(ida, { t: 'chat', text: '/kill-bots' });
+  assert.ok(room.players.filter((p) => p.bot).every((p) => p.dead && p.hearts === 0));
+  assert.ok(!room.players.find((p) => p.id === ida)!.dead);
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'alice killed circle-bot x2' });
+  room.receive(ida, { t: 'chat', text: '/kill-bots' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'no bots here' });
+
+  for (let i = 0; i <= 5 * TICK_RATE; i++) room.step();
+  assert.equal(room.playerCount, 1, 'corpses are dropped like any bot corpse');
+  assert.ok(
+    bots.every((b) => b.closed() === 'dead'),
+    'which ends each bot run',
+  );
+});
+
 test("the first person in brings the room's default bots; nobody else does", async () => {
   const spawned: BotRequest[] = [];
   const room = new Room('sess-d', {
@@ -453,14 +503,15 @@ test("the first person in brings the room's default bots; nobody else does", asy
   const a = link();
   room.join('alice', a, { room: 'global' });
   await Promise.resolve();
-  const expected = defaultBotsFor('global').map(({ bot, seconds }) => ({
+  const expected = defaultBotsFor('global').map(({ bot, seconds, ...placement }) => ({
     bot,
     room: 'global',
     seconds,
     caller: 'room',
+    ...placement,
   }));
-  assert.deepEqual(spawned, expected);
-  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'circle-bot, circle-bot on the way'));
+  assert.deepEqual(spawned, expected, 'placements ride along with the request');
+  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'circle-bot x2, stalker-bot x3 on the way'));
   room.join('bob', link(), { room: 'global' });
   room.join('circle-bot', link(), { bot: true, room: 'global' });
   await Promise.resolve();
@@ -495,9 +546,9 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
     'everyone hears',
   );
 
-  room.receive(ida, { t: 'chat', text: '/observer' });
+  room.receive(ida, { t: 'chat', text: '/stalker' });
   await Promise.resolve();
-  assert.equal(spawned[1].seconds, 300, 'no number: the default');
+  assert.equal(spawned[1].seconds, 300, "no number: the bot's default");
   room.receive(ida, { t: 'chat', text: '/circle 9999' });
   await Promise.resolve();
   assert.equal(spawned[2].seconds, 3500, 'capped');
@@ -509,7 +560,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
 
   // no bot cap: the only limit is the room's seats
   while (room.playerCount < MAX_PLAYERS) room.join('bot', link(), { bot: true });
-  room.receive(ida, { t: 'chat', text: '/observer-bot' });
+  room.receive(ida, { t: 'chat', text: '/stalker-bot' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room is full' });
   assert.equal(spawned.length, 3);
 

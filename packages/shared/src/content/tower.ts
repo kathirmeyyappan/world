@@ -8,6 +8,7 @@
 // with battlements closes the top.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
+import type { Vec3 } from '../sim/types';
 import type { Disc } from '../sim/world';
 
 const X = ANNEX.x;
@@ -21,6 +22,7 @@ const STAIR_INNER = INNER - STAIR_WIDTH;
 const FLOOR_R = INNER + WALL / 2; // floors run into the wall, so there's no gap at its foot
 const STOREY = 20;
 const TOP = 3 * STOREY; // the top floor, where the sky bridge leaves
+const GROUND_FLOOR = 0.05; // the ground floor's tiles sit this far above the annex floor
 const deg = (d: number) => (d * Math.PI) / 180; // angles run from +x toward +z
 const STAIR_START = deg(45); // the first step; clear of all four entrances
 const HOLE = deg(30); // each floor is open over the last 30° of the flight arriving through it
@@ -92,7 +94,7 @@ const inside: Structure[] = [
     rail: 1,
     material: 'wood',
   }),
-  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: 0.05, thickness: 0.05, material: 'red-tile' }), // the ground floor
+  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: GROUND_FLOOR, thickness: GROUND_FLOOR, material: 'red-tile' }), // the ground floor
   ...[1, 2, 3].flatMap((floor) =>
     roundFloor({
       x: X,
@@ -167,3 +169,6 @@ export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...balconies, 
 
 // The keep's wall on the ground, for the minimap (content/landmarks.ts).
 export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: OUTER };
+
+// The middle of each floor's top, ground floor first: where to stand something on floor n.
+export const TUNG_TUNG_TOWER_FLOORS: Vec3[] = [GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((y) => ({ x: X, y, z: Z }));

@@ -2,7 +2,7 @@
 // that Modal's proxy stamps on the upgrade request, or by ?room= when running bare (local dev).
 import { createServer, type IncomingMessage } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { Room, hashSeed, type ClientLink, type ServerMessage } from '@world/shared';
+import { Room, hashSeed, placementFromQuery, type ClientLink, type ServerMessage } from '@world/shared';
 import { createBotSpawner } from './bots';
 import { createStaticHandler } from './static';
 
@@ -97,10 +97,12 @@ http.on('upgrade', (req, socket, head) => {
   }
   wss.handleUpgrade(req, socket, head, (ws) => {
     const room = roomFor(roomKey(req, url));
-    // ?bot=1 is the bot framework declaring itself; the browser client never sends it.
+    // ?bot=1 is the bot framework declaring itself; the browser client never sends it. A bot may
+    // also say where it stands and how it looks (?x=&y=&z=&avatar=); the room ignores that for people.
     const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), {
       bot: url.searchParams.get('bot') === '1',
       room: url.searchParams.get('room') ?? undefined,
+      ...placementFromQuery((key) => url.searchParams.get(key)),
     });
     if (!id) {
       ws.close(1008, 'join refused'); // the room already sent the reason

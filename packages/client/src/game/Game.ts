@@ -26,7 +26,7 @@ import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
 import { IS_TOUCH } from '../input/touch';
 import type { Connection } from '../net/Connection';
-import { Interpolation } from '../net/Interpolation';
+import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
 import { createAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
@@ -549,6 +549,6 @@ function itemHint(id: ItemId, left: number | null, withKeys: boolean, scoped: bo
   return parts.join(' · ');
 }
 
-function targets(players: { id: string; x: number; y: number; z: number; dead: boolean }[]) {
-  return players.map((p) => ({ id: p.id, pos: { x: p.x, y: p.y, z: p.z }, dead: p.dead }));
+function targets(players: RemotePlayer[]) {
+  return players.map((p) => ({ id: p.id, pos: { x: p.x, y: p.y, z: p.z }, dead: p.dead, avatar: p.avatar }));
 }

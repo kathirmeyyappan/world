@@ -1,7 +1,7 @@
 // Chat commands: a message starting with "/" is parsed here and handled by the Room instead of
 // being broadcast. Anyone seated can run them, bots included. Add a command by extending the
 // union and the switch in Room.
-import { isAvatarId, type AvatarId } from './sim/avatars';
+import { isWearableAvatar, type AvatarId } from './sim/avatars';
 import { BOT_DEFAULT_SECONDS, BOT_MAX_SECONDS, botIdFor, type BotId } from './sim/bots';
 import { isItemId, type ItemId } from './sim/items';
 
@@ -10,6 +10,7 @@ export type Command =
   | { name: 'equip'; item: ItemId }
   | { name: 'avatar'; avatar: AvatarId }
   | { name: 'bot'; bot: BotId; seconds: number | null } // null: the seconds argument was not a number
+  | { name: 'kill-bots' }
   | { name: 'unknown'; raw: string };
 
 export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | 'speedy'>>> = {
@@ -27,7 +28,8 @@ export function parseCommand(text: string): Command | null {
 
   if (normalized === 'speedy') return { name: 'speedy' };
   if (isItemId(normalized)) return { name: 'equip', item: normalized };
-  if (isAvatarId(normalized)) return { name: 'avatar', avatar: normalized };
+  if (isWearableAvatar(normalized)) return { name: 'avatar', avatar: normalized };
+  if (normalized === 'kill-bots') return { name: 'kill-bots' };
   const bot = botIdFor(normalized);
   if (bot) return { name: 'bot', bot, seconds: botSeconds(arg) };
   return { name: 'unknown', raw };

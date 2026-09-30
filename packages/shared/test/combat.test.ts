@@ -45,6 +45,16 @@ test('where the shot lands decides a headshot: eye level is the head, the chest 
   assert.equal(findHit(me, [x], GUN)?.headshot, false, 'chest');
   me.pitch = Math.atan2(1.5, 6);
   assert.equal(findHit(me, [x], GUN)?.headshot, false, 'legs');
+
+  // Sahur stands 3.2 m with its face well above everyone's eye level.
+  x.avatar = 'sahur';
+  me.pitch = -Math.atan2(1.2, 6);
+  assert.equal(findHit(me, [x], GUN)?.headshot, true, 'aiming up at its face');
+  x.avatar = 'standard';
+  assert.equal(findHit(me, [x], GUN), null, 'the same shot passes over anyone else');
+  x.avatar = 'sahur';
+  me.pitch = 0;
+  assert.equal(findHit(me, [x], GUN)?.headshot, false, 'level with our eyes is its chest');
 });
 
 test('resolveFire: hitscan picks one, a cone takes everyone inside it', () => {
