@@ -42,7 +42,8 @@ export function isClientMessage(v: unknown): v is ClientMessage {
         typeof f.jump === 'boolean' &&
         (f.reading === null || typeof f.reading === 'string') &&
         Array.isArray(f.actions) &&
-        f.actions.every(isItemAction)
+        f.actions.every(isItemAction) &&
+        (f.view === undefined || isNum(f.view))
       );
     }
     case 'chat':

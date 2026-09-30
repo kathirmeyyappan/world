@@ -21,6 +21,9 @@ export const DEATH_SCREEN_SECONDS = 10;
 
 // How far behind the newest snapshot remote players are rendered. Higher hides jitter, costs latency.
 export const INTERP_DELAY_TICKS = 3;
+// How far back the server will rewind targets to judge a shot (lag compensation, rewind.ts).
+// 8 ticks is ~267 ms: the 100 ms render delay plus a round trip of up to ~160 ms.
+export const MAX_REWIND_TICKS = 8;
 // Inputs a server tick will consume from one player's queue. >1 lets a lagging client catch up.
 export const MAX_INPUTS_PER_TICK = 3;
 export const MAX_INPUT_QUEUE = TICK_RATE;

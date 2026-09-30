@@ -37,6 +37,8 @@ export class Interpolation {
   private buffer: Snapshot[] = [];
   private lastTick = 0;
   private lastAt = 0;
+  // The server tick remote players were last drawn at; sent with input so shots are judged there.
+  viewTick: number | undefined;
 
   push(tick: number, players: PlayerState[], cubes: CubeSnapshot[], now: number): void {
     if (this.buffer.length && tick <= this.buffer[this.buffer.length - 1].tick) return;
@@ -66,6 +68,7 @@ export class Interpolation {
     }
     const span = newer.tick - older.tick;
     const t = span > 0 ? Math.min(1, Math.max(0, (renderTick - older.tick) / span)) : 1;
+    this.viewTick = older.tick + span * t;
 
     const players: RemotePlayer[] = [];
     for (const [id, b] of newer.players) {

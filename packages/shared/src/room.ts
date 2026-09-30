@@ -18,6 +18,7 @@ import {
 } from './sim/constants';
 import { parseCommand, type Command } from './commands';
 import { resolveFire } from './sim/combat';
+import { PositionHistory, rewindTick } from './sim/rewind';
 import { applyDamage, damageFor } from './sim/health';
 import { BOTS, type BotId, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
@@ -75,6 +76,7 @@ export class Room {
   tick = 0;
 
   private readonly seats = new Map<string, Seat>();
+  private readonly history = new PositionHistory(); // where everyone was, for lag compensation
   private readonly cubes: CubeState[];
   private readonly rng: Rng;
   private readonly onEmpty?: () => void;
@@ -218,8 +220,17 @@ export class Room {
     if (!wants || this.tick - seat.lastShotTick < spec.cooldownTicks) return;
     seat.lastShotTick = this.tick;
     if (shoot.mode === 'tap') this.broadcast({ t: 'shot', id: me.id });
-    for (const hit of resolveFire(spec, me, this.players))
-      this.damage(seat, hit.target, damageFor(spec, hit.headshot), hit.headshot);
+    // Judge the shot where the targets were on the shooter's screen (rewind.ts); the shooter
+    // fires from where they are now, which is what their own prediction showed them.
+    const at = rewindTick(frame.view, this.tick);
+    const targets = this.players.map((p) => ({
+      id: p.id,
+      dead: p.dead,
+      pos: this.history.at(p.id, at) ?? p.pos,
+      player: p,
+    }));
+    for (const hit of resolveFire(spec, me, targets))
+      this.damage(seat, hit.target.player, damageFor(spec, hit.headshot), hit.headshot);
   }
 
   // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero. A kill is one
@@ -255,7 +266,9 @@ export class Room {
     }
     stepCubes(this.cubes, TICK_DT, this.worldShape, this.rng);
     this.tick++;
-    this.broadcast({ t: 'snap', tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
+    const players = this.players;
+    this.broadcast({ t: 'snap', tick: this.tick, players, cubes: this.cubeSnapshot() });
+    this.history.record(this.tick, players);
   }
 
   private broadcast(msg: ServerMessage, except?: string): void {

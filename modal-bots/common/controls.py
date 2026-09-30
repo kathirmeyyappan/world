@@ -81,21 +81,20 @@ class Controls:
             actions.append("shoot")
         if self._scope:
             actions.append("scope")
-        await self.connection.send(
-            {
-                "t": "input",
-                "f": {
-                    "seq": self.seq,
-                    "mx": self.right,
-                    "my": self.forward,
-                    "yaw": self.yaw,
-                    "pitch": self.pitch,
-                    "jump": self._jump,
-                    "reading": self.reading,
-                    "actions": actions,
-                },
-            }
-        )
+        frame = {
+            "seq": self.seq,
+            "mx": self.right,
+            "my": self.forward,
+            "yaw": self.yaw,
+            "pitch": self.pitch,
+            "jump": self._jump,
+            "reading": self.reading,
+            "actions": actions,
+        }
+        # The tick this bot is aiming at; the server judges its shots there (lag compensation).
+        if self.connection.view_tick is not None:
+            frame["view"] = self.connection.view_tick
+        await self.connection.send({"t": "input", "f": frame})
         self._jump = False
         self._shoot_once = False
 

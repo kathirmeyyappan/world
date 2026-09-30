@@ -374,7 +374,12 @@ export class Game {
     this.accumulator += Math.min(dt, TICK_DT * MAX_TICKS_PER_FRAME);
     while (this.accumulator >= TICK_DT) {
       this.accumulator -= TICK_DT;
-      const frame = this.input.sampleFrame(this.prediction.nextSeq(), this.overlay.reading, this.itemActions());
+      const frame = this.input.sampleFrame(
+        this.prediction.nextSeq(),
+        this.overlay.reading,
+        this.itemActions(),
+        this.interp.viewTick,
+      );
       this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }

@@ -15,7 +15,7 @@ from websockets.asyncio.client import ClientConnection
 from websockets.asyncio.client import connect as open_websocket
 from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidURI
 
-from .protocol import Event, Message, Welcome, decode
+from .protocol import Event, Message, Snapshot, Welcome, decode
 
 _ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
 
@@ -42,6 +42,7 @@ class Connection:
     _websocket: ClientConnection
     close_code: int | None = None
     close_reason: str = ""
+    view_tick: int | None = None  # newest snapshot tick; input frames send it as `view`
 
     @property
     def id(self) -> str:
@@ -49,10 +50,13 @@ class Connection:
 
     async def receive(self) -> Message:
         try:
-            return decode(await self._websocket.recv())
+            message = decode(await self._websocket.recv())
         except ConnectionClosed as exc:
             self.close_code, self.close_reason = exc.code, exc.reason
             raise RoomConnectionError(f"room closed ({exc.code}): {exc.reason or 'no reason'}") from exc
+        if isinstance(message, Snapshot):
+            self.view_tick = message.tick
+        return message
 
     async def send(self, message: Mapping[str, Any]) -> None:
         try:

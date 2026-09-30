@@ -34,6 +34,7 @@ class FakeConnection:
         self.id = me.id
         self.welcome = Welcome("p1", "room", 0, (me,), ())
         self.sent: list[dict[str, Any]] = []
+        self.view_tick = 41
 
     async def send(self, message: dict[str, Any]) -> None:
         self.sent.append(message)
@@ -61,6 +62,7 @@ def test_controls_build_frames_and_reset_one_shot_inputs() -> None:
     assert first["jump"] is True
     assert first["reading"] == "aws"
     assert first["actions"] == ["shoot", "scope"]
+    assert first["view"] == 41, "the tick the bot aimed at, for lag compensation"
     assert second["seq"] == 9
     assert second["jump"] is False
     assert second["actions"] == ["scope"]

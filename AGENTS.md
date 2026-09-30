@@ -150,6 +150,8 @@ with concurrent receive and input loops.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.
 - Snapshots reveal all players and combat currently has no wall/cube occlusion. Human-like
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.
+- Shots are lag-compensated: `Controls` sends the newest snapshot tick as `view`, and the server
+  judges the shot against where targets were at that tick. Aim at the snapshot you have; don't lead.
 - Bots are visible players and count against the 32-player room limit. `connect` joins with `bot=1`:
   `Player.bot` is true, the roster shows a robot icon, and a room with only bots left closes.
 - A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
@@ -238,6 +240,17 @@ CI fails on any of these, so run them before pushing:
   strict `tsc`. Type the thing instead of casting around it: no `as unknown as`.
 - `mypy` from the repo root is strict over `modal-bots/` and `infra/`. `Any` is for JSON at the wire,
   nowhere else.
+
+## Tests
+
+Don't overtest; the suite is already near the point of bloat. Before adding a test:
+
+- Test behavior that would break silently and isn't covered yet. One test per behavior, and
+  extend an existing test or fixture before writing a new one.
+- Skip tests for copy, styling, constants, and one-line wiring; check those by running the app.
+- Measurement, load, and screenshot scripts are throwaway: keep them in the scratchpad, report
+  their numbers in the PR, and don't commit them.
+- If a change seems to need many new tests, the change is probably too big.
 
 ## Pull requests
 
