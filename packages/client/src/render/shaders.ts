@@ -67,8 +67,8 @@ float worldDistance(vec2 p) {
 `;
 
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
-// colour in that direction, so the floor meets the horizon wherever you're standing. The grid dims
-// past the world's edge.
+// colour in that direction, so the floor meets the horizon wherever you're standing. Past the world's
+// edge the grid dims and turns grey, so where you can't go reads before you reach the wall.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
@@ -100,6 +100,8 @@ void main() {
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
+  float outside = smoothstep(0.0, 1.5, sd); // across the first 1.5 m past the edge
+  col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);
