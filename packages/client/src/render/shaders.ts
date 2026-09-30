@@ -129,9 +129,29 @@ float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
+// A star cell for a direction: the direction projected onto the face of a cube around the camera
+// that it points through, cut into 400 × 400 cells per face (a few pixels each), so stars are spread evenly down to
+// whatever horizon the view has (it drops below eye level up high).
+vec2 starCell(vec3 d) {
+  vec3 a = abs(d);
+  vec2 uv;
+  float face;
+  if (a.y >= a.x && a.y >= a.z) {
+    uv = d.xz / a.y;
+    face = d.y > 0.0 ? 0.0 : 1.0;
+  } else if (a.x >= a.z) {
+    uv = d.zy / a.x;
+    face = d.x > 0.0 ? 2.0 : 3.0;
+  } else {
+    uv = d.xy / a.z;
+    face = d.z > 0.0 ? 4.0 : 5.0;
+  }
+  return floor(uv * 200.0) + vec2(face * 500.0, 0.0);
+}
+
 void main() {
   vec3 col = skyColor(vDir);
-  vec2 cell = floor(vDir.xz / max(vDir.y, 0.05) * 60.0);
+  vec2 cell = starCell(vDir);
   float star = step(0.995, hash(cell)) * smoothstep(0.08, 0.35, aboveHorizon(vDir));
   float twinkle = 0.6 + 0.4 * sin(time * 2.0 + hash(cell + 1.0) * 6.28);
   col += vec3(0.9, 0.95, 1.0) * star * twinkle * 0.8;
