@@ -145,10 +145,12 @@ with concurrent receive and input loops.
 ## State and policy constraints
 
 - Server snapshots are 30 Hz and authoritative. Do not implement browser interpolation.
-- Yaw `0` faces `+z`; positive pitch looks down; player position is eye position.
+- Yaw `0` faces `+z`; positive pitch looks down; player position is eye position, in three
+  dimensions: structures put players on floors, stairs and bridges, so `y` varies (feet are at
+  `pos.y - 1.7`). Choose targets by straight-line distance, not `x`/`z` only; `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.
-- Snapshots reveal all players and combat currently has no wall/cube occlusion. Human-like
+- Snapshots reveal all players, and shots pass through cubes; only structures block them. Human-like
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.
 - Shots are lag-compensated: `Controls` sends the newest snapshot tick as `view`, and the server
   judges the shot against where targets were at that tick. Aim at the snapshot you have; don't lead.
@@ -263,6 +265,52 @@ space` is the kind to keep). Don't narrate the change or answer the request that
   "used to", "on purpose", "as requested". That belongs in the commit message and PR description.
 - Comment what the code can't say itself: units, invariants, constraints, and the reason behind a
   non-obvious choice. Skip comments that restate the line below them.
+
+## World geometry
+
+Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
+`packages/shared/src/content/structures.ts`, with kinds and authoring helpers (`wall`, `ramp`,
+`stairs`, `building`, `terrain`) in `packages/shared/src/sim/structures.ts`. The sim collides with them through
+`sim/collision.ts` (standing, walls, ceilings, line of sight) and the client draws the same list
+(`render/Structures.ts`), so adding an entry is the whole job. Nothing about structures goes over the
+wire: server and client both build the world from that file.
+
+### Adding structures
+
+- Use the helpers rather than hand-computing yaw and centres: `wall(a, b, h)` runs between two floor
+  points, `ramp(low, high, h, w)` rises from `low` to `high`, `stairs(bottom, top, h, w)` is solid
+  steps players walk up without jumping (the camera eases over each), `building({...})` is four
+  walls, a doorway and a roof, and `terrain({ height })` samples a function. Write raw
+  `{ kind: 'box', ... }` only for simple platforms and pillars.
+- Group entries by place, one short comment per group saying what it is (`// the annex watchtower`).
+  A composite you'll reuse (a staircase, a bridge rail) is a function returning `Structure[]` in
+  `sim/structures.ts` next to `building`; a one-off stays inline in the content file.
+- Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
+  `sim/world.ts`: the main disc (r 50 at the origin), the annex (r 30 at x 112) and the bridge between
+  them. Players are clamped 1 m inside it no matter what, so keep structures inside too.
+- Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
+  their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
+  2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
+  walls at least 0.3 m thick.
+- Spawns stand on the highest surface at a random point, so rooftops are spawn points: don't build a
+  roof players can't get down from. Info cubes wander the main disc at about 3 m and pass through
+  structures, so tall pieces there will have cubes floating through them.
+- Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
+  grids modest (the default is one sample every 2 m); every sample is a vertex.
+- Colours: pass `color` to stand out; the defaults are dark and every box and ramp gets accent edges.
+- Scale: collision queries use a spatial grid, but a shot's ray (and the crosshair, every frame)
+  checks every structure. Hundreds are fine; thousands need a grid-walking raycast first.
+
+### Checking a change
+
+Structures are content, so don't add a test per structure. Run `npm run dev`, walk the new pieces in
+a browser, and put screenshots in the PR. Headless, `window.__world.debug()` gives your position, and
+in dev `window.__game.correction.length()` should stay at 0 while you walk over them (anything else
+means prediction and the server disagree). A new kind is different: add a case in `surfaceOf` and in
+the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
+and one test of its surface in `packages/shared/test/sim.test.ts`.
+
+Cubes and the minimap don't know about structures yet.
 
 ## Pull requests
 

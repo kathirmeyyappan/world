@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { EYE_HEIGHT, ITEMS, createPlayer, findHit, lookDirection, resolveFire } from '@world/shared';
+import { EYE_HEIGHT, ITEMS, Structures, createPlayer, findHit, lookDirection, resolveFire, wall } from '@world/shared';
 
 const GUN = ITEMS.gun.range;
 
@@ -67,4 +67,14 @@ test('resolveFire: hitscan picks one, a cone takes everyone inside it', () => {
     resolveFire(ITEMS.flamethrower, me, [near]).every((h) => !h.headshot),
     'no headshots from a cone',
   );
+});
+
+test('a wall stops a hitscan shot and hides a flamethrower target', () => {
+  const world = new Structures([wall({ x: -3, z: 4 }, { x: 3, z: 4 }, 3)]);
+  const me = at('me', 0, 0);
+  assert.equal(findHit(me, [at('x', 0, 8)], GUN, world), null, 'behind the wall');
+  assert.equal(findHit(me, [at('x', 0, 3)], GUN, world)?.target.id, 'x', 'in front of it');
+  assert.equal(resolveFire(ITEMS.flamethrower, me, [at('x', 0, 6)], world).length, 0, 'the cone');
+  const low = new Structures([wall({ x: -3, z: 4 }, { x: 3, z: 4 }, 1)]);
+  assert.equal(findHit(me, [at('x', 0, 8)], GUN, low)?.headshot, true, 'a level shot clears waist-high cover');
 });

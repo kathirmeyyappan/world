@@ -194,8 +194,10 @@ def _nearest_player(state: WorldState) -> Player | None:
     candidates = (player for player in state.players.values() if player.id != me.id and not player.dead)
     return min(
         candidates,
+        # Straight-line distance: someone on a floor above isn't next to us.
         key=lambda player: math.hypot(
             player.pos.x - me.pos.x,
+            player.pos.y - me.pos.y,
             player.pos.z - me.pos.z,
         ),
         default=None,

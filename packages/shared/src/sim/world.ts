@@ -1,6 +1,8 @@
 // The walkable world: discs joined by bridges, all unioned. Everything that cares about the
 // outline reads this: the sim's clamp (server and client), the wall and floor renderers, sky
 // object placement and the minimap. Signed distance is the one primitive they share.
+import { STRUCTURES } from '../content/structures';
+import { Structures } from './collision';
 import type { Rng } from './rng';
 import type { Vec3 } from './types';
 
@@ -28,6 +30,9 @@ export const WORLD_SHAPE: WorldPart[] = [
   { kind: 'disc', x: 112, z: 0, r: 30 }, // annex
   { kind: 'bridge', ax: 40, az: 0, bx: 92, bz: 0, halfWidth: 4 },
 ];
+
+// The structures standing inside the outline, indexed for the sim's queries.
+export const WORLD_STRUCTURES = new Structures(STRUCTURES);
 
 // Signed distance from (x, z) to one part's edge: negative inside.
 export function partDistance(x: number, z: number, part: WorldPart): number {

@@ -7,6 +7,7 @@ import {
   SKY_OBJECTS,
   TICK_DT,
   WORLD_SHAPE,
+  WORLD_STRUCTURES,
   actionForKey,
   createRng,
   hashSeed,
@@ -30,6 +31,7 @@ import { createAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { buildStructures } from '../render/Structures';
 import { poof } from '../render/Poof';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
@@ -48,6 +50,7 @@ import { Pins } from '../ui/Pins';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
+const STEP_EASE_HALF_LIFE = 0.05; // seconds for the camera to catch up with a step up or down
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
@@ -94,6 +97,7 @@ export class Game {
   private mouseWasHeld = false;
   private localCooldownUntil = 0; // when the viewmodel may kick again; mirrors the server's cooldown
   private kick = 0; // camera recoil, radians of upward pitch that decays back
+  private stepEase = 0; // metres the camera trails the predicted eye height after a step
   private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
@@ -112,6 +116,7 @@ export class Game {
     const canvas = canvasEl;
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE);
+    buildStructures(this.engine, WORLD_STRUCTURES.list);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = DEFAULT_FOV;
@@ -278,7 +283,7 @@ export class Game {
         for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(m.room))))
           this.skyByMesh.set(sky.mesh.name, sky);
         const me = m.players.find((p) => p.id === m.id)!;
-        this.prediction = new Prediction(me, WORLD_SHAPE);
+        this.prediction = new Prediction(me, WORLD_SHAPE, WORLD_STRUCTURES);
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
         this.interp.push(m.tick, m.players, m.cubes, now);
@@ -385,14 +390,15 @@ export class Game {
         this.itemActions(),
         this.interp.viewTick,
       );
-      this.prediction.apply(frame);
+      this.stepEase -= this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
 
     const decay = Math.pow(0.5, dt / CORRECTION_HALF_LIFE);
     this.correction.scaleInPlace(decay);
+    this.stepEase *= Math.pow(0.5, dt / STEP_EASE_HALF_LIFE);
     const p = this.prediction.state.pos;
-    this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
+    this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y + this.stepEase, p.z + this.correction.z);
     this.kick *= Math.pow(0.5, dt / KICK_HALF_LIFE);
     if (this.kick < 1e-4) this.kick = 0;
     this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);
@@ -437,7 +443,7 @@ export class Game {
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.minimap.update({
-      me: { x: p.x, z: p.z, yaw: this.input.yaw },
+      me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,
       cubes: sampled.cubes,
     });
@@ -453,6 +459,7 @@ export class Game {
         ITEMS[held.id],
         { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch },
         targets(sampled.players),
+        WORLD_STRUCTURES,
       ).length > 0;
     this.mobileActions.update({
       hot: !!this.hovered,
@@ -479,7 +486,7 @@ export class Game {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
       const hit = this.engine.scene.pickWithRay(
         ray,
-        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'),
+        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-') || mesh.name.startsWith('structure-'),
       );
       if (hit?.pickedMesh) {
         if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
@@ -510,12 +517,12 @@ export class Game {
   debug(): {
     id: string;
     pos: { x: number; y: number; z: number };
-    remotes: { id: string; name: string; x: number; z: number }[];
+    remotes: { id: string; name: string; x: number; y: number; z: number }[];
     sky: { id: string; x: number; z: number }[];
   } {
     const remotes = this.interp
       .sample(performance.now(), this.myId)
-      .players.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z }));
+      .players.map((p) => ({ id: p.id, name: p.name, x: p.x, y: p.y, z: p.z }));
     const sky = [...this.skyByMesh.values()].map((s) => ({
       id: s.content.id,
       x: Math.round(s.mesh.position.x),
