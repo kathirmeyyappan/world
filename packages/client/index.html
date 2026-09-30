@@ -90,11 +90,14 @@
       <div id="scope" class="hidden"></div>
 
       <div id="minimap" translate="yes">
+        <div id="minimap-hint"><kbd translate="no">P</kbd>TO TOGGLE</div>
         <div id="minimap-toggle" translate="no">
-          <kbd>P</kbd><span data-view="near">NEAR</span><span data-view="world">WORLD</span>
+          <span data-view="near">NEAR</span><span data-view="world">WORLD</span>
         </div>
-        <canvas id="minimap-canvas"></canvas>
-        <div class="minimap-bar"><span id="minimap-coords" translate="no"></span></div>
+        <div class="minimap-view">
+          <canvas id="minimap-canvas"></canvas>
+          <span id="minimap-coords" translate="no"></span>
+        </div>
       </div>
 
       <div id="instructions" translate="yes">

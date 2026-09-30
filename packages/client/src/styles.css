@@ -792,6 +792,35 @@ body {
   border: 2px solid rgba(100, 181, 246, 0.4);
   box-shadow: 4px 4px 0 #000;
 }
+#minimap-hint {
+  margin-bottom: 6px;
+  font: 14px var(--mono);
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  letter-spacing: 1px;
+}
+#minimap-hint kbd {
+  display: inline-block;
+  min-width: 24px;
+  text-align: center;
+  margin-right: 8px;
+  padding: 2px 6px 0;
+  background: var(--accent);
+  color: #05070c;
+  font: 11px/14px var(--pixel);
+  border-bottom: 3px solid #2f6db3;
+  vertical-align: middle;
+}
+#minimap-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  font: 10px var(--pixel);
+  letter-spacing: 1px;
+}
+.minimap-view {
+  position: relative;
+}
 #minimap-canvas {
   display: block;
   width: 224px;
@@ -799,37 +828,15 @@ body {
   image-rendering: pixelated;
   background: rgba(5, 7, 12, 0.6);
 }
-#minimap .minimap-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-  font: 15px var(--mono);
-  color: rgba(255, 255, 255, 0.55);
-  white-space: nowrap;
-}
 #minimap-coords {
-  color: rgba(255, 255, 255, 0.8);
-}
-#minimap-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  font: 10px var(--pixel);
-  letter-spacing: 1px;
-}
-#minimap-toggle kbd {
-  display: inline-block;
-  min-width: 24px;
-  text-align: center;
-  padding: 3px 6px 1px;
-  margin-right: 4px;
-  background: var(--accent);
-  color: #05070c;
-  font: 11px/14px var(--pixel);
-  border-bottom: 3px solid #2f6db3;
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  font: 12px var(--mono);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(5, 7, 12, 0.7);
+  white-space: nowrap;
 }
 #minimap-toggle span {
   flex: 1;
