@@ -281,19 +281,13 @@ export class Room {
     return this.cubes.map((c) => ({ id: c.id, x: c.pos.x, y: c.pos.y, z: c.pos.z, rx: c.rot.x, ry: c.rot.y }));
   }
 
+  // One of the least-used colours in the room, picked at random among the ties.
   private pickColor(): string {
     const used = new Map<string, number>();
     for (const s of this.seats.values()) used.set(s.state.color, (used.get(s.state.color) ?? 0) + 1);
-    let best = PLAYER_COLORS[0];
-    let bestCount = Infinity;
-    for (const c of PLAYER_COLORS) {
-      const n = used.get(c) ?? 0;
-      if (n < bestCount) {
-        best = c;
-        bestCount = n;
-      }
-    }
-    return best;
+    const fewest = Math.min(...PLAYER_COLORS.map((c) => used.get(c) ?? 0));
+    const choices = PLAYER_COLORS.filter((c) => (used.get(c) ?? 0) === fewest);
+    return choices[Math.floor(this.rng() * choices.length)];
   }
 
   private runCommand(seat: Seat, command: Command): void {
