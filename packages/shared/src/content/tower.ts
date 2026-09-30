@@ -7,6 +7,7 @@
 // corridor, so players can't be clamped off it) to a floating terrace above the main disc. A roof
 // with battlements closes the top.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
+import type { Disc } from '../sim/world';
 
 const X = 112; // the annex's centre (sim/world.ts)
 const Z = 0;
@@ -162,3 +163,6 @@ const terrace: Structure[] = [
 ];
 
 export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...balconies, ...skyway, ...terrace];
+
+// The keep's wall on the ground, for the minimap (content/landmarks.ts).
+export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: OUTER };
