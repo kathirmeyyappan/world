@@ -20,9 +20,8 @@ export const MAX_PITCH = Math.PI / 2 - 0.1;
 export const SPEEDY_MULTIPLIER = 1.8;
 export const SPEEDY_SECONDS = 20;
 
-// Shooting: hits are resolved on the server against a capsule around each player. Ranges and
-// cooldowns are per item, in items.ts.
-export const HIT_RADIUS = 0.55;
+// Shooting: hits are resolved on the server against each avatar's hit capsule (sim/avatars.ts).
+// Ranges and cooldowns are per item, in items.ts.
 export const DEATH_SCREEN_SECONDS = 10;
 
 // How far behind the newest snapshot remote players are rendered. Higher hides jitter, costs latency.

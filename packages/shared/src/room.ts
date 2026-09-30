@@ -238,6 +238,7 @@ export class Room {
     const targets = this.players.map((p) => ({
       id: p.id,
       dead: p.dead,
+      avatar: p.avatar,
       pos: this.history.at(p.id, at) ?? p.pos,
       player: p,
     }));

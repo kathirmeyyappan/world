@@ -1,7 +1,8 @@
 // Elizabeth (Gintama): a big white pear-shaped body with no neck, round eyes with three lashes
 // each, a flat orange beak, two small flippers and orange webbed feet. Low-poly flat-shaded
-// spheres for the body so it reads as a soft egg while still fitting the blocky world. Same
-// movement, hit capsule and items as everyone else; a weapon goes in the right flipper.
+// spheres for the body so it reads as a soft egg while still fitting the blocky world. A wider hit
+// capsule than everyone's (AVATARS.elizabeth.hitbox), the same movement and items; a weapon goes in
+// the right flipper.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';

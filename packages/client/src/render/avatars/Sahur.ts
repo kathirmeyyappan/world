@@ -4,8 +4,8 @@
 // arms, the bat in the right hand, and each leg. The skin shades from orange-brown at the hips to
 // yellow at the top of the head, and the eyes are the avatar's own: white balls that are mostly
 // pupil, staring fixed and a little wall-eyed. It walks stiff-legged, twitches its head now and then,
-// and dies flat on its back. Bot-only (AVATARS.sahur isn't wearable); the hit capsule, movement and
-// items are everyone's, and a held item replaces the bat.
+// and dies flat on its back. Bot-only (AVATARS.sahur isn't wearable); its hit capsule is as tall as
+// it is (AVATARS.sahur.hitbox), movement and items are everyone's, and a held item replaces the bat.
 import { Color3, Mesh, MeshBuilder, TransformNode, Vector3, VertexData, type StandardMaterial } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
