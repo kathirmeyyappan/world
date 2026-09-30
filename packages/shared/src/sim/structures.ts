@@ -179,6 +179,118 @@ export function building(opts: {
   return color ? pieces.map((p) => ({ ...p, color })) : pieces;
 }
 
+// Round pieces are built from straight ones. Angles are measured around (x, z) from +x toward +z.
+function onCircle(x: number, z: number, r: number, angle: number): { x: number; z: number } {
+  return { x: x + r * Math.cos(angle), z: z + r * Math.sin(angle) };
+}
+
+// A round wall of `segments` straight pieces on a circle of radius r (the wall's centreline).
+// Each gap cuts a vertical opening (a doorway, a window) between two heights in the piece at
+// that angle.
+export function roundWall(opts: {
+  x: number;
+  z: number;
+  r: number;
+  h: number;
+  thickness: number;
+  segments?: number;
+  gaps?: { angle: number; bottom: number; top: number }[];
+  color?: string;
+}): Box[] {
+  const { x, z, r, h, thickness, segments = 32, gaps = [], color } = opts;
+  const step = (2 * Math.PI) / segments;
+  const pieces: Box[] = [];
+  for (let i = 0; i < segments; i++) {
+    const mid = i * step;
+    const cuts = gaps
+      .filter((g) => ((Math.round(g.angle / step) % segments) + segments) % segments === i)
+      .sort((a, b) => a.bottom - b.bottom);
+    let from = 0;
+    const spans: [number, number][] = [];
+    for (const g of cuts) {
+      spans.push([from, g.bottom]);
+      from = g.top;
+    }
+    spans.push([from, h]);
+    // A hair wider than the chord so neighbouring pieces meet at the outer face.
+    const a = onCircle(x, z, r, mid - step * 0.52);
+    const b = onCircle(x, z, r, mid + step * 0.52);
+    for (const [lo, hi] of spans) if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), color });
+  }
+  return pieces;
+}
+
+// Steps winding around (x, z) between two radii, `turns` times round while rising from `bottom`
+// by `rise`. Each step is a slab `thickness` deep, so there's headroom beneath the flight above.
+// Throws if a step is taller than a player can walk up.
+export function spiralStairs(opts: {
+  x: number;
+  z: number;
+  inner: number;
+  outer: number;
+  bottom: number;
+  rise: number;
+  turns: number;
+  start: number;
+  stepRise?: number;
+  thickness?: number;
+  color?: string;
+}): Box[] {
+  const { x, z, inner, outer, bottom, rise, turns, start, stepRise = 0.25, thickness = 0.3, color } = opts;
+  const steps = Math.ceil(rise / stepRise);
+  if (rise / steps > STEP_UP) throw new Error(`spiralStairs: steps rising ${rise / steps} m are over ${STEP_UP} m`);
+  const turn = (turns * 2 * Math.PI) / steps;
+  return Array.from({ length: steps }, (_, i) => {
+    const angle = start + turn * (i + 0.5);
+    const top = bottom + (rise * (i + 1)) / steps;
+    const base = Math.max(bottom, top - thickness);
+    const c = onCircle(x, z, (inner + outer) / 2, angle);
+    return {
+      kind: 'box',
+      x: c.x,
+      z: c.z,
+      y: base,
+      yaw: Math.atan2(-Math.sin(angle), Math.cos(angle)), // local +z runs along the direction of climb
+      w: outer - inner,
+      d: turn * outer, // the arc at the outer edge, so steps meet there and overlap inside
+      h: top - base,
+      color,
+    };
+  });
+}
+
+// A round floor of radius r whose top is at y: strips `strip` metres wide, each cut to fit inside
+// the circle.
+export function roundFloor(opts: {
+  x: number;
+  z: number;
+  r: number;
+  y: number;
+  thickness?: number;
+  strip?: number;
+  color?: string;
+}): Box[] {
+  const { x, z, r, y, thickness = 0.4, strip = 1, color } = opts;
+  const count = Math.floor(r / strip);
+  const pieces: Box[] = [];
+  for (let j = -count; j < count; j++) {
+    const far = Math.max(Math.abs(j), Math.abs(j + 1)) * strip; // the strip's edge furthest from the centre
+    const half = Math.sqrt(Math.max(0, r * r - far * far));
+    if (half > 0.1)
+      pieces.push({
+        kind: 'box',
+        x,
+        z: z + (j + 0.5) * strip,
+        y: y - thickness,
+        w: 2 * half,
+        d: strip,
+        h: thickness,
+        color,
+      });
+  }
+  return pieces;
+}
+
 // Terrain sampled from a height function over local coordinates, `cells` samples per metre.
 export function terrain(opts: Footprint & { height: (lx: number, lz: number) => number; cells?: number }): Terrain {
   const { height, cells = 0.5, ...footprint } = opts;
