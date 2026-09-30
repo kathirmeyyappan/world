@@ -12,9 +12,11 @@ permissions:
   pages: write
   id-token: write
 
+# One run per PR or branch: a newer push cancels that ref's stale PR run, and runs for different
+# refs never cancel each other. Pushes to main finish, so every merge gets its deploy.
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Runs on every PR and push. Require this check on main to block merges that fail it.
@@ -75,6 +77,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: ci
+    # Pages takes one deployment at a time; queue behind one in progress instead of cutting it off.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
       - name: CI and deploy
         id: deployment
