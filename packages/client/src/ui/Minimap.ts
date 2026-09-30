@@ -1,8 +1,10 @@
 // Bottom-right minimap. Two views: NEAR keeps you centred and rotates so you always face up;
 // WORLD shows the whole outline north-up. The floor and outline are drawn per pixel from the
 // world's signed distance, so any shape made of discs and bridges draws correctly with no path maths.
-// Markers (cubes, players, you) go on top with plain canvas calls, and your world x, z is shown
-// under the map: the same coordinates the sim, the wire protocol and WORLD_SHAPE use.
+// That is too slow to redo every frame, so each view's floor is drawn once, north-up, into an
+// offscreen canvas at that view's scale, and each frame just places (and for NEAR, rotates) it.
+// Markers (cubes, players, you) go on top with plain canvas calls, and your world x, z sits in the
+// map's corner: the same coordinates the sim, the wire protocol and WORLD_SHAPE use.
 // Desktop only; see styles.css.
 import { worldBounds, worldDistance, type WorldPart } from '@world/shared';
 
@@ -14,10 +16,10 @@ export interface MinimapFrame {
 
 export type MinimapView = 'near' | 'world';
 
-const SIZE = 112; // internal pixels; CSS scales it up with image-rendering: pixelated
+const SIZE = 224; // internal pixels, one per CSS pixel of the canvas
 const NEAR_RANGE = 26; // metres from you to the panel's edge in the near view
 const GRID_SPACING = 10;
-const EDGE_PIXELS = 0.75; // half-width of the outline, in panel pixels, so it stays crisp at any zoom
+const EDGE_PIXELS = 1.1; // half-width of the outline, in panel pixels, so it stays crisp at any zoom
 const ACCENT = [100, 181, 246] as const;
 
 export class Minimap {
@@ -26,7 +28,7 @@ export class Minimap {
   private readonly toggleBar = document.getElementById('minimap-toggle')!;
   private readonly coords = document.getElementById('minimap-coords')!;
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly image: ImageData;
+  private readonly floors = new Map<number, Floor>(); // keyed by metres per pixel
   private view: MinimapView = 'near';
   private readonly bounds;
 
@@ -34,7 +36,6 @@ export class Minimap {
     this.canvas.width = SIZE;
     this.canvas.height = SIZE;
     this.ctx = this.canvas.getContext('2d')!;
-    this.image = this.ctx.createImageData(SIZE, SIZE);
     this.bounds = worldBounds(shape);
     this.setView('near');
   }
@@ -59,10 +60,9 @@ export class Minimap {
     this.coords.textContent = `${frame.me.x.toFixed(0)}, ${frame.me.z.toFixed(0)}`;
     const t = this.transform(frame.me);
     this.drawFloor(t);
-    this.ctx.putImageData(this.image, 0, 0);
 
-    for (const c of frame.cubes) this.marker(t, c.x, c.z, 1, 'rgba(255,255,255,0.35)'); // faint specks; players should stand out
-    for (const p of frame.players) this.marker(t, p.x, p.z, 3, p.color);
+    for (const c of frame.cubes) this.marker(t, c.x, c.z, 2, 'rgba(255,255,255,0.35)'); // faint specks; players should stand out
+    for (const p of frame.players) this.marker(t, p.x, p.z, 5, p.color);
     this.drawMe(t, frame.me);
   }
 
@@ -93,23 +93,45 @@ export class Minimap {
     };
   }
 
+  // The cached floor for this view's scale, drawn so its world points land where `t` puts them.
   private drawFloor(t: Transform): void {
-    const data = this.image.data;
-    const half = SIZE / 2;
+    let floor = this.floors.get(t.scale);
+    if (!floor) this.floors.set(t.scale, (floor = this.renderFloor(t.scale)));
+    const ctx = this.ctx;
+    const [e, f] = this.toPixel(t, floor.x, floor.z);
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.imageSmoothingEnabled = false;
+    ctx.setTransform(t.rx, -t.fx, -t.rz, t.fz, e, f); // floor pixels are the same size as the panel's
+    ctx.drawImage(floor.canvas, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  // The whole world's floor, north-up, at `scale` metres per pixel, with a pixel of margin for the
+  // outline. `x`, `z` is the world point at the canvas's top-left corner.
+  private renderFloor(scale: number): Floor {
+    const b = this.bounds;
+    const x = b.minX - 2 * scale;
+    const z = b.maxZ + 2 * scale;
+    const w = Math.ceil((b.maxX - b.minX) / scale) + 4;
+    const h = Math.ceil((b.maxZ - b.minZ) / scale) + 4;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    const image = ctx.createImageData(w, h);
+    const data = image.data;
     let i = 0;
-    for (let py = 0; py < SIZE; py++) {
-      const ly = (half - py - 0.5) * t.scale;
-      for (let px = 0; px < SIZE; px++, i += 4) {
-        const lx = (px + 0.5 - half) * t.scale;
-        const wx = t.ox + t.rx * lx + t.fx * ly;
-        const wz = t.oz + t.rz * lx + t.fz * ly;
+    for (let py = 0; py < h; py++) {
+      const wz = z - (py + 0.5) * scale;
+      for (let px = 0; px < w; px++, i += 4) {
+        const wx = x + (px + 0.5) * scale;
         const d = worldDistance(wx, wz, this.shape);
         let a = 0;
-        if (Math.abs(d) < t.scale * EDGE_PIXELS) a = 230;
+        if (Math.abs(d) < scale * EDGE_PIXELS) a = 230;
         else if (d < 0) {
           const gx = Math.abs((((wx % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
           const gz = Math.abs((((wz % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
-          const onLine = gx > GRID_SPACING / 2 - t.scale * 0.6 || gz > GRID_SPACING / 2 - t.scale * 0.6;
+          const onLine = gx > GRID_SPACING / 2 - scale * 0.6 || gz > GRID_SPACING / 2 - scale * 0.6;
           a = onLine ? 70 : 28;
         }
         data[i] = ACCENT[0];
@@ -118,6 +140,8 @@ export class Minimap {
         data[i + 3] = a;
       }
     }
+    ctx.putImageData(image, 0, 0);
+    return { canvas, x, z };
   }
 
   private toPixel(t: Transform, x: number, z: number): [number, number] {
@@ -145,14 +169,20 @@ export class Minimap {
     ctx.rotate(angle);
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.moveTo(0, -4);
-    ctx.lineTo(3.5, 3);
-    ctx.lineTo(0, 1.5);
-    ctx.lineTo(-3.5, 3);
+    ctx.moveTo(0, -7);
+    ctx.lineTo(6, 5);
+    ctx.lineTo(0, 2.5);
+    ctx.lineTo(-6, 5);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
+}
+
+interface Floor {
+  canvas: HTMLCanvasElement;
+  x: number;
+  z: number;
 }
 
 interface Transform {
