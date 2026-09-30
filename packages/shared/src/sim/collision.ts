@@ -31,6 +31,7 @@ interface Placed {
 }
 
 export class Structures {
+  readonly top: number; // the highest point of any structure, 0 with none
   private readonly placed: Placed[];
   private readonly grid = new Map<string, number[]>();
 
@@ -53,6 +54,7 @@ export class Structures {
         reach: Math.hypot(s.w / 2, s.d / 2, surface.height / 2),
       };
     });
+    this.top = Math.max(0, ...this.placed.map((p) => p.base + p.height));
     this.placed.forEach((p, i) => {
       const r = Math.hypot(p.hw, p.hd);
       for (const key of cells(p.x - r, p.z - r, p.x + r, p.z + r)) {

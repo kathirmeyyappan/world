@@ -115,7 +115,7 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas);
-    this.environment = new Environment(this.engine, WORLD_SHAPE);
+    this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;

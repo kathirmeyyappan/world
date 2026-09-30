@@ -1,10 +1,11 @@
 // Static scenery: shader-drawn grid floor, gradient sky with stars, and a boundary wall that only
-// shows up when you get close. All of it follows the world shape. Sky billboards live in
-// SkyObject.ts.
+// shows up when you get close, at whatever height you're at. All of it follows the world shape. Sky
+// billboards live in SkyObject.ts.
 import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData } from '@babylonjs/core';
-import { partDistance, worldBounds, type WorldPart } from '@world/shared';
+import { EYE_HEIGHT, partDistance, worldBounds, type WorldPart } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
+  GROUND_FOG,
   GROUND_FRAGMENT,
   GROUND_VERTEX,
   MAX_BRIDGES,
@@ -16,14 +17,18 @@ import {
 } from './shaders';
 
 const WALL_REVEAL_DISTANCE = 16;
-const WALL_HEIGHT = 16;
+const WALL_ABOVE = 16; // the boundary reaches this far above the tallest structure (or the floor)
 const WALL_STEP = 0.8; // metres between ribbon samples along the outline
 
 const FOG_HALF_LIFE = 0.12; // seconds, for the scope's fog change
+const ZENITH_COLOR = new Color3(0.01, 0.01, 0.04);
+const HORIZON_COLOR = new Color3(0.12, 0.03, 0.14);
+const FADED = Math.log(10); // the floor's fog exponent at 90% fogged: where the horizon sits
 
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
-  private ground!: ShaderMaterial; // set in buildGround
+  private ground!: ShaderMaterial; // set in createGround
+  private sky!: ShaderMaterial; // set in createSky
   private fogScale = 1;
   private fogTarget = 1;
   private readonly bounds;
@@ -33,6 +38,7 @@ export class Environment {
   constructor(
     private readonly engine: Engine,
     private readonly shape: WorldPart[],
+    private readonly ceiling = 0, // the top of the tallest structure
   ) {
     this.bounds = worldBounds(shape);
     this.span = Math.max(this.bounds.maxX - this.bounds.minX, this.bounds.maxZ - this.bounds.minZ);
@@ -65,6 +71,9 @@ export class Environment {
         'fogColor',
         'fogScale',
         'time',
+        'zenithColor',
+        'horizonColor',
+        'horizon',
         'discs',
         'bridges',
         'bridgeWidths',
@@ -77,6 +86,9 @@ export class Environment {
     mat.setColor3('floorColor', new Color3(0.03, 0.06, 0.05));
     mat.setColor3('fogColor', FOG_COLOR);
     mat.setFloat('fogScale', 1);
+    mat.setColor3('zenithColor', ZENITH_COLOR);
+    mat.setColor3('horizonColor', HORIZON_COLOR);
+    mat.setFloat('horizon', 0);
     this.ground = mat;
     this.setShapeUniforms(mat);
     mat.backFaceCulling = false;
@@ -121,11 +133,13 @@ export class Environment {
     sky.applyFog = false;
     const mat = new ShaderMaterial('skyMat', scene, 'worldSky', {
       attributes: ['position'],
-      uniforms: ['worldViewProjection', 'fogColor', 'zenithColor', 'horizonColor', 'time'],
+      uniforms: ['worldViewProjection', 'fogColor', 'zenithColor', 'horizonColor', 'horizon', 'time'],
     });
     mat.setColor3('fogColor', FOG_COLOR);
-    mat.setColor3('zenithColor', new Color3(0.01, 0.01, 0.04));
-    mat.setColor3('horizonColor', new Color3(0.12, 0.03, 0.14));
+    mat.setColor3('zenithColor', ZENITH_COLOR);
+    mat.setColor3('horizonColor', HORIZON_COLOR);
+    mat.setFloat('horizon', 0);
+    this.sky = mat;
     mat.backFaceCulling = false;
     mat.disableDepthWrite = true;
     sky.material = mat;
@@ -146,7 +160,7 @@ export class Environment {
       const base = positions.length / 3;
       for (let i = 0; i < run.length; i++) {
         if (i > 0) arc += Math.hypot(run[i].x - run[i - 1].x, run[i].z - run[i - 1].z);
-        positions.push(run[i].x, 0, run[i].z, run[i].x, WALL_HEIGHT, run[i].z);
+        positions.push(run[i].x, 0, run[i].z, run[i].x, this.ceiling + WALL_ABOVE, run[i].z);
         uvs.push(arc, 0, arc, 1);
       }
       for (let i = 0; i < run.length - 1; i++) {
@@ -222,7 +236,8 @@ export class Environment {
     this.fogTarget = fogScale;
   }
 
-  // Once per frame: the shaders need the camera position for fades and a clock for pulses.
+  // Once per frame: the shaders need the camera position for fades, a clock for pulses, and the
+  // horizon: where the floor fades out, which is at eye level on the floor and well below it up high.
   update(dt: number, cameraPos: Vector3): void {
     this.time += dt;
     if (this.fogScale !== this.fogTarget) {
@@ -236,5 +251,10 @@ export class Environment {
       m.setFloat('time', this.time);
       m.setVector3('cameraPos', cameraPos);
     }
+    const height = Math.max(0, cameraPos.y - EYE_HEIGHT);
+    const faded = Math.sqrt(FADED / (GROUND_FOG * this.fogScale)); // metres to where the floor is 90% fog
+    const horizon = -height / Math.hypot(height, faded); // the sine of the angle down to it
+    this.sky.setFloat('horizon', horizon);
+    this.ground.setFloat('horizon', horizon);
   }
 }
