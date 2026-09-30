@@ -188,21 +188,22 @@ function onCircle(x: number, z: number, r: number, angle: number): { x: number; 
   return { x: x + r * Math.cos(angle), z: z + r * Math.sin(angle) };
 }
 
-// A round wall of `segments` straight pieces on a circle of radius r (the wall's centreline).
-// Each gap cuts a vertical opening (a doorway, a window) between two heights in the piece at
-// that angle.
+// A round wall of `segments` straight pieces on a circle of radius r (the wall's centreline),
+// standing from height y to y + h. Each gap cuts a vertical opening (a doorway, a window) between
+// two heights in the piece at that angle.
 export function roundWall(opts: {
   x: number;
   z: number;
   r: number;
   h: number;
   thickness: number;
+  y?: number;
   segments?: number;
   gaps?: { angle: number; bottom: number; top: number }[];
   material?: StructureMaterial;
   color?: string;
 }): Box[] {
-  const { x, z, r, h, thickness, segments = 32, gaps = [], material, color } = opts;
+  const { x, z, r, h, thickness, y = 0, segments = 32, gaps = [], material, color } = opts;
   const step = (2 * Math.PI) / segments;
   const pieces: Box[] = [];
   for (let i = 0; i < segments; i++) {
@@ -210,13 +211,13 @@ export function roundWall(opts: {
     const cuts = gaps
       .filter((g) => ((Math.round(g.angle / step) % segments) + segments) % segments === i)
       .sort((a, b) => a.bottom - b.bottom);
-    let from = 0;
+    let from = y;
     const spans: [number, number][] = [];
     for (const g of cuts) {
       spans.push([from, g.bottom]);
       from = g.top;
     }
-    spans.push([from, h]);
+    spans.push([from, y + h]);
     // A hair wider than the chord so neighbouring pieces meet at the outer face.
     const a = onCircle(x, z, r, mid - step * 0.52);
     const b = onCircle(x, z, r, mid + step * 0.52);
@@ -301,24 +302,27 @@ export function spiralStairs(opts: {
 // A round floor of radius r whose top is at y, with no gaps: a square in the middle and rings of
 // sector-shaped boxes around it, each overlapping its neighbours. An optional hole (for a stair
 // coming up from below) removes every sector of the outer ring, from `inner` out to r, that touches
-// the angles `from`..`to`; the hole is never smaller than asked. Sectors are at most `chord` metres
-// along the circle.
+// the angles `from`..`to`; the hole is never smaller than asked. With `inner`, only the ring from
+// there out to r is built (a balcony round a tower). Sectors are at most `chord` metres along the
+// circle.
 export function roundFloor(opts: {
   x: number;
   z: number;
   r: number;
   y: number;
   thickness?: number;
+  inner?: number;
   hole?: { inner: number; from: number; to: number };
   chord?: number;
   material?: StructureMaterial;
   color?: string;
 }): Box[] {
-  const { x, z, r, y, thickness = 0.4, hole, chord = 2, material, color } = opts;
+  const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color } = opts;
   const slab = { y: y - thickness, h: thickness, material, color };
-  const edge = hole ? hole.inner : r / 2; // where the outer ring (the one a hole is cut from) begins
+  const edge = inner ?? (hole ? hole.inner : r / 2); // where the outer ring (the one a hole is cut from) begins
   const core = edge / 2; // the middle square's half side: its corners stay inside `edge`
-  const pieces: Box[] = [{ kind: 'box', x, z, w: 2 * core + 0.1, d: 2 * core + 0.1, ...slab }];
+  const pieces: Box[] =
+    inner === undefined ? [{ kind: 'box', x, z, w: 2 * core + 0.1, d: 2 * core + 0.1, ...slab }] : [];
   const ring = (a: number, b: number, holed: boolean) => {
     const count = Math.max(8, Math.ceil((2 * Math.PI * b) / chord));
     const span = (2 * Math.PI) / count;
@@ -342,7 +346,7 @@ export function roundFloor(opts: {
       });
     }
   };
-  ring(core, edge, false);
+  if (inner === undefined) ring(core, edge, false);
   ring(edge, r, true);
   return pieces;
 }
