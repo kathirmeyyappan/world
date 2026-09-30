@@ -16,8 +16,12 @@ export interface Footprint {
   d: number; // along local z
   y?: number; // underside height; above 0 it floats, and players can walk beneath
   yaw?: number;
-  color?: string; // CSS colour for the renderer; each kind has a default
+  material?: StructureMaterial; // a pixel texture (the client's render/structureMaterials.ts)
+  color?: string; // flat CSS colour when there's no material; each kind has a default
 }
+
+// Surface looks the renderer knows how to paint.
+export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone';
 
 // A solid block: walls, buildings, platforms, pillars.
 export interface Box extends Footprint {
@@ -177,6 +181,174 @@ export function building(opts: {
     { kind: 'box', x, z, y: h, yaw, w: w + thickness, d: d + thickness, h: thickness },
   ];
   return color ? pieces.map((p) => ({ ...p, color })) : pieces;
+}
+
+// Round pieces are built from straight ones. Angles are measured around (x, z) from +x toward +z.
+function onCircle(x: number, z: number, r: number, angle: number): { x: number; z: number } {
+  return { x: x + r * Math.cos(angle), z: z + r * Math.sin(angle) };
+}
+
+// A round wall of `segments` straight pieces on a circle of radius r (the wall's centreline),
+// standing from height y to y + h. Each gap cuts a vertical opening (a doorway, a window) between
+// two heights in the piece at that angle.
+export function roundWall(opts: {
+  x: number;
+  z: number;
+  r: number;
+  h: number;
+  thickness: number;
+  y?: number;
+  segments?: number;
+  gaps?: { angle: number; bottom: number; top: number }[];
+  material?: StructureMaterial;
+  color?: string;
+}): Box[] {
+  const { x, z, r, h, thickness, y = 0, segments = 32, gaps = [], material, color } = opts;
+  const step = (2 * Math.PI) / segments;
+  const pieces: Box[] = [];
+  for (let i = 0; i < segments; i++) {
+    const mid = i * step;
+    const cuts = gaps
+      .filter((g) => ((Math.round(g.angle / step) % segments) + segments) % segments === i)
+      .sort((a, b) => a.bottom - b.bottom);
+    let from = y;
+    const spans: [number, number][] = [];
+    for (const g of cuts) {
+      spans.push([from, g.bottom]);
+      from = g.top;
+    }
+    spans.push([from, y + h]);
+    // A hair wider than the chord so neighbouring pieces meet at the outer face.
+    const a = onCircle(x, z, r, mid - step * 0.52);
+    const b = onCircle(x, z, r, mid + step * 0.52);
+    for (const [lo, hi] of spans)
+      if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color });
+  }
+  return pieces;
+}
+
+// Steps winding around (x, z) between two radii, `turns` times round while rising from `bottom`
+// by `rise`. Each step is a slab `thickness` deep, so there's headroom beneath the flight above.
+// With `rail`, each step also carries a post that high along its inner edge, so players can't step
+// off the inside of the flight; they get on and off at its ends. Throws if a step is taller than
+// a player can walk up.
+export function spiralStairs(opts: {
+  x: number;
+  z: number;
+  inner: number;
+  outer: number;
+  bottom: number;
+  rise: number;
+  turns: number;
+  start: number;
+  stepRise?: number;
+  thickness?: number;
+  rail?: number;
+  material?: StructureMaterial;
+  color?: string;
+}): Box[] {
+  const {
+    x,
+    z,
+    inner,
+    outer,
+    bottom,
+    rise,
+    turns,
+    start,
+    stepRise = 0.25,
+    thickness = 0.3,
+    rail = 0,
+    material,
+    color,
+  } = opts;
+  const steps = Math.ceil(rise / stepRise);
+  if (rise / steps > STEP_UP) throw new Error(`spiralStairs: steps rising ${rise / steps} m are over ${STEP_UP} m`);
+  const turn = (turns * 2 * Math.PI) / steps;
+  const RAIL_WIDTH = 0.2;
+  return Array.from({ length: steps }, (_, i): Box[] => {
+    const angle = start + turn * (i + 0.5);
+    const top = bottom + (rise * (i + 1)) / steps;
+    const base = Math.max(bottom, top - thickness);
+    const yaw = Math.atan2(-Math.sin(angle), Math.cos(angle)); // local +z runs along the direction of climb
+    const at = (r: number) => onCircle(x, z, r, angle);
+    const step: Box = {
+      kind: 'box',
+      ...at((inner + outer) / 2),
+      y: base,
+      yaw,
+      w: outer - inner,
+      d: turn * outer, // the arc at the outer edge, so steps meet there and overlap inside
+      h: top - base,
+      material,
+      color,
+    };
+    if (rail <= 0) return [step];
+    const post: Box = {
+      kind: 'box',
+      ...at(inner + RAIL_WIDTH / 2),
+      y: base,
+      yaw,
+      w: RAIL_WIDTH,
+      d: turn * inner + 0.02,
+      h: top - base + rail,
+      material,
+      color,
+    };
+    return [step, post];
+  }).flat();
+}
+
+// A round floor of radius r whose top is at y, with no gaps: a square in the middle and rings of
+// sector-shaped boxes around it, each overlapping its neighbours. An optional hole (for a stair
+// coming up from below) removes every sector of the outer ring, from `inner` out to r, that touches
+// the angles `from`..`to`; the hole is never smaller than asked. With `inner`, only the ring from
+// there out to r is built (a balcony round a tower). Sectors are at most `chord` metres along the
+// circle.
+export function roundFloor(opts: {
+  x: number;
+  z: number;
+  r: number;
+  y: number;
+  thickness?: number;
+  inner?: number;
+  hole?: { inner: number; from: number; to: number };
+  chord?: number;
+  material?: StructureMaterial;
+  color?: string;
+}): Box[] {
+  const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color } = opts;
+  const slab = { y: y - thickness, h: thickness, material, color };
+  const edge = inner ?? (hole ? hole.inner : r / 2); // where the outer ring (the one a hole is cut from) begins
+  const core = edge / 2; // the middle square's half side: its corners stay inside `edge`
+  const pieces: Box[] =
+    inner === undefined ? [{ kind: 'box', x, z, w: 2 * core + 0.1, d: 2 * core + 0.1, ...slab }] : [];
+  const ring = (a: number, b: number, holed: boolean) => {
+    const count = Math.max(8, Math.ceil((2 * Math.PI * b) / chord));
+    const span = (2 * Math.PI) / count;
+    const inset = a * (1 - Math.cos(span / 2)) + 0.05; // reach far enough in to meet the ring inside
+    for (let k = 0; k < count; k++) {
+      const angle = (k + 0.5) * span;
+      if (holed && hole) {
+        const middle = (hole.from + hole.to) / 2;
+        const off = Math.abs(((((angle - middle) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        if (off < span / 2 + (hole.to - hole.from) / 2) continue;
+      }
+      const c = onCircle(x, z, (a - inset + b) / 2, angle);
+      pieces.push({
+        kind: 'box',
+        x: c.x,
+        z: c.z,
+        yaw: Math.atan2(-Math.sin(angle), Math.cos(angle)),
+        w: b - a + inset,
+        d: span * b + 0.02,
+        ...slab,
+      });
+    }
+  };
+  if (inner === undefined) ring(core, edge, false);
+  ring(edge, r, true);
+  return pieces;
 }
 
 // Terrain sampled from a height function over local coordinates, `cells` samples per metre.

@@ -10,5 +10,6 @@
 //     ...building({ x: -20, z: 15, w: 10, d: 8, h: 4 }),         // four walls, a door and a roof
 //   ];
 import type { Structure } from '../sim/structures';
+import { TUNG_TUNG_TOWER } from './tower';
 
-export const STRUCTURES: Structure[] = [];
+export const STRUCTURES: Structure[] = [...TUNG_TUNG_TOWER];

@@ -4,6 +4,7 @@ import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
   CUBES,
   ITEMS,
+  LANDMARKS,
   SKY_OBJECTS,
   TICK_DT,
   WORLD_SHAPE,
@@ -79,7 +80,7 @@ export class Game {
   private readonly avatars = new Map<string, Avatar>();
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
-  private readonly minimap = new Minimap(WORLD_SHAPE);
+  private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS);
   private readonly death = new Death();
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();
@@ -486,9 +487,12 @@ export class Game {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
       const hit = this.engine.scene.pickWithRay(
         ray,
-        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-') || mesh.name.startsWith('structure-'),
+        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'),
       );
-      if (hit?.pickedMesh) {
+      // Structures aren't pickable; a cube or sky object behind one is hidden by it.
+      const blocked =
+        !!hit?.pickedMesh && WORLD_STRUCTURES.raycast(ray.origin, ray.direction, hit.distance) < hit.distance;
+      if (hit?.pickedMesh && !blocked) {
         if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
         nextSky = this.skyByMesh.get(hit.pickedMesh.name) ?? null;
       }

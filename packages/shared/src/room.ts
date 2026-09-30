@@ -13,6 +13,7 @@ import {
   DEATH_SCREEN_SECONDS,
   PLAYER_COLORS,
   SPEEDY_SECONDS,
+  STEP_UP,
   TICK_DT,
   TICK_RATE,
 } from './sim/constants';
@@ -371,10 +372,11 @@ export class Room {
     );
   }
 
-  // Anywhere in the world, clear of the walls and not on top of a cube, standing on the highest
-  // surface there with room for a body above it.
+  // Anywhere in the world, clear of the walls and not on top of a cube, standing on the ground (or
+  // anything within a step of it) with room for a body above: inside a building's ground floor, never
+  // on a roof, and never inside a wall.
   private spawnPoint() {
-    const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, Infinity);
+    const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, STEP_UP);
     const roomy = (p: { x: number; z: number }) =>
       this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
     let p = randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng);
