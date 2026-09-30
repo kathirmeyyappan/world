@@ -29,10 +29,11 @@ import {
   type Terrain,
 } from '@world/shared';
 import type { Engine } from './Engine';
-import { MATERIALS, TEXELS, TILE, paintMaterial } from './structureMaterials';
+import { MATERIALS, TEXELS, paintMaterial } from './structureMaterials';
 
 const DEFAULT_COLORS: Record<StructureKind, string> = { box: '#39414f', ramp: '#454f60', terrain: '#1d3a2c' };
 const REGION = 48; // metres: pieces in the same REGION × REGION square share a merged mesh
+const FLAT_TILE = 4; // texture repeat for flat-coloured pieces, which have no texture to repeat
 // Brightness by face direction, in each piece's own frame.
 const SHADE = { top: 1, bottom: 0.5, sideX: 0.82, sideZ: 0.68 };
 
@@ -43,7 +44,8 @@ export function buildStructures(engine: Engine, structures: readonly Structure[]
   const groups = new Map<string, { look: Look; meshes: Mesh[] }>();
   structures.forEach((s, i) => {
     const look: Look = s.material ?? s.color ?? DEFAULT_COLORS[s.kind];
-    const mesh = build(scene, `structure-${i}`, s, s.material ? MATERIALS[s.material].worldTop : true);
+    const spec = s.material ? MATERIALS[s.material] : null;
+    const mesh = build(scene, `structure-${i}`, s, { tile: spec?.tile ?? FLAT_TILE, worldTop: spec?.worldTop ?? true });
     mesh.position.set(s.x, mesh.position.y + (s.y ?? 0), s.z);
     mesh.rotation.y = s.yaw ?? 0; // Babylon's rotation about y matches the sim's yaw
     const key = `${look}@${Math.floor(s.x / REGION)},${Math.floor(s.z / REGION)}`;
@@ -69,7 +71,10 @@ function material(scene: Scene, look: Look): StandardMaterial {
   mat.disableLighting = true; // the colour is texture × face shade, exactly
   mat.specularColor = Color3.Black();
   if (look in MATERIALS) {
-    const tex = new DynamicTexture(`structure-tex-${look}`, TEXELS, scene, true, Texture.NEAREST_NEAREST_MIPLINEAR);
+    // Nearest when magnified keeps the pixels crisp up close; trilinear and anisotropic when minified
+    // stop distant and glancing walls shimmering.
+    const tex = new DynamicTexture(`structure-tex-${look}`, TEXELS, scene, true, Texture.NEAREST_LINEAR_MIPLINEAR);
+    tex.anisotropicFilteringLevel = 8;
     paintMaterial(tex.getContext() as CanvasRenderingContext2D, look as StructureMaterial);
     tex.update();
     tex.wrapU = tex.wrapV = Texture.WRAP_ADDRESSMODE;
@@ -82,19 +87,25 @@ function material(scene: Scene, look: Look): StandardMaterial {
   return mat;
 }
 
-function build(scene: Scene, name: string, s: Structure, worldTop: boolean): Mesh {
+// How a piece's faces take their texture: metres per repeat, and whether tops tile in world x/z.
+interface Mapping {
+  tile: number;
+  worldTop: boolean;
+}
+
+function build(scene: Scene, name: string, s: Structure, mapping: Mapping): Mesh {
   switch (s.kind) {
     case 'box':
     case 'ramp':
-      return prism(scene, name, s, worldTop);
+      return prism(scene, name, s, mapping);
     case 'terrain':
-      return heightfield(scene, name, s);
+      return heightfield(scene, name, s, mapping);
   }
 }
 
 // A box over the footprint with each top corner dropped to the kind's surface height there:
 // exact for any top that's flat or planar (boxes, ramps).
-function prism(scene: Scene, name: string, s: Box | Ramp, worldTop: boolean): Mesh {
+function prism(scene: Scene, name: string, s: Box | Ramp, mapping: Mapping): Mesh {
   const { top, height } = surfaceOf(s);
   const mesh = MeshBuilder.CreateBox(name, { width: s.w, height, depth: s.d, updatable: true }, scene);
   const positions = mesh.getVerticesData(VertexBuffer.PositionKind)!;
@@ -105,13 +116,13 @@ function prism(scene: Scene, name: string, s: Box | Ramp, worldTop: boolean): Me
   const normals: number[] = [];
   VertexData.ComputeNormals(positions, mesh.getIndices(), normals);
   mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
-  paintFaces(mesh, s, positions, normals, height / 2, worldTop);
+  paintFaces(mesh, s, positions, normals, height / 2, mapping);
   mesh.position.y = height / 2; // the box is centred; lift it so its underside is at local 0
   return mesh;
 }
 
 // A grid over the footprint, one vertex per height sample, flat-shaded into facets.
-function heightfield(scene: Scene, name: string, s: Terrain): Mesh {
+function heightfield(scene: Scene, name: string, s: Terrain, mapping: Mapping): Mesh {
   const { top } = surfaceOf(s);
   const mesh = MeshBuilder.CreateGround(
     name,
@@ -129,11 +140,11 @@ function heightfield(scene: Scene, name: string, s: Terrain): Mesh {
   mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
   mesh.convertToFlatShadedMesh();
   const flat = mesh.getVerticesData(VertexBuffer.PositionKind)!;
-  paintFaces(mesh, s, flat, mesh.getVerticesData(VertexBuffer.NormalKind)!, 0, true);
+  paintFaces(mesh, s, flat, mesh.getVerticesData(VertexBuffer.NormalKind)!, 0, { ...mapping, worldTop: true });
   return mesh;
 }
 
-// Texture coordinates in metres (one TILE per repeat) and a vertex colour per face direction.
+// Texture coordinates in metres (one `tile` per repeat) and a vertex colour per face direction.
 // Sides use the piece's own horizontal axis and world height, so courses of brick line up across
 // stacked pieces; tops use world x/z when `worldTop`, so floor tiles line up across neighbours.
 function paintFaces(
@@ -142,7 +153,7 @@ function paintFaces(
   positions: ArrayLike<number>,
   normals: ArrayLike<number>,
   lift: number,
-  worldTop: boolean,
+  { tile, worldTop }: Mapping,
 ): void {
   const yaw = s.yaw ?? 0;
   const cos = Math.cos(yaw);
@@ -157,14 +168,14 @@ function paintFaces(
     let shade: number;
     if (Math.abs(ny) >= nx && Math.abs(ny) >= nz) {
       shade = ny > 0 ? SHADE.top : SHADE.bottom;
-      if (worldTop) uvs.push((s.x + lx * cos + lz * sin) / TILE, (s.z - lx * sin + lz * cos) / TILE);
-      else uvs.push(lx / TILE, lz / TILE);
+      if (worldTop) uvs.push((s.x + lx * cos + lz * sin) / tile, (s.z - lx * sin + lz * cos) / tile);
+      else uvs.push(lx / tile, lz / tile);
     } else if (nx >= nz) {
       shade = SHADE.sideX;
-      uvs.push(lz / TILE, wy / TILE);
+      uvs.push(lz / tile, wy / tile);
     } else {
       shade = SHADE.sideZ;
-      uvs.push(lx / TILE, wy / TILE);
+      uvs.push(lx / tile, wy / tile);
     }
     colors.push(shade, shade, shade, 1);
   }

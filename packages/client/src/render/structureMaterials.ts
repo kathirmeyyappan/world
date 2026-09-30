@@ -1,14 +1,15 @@
 // Pixel-art textures for structure materials (sim/structures.ts `StructureMaterial`), painted once at
-// load onto tiny canvases and sampled nearest-neighbour so every texel reads as a chunky pixel. One
-// repeat of each texture covers TILE metres, and the renderer maps faces in metres, so a brick is
-// the same size on every wall. A new material is a painter here; the Record makes it required.
+// load onto tiny canvases and drawn nearest-neighbour up close, so every texel reads as a chunky
+// pixel. One repeat of a texture covers its `tile` in metres, and the renderer maps faces in metres,
+// so a brick is the same size on every wall. Keep texels big (a few per metre): fine detail on a big
+// wall aliases into moiré. A new material is a painter here; the Record makes it required.
 import { createRng, hashSeed, type Rng, type StructureMaterial } from '@world/shared';
 
-export const TILE = 2; // metres covered by one repeat of a texture
-export const TEXELS = 32; // texels per repeat along each side: 16 per metre
+export const TEXELS = 32; // texels per repeat along each side
 
 export interface MaterialSpec {
   paint(px: (x: number, y: number, color: string) => void, rng: Rng): void;
+  tile: number; // metres covered by one repeat of the texture
   // Floors and decks tile in world x/z, so neighbouring pieces line up; anything else is mapped
   // in its own frame (a stair's planks run along each step).
   worldTop: boolean;
@@ -16,9 +17,10 @@ export interface MaterialSpec {
 
 const pick = (rng: Rng, colors: string[]) => colors[Math.floor(rng() * colors.length)];
 
-// Courses of 0.5 × 0.25 m bricks, each course offset by half a brick, with a lit top edge and a
-// shaded bottom edge on every brick.
+// Courses of 1 × 0.5 m blocks (8 × 4 texels), each course offset by half a block, with a lit top
+// edge and a shaded bottom edge on every block.
 const brick: MaterialSpec = {
+  tile: 4,
   worldTop: false,
   paint(px, rng) {
     const shades = ['#77767e', '#6e6d76', '#817f86', '#6a6972', '#7d787a', '#726f79', '#86838a'];
@@ -42,8 +44,9 @@ const brick: MaterialSpec = {
   },
 };
 
-// Planks 0.25 m wide with dark seams and a little grain.
+// Planks 0.375 m wide (4 texels) with dark seams and a little grain: two to a stair tread.
 const wood: MaterialSpec = {
+  tile: 3,
   worldTop: false,
   paint(px, rng) {
     const shades = ['#7a5233', '#6f4a2d', '#83593a', '#754f31'];
@@ -60,8 +63,9 @@ const wood: MaterialSpec = {
   },
 };
 
-// Half-metre red tiles with dark grout and a highlight in each tile's corner.
+// 0.75 m red tiles (8 texels) with dark grout and a highlight in each tile's corner.
 const redTile: MaterialSpec = {
+  tile: 3,
   worldTop: true,
   paint(px, rng) {
     const shades = ['#8a2e2a', '#973530', '#7d2926', '#a03b33', '#8f312c'];
@@ -82,8 +86,9 @@ const redTile: MaterialSpec = {
   },
 };
 
-// Metre-square paving stones in offset rows.
+// 2 m paving stones (16 texels) in offset rows.
 const flagstone: MaterialSpec = {
+  tile: 4,
   worldTop: true,
   paint(px, rng) {
     const shades = ['#5f636b', '#686c74', '#595d65', '#6c6f76'];
