@@ -148,7 +148,7 @@ with concurrent receive and input loops.
 - Yaw `0` faces `+z`; positive pitch looks down; player position is eye position.
 - `Player.hearts` and `Player.kills` are the scoreboard.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.
-- Snapshots reveal all players and combat currently has no wall/cube occlusion. Human-like
+- Snapshots reveal all players, and shots pass through cubes; only structures block them. Human-like
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.
 - Shots are lag-compensated: `Controls` sends the newest snapshot tick as `view`, and the server
   judges the shot against where targets were at that tick. Aim at the snapshot you have; don't lead.
@@ -263,6 +263,16 @@ space` is the kind to keep). Don't narrate the change or answer the request that
   "used to", "on purpose", "as requested". That belongs in the commit message and PR description.
 - Comment what the code can't say itself: units, invariants, constraints, and the reason behind a
   non-obvious choice. Skip comments that restate the line below them.
+
+## World geometry
+
+Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
+`packages/shared/src/content/structures.ts` (empty for now), with kinds and authoring helpers
+(`wall`, `ramp`, `building`, `terrain`) in `packages/shared/src/sim/structures.ts`. The sim collides with
+them through `sim/collision.ts` (standing, walls, ceilings, line of sight) and the client draws the
+same list (`render/Structures.ts`), so adding an entry is the whole job. A new kind is a case in
+`surfaceOf` plus a builder in the client's `build`; the compiler asks for both. Cubes and the
+minimap don't know about structures yet.
 
 ## Pull requests
 

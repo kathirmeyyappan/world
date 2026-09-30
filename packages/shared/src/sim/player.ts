@@ -7,13 +7,17 @@ import {
   MAX_PITCH,
   MOVE_SPEED,
   PLAYER_PADDING,
+  PLAYER_RADIUS,
   SPEEDY_MULTIPLIER,
+  STEP_DOWN,
+  STEP_UP,
 } from './constants';
 import { avatarFor } from './avatars';
-import { MAX_HEARTS } from './health';
+import type { Structures } from './collision';
+import { CAPSULE_TOP, MAX_HEARTS } from './health';
 import { FUEL_REFILL_RATE, ITEMS, createItem, permanentItemFor } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
-import { WORLD_SHAPE, clampToWorld, type WorldPart } from './world';
+import { WORLD_SHAPE, WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
 
 export function createPlayer(id: string, name: string, color: string, spawn: Vec3, bot = false): PlayerState {
   return {
@@ -72,8 +76,9 @@ function stepItem(p: PlayerState, input: InputFrame | null, dt: number): void {
   }
 }
 
-export function isGrounded(p: PlayerState): boolean {
-  return p.pos.y <= EYE_HEIGHT;
+// Standing on the floor or on a structure's top: eyes no higher than EYE_HEIGHT above it.
+export function isGrounded(p: PlayerState, structures: Structures = WORLD_STRUCTURES): boolean {
+  return p.pos.y <= structures.groundAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP) + EYE_HEIGHT;
 }
 
 // Advances one player by `dt`. A null input means "no frame arrived": gravity still applies.
@@ -82,13 +87,14 @@ export function stepPlayer(
   input: InputFrame | null,
   dt: number,
   shape: WorldPart[] = WORLD_SHAPE,
+  structures: Structures = WORLD_STRUCTURES,
 ): void {
   if (input) {
     p.yaw = input.yaw;
     p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
     p.reading = input.reading;
     p.lastSeq = input.seq;
-    if (input.jump && isGrounded(p) && !p.dead) p.vy = JUMP_VELOCITY;
+    if (input.jump && isGrounded(p, structures) && !p.dead) p.vy = JUMP_VELOCITY;
   }
 
   const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1);
@@ -99,12 +105,22 @@ export function stepPlayer(
   }
   stepItem(p, input, dt);
 
+  // Vertical: fall, stop the head at any underside above it, land on the highest top within a
+  // step of where the feet were.
+  const feet = p.pos.y - EYE_HEIGHT;
+  const ceiling = structures.ceilingAt(p.pos.x, p.pos.z, p.pos.y + CAPSULE_TOP);
   p.vy -= GRAVITY * dt;
   p.pos.y += p.vy * dt;
-  if (p.pos.y < EYE_HEIGHT) {
-    p.pos.y = EYE_HEIGHT;
+  if (p.pos.y + CAPSULE_TOP > ceiling) {
+    p.pos.y = ceiling - CAPSULE_TOP;
+    p.vy = Math.min(p.vy, 0);
+  }
+  const floor = structures.groundAt(p.pos.x, p.pos.z, feet + STEP_UP) + EYE_HEIGHT;
+  if (p.pos.y < floor) {
+    p.pos.y = floor;
     p.vy = 0;
   }
+  const standing = p.pos.y <= floor;
 
   if (input && !p.dead && (input.mx !== 0 || input.my !== 0)) {
     const sinY = Math.sin(p.yaw);
@@ -116,8 +132,14 @@ export function stepPlayer(
       dx /= len;
       dz /= len;
     }
-    p.pos.x += dx * speed * dt;
-    p.pos.z += dz * speed * dt;
+    const feetNow = p.pos.y - EYE_HEIGHT;
+    const body = { head: p.pos.y + CAPSULE_TOP, reach: feetNow + STEP_UP, radius: PLAYER_RADIUS };
+    structures.move(p.pos, dx * speed * dt, dz * speed * dt, body);
     clampToWorld(p.pos, PLAYER_PADDING, shape);
+    // Walking keeps a standing player on the ground: up a step or ramp, down a gentle drop.
+    if (standing) {
+      const ground = structures.groundAt(p.pos.x, p.pos.z, feetNow + STEP_UP);
+      if (ground >= feetNow - STEP_DOWN) p.pos.y = ground + EYE_HEIGHT;
+    }
   }
 }

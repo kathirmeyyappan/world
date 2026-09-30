@@ -1,11 +1,13 @@
 // Hitscan shooting, resolved on the server from the shooter's own position and look direction.
 // A player is a vertical capsule from feet to just above the eyes; the nearest one the ray
 // passes through within range is the hit, and where on it the ray lands says whether it was
-// a headshot. Damage numbers live in health.ts.
+// a headshot. Structures stop shots: nothing behind a wall is hit. Damage numbers live in health.ts.
+import type { Structures } from './collision';
 import { HIT_RADIUS } from './constants';
 import { CAPSULE_TOP, capsuleFeetY, isHeadshot } from './health';
 import type { ItemSpec } from './items';
 import type { Vec3 } from './types';
+import { WORLD_STRUCTURES } from './world';
 
 // Enough of a player to be shot at. PlayerState satisfies it; so does the client's remote view.
 export interface Target {
@@ -39,26 +41,30 @@ export function resolveFire<T extends Target>(
   spec: Pick<ItemSpec, 'fire' | 'range'>,
   shooter: Shooter,
   players: Iterable<T>,
+  structures: Structures = WORLD_STRUCTURES,
 ): Hit<T>[] {
-  if (spec.fire.kind === 'cone') return findConeHits(shooter, players, spec.range, spec.fire.halfAngle);
-  const hit = findHit(shooter, players, spec.range);
+  if (spec.fire.kind === 'cone') return findConeHits(shooter, players, spec.range, spec.fire.halfAngle, structures);
+  const hit = findHit(shooter, players, spec.range, structures);
   return hit ? [hit] : [];
 }
 
 // Every live player with any part of their capsule inside the cone: within `range` of the eye
-// and within `halfAngle` of the look direction, widened by the capsule radius. No headshots.
+// and within `halfAngle` of the look direction, widened by the capsule radius, with a clear line
+// from eye to eye. No headshots.
 export function findConeHits<T extends Target>(
   shooter: Shooter,
   players: Iterable<T>,
   range: number,
   halfAngle: number,
+  structures: Structures = WORLD_STRUCTURES,
 ): Hit<T>[] {
   const dir = lookDirection(shooter.yaw, shooter.pitch);
   const o = shooter.pos;
   const hits: Hit<T>[] = [];
   for (const p of players) {
     if (p.id === shooter.id || p.dead) continue;
-    if (capsuleInCone(o, dir, p.pos, range, halfAngle)) hits.push({ target: p, headshot: false });
+    if (capsuleInCone(o, dir, p.pos, range, halfAngle) && structures.clear(o, p.pos))
+      hits.push({ target: p, headshot: false });
   }
   return hits;
 }
@@ -82,11 +88,16 @@ function capsuleInCone(o: Vec3, d: Vec3, eye: Vec3, range: number, halfAngle: nu
   return false;
 }
 
-export function findHit<T extends Target>(shooter: Shooter, players: Iterable<T>, range: number): Hit<T> | null {
+export function findHit<T extends Target>(
+  shooter: Shooter,
+  players: Iterable<T>,
+  range: number,
+  structures: Structures = WORLD_STRUCTURES,
+): Hit<T> | null {
   const dir = lookDirection(shooter.yaw, shooter.pitch);
   const o = shooter.pos;
   let best: T | null = null;
-  let bestT = range;
+  let bestT = Math.min(range, structures.raycast(o, dir, range)); // the shot stops at the first wall
   for (const p of players) {
     if (p.id === shooter.id || p.dead) continue;
     const t = rayCapsule(o, dir, p.pos, bestT);

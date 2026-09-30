@@ -7,6 +7,7 @@ import {
   SKY_OBJECTS,
   TICK_DT,
   WORLD_SHAPE,
+  WORLD_STRUCTURES,
   actionForKey,
   createRng,
   hashSeed,
@@ -30,6 +31,7 @@ import { createAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { buildStructures } from '../render/Structures';
 import { poof } from '../render/Poof';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
@@ -112,6 +114,7 @@ export class Game {
     const canvas = canvasEl;
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE);
+    buildStructures(this.engine, WORLD_STRUCTURES.list);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = DEFAULT_FOV;
@@ -278,7 +281,7 @@ export class Game {
         for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(m.room))))
           this.skyByMesh.set(sky.mesh.name, sky);
         const me = m.players.find((p) => p.id === m.id)!;
-        this.prediction = new Prediction(me, WORLD_SHAPE);
+        this.prediction = new Prediction(me, WORLD_SHAPE, WORLD_STRUCTURES);
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
         this.interp.push(m.tick, m.players, m.cubes, now);
@@ -453,6 +456,7 @@ export class Game {
         ITEMS[held.id],
         { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch },
         targets(sampled.players),
+        WORLD_STRUCTURES,
       ).length > 0;
     this.mobileActions.update({
       hot: !!this.hovered,
@@ -479,7 +483,7 @@ export class Game {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
       const hit = this.engine.scene.pickWithRay(
         ray,
-        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'),
+        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-') || mesh.name.startsWith('structure-'),
       );
       if (hit?.pickedMesh) {
         if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;

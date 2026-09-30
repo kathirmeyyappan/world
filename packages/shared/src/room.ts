@@ -27,7 +27,9 @@ import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState } from './sim/types';
-import { WORLD_SHAPE, randomPointInWorld, type WorldPart } from './sim/world';
+import type { Structures } from './sim/collision';
+import { CAPSULE_TOP } from './sim/health';
+import { WORLD_SHAPE, WORLD_STRUCTURES, randomPointInWorld, type WorldPart } from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
@@ -65,6 +67,7 @@ export type BotSpawner = (request: BotRequest) => Promise<void>;
 export interface RoomOptions {
   seed?: number;
   worldShape?: WorldPart[];
+  structures?: Structures;
   onEmpty?: () => void;
   log?: (msg: string) => void;
   spawnBot?: BotSpawner; // absent: bots can't be called from this room
@@ -73,6 +76,7 @@ export interface RoomOptions {
 export class Room {
   readonly id: string;
   readonly worldShape: WorldPart[];
+  readonly structures: Structures;
   tick = 0;
 
   private readonly seats = new Map<string, Seat>();
@@ -89,6 +93,7 @@ export class Room {
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
     this.worldShape = opts.worldShape ?? WORLD_SHAPE;
+    this.structures = opts.structures ?? WORLD_STRUCTURES;
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
     this.onEmpty = opts.onEmpty;
@@ -229,7 +234,7 @@ export class Room {
       pos: this.history.at(p.id, at) ?? p.pos,
       player: p,
     }));
-    for (const hit of resolveFire(spec, me, targets))
+    for (const hit of resolveFire(spec, me, targets, this.structures))
       this.damage(seat, hit.target.player, damageFor(spec, hit.headshot), hit.headshot);
   }
 
@@ -255,11 +260,11 @@ export class Room {
       }
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
-        stepPlayer(seat.state, null, TICK_DT, this.worldShape);
+        stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures);
         continue;
       }
       for (let i = 0; i < n; i++) {
-        stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape);
+        stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape, this.structures);
         this.applyActions(seat, seat.queue[i]);
       }
       seat.queue.splice(0, n);
@@ -366,14 +371,18 @@ export class Room {
     );
   }
 
-  // Anywhere in the world, clear of the walls and not on top of a cube.
+  // Anywhere in the world, clear of the walls and not on top of a cube, standing on the highest
+  // surface there with room for a body above it.
   private spawnPoint() {
+    const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, Infinity);
+    const roomy = (p: { x: number; z: number }) =>
+      this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
     let p = randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng);
     for (let i = 0; i < 20; i++) {
-      if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN)) break;
+      if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN) && roomy(p)) break;
       p = randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng);
     }
-    return { x: p.x, y: EYE_HEIGHT, z: p.z };
+    return { x: p.x, y: ground(p) + EYE_HEIGHT, z: p.z };
   }
 }
 

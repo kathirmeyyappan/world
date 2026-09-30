@@ -8,10 +8,13 @@ import {
   SPEEDY_SECONDS,
   TICK_DT,
   WORLD_SHAPE,
+  Structures,
+  building,
   clonePlayer,
   createCubes,
   createPlayer,
   createRng,
+  ramp,
   stepCubes,
   stepPlayer,
   worldDistance,
@@ -129,4 +132,46 @@ test('a timed item wears off after its window; a permanent one never does', () =
   const q = createPlayer('b', 'SNIPERb', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   for (let i = 0; i < 1000; i++) stepPlayer(q, null, 1, WORLD_SHAPE);
   assert.deepEqual(q.item, { id: 'sniper', left: 0, permanent: true, fuel: null });
+});
+
+// Structures: walk into a wall, up a ramp onto a platform, off its far end, and jump under a roof.
+const walk = (p: ReturnType<typeof createPlayer>, yaw: number, ticks: number, world: Structures, jump = false) => {
+  for (let i = 0; i < ticks; i++)
+    stepPlayer(p, frame(p.lastSeq + 1, { my: 1, yaw, jump }), TICK_DT, WORLD_SHAPE, world);
+};
+
+test('a wall stops a player, who slides along it', () => {
+  const world = new Structures([{ kind: 'box', x: 0, z: 5, w: 20, d: 0.4, h: 3 }]);
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  walk(p, 0, 60, world);
+  assert.ok(p.pos.z < 5 - 0.2 - 0.3, `stopped short of the wall, at z ${p.pos.z}`);
+  walk(p, Math.PI / 4, 30, world);
+  assert.ok(p.pos.x > 3 && p.pos.z < 4.5, 'walking into it at an angle slides along it');
+});
+
+test('a ramp carries a player up onto a platform, and they drop off its far edge', () => {
+  const world = new Structures([
+    ramp({ x: 0, z: 2 }, { x: 0, z: 10 }, 2, 3),
+    { kind: 'box', x: 0, z: 12, w: 3, d: 4, h: 2 },
+  ]);
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  walk(p, 0, 36, world); // about 9.6 m, most of the way up
+  assert.ok(p.pos.y > EYE_HEIGHT + 1.5 && p.vy === 0, `standing on the slope at y ${p.pos.y}`);
+  walk(p, 0, 12, world);
+  assert.equal(p.pos.y, 2 + EYE_HEIGHT, 'on the platform');
+  walk(p, 0, 30, world);
+  assert.equal(p.pos.y, EYE_HEIGHT, 'off the end and back on the floor');
+});
+
+test('a roof stops a jump and a doorway lets a player in', () => {
+  const world = new Structures(building({ x: 0, z: 0, w: 8, d: 8, h: 2.4, door: 2, doorHeight: 2.2 }));
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 8 });
+  walk(p, Math.PI, 45, world); // in through the door in the +z wall
+  assert.ok(p.pos.z < 2, `inside, at z ${p.pos.z}`);
+  let top = 0;
+  for (let i = 0; i < 30; i++) {
+    stepPlayer(p, frame(p.lastSeq + 1, { jump: i === 0 }), TICK_DT, WORLD_SHAPE, world);
+    top = Math.max(top, p.pos.y + 0.3);
+  }
+  assert.ok(top <= 2.4 + 1e-9, `head stopped at the roof, reached ${top}`);
 });

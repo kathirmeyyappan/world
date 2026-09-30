@@ -47,6 +47,16 @@ space` is the kind to keep). Don't narrate the change or answer the request that
 - Comment what the code can't say itself: units, invariants, constraints, and the reason behind a
   non-obvious choice. Skip comments that restate the line below them.
 
+## World geometry
+
+Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
+`packages/shared/src/content/structures.ts` (empty for now), with kinds and authoring helpers
+(`wall`, `ramp`, `building`, `terrain`) in `packages/shared/src/sim/structures.ts`. The sim collides with
+them through `sim/collision.ts` (standing, walls, ceilings, line of sight) and the client draws the
+same list (`render/Structures.ts`), so adding an entry is the whole job. A new kind is a case in
+`surfaceOf` plus a builder in the client's `build`; the compiler asks for both. Cubes and the
+minimap don't know about structures yet.
+
 ## Adding a Modal bot
 
 Keep this section synchronized with `AGENTS.md`. A bot is a headless Python client in
@@ -184,7 +194,7 @@ protocol.
 - `Player.pos` is eye position. Yaw `0` faces `+z`; positive pitch looks down.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
-- Snapshots reveal players globally and current combat has no wall or cube occlusion. Perfect aim
+- Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.
 - Shots are lag-compensated: `Controls` sends the newest snapshot tick as `view`, and the server
