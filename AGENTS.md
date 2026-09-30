@@ -218,7 +218,7 @@ Never use `global` for automated testing.
 
 ### Calling bots from chat
 
-`/circle-bot [seconds]`, `/observer-bot [seconds]` and `/stalker-bot [seconds]` (the `-bot` suffix is
+`/circle-bot [seconds]` and `/stalker-bot [seconds]` (the `-bot` suffix is
 optional) start a bot in the caller's room; seconds default to 300 and cap at 3500. `/kill-bots` drops every living bot in the room dead where it
 stands, with no kill event; each corpse is removed like any bot's, which closes its connection and
 ends its run. The registry is `packages/shared/src/sim/bots.ts` (id, player name, blurb), which
@@ -227,8 +227,8 @@ must have a spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots
 as one POST to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room
 container's Python process runs. The sidecar spawns `kathir-world-bots/run_bot` with
 `{bot, room, seconds}` plus the request's placement (`spawn`, `avatar`) using the container's own
-Modal credentials; Node never holds a token. A new bot therefore needs a row in `bots.ts` as well as
-its Python module.
+Modal credentials; Node never holds a token. A bot called from chat therefore needs a row in `bots.ts` as
+well as its Python module; one without a row (the observer) is started only with `modal run`.
 
 Rooms also start with bots: the first person to join brings the line-up from
 `packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`: two circle bots anywhere, and a

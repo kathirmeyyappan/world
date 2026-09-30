@@ -1,11 +1,11 @@
 // Bots a player can call from chat. Each runs as a Modal function (see modal-bots/) that joins
 // the caller's room as a flagged player for a while. The registry key is what the Modal worker
-// takes; the player name is what everyone sees. Adding a bot means a row here and a bot module
-// under modal-bots/bots/.
+// takes; the player name is what everyone sees. A row here needs a bot module under
+// modal-bots/bots/; a module without a row (the observer) is only started by hand with `modal run`.
 import { isAvatarId, type AvatarId } from './avatars';
 import type { Vec3 } from './types';
 
-export type BotId = 'circle' | 'observer' | 'stalker';
+export type BotId = 'circle' | 'stalker';
 
 export interface BotSpec {
   id: BotId;
@@ -21,11 +21,6 @@ export const BOTS: Record<BotId, BotSpec> = {
     id: 'circle',
     playerName: 'circle-bot',
     blurb: 'finds the nearest player and circles them',
-  },
-  observer: {
-    id: 'observer',
-    playerName: 'observer-bot',
-    blurb: 'spawns in and does nothing',
   },
   stalker: {
     id: 'stalker',

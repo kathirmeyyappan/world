@@ -546,7 +546,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
     'everyone hears',
   );
 
-  room.receive(ida, { t: 'chat', text: '/observer' });
+  room.receive(ida, { t: 'chat', text: '/stalker' });
   await Promise.resolve();
   assert.equal(spawned[1].seconds, 300, "no number: the bot's default");
   room.receive(ida, { t: 'chat', text: '/circle 9999' });
@@ -560,7 +560,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
 
   // no bot cap: the only limit is the room's seats
   while (room.playerCount < MAX_PLAYERS) room.join('bot', link(), { bot: true });
-  room.receive(ida, { t: 'chat', text: '/observer-bot' });
+  room.receive(ida, { t: 'chat', text: '/stalker-bot' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room is full' });
   assert.equal(spawned.length, 3);
 
