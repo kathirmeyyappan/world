@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import WebSocket from 'ws';
-import { defaultBotsFor, type ServerMessage } from '@world/shared';
+import { defaultBotsFor, type BotRequest, type ServerMessage } from '@world/shared';
 
 async function startServer(port: number, env: Record<string, string> = {}) {
   const proc = spawn(process.execPath, ['--import', 'tsx', new URL('../src/index.ts', import.meta.url).pathname], {
@@ -77,7 +77,7 @@ test('two clients in one room see each other move', async () => {
 });
 
 test('/circle-bot posts the room request to the bot sidecar', async () => {
-  const received: unknown[] = [];
+  const received: { url?: string; body: BotRequest }[] = [];
   const sidecar = createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
@@ -102,10 +102,10 @@ test('/circle-bot posts the room request to the bot sidecar', async () => {
       body: { bot, room: 'late-night', seconds, caller: 'room', ...placement },
     }));
     for (let i = 0; i < 50 && received.length <= defaults.length; i++) await new Promise((r) => setTimeout(r, 20));
-    assert.deepEqual(received, [
-      ...defaults,
-      { url: '/bots', body: { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' } },
-    ]);
+    assert.deepEqual(received.slice(0, -1), defaults);
+    const { spawn: near, ...call } = received[received.length - 1].body;
+    assert.deepEqual(call, { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' });
+    assert.equal(typeof near?.x, 'number', 'a called bot spawns near its caller');
     a.ws.close();
   } finally {
     proc.kill();

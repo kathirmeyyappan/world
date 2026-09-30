@@ -320,7 +320,7 @@ Use an isolated room such as `bot-smoke`, not `global`, for automated or manual 
 ### Calling bots from chat
 
 `/circle-bot [seconds]` and `/stalker-bot [seconds]` (the `-bot` suffix is
-optional) start a bot in the caller's room; seconds default to 300 and cap at 3500. `/kill-bots` drops every living bot in the room dead where it
+optional) start a bot in the caller's room, on the ground within 50 m of them; seconds default to 300 and cap at 3500. `/kill-bots` drops every living bot in the room dead where it
 stands, with no kill event; each corpse is removed like any bot's, which closes its connection and
 ends its run. The registry is `packages/shared/src/sim/bots.ts` (id, player name, blurb), which
 also fills the commands menu. The Room validates (people only, a free seat, host

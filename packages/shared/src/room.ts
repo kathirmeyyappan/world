@@ -31,7 +31,15 @@ import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import type { Structures } from './sim/collision';
 import { CAPSULE_TOP } from './sim/health';
-import { WORLD_SHAPE, WORLD_STRUCTURES, clampToWorld, randomPointInWorld, type WorldPart } from './sim/world';
+import {
+  WORLD_SHAPE,
+  WORLD_STRUCTURES,
+  clampToWorld,
+  randomPointInDisc,
+  randomPointInWorld,
+  worldDistance,
+  type WorldPart,
+} from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
@@ -43,6 +51,7 @@ const SPAWN_WALL_MARGIN = 3;
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
 const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
+const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
 
 export interface ClientLink {
   send(msg: ServerMessage): void;
@@ -354,7 +363,9 @@ export class Room {
     if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
 
     this.broadcast({ t: 'system', text: `${me.name} called ${bot.playerName} for ${seconds}s` });
-    this.spawnBot({ bot: id, room: this.publicName, seconds, caller: me.name }).catch((err: unknown) => {
+    const near = this.spawnPoint(me.pos);
+    const spawn = { x: near.x, y: near.y - EYE_HEIGHT, z: near.z };
+    this.spawnBot({ bot: id, room: this.publicName, seconds, caller: me.name, spawn }).catch((err: unknown) => {
       this.log(`bot ${id} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
       tell(`couldn't call ${bot.playerName}`);
     });
@@ -405,19 +416,32 @@ export class Room {
     return { x: p.x, y: this.structures.groundAt(p.x, p.z, feet.y + STEP_UP) + EYE_HEIGHT, z: p.z };
   }
 
-  // Anywhere in the world, clear of the walls and not on top of a cube, standing on the ground (or
-  // anything within a step of it) with room for a body above: inside a building's ground floor, never
-  // on a roof, and never inside a wall.
-  private spawnPoint() {
+  // Anywhere in the world (or, given `near`, within CALLED_BOT_RANGE of it across the floor), clear
+  // of the walls and not on top of a cube, standing on the ground (or anything within a step of it)
+  // with room for a body above: inside a building's ground floor, never on a roof, and never inside
+  // a wall. Returns the eye position.
+  private spawnPoint(near?: Vec3) {
     const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, STEP_UP);
     const roomy = (p: { x: number; z: number }) =>
       this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
-    let p = randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng);
+    const pick = () => (near ? this.pointNear(near) : randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng));
+    let p = pick();
     for (let i = 0; i < 20; i++) {
       if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN) && roomy(p)) break;
-      p = randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng);
+      p = pick();
     }
     return { x: p.x, y: ground(p) + EYE_HEIGHT, z: p.z };
+  }
+
+  // A random point within CALLED_BOT_RANGE of `near` and SPAWN_WALL_MARGIN inside the world; `near`
+  // itself if twenty tries all land outside (at the world's edge, over half the circle can).
+  private pointNear(near: Vec3): { x: number; z: number } {
+    const around = { kind: 'disc' as const, x: near.x, z: near.z, r: CALLED_BOT_RANGE };
+    for (let i = 0; i < 20; i++) {
+      const p = randomPointInDisc(around, 0, this.rng);
+      if (worldDistance(p.x, p.z, this.worldShape) <= -SPAWN_WALL_MARGIN) return p;
+    }
+    return { x: near.x, z: near.z };
   }
 }
 
