@@ -5,9 +5,11 @@
 // the outline's corridor, so players can't be clamped off it) to a floating terrace above the main
 // disc. A roof with battlements closes the top.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
+import { ANNEX } from '../sim/outline';
+import type { WorldPart } from '../sim/world';
 
-const X = 112; // the annex's centre (sim/world.ts)
-const Z = 0;
+const X = ANNEX.x;
+const Z = ANNEX.z;
 const HEIGHT = 80;
 const OUTER = 20; // outside face of the wall
 const WALL = 1;
@@ -130,3 +132,15 @@ const terrace: Structure[] = [
 ];
 
 export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...skyway, ...terrace];
+
+// Where the sky bridge and terrace are, for naming the area (content/areas.ts): a strip from the
+// door to the terrace's far edge, as wide as the terrace, and the height of the decks.
+export const SKYWAY_REGION: WorldPart = {
+  kind: 'bridge',
+  ax: t.x0,
+  az: Z,
+  bx: bridgeStart,
+  bz: Z,
+  halfWidth: TERRACE.d / 2,
+};
+export const SKYWAY_HEIGHT = TOP;

@@ -577,6 +577,32 @@ body {
 }
 
 /* Onboarding banner across the screen after 30 s without using anything. */
+/* The area you've walked into, under the hearts: pixel letters that step in and out. */
+#area-title {
+  position: fixed;
+  top: 84px;
+  left: 0;
+  right: 0;
+  z-index: 55;
+  pointer-events: none;
+  text-align: center;
+  font: 28px/36px var(--pixel);
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow:
+    3px 3px 0 #000,
+    0 0 12px rgba(100, 181, 246, 0.45);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.5s steps(5),
+    transform 0.5s steps(5);
+}
+#area-title.on {
+  opacity: 1;
+  transform: none;
+}
+
 #command-hint {
   position: fixed;
   top: 22%;
@@ -1169,6 +1195,12 @@ body {
 @media (pointer: coarse) {
   #pad {
     display: block;
+  }
+  #area-title {
+    top: 66px;
+    font-size: 18px;
+    line-height: 24px;
+    letter-spacing: 3px;
   }
   #jump-button {
     display: flex;
