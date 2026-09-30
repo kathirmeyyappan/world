@@ -17,10 +17,10 @@ export interface MaterialSpec {
 
 const pick = (rng: Rng, colors: string[]) => colors[Math.floor(rng() * colors.length)];
 
-// Courses of 1 × 0.5 m blocks (8 × 4 texels), each course offset by half a block, with a lit top
-// edge and a shaded bottom edge on every block.
+// Courses of 1.5 × 0.75 m blocks (8 × 4 texels), each course offset by half a block, with a lit
+// top edge and a shaded bottom edge on every block, kept gentle so distant walls don't shimmer.
 const brick: MaterialSpec = {
-  tile: 4,
+  tile: 6,
   worldTop: false,
   paint(px, rng) {
     const shades = ['#77767e', '#6e6d76', '#817f86', '#6a6972', '#7d787a', '#726f79', '#86838a'];
@@ -33,9 +33,9 @@ const brick: MaterialSpec = {
           for (let j = 0; j < 4; j++) {
             const y = row * 4 + j;
             if (j === 3 || i === 7)
-              px(x, y, '#3b3a42'); // mortar
-            else if (j === 0) px(x, y, '#9a979e');
-            else if (j === 2 && rng() < 0.5) px(x, y, '#5f5e67');
+              px(x, y, '#46454d'); // mortar
+            else if (j === 0) px(x, y, '#8c8990');
+            else if (j === 2 && rng() < 0.5) px(x, y, '#65646c');
             else px(x, y, rng() < 0.08 ? '#8e8b92' : color);
           }
         }
