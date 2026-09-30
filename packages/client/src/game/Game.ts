@@ -486,9 +486,12 @@ export class Game {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
       const hit = this.engine.scene.pickWithRay(
         ray,
-        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-') || mesh.name.startsWith('structure-'),
+        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'),
       );
-      if (hit?.pickedMesh) {
+      // Structures aren't pickable; a cube or sky object behind one is hidden by it.
+      const blocked =
+        !!hit?.pickedMesh && WORLD_STRUCTURES.raycast(ray.origin, ray.direction, hit.distance) < hit.distance;
+      if (hit?.pickedMesh && !blocked) {
         if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
         nextSky = this.skyByMesh.get(hit.pickedMesh.name) ?? null;
       }

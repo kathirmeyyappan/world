@@ -1,36 +1,31 @@
-// The annex tower: an 80 m grey keep in the middle of the annex. A spiral stair climbs the inside
-// wall, arriving at a floor every 20 m (20, 40 and 60). The top floor's west door opens onto a sky
-// bridge that runs back over the floor bridge (inside the outline's corridor, so players can't be
-// clamped off it) to a floating terrace above the main disc.
+// Tung Tung Tower: an 80 m brick keep in the middle of the annex, sealed floor by floor. Each storey
+// is 20 m, and a wooden stair climbs half a turn against the inside wall from each floor up through a
+// hole in the one above, so the flights chain into one spiral: ground, 20, 40, then the top floor at
+// 60, whose west door opens onto a sky bridge. The bridge runs back over the floor bridge (inside
+// the outline's corridor, so players can't be clamped off it) to a floating terrace above the main
+// disc. A roof with battlements closes the top.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 
 const X = 112; // the annex's centre (sim/world.ts)
 const Z = 0;
 const HEIGHT = 80;
-const OUTER = 11; // outside face of the wall
+const OUTER = 20; // outside face of the wall
 const WALL = 1;
-const STAIR_INNER = 7.5; // the stairwell is the ring between here and the wall
-const FLOOR_R = 7.4;
+const INNER = OUTER - WALL; // inside face of the wall
+const STAIR_WIDTH = 3.75;
+const STAIR_INNER = INNER - STAIR_WIDTH;
+const FLOOR_R = INNER + WALL / 2; // floors run into the wall, so there's no gap at its foot
 const STOREY = 20;
+const TOP = 3 * STOREY; // the top floor, where the sky bridge leaves
+const STAIR_START = Math.PI / 2; // the first step, on the +z side; angles run from +x toward +z
+const HOLE = Math.PI / 6; // each floor is open over the last 30° of the flight arriving through it
 const DOOR = Math.PI; // west, facing the main disc
 const DOOR_HEIGHT = 3;
-const TOP = 3 * STOREY; // the top floor, where the sky bridge leaves
-const DECK = 0.4; // thickness of the walkway, bridge and terrace decks
-
-const STONE = '#77777c';
-const STEP = '#66666b';
-const WOOD = '#5b5249';
-const DECK_STONE = '#6e6e73';
+const DECK = 0.4; // thickness of the bridge and terrace decks
 
 const TERRACE = { x: 30, z: 0, w: 16, d: 16 }; // over the east side of the main disc
 const BRIDGE_WIDTH = 4;
 const RAIL = 1.1;
-
-// A low wall along a deck edge, from a to b.
-const rail = (a: { x: number; z: number }, b: { x: number; z: number }): Box => ({
-  ...wall(a, b, RAIL, 0.2, TOP),
-  color: STONE,
-});
 
 const shell: Structure[] = [
   ...roundWall({
@@ -39,17 +34,19 @@ const shell: Structure[] = [
     r: OUTER - WALL / 2,
     h: HEIGHT,
     thickness: WALL,
+    segments: 48,
     gaps: [
       { angle: DOOR, bottom: 0, top: DOOR_HEIGHT }, // ground-floor entrance, facing the floor bridge
       { angle: DOOR, bottom: TOP, top: TOP + DOOR_HEIGHT }, // top-floor door onto the sky bridge
     ],
-    color: STONE,
+    material: 'brick',
   }),
+  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: HEIGHT, thickness: 0.6, material: 'flagstone' }), // the roof
   // Battlements: a merlon on every other segment of the wall top.
-  ...Array.from({ length: 16 }, (_, k) => {
-    const a = (k * 2 * Math.PI) / 16;
+  ...Array.from({ length: 24 }, (_, k): Box => {
+    const a = (k * 2 * Math.PI) / 24;
     const r = OUTER - WALL / 2;
-    const along = 0.08; // half the merlon's arc, in radians
+    const along = 0.045; // half the merlon's arc, in radians
     return {
       ...wall(
         { x: X + r * Math.cos(a - along), z: Z + r * Math.sin(a - along) },
@@ -58,40 +55,47 @@ const shell: Structure[] = [
         WALL,
         HEIGHT,
       ),
-      color: STONE,
+      material: 'brick',
     };
   }),
 ];
 
+// Storey s runs from floor s up to floor s + 1; its flight covers half a turn, so flight s ends (and
+// floor s + 1's hole sits) at STAIR_START + (s + 1) half turns.
+const flightEnd = (s: number) => STAIR_START + (s + 1) * Math.PI;
 const inside: Structure[] = [
-  // One continuous flight: three turns from the ground to the top floor, starting and arriving on
-  // the east side, so each floor is reached where the next turn begins.
   ...spiralStairs({
     x: X,
     z: Z,
     inner: STAIR_INNER,
-    outer: OUTER - WALL,
+    outer: INNER,
     bottom: 0,
     rise: TOP,
-    turns: 3,
-    start: 0,
-    color: STEP,
+    turns: 1.5,
+    start: STAIR_START,
+    rail: 1,
+    material: 'wood',
   }),
-  ...[STOREY, 2 * STOREY, TOP].flatMap((y) => roundFloor({ x: X, z: Z, r: FLOOR_R, y, color: WOOD })),
-  // The top floor's walkway across the stairwell to the door; the flight passes 10 m beneath it.
-  {
-    kind: 'box',
-    x: X - (FLOOR_R + OUTER) / 2,
-    z: Z,
-    y: TOP - DECK,
-    w: OUTER - FLOOR_R + 0.5,
-    d: 2,
-    h: DECK,
-    color: WOOD,
-  },
+  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: 0.05, thickness: 0.05, material: 'red-tile' }), // the ground floor
+  ...[1, 2, 3].flatMap((floor) =>
+    roundFloor({
+      x: X,
+      z: Z,
+      r: FLOOR_R,
+      y: floor * STOREY,
+      hole: { inner: STAIR_INNER, from: flightEnd(floor - 1) - HOLE, to: flightEnd(floor - 1) },
+      material: 'red-tile',
+    }),
+  ),
 ];
 
-const bridgeStart = X - OUTER; // just outside the door
+// A low wall along a deck edge at the top floor's height, from a to b.
+const rail = (a: { x: number; z: number }, b: { x: number; z: number }): Box => ({
+  ...wall(a, b, RAIL, 0.2, TOP),
+  material: 'brick',
+});
+
+const bridgeStart = X - FLOOR_R; // back through the doorway to where the top floor ends
 const bridgeEnd = TERRACE.x + TERRACE.w / 2;
 const halfW = BRIDGE_WIDTH / 2;
 const skyway: Structure[] = [
@@ -103,7 +107,7 @@ const skyway: Structure[] = [
     w: bridgeStart - bridgeEnd,
     d: BRIDGE_WIDTH,
     h: DECK,
-    color: DECK_STONE,
+    material: 'flagstone',
   },
   rail({ x: bridgeEnd, z: Z - halfW }, { x: bridgeStart, z: Z - halfW }),
   rail({ x: bridgeEnd, z: Z + halfW }, { x: bridgeStart, z: Z + halfW }),
@@ -116,7 +120,7 @@ const t = {
   z1: TERRACE.z + TERRACE.d / 2,
 };
 const terrace: Structure[] = [
-  { kind: 'box', ...TERRACE, y: TOP - DECK, h: DECK, color: DECK_STONE },
+  { kind: 'box', ...TERRACE, y: TOP - DECK, h: DECK, material: 'flagstone' },
   rail({ x: t.x0, z: t.z0 }, { x: t.x1, z: t.z0 }),
   rail({ x: t.x0, z: t.z1 }, { x: t.x1, z: t.z1 }),
   rail({ x: t.x0, z: t.z0 }, { x: t.x0, z: t.z1 }),
@@ -125,4 +129,4 @@ const terrace: Structure[] = [
   rail({ x: t.x1, z: Z + halfW }, { x: t.x1, z: t.z1 }),
 ];
 
-export const ANNEX_TOWER: Structure[] = [...shell, ...inside, ...skyway, ...terrace];
+export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...skyway, ...terrace];

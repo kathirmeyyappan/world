@@ -62,10 +62,13 @@ wire: server and client both build the world from that file.
 - Use the helpers rather than hand-computing yaw and centres: `wall(a, b, h)` runs between two floor
   points, `ramp(low, high, h, w)` rises from `low` to `high`, `stairs(bottom, top, h, w)` is solid
   steps players walk up without jumping (the camera eases over each), `building({...})` is four
-  walls, a doorway and a roof, and `terrain({ height })` samples a function. Write raw
-  `{ kind: 'box', ... }` only for simple platforms and pillars.
-- A landmark gets its own content file exporting its list (the annex tower is `content/tower.ts`,
-  `ANNEX_TOWER`), with its dimensions as named constants at the top and a comment per group of
+  walls, a doorway and a roof, and `terrain({ height })` samples a function. The round pieces:
+  `roundWall` (straight segments, with gaps for doors and windows), `spiralStairs` (with an optional
+  inner rail so players can't step off the inside) and `roundFloor` (gap-free rings, with an optional
+  hole for a stair coming up from below). Write raw `{ kind: 'box', ... }` only for simple platforms
+  and pillars.
+- A landmark gets its own content file exporting its list (Tung Tung Tower is `content/tower.ts`,
+  `TUNG_TUNG_TOWER`), with its dimensions as named constants at the top and a comment per group of
   pieces; `content/structures.ts` just spreads the landmarks together. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
@@ -75,14 +78,22 @@ wire: server and client both build the world from that file.
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Spawns stand on the highest surface at a random point, so rooftops are spawn points: don't build a
-  roof players can't get down from. Info cubes wander the main disc at about 3 m and pass through
-  structures, so tall pieces there will have cubes floating through them.
+- Spawns stand on the ground (or anything within a step of it) with headroom, so a building's ground
+  floor can be a spawn point and roofs, decks and wall tops never are. Info cubes wander the main disc
+  at about 3 m and pass through structures, so tall pieces there will have cubes floating through them.
+- Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
+  hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:
+  the hole has to cover the stretch where the stair is within about 2.7 m of the floor above.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
-- Colours: pass `color` to stand out; the defaults are dark and every box and ramp gets accent edges.
-- Scale: collision queries use a spatial grid, but a shot's ray (and the crosshair, every frame)
-  checks every structure. Hundreds are fine; thousands need a grid-walking raycast first.
+- Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`; each is a
+  painter in `packages/client/src/render/structureMaterials.ts`, and a new one is another painter
+  there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so they look
+  the same inside and out; don't reach for lights.
+- Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
+  so draw calls stay in the tens however many pieces there are. The tower's 1,065 pieces render as 18
+  meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a
+  landmark adds a lot.
 
 ### Checking a change
 

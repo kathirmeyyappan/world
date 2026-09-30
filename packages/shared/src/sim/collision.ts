@@ -26,6 +26,8 @@ interface Placed {
   base: number;
   height: number;
   top(lx: number, lz: number): number;
+  mid: number; // height of the centre of its bounding sphere
+  reach: number; // that sphere's radius
 }
 
 export class Structures {
@@ -47,6 +49,8 @@ export class Structures {
         base: s.y ?? 0,
         height: surface.height,
         top: surface.top,
+        mid: (s.y ?? 0) + surface.height / 2,
+        reach: Math.hypot(s.w / 2, s.d / 2, surface.height / 2),
       };
     });
     this.placed.forEach((p, i) => {
@@ -117,6 +121,13 @@ export class Structures {
   raycast(o: Vec3, d: Vec3, maxT: number): number {
     let best = Infinity;
     for (const p of this.placed) {
+      // Cheap rejection first: skip anything whose bounding sphere the ray misses.
+      const cx = p.x - o.x;
+      const cy = p.mid - o.y;
+      const cz = p.z - o.z;
+      const along = cx * d.x + cy * d.y + cz * d.z;
+      if (along < -p.reach || along > Math.min(maxT, best) + p.reach) continue;
+      if (cx * cx + cy * cy + cz * cz - along * along > p.reach * p.reach) continue;
       const [ox, oz] = local(p, o.x, o.z);
       const dx = d.x * p.cos - d.z * p.sin;
       const dz = d.x * p.sin + d.z * p.cos;
