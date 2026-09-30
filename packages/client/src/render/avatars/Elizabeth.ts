@@ -5,7 +5,7 @@
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, createShadowBlob, createTag, type Avatar } from './common';
+import { box, centreOf, createShadowBlob, createTag, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
@@ -171,6 +171,10 @@ export class ElizabethAvatar implements Avatar {
 
   dispose(): void {
     this.root.dispose(false, true);
+  }
+
+  corpse(): Vector3 | null {
+    return this.dead && this.root.isEnabled() ? centreOf(this.body) : null;
   }
 }
 

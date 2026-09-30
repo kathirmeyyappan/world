@@ -30,6 +30,7 @@ import { createAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { poof } from '../render/Poof';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { Bubble } from '../ui/Bubble';
@@ -308,11 +309,16 @@ export class Game {
         this.addAvatar(m.p);
         this.hud.addPlayer(m.p);
         return;
-      case 'leave':
-        this.avatars.get(m.id)?.dispose();
+      case 'leave': {
+        // A corpse whose seat was dropped goes up in a puff rather than just blinking out.
+        const avatar = this.avatars.get(m.id);
+        const corpse = avatar?.corpse();
+        if (corpse) poof(this.engine, corpse);
+        avatar?.dispose();
         this.avatars.delete(m.id);
         this.hud.removePlayer(m.id, m.name);
         return;
+      }
       case 'chat':
         this.hud.chat(m.name, m.color, m.text);
         return;

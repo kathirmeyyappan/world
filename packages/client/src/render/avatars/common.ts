@@ -1,6 +1,15 @@
 // Pieces every avatar type shares: the ground shadow, a box helper, the name tag, and the
 // interface the Game drives them through.
-import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, TransformNode } from '@babylonjs/core';
+import {
+  Color3,
+  DynamicTexture,
+  Mesh,
+  MeshBuilder,
+  StandardMaterial,
+  Texture,
+  TransformNode,
+  type Vector3,
+} from '@babylonjs/core';
 import type { AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
@@ -12,6 +21,13 @@ export interface Avatar {
   flash(): void; // took a hit: blink red
   hide(): void;
   dispose(): void;
+  corpse(): Vector3 | null; // where the body lies, while dead and drawn; null otherwise
+}
+
+// The middle of a node and everything under it, in world space: a fallen body's centre.
+export function centreOf(node: TransformNode): Vector3 {
+  const { min, max } = node.getHierarchyBoundingVectors();
+  return min.add(max).scale(0.5);
 }
 
 let shadowTexture: DynamicTexture | null = null;
