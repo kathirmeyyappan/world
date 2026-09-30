@@ -8,6 +8,7 @@
 // with battlements closes the top.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
+import type { Disc } from '../sim/world';
 
 const X = ANNEX.x;
 const Z = ANNEX.z;
@@ -163,3 +164,6 @@ const terrace: Structure[] = [
 ];
 
 export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...balconies, ...skyway, ...terrace];
+
+// The keep's wall on the ground, for the minimap (content/landmarks.ts).
+export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: OUTER };

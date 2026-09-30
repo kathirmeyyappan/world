@@ -3,11 +3,11 @@
 // world's signed distance, so any shape made of discs and bridges draws correctly with no path maths.
 // That is too slow to redo every frame, so each view's floor is drawn once, north-up, into an
 // offscreen canvas at that view's scale, and each frame just places (and for NEAR, rotates) it.
-// Markers (cubes, players, you) go on top with plain canvas calls; a player on another level (a
+// Landmarks (content/landmarks.ts) are grey on the floor. Markers (cubes, players, you) go on top with plain canvas calls; a player on another level (a
 // floor above, a bridge below) is a triangle pointing their way instead of a square. Your x, y, z sits
 // in the map's corner: the sim's coordinates, with y the height of your feet rather than your eyes.
 // Desktop only; see styles.css.
-import { EYE_HEIGHT, worldBounds, worldDistance, type WorldPart } from '@world/shared';
+import { EYE_HEIGHT, partDistance, worldBounds, worldDistance, type WorldPart } from '@world/shared';
 
 export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
@@ -22,6 +22,7 @@ const NEAR_RANGE = 26; // metres from you to the panel's edge in the near view
 const GRID_SPACING = 10;
 const EDGE_PIXELS = 1.1; // half-width of the outline, in panel pixels, so it stays crisp at any zoom
 const ACCENT = [100, 181, 246] as const;
+const LANDMARK = [150, 150, 158] as const;
 const LEVEL = 3; // metres of height difference at which another player reads as above or below you
 
 export class Minimap {
@@ -34,7 +35,10 @@ export class Minimap {
   private view: MinimapView = 'near';
   private readonly bounds;
 
-  constructor(private readonly shape: WorldPart[]) {
+  constructor(
+    private readonly shape: WorldPart[],
+    private readonly landmarks: WorldPart[] = [],
+  ) {
     this.canvas.width = SIZE;
     this.canvas.height = SIZE;
     this.ctx = this.canvas.getContext('2d')!;
@@ -130,17 +134,21 @@ export class Minimap {
       for (let px = 0; px < w; px++, i += 4) {
         const wx = x + (px + 0.5) * scale;
         const d = worldDistance(wx, wz, this.shape);
+        let color: readonly number[] = ACCENT;
         let a = 0;
         if (Math.abs(d) < scale * EDGE_PIXELS) a = 230;
-        else if (d < 0) {
+        else if (d < 0 && this.landmarks.some((l) => partDistance(wx, wz, l) <= 0)) {
+          color = LANDMARK;
+          a = 200;
+        } else if (d < 0) {
           const gx = Math.abs((((wx % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
           const gz = Math.abs((((wz % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
           const onLine = gx > GRID_SPACING / 2 - scale * 0.6 || gz > GRID_SPACING / 2 - scale * 0.6;
           a = onLine ? 70 : 28;
         }
-        data[i] = ACCENT[0];
-        data[i + 1] = ACCENT[1];
-        data[i + 2] = ACCENT[2];
+        data[i] = color[0];
+        data[i + 1] = color[1];
+        data[i + 2] = color[2];
         data[i + 3] = a;
       }
     }

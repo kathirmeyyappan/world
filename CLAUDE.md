@@ -106,7 +106,8 @@ means prediction and the server disagree). A new kind is different: add a case i
 the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
-Cubes and the minimap don't know about structures yet.
+Cubes don't know about structures, and the minimap shows only the footprints in
+`content/landmarks.ts` (grey on the floor): list a landmark's there when it's worth navigating by.
 
 ## Adding a Modal bot
 
