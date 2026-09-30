@@ -64,7 +64,8 @@ export class Minimap {
   update(frame: MinimapFrame): void {
     if (!this.active) return;
     const { x, y, z } = frame.me;
-    this.coords.textContent = `${x.toFixed(0)}, ${(y - EYE_HEIGHT).toFixed(0)}, ${z.toFixed(0)}`;
+    const n = (v: number) => Math.round(v) || 0; // `|| 0` so a hair below zero reads 0, not -0
+    this.coords.textContent = `${n(x)}, ${n(y - EYE_HEIGHT)}, ${n(z)}`;
     const t = this.transform(frame.me);
     this.drawFloor(t);
 

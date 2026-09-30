@@ -36,6 +36,7 @@ import { buildStructures } from '../render/Structures';
 import { poof } from '../render/Poof';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
+import { AreaTitle } from '../ui/AreaTitle';
 import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
@@ -85,6 +86,7 @@ export class Game {
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();
   private readonly commandHint = new CommandHint();
+  private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
   private readonly damageFlash = new DamageFlash();
   private readonly hitNotice = new HitNotice();
@@ -443,6 +445,7 @@ export class Game {
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
+    this.areaTitle.update(p.x, p.z);
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,

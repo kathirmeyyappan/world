@@ -7,10 +7,11 @@
 // corridor, so players can't be clamped off it) to a floating terrace above the main disc. A roof
 // with battlements closes the top.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
+import { ANNEX } from '../sim/outline';
 import type { Disc } from '../sim/world';
 
-const X = 112; // the annex's centre (sim/world.ts)
-const Z = 0;
+const X = ANNEX.x;
+const Z = ANNEX.z;
 const HEIGHT = 80;
 const OUTER = 20; // outside face of the wall
 const WALL = 1;

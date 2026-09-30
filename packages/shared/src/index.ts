@@ -19,4 +19,5 @@ export * from './room';
 export * from './content/cubes';
 export * from './content/sky';
 export * from './content/structures';
+export * from './content/areas';
 export * from './content/landmarks';

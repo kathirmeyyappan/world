@@ -3,6 +3,7 @@
 // object placement and the minimap. Signed distance is the one primitive they share.
 import { STRUCTURES } from '../content/structures';
 import { Structures } from './collision';
+import { ANNEX, FLOOR_BRIDGE, MAIN_DISC } from './outline';
 import type { Rng } from './rng';
 import type { Vec3 } from './types';
 
@@ -25,11 +26,8 @@ export interface Bridge {
 
 export type WorldPart = Disc | Bridge;
 
-export const WORLD_SHAPE: WorldPart[] = [
-  { kind: 'disc', x: 0, z: 0, r: 50 }, // main area; players spawn at its centre
-  { kind: 'disc', x: 112, z: 0, r: 30 }, // annex
-  { kind: 'bridge', ax: 40, az: 0, bx: 92, bz: 0, halfWidth: 4 },
-];
+export { ANNEX, FLOOR_BRIDGE, MAIN_DISC };
+export const WORLD_SHAPE: WorldPart[] = [MAIN_DISC, ANNEX, FLOOR_BRIDGE];
 
 // The structures standing inside the outline, indexed for the sim's queries.
 export const WORLD_STRUCTURES = new Structures(STRUCTURES);
