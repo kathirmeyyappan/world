@@ -1,6 +1,6 @@
 // Off-screen indicators: a small arrow at the screen edge for each remote player who isn't in
-// view, in their colour, with the horizontal distance. On-screen players get nothing; their name
-// tag already marks them.
+// view, in their colour, with their distance (straight-line, so someone on a floor above isn't
+// "0m"). On-screen players get nothing; their name tag already marks them.
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 import type { RemotePlayer } from '../net/Interpolation';
 
@@ -53,7 +53,8 @@ export class Pins {
       pin.el.style.display = 'flex';
       pin.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
       pin.arrow.style.transform = `rotate(${angle}deg)`;
-      pin.label.textContent = `${Math.round(Math.hypot(p.x - camera.position.x, p.z - camera.position.z))}m`;
+      const c = camera.position;
+      pin.label.textContent = `${Math.round(Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z))}m`;
     }
 
     for (const [id, pin] of this.pins) {

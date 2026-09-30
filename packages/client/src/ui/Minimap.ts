@@ -3,14 +3,15 @@
 // world's signed distance, so any shape made of discs and bridges draws correctly with no path maths.
 // That is too slow to redo every frame, so each view's floor is drawn once, north-up, into an
 // offscreen canvas at that view's scale, and each frame just places (and for NEAR, rotates) it.
-// Markers (cubes, players, you) go on top with plain canvas calls, and your world x, z sits in the
-// map's corner: the same coordinates the sim, the wire protocol and WORLD_SHAPE use.
+// Markers (cubes, players, you) go on top with plain canvas calls; a player on another level (a
+// floor above, a bridge below) is a triangle pointing their way instead of a square. Your x, y, z sits
+// in the map's corner: the sim's coordinates, with y the height of your feet rather than your eyes.
 // Desktop only; see styles.css.
-import { worldBounds, worldDistance, type WorldPart } from '@world/shared';
+import { EYE_HEIGHT, worldBounds, worldDistance, type WorldPart } from '@world/shared';
 
 export interface MinimapFrame {
-  me: { x: number; z: number; yaw: number };
-  players: { x: number; z: number; color: string }[];
+  me: { x: number; y: number; z: number; yaw: number };
+  players: { x: number; y: number; z: number; color: string }[];
   cubes: { x: number; z: number }[];
 }
 
@@ -21,6 +22,7 @@ const NEAR_RANGE = 26; // metres from you to the panel's edge in the near view
 const GRID_SPACING = 10;
 const EDGE_PIXELS = 1.1; // half-width of the outline, in panel pixels, so it stays crisp at any zoom
 const ACCENT = [100, 181, 246] as const;
+const LEVEL = 3; // metres of height difference at which another player reads as above or below you
 
 export class Minimap {
   private readonly root = document.getElementById('minimap')!;
@@ -57,12 +59,13 @@ export class Minimap {
 
   update(frame: MinimapFrame): void {
     if (!this.active) return;
-    this.coords.textContent = `${frame.me.x.toFixed(0)}, ${frame.me.z.toFixed(0)}`;
+    const { x, y, z } = frame.me;
+    this.coords.textContent = `${x.toFixed(0)}, ${(y - EYE_HEIGHT).toFixed(0)}, ${z.toFixed(0)}`;
     const t = this.transform(frame.me);
     this.drawFloor(t);
 
     for (const c of frame.cubes) this.marker(t, c.x, c.z, 2, 'rgba(255,255,255,0.35)'); // faint specks; players should stand out
-    for (const p of frame.players) this.marker(t, p.x, p.z, 5, p.color);
+    for (const p of frame.players) this.player(t, p, p.y - frame.me.y);
     this.drawMe(t, frame.me);
   }
 
@@ -157,6 +160,24 @@ export class Minimap {
     if (px < -size || py < -size || px > SIZE + size || py > SIZE + size) return;
     this.ctx.fillStyle = color;
     this.ctx.fillRect(Math.round(px - size / 2), Math.round(py - size / 2), size, size);
+  }
+
+  // A square on your level, or a triangle pointing up or down at someone above or below you.
+  private player(t: Transform, p: MinimapFrame['players'][number], dy: number): void {
+    if (Math.abs(dy) < LEVEL) return this.marker(t, p.x, p.z, 5, p.color);
+    const [px, py] = this.toPixel(t, p.x, p.z);
+    if (px < -6 || py < -6 || px > SIZE + 6 || py > SIZE + 6) return;
+    const x = Math.round(px);
+    const y = Math.round(py);
+    const tip = dy > 0 ? -4 : 4;
+    const ctx = this.ctx;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.moveTo(x, y + tip);
+    ctx.lineTo(x + 4, y - tip);
+    ctx.lineTo(x - 4, y - tip);
+    ctx.closePath();
+    ctx.fill();
   }
 
   private drawMe(t: Transform, me: MinimapFrame['me']): void {

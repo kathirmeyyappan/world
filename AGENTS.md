@@ -145,7 +145,9 @@ with concurrent receive and input loops.
 ## State and policy constraints
 
 - Server snapshots are 30 Hz and authoritative. Do not implement browser interpolation.
-- Yaw `0` faces `+z`; positive pitch looks down; player position is eye position.
+- Yaw `0` faces `+z`; positive pitch looks down; player position is eye position, in three
+  dimensions: structures put players on floors, stairs and bridges, so `y` varies (feet are at
+  `pos.y - 1.7`). Choose targets by straight-line distance, not `x`/`z` only; `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.
 - Snapshots reveal all players, and shots pass through cubes; only structures block them. Human-like
