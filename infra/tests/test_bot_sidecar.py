@@ -4,6 +4,7 @@ import json
 import socket
 import urllib.error
 import urllib.request
+from typing import Any
 
 from infra.bot_sidecar import start_bot_sidecar
 
@@ -29,21 +30,29 @@ def post(port: int, body: object) -> tuple[int, str]:
 
 
 def test_sidecar_spawns_from_the_room_request_and_reports_failures() -> None:
-    calls: list[tuple[str, str, float]] = []
+    calls: list[tuple[str, str, float, dict[str, Any]]] = []
 
-    def spawn(bot: str, room: str, seconds: float) -> str:
+    def spawn(bot: str, room: str, seconds: float, placement: dict[str, Any]) -> str:
         if bot == "broken":
             raise RuntimeError("modal says no")
-        calls.append((bot, room, seconds))
+        calls.append((bot, room, seconds, placement))
         return "fc-123"
 
     port = free_port()
     server = start_bot_sidecar(port, spawn)
     try:
         assert post(port, {"bot": "circle", "room": "late-night", "seconds": 60, "caller": "kathir"}) == (202, "fc-123")
-        assert calls == [("circle", "late-night", 60.0)]
+        placed = {"spawn": {"x": 112, "y": 20, "z": 0}, "avatar": "elizabeth"}
+        assert (
+            post(port, {"bot": "stalker", "room": "late-night", "seconds": 600, "caller": "room", **placed})[0] == 202
+        )
+        assert calls == [
+            ("circle", "late-night", 60.0, {}),
+            ("stalker", "late-night", 600.0, {"spawn": {"x": 112.0, "y": 20.0, "z": 0.0}, "avatar": "elizabeth"}),
+        ]
         status, text = post(port, {"bot": "broken", "room": "x", "seconds": 5})
         assert status == 502 and "modal says no" in text
         assert post(port, {"room": "x"})[0] == 400
+        assert post(port, {"bot": "stalker", "room": "x", "seconds": 5, "spawn": {"x": 1}})[0] == 400
     finally:
         server.shutdown()

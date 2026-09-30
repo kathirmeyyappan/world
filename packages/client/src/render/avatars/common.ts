@@ -73,6 +73,15 @@ export function placeShadow(shadow: Mesh, p: RemotePlayer, feetY: number): void 
   shadow.scaling.setAll(Math.max(0.5, 1 - height * 0.15));
 }
 
+// A matte material of one colour, lit a little from within (`glow`) so it reads in the dark.
+export function flat(scene: Engine['scene'], name: string, color: Color3, glow: number): StandardMaterial {
+  const m = new StandardMaterial(name, scene);
+  m.diffuseColor = color;
+  m.emissiveColor = color.scale(glow);
+  m.specularColor = Color3.Black();
+  return m;
+}
+
 export function box(
   scene: Engine['scene'],
   name: string,

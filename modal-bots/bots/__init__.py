@@ -3,8 +3,11 @@
 from collections.abc import Awaitable
 from typing import Any, Protocol
 
+from common import Vec3
+
 from .circle_bot import run_circle_bot
 from .observer_bot import run_observer_bot
+from .stalker_bot import run_stalker_bot
 
 
 class BotInvocation(Protocol):
@@ -16,12 +19,15 @@ class BotInvocation(Protocol):
         *,
         lobby_url: str | None,
         direct_ws_url: str | None = None,
+        spawn: Vec3 | None = None,
+        avatar: str | None = None,
     ) -> Awaitable[dict[str, Any]]: ...
 
 
 BOT_INVOCATIONS: dict[str, BotInvocation] = {
     "circle": run_circle_bot,
     "observer": run_observer_bot,
+    "stalker": run_stalker_bot,
 }
 
 

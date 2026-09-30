@@ -12,6 +12,7 @@ import {
   MAX_PLAYERS,
   DEATH_SCREEN_SECONDS,
   PLAYER_COLORS,
+  PLAYER_PADDING,
   SPEEDY_SECONDS,
   STEP_UP,
   TICK_DT,
@@ -21,16 +22,16 @@ import { parseCommand, type Command } from './commands';
 import { resolveFire } from './sim/combat';
 import { PositionHistory, rewindTick } from './sim/rewind';
 import { applyDamage, damageFor } from './sim/health';
-import { BOTS, type BotId, type BotRequest } from './sim/bots';
+import { BOTS, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
-import type { CubeState, InputFrame, PlayerState } from './sim/types';
+import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import type { Structures } from './sim/collision';
 import { CAPSULE_TOP } from './sim/health';
-import { WORLD_SHAPE, WORLD_STRUCTURES, randomPointInWorld, type WorldPart } from './sim/world';
+import { WORLD_SHAPE, WORLD_STRUCTURES, clampToWorld, randomPointInWorld, type WorldPart } from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
@@ -57,9 +58,10 @@ interface Seat {
   queue: InputFrame[];
 }
 
-export interface JoinOptions {
+export interface JoinOptions extends BotPlacement {
   bot?: boolean; // the client says it's a bot (the browser never does; the bot framework always does)
   room?: string; // the public room code the client asked for; bots called from here join it
+  // BotPlacement's spawn and avatar are honoured for bots only; a person always spawns at random.
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -147,7 +149,12 @@ export class Room {
       return null;
     }
     const id = `p${this.nextPlayerId++}`;
-    const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), this.spawnPoint(), !!opts.bot);
+    const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint();
+    const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), at, !!opts.bot);
+    if (opts.bot && opts.avatar) {
+      state.avatar = opts.avatar;
+      state.avatarLocked = true;
+    }
     if (opts.room && !this.publicName) this.publicName = opts.room;
     this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, shootHeld: false, diedTick: null });
     link.send({ t: 'welcome', id, room: this.id, tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
@@ -165,10 +172,9 @@ export class Room {
     this.defaultBotsAdded = true;
     const bots = defaultBotsFor(this.publicName);
     if (bots.length === 0) return;
-    const names = bots.map((b) => BOTS[b.bot].playerName).join(', ');
-    this.broadcast({ t: 'system', text: `${names} on the way` });
-    for (const { bot, seconds } of bots) {
-      this.spawnBot({ bot, room: this.publicName, seconds, caller: 'room' }).catch((err: unknown) => {
+    this.broadcast({ t: 'system', text: `${botRollCall(bots.map((b) => BOTS[b.bot].playerName))} on the way` });
+    for (const { bot, seconds, ...placement } of bots) {
+      this.spawnBot({ bot, room: this.publicName, seconds, caller: 'room', ...placement }).catch((err: unknown) => {
         this.log(`default bot ${bot} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
       });
     }
@@ -326,6 +332,9 @@ export class Room {
       case 'bot':
         this.callBot(seat, command.bot, command.seconds);
         return;
+      case 'kill-bots':
+        this.killBots(seat);
+        return;
       case 'unknown':
         seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
         return;
@@ -350,6 +359,21 @@ export class Room {
     });
   }
 
+  // "/kill-bots": every living bot drops dead where it stands, as if shot, so each lies as a corpse
+  // and is dropped like any other; a bot's run ends when the room closes its connection. People only.
+  private killBots(seat: Seat): void {
+    const tell = (text: string) => seat.link.send({ t: 'system', text });
+    if (seat.state.bot) return tell("bots can't kill bots");
+    const bots = [...this.seats.values()].filter((s) => s.state.bot && !s.state.dead);
+    if (bots.length === 0) return tell('no bots here');
+    for (const bot of bots) {
+      bot.state.hearts = 0;
+      bot.state.dead = true;
+      bot.diedTick = this.tick;
+    }
+    this.broadcast({ t: 'system', text: `${seat.state.name} killed ${botRollCall(bots.map((b) => b.state.name))}` });
+  }
+
   // One item at a time. A permanent holder can't swap; anyone else can, and re-equipping the
   // same item restarts its timer.
   private equip(seat: Seat, id: ItemId): void {
@@ -372,6 +396,14 @@ export class Room {
     );
   }
 
+  // A bot's chosen spot (feet at `feet`), kept inside the world and stood on the highest surface
+  // within a step of those feet, so a spot asked for on a floor lands on it and one in the air falls.
+  private placedSpawn(feet: Vec3): Vec3 {
+    const p = { ...feet };
+    clampToWorld(p, PLAYER_PADDING, this.worldShape);
+    return { x: p.x, y: this.structures.groundAt(p.x, p.z, feet.y + STEP_UP) + EYE_HEIGHT, z: p.z };
+  }
+
   // Anywhere in the world, clear of the walls and not on top of a cube, standing on the ground (or
   // anything within a step of it) with room for a body above: inside a building's ground floor, never
   // on a roof, and never inside a wall.
@@ -386,6 +418,13 @@ export class Room {
     }
     return { x: p.x, y: ground(p) + EYE_HEIGHT, z: p.z };
   }
+}
+
+// "circle-bot x2, stalker-bot x3": names in first-seen order, repeats counted.
+function botRollCall(names: string[]): string {
+  const counts = new Map<string, number>();
+  for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
+  return [...counts].map(([n, k]) => (k > 1 ? `${n} x${k}` : n)).join(', ');
 }
 
 function howTo(spec: ItemSpec): string {

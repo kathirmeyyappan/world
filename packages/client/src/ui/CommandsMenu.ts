@@ -69,15 +69,20 @@ export class CommandsMenu {
 
 function buildGroups(): Group[] {
   // Skins: the default look last, so the ones you'd actually try come first.
-  const skins = [...AVATAR_IDS].sort((a, b) => Number(a === 'standard') - Number(b === 'standard'));
+  const skins = AVATAR_IDS.filter((id) => AVATARS[id].wearable).sort(
+    (a, b) => Number(a === 'standard') - Number(b === 'standard'),
+  );
   return [
     { title: 'equip item', rows: ITEM_IDS.map((id) => [commandLabel(id), ITEMS[id].blurb]) },
     {
-      title: 'call bot',
-      rows: BOT_IDS.map((id) => [
-        `/${BOTS[id].playerName} [seconds]`,
-        `${BOTS[id].blurb} · ${BOT_DEFAULT_SECONDS}s unless you say`,
-      ]),
+      title: 'bot commands',
+      rows: [
+        ...BOT_IDS.map((id): Group['rows'][number] => [
+          `/${BOTS[id].playerName} [seconds]`,
+          `${BOTS[id].blurb} · ${BOT_DEFAULT_SECONDS}s unless you say`,
+        ]),
+        ['/kill-bots', 'every bot in the room drops dead'],
+      ],
     },
     { title: 'wear skin', rows: skins.map((id) => [`/${id}`, AVATARS[id].blurb]) },
     { title: 'other', rows: [[commandLabel('speedy'), 'run faster for a bit']] },

@@ -10,6 +10,7 @@ from common import (
     Event,
     RoomConnectionError,
     Snapshot,
+    Vec3,
     WorldState,
     connect,
     log_death,
@@ -26,6 +27,8 @@ async def run_observer_bot(
     *,
     lobby_url: str | None = None,
     direct_ws_url: str | None = None,
+    spawn: Vec3 | None = None,
+    avatar: str | None = None,
 ) -> dict[str, Any]:
     """Join visibly as a normal player and observe without gameplay input.
 
@@ -35,6 +38,8 @@ async def run_observer_bot(
         seconds: The duration to observe the room for.
         lobby_url: The URL of the lobby to use.
         direct_ws_url: The URL of the direct WebSocket to use.
+        spawn: Where to stand (feet position), or None for a random spawn.
+        avatar: The skin to wear, or None for the default look.
 
     Report observed room state.
     """
@@ -47,6 +52,8 @@ async def run_observer_bot(
         room,
         name,
         direct_url=direct_ws_url,
+        spawn=spawn,
+        avatar=avatar,
     )
     connected_at = time.monotonic()
     state = WorldState(connection.welcome, connection.room)

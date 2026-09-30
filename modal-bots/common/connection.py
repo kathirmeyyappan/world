@@ -15,7 +15,7 @@ from websockets.asyncio.client import ClientConnection
 from websockets.asyncio.client import connect as open_websocket
 from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidURI
 
-from .protocol import Event, Message, Snapshot, Welcome, decode
+from .protocol import Event, Message, Snapshot, Vec3, Welcome, decode
 
 _ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
 
@@ -95,27 +95,34 @@ async def connect(
     direct_url: str | None = None,
     timeout: float = 10,
     bot: bool = True,
+    spawn: Vec3 | None = None,
+    avatar: str | None = None,
 ) -> Connection:
     """Join a room and return only after its initial ``welcome``.
 
     Production bots pass ``lobby_url``. Tests and local tools may instead pass
     ``direct_url="ws://localhost:8787/ws"``. A bot can't join a room with no people in it, so
     tests seat one first with ``bot=False``; production bots never do.
+
+    A bot may choose where it stands (``spawn``, a feet position; the room keeps it inside the
+    world and on the surface under it) and how it looks (``avatar``, fixed for the run). Unset,
+    it spawns at random in its own look. The room ignores both for ``bot=False``.
     """
 
     room = room.strip().lower()
     if not _ROOM_ID.fullmatch(room):
         raise RoomConnectionError("room must be 1-24 lowercase letters, digits, or dashes")
 
+    placement = _placement(spawn, avatar)
     if direct_url:
-        websocket = await _dial(_websocket_url(direct_url, room, name, bot), {}, timeout)
+        websocket = await _dial(_websocket_url(direct_url, room, name, bot, placement), {}, timeout)
         return await _welcome(websocket, room, name, "direct", timeout)
     if not lobby_url:
         raise RoomConnectionError("lobby_url is required")
 
     last_error: RoomConnectionError | None = None
     for _attempt in range(2):
-        ticket = await _request_ticket(lobby_url, room, name, bot, timeout=timeout)
+        ticket = await _request_ticket(lobby_url, room, name, bot, placement, timeout=timeout)
         try:
             websocket = await _dial(
                 ticket.url,
@@ -137,6 +144,7 @@ async def _request_ticket(
     room: str,
     name: str,
     bot: bool = True,
+    placement: Mapping[str, str] | None = None,
     *,
     timeout: float,
     client: httpx.AsyncClient | None = None,
@@ -175,7 +183,7 @@ async def _request_ticket(
         raise RoomConnectionError("lobby returned an invalid room ticket") from None
 
     return _Ticket(
-        url=_websocket_url(websocket_base, room, name),
+        url=_websocket_url(websocket_base, room, name, bot, placement),
         token=token,
     )
 
@@ -231,13 +239,26 @@ async def _welcome(
     return Connection(room, name, message, transport, websocket)
 
 
-def _websocket_url(base: str, room: str, name: str, bot: bool = True) -> str:
+def _placement(spawn: Vec3 | None, avatar: str | None) -> dict[str, str]:
+    """Join-URL fields for a chosen spot and look, as the server's ``placementFromQuery`` reads them."""
+    fields = {"x": str(spawn.x), "y": str(spawn.y), "z": str(spawn.z)} if spawn else {}
+    return fields | ({"avatar": avatar} if avatar else {})
+
+
+def _websocket_url(
+    base: str,
+    room: str,
+    name: str,
+    bot: bool = True,
+    placement: Mapping[str, str] | None = None,
+) -> str:
     """The room WebSocket URL. ``bot=1`` declares this player a bot to the server and everyone
-    in the room; the browser client never sends it."""
+    in the room; the browser client never sends it. ``placement`` rides along for bots only."""
     parts = urlsplit(base)
     if parts.scheme not in {"ws", "wss"} or not parts.netloc:
         raise RoomConnectionError("room WebSocket URL must be absolute ws:// or wss://")
-    query = urlencode({"room": room, "name": name, "bot": "1"} if bot else {"room": room, "name": name})
+    fields = {"room": room, "name": name}
+    query = urlencode(fields | {"bot": "1", **(placement or {})} if bot else fields)
     return urlunsplit((parts.scheme, parts.netloc, "/ws", query, ""))
 
 

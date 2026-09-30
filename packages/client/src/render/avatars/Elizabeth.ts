@@ -5,7 +5,7 @@
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, createTag, placeShadow, type Avatar } from './common';
+import { box, centreOf, createShadowBlob, createTag, flat, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
@@ -175,14 +175,6 @@ export class ElizabethAvatar implements Avatar {
   corpse(): Vector3 | null {
     return this.dead && this.root.isEnabled() ? centreOf(this.body) : null;
   }
-}
-
-function flat(scene: Engine['scene'], name: string, color: Color3, glow: number): StandardMaterial {
-  const m = new StandardMaterial(name, scene);
-  m.diffuseColor = color;
-  m.emissiveColor = color.scale(glow);
-  m.specularColor = Color3.Black();
-  return m;
 }
 
 // The body as a lathe: a slightly rounded base, straight sides, and a dome for the top part.

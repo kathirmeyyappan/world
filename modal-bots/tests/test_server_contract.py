@@ -15,7 +15,8 @@ from typing import Any
 import pytest
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
-from common import Connection, RoomConnectionError, Snapshot, connect
+from bots.stalker_bot import run_stalker_bot
+from common import Connection, RoomConnectionError, Snapshot, Vec3, connect
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -188,3 +189,42 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
         )
         > 0.5
     )
+
+
+def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(room_server: str) -> None:
+    async def scenario() -> tuple[dict[str, object], float]:
+        person = await seat_person(room_server, "python-stalker")
+        stalker = asyncio.create_task(
+            run_stalker_bot(
+                "python-stalker",
+                seconds=30,
+                direct_ws_url=room_server,
+                spawn=Vec3(112, 20, 0),
+                avatar="elizabeth",
+            )
+        )
+        started = time.monotonic()
+        try:
+            while True:
+                message = await asyncio.wait_for(person.receive(), timeout=2)
+                if not isinstance(message, Snapshot):
+                    continue
+                me = next(p for p in message.players if p.id == person.id)
+                bot = next((p for p in message.players if p.name == "stalker-bot"), None)
+                if bot is None:
+                    continue
+                assert (bot.pos.x, bot.pos.y, bot.pos.z) == pytest.approx((112, 21.7, 0)), "on floor 1"
+                assert bot.avatar == "elizabeth"
+                facing = math.atan2(me.pos.x - bot.pos.x, me.pos.z - bot.pos.z)
+                if abs(math.remainder(bot.yaw - facing, math.tau)) < 1e-6:
+                    break
+            await person.send({"t": "chat", "text": "/kill-bots"})
+            return await asyncio.wait_for(stalker, timeout=10), time.monotonic() - started
+        finally:
+            await person.close()
+
+    report, took = asyncio.run(scenario())
+
+    assert not report["completed"], "the run ends when its corpse is dropped, not at 30 s"
+    assert took < 10
+    assert report["watching"] is not None

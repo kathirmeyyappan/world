@@ -63,3 +63,16 @@ def test_applies_combat_events_before_next_snapshot() -> None:
     report = state.to_dict()
     assert report["requested_room"] == "public-code"
     assert report["players"][0]["dead"] is True
+
+
+def test_nearest_player_is_straight_line_and_can_skip_bots() -> None:
+    me, bot, above, person = player("p1"), player("p2", "circle-bot"), player("p3", "up"), player("p4", "far")
+    bot |= {"bot": True, "pos": {"x": 2, "y": 1.7, "z": 2}}
+    above |= {"pos": {"x": 1, "y": 21.7, "z": 2}}  # right overhead, a floor up
+    person |= {"pos": {"x": 9, "y": 1.7, "z": 2}}
+    initial = message(welcome() | {"players": [me, bot, above, person]})
+    assert isinstance(initial, Welcome)
+    state = WorldState(initial)
+
+    assert state.nearest_player() is state.players["p2"]
+    assert state.nearest_player(people_only=True) is state.players["p4"]
