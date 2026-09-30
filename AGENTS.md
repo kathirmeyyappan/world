@@ -268,7 +268,8 @@ space` is the kind to keep). Don't narrate the change or answer the request that
 
 Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
 `packages/shared/src/content/structures.ts`, with kinds and authoring helpers (`wall`, `ramp`,
-`stairs`, `building`, `terrain`) in `packages/shared/src/sim/structures.ts`. The sim collides with them through
+`stairs`, `building`, `terrain`, and the round pieces `roundWall`, `spiralStairs`, `roundFloor`) in
+`packages/shared/src/sim/structures.ts`. The sim collides with them through
 `sim/collision.ts` (standing, walls, ceilings, line of sight) and the client draws the same list
 (`render/Structures.ts`), so adding an entry is the whole job. Nothing about structures goes over the
 wire: server and client both build the world from that file.
@@ -280,9 +281,10 @@ wire: server and client both build the world from that file.
   steps players walk up without jumping (the camera eases over each), `building({...})` is four
   walls, a doorway and a roof, and `terrain({ height })` samples a function. Write raw
   `{ kind: 'box', ... }` only for simple platforms and pillars.
-- Group entries by place, one short comment per group saying what it is (`// the annex watchtower`).
-  A composite you'll reuse (a staircase, a bridge rail) is a function returning `Structure[]` in
-  `sim/structures.ts` next to `building`; a one-off stays inline in the content file.
+- A landmark gets its own content file exporting its list (the annex tower is `content/tower.ts`,
+  `ANNEX_TOWER`), with its dimensions as named constants at the top and a comment per group of
+  pieces; `content/structures.ts` just spreads the landmarks together. A piece you'll reuse (a
+  staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`: the main disc (r 50 at the origin), the annex (r 30 at x 112) and the bridge between
   them. Players are clamped 1 m inside it no matter what, so keep structures inside too.
