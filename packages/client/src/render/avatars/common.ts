@@ -10,7 +10,7 @@ import {
   TransformNode,
   type Vector3,
 } from '@babylonjs/core';
-import type { AvatarId } from '@world/shared';
+import { WORLD_STRUCTURES, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 
@@ -63,6 +63,14 @@ export function createShadowBlob(engine: Engine, name: string, diameter: number)
   mat.disableLighting = true;
   disc.material = mat;
   return disc;
+}
+
+// Lays a child shadow blob on whatever is under the avatar whose feet are at `feetY`: at the feet
+// while standing, else on the highest surface below them, fading smaller the higher they are.
+export function placeShadow(shadow: Mesh, p: RemotePlayer, feetY: number): void {
+  const height = p.grounded ? 0 : feetY - WORLD_STRUCTURES.groundAt(p.x, p.z, feetY);
+  shadow.position.y = 0.02 - height;
+  shadow.scaling.setAll(Math.max(0.5, 1 - height * 0.15));
 }
 
 export function box(

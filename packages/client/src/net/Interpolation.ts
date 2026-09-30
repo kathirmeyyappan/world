@@ -29,6 +29,9 @@ export interface RemotePlayer {
   firing: boolean;
   dead: boolean;
   avatar: AvatarId;
+  // Standing on something (a floor, a stair, a deck): the sim zeroes vy whenever a player is on the
+  // ground, so this is the server's own answer rather than a guess from the drawn height.
+  grounded: boolean;
 }
 
 const KEEP_TICKS = TICK_RATE * 2;
@@ -88,6 +91,7 @@ export class Interpolation {
         firing: b.firing,
         dead: b.dead,
         avatar: b.avatar,
+        grounded: b.vy === 0,
       });
     }
     const cubes: CubeSnapshot[] = [];

@@ -5,7 +5,7 @@
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, createTag, type Avatar } from './common';
+import { box, centreOf, createShadowBlob, createTag, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
@@ -130,7 +130,7 @@ export class ElizabethAvatar implements Avatar {
     this.lastX = p.x;
     this.lastZ = p.z;
     const feetY = p.y - 1.7;
-    const airborne = feetY > 0.05;
+    const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.y = p.yaw;
 
@@ -156,8 +156,7 @@ export class ElizabethAvatar implements Avatar {
       this.body.rotation.set(0, 0, Math.PI / 2);
       this.footL.position.y = this.footR.position.y = 0.03;
     }
-    this.shadow.position.y = 0.02 - feetY;
-    this.shadow.scaling.setAll(Math.max(0.5, 1 - feetY * 0.15));
+    placeShadow(this.shadow, p, feetY);
     this.root.setEnabled(true);
   }
 
