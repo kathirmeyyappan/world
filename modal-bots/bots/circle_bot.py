@@ -1,4 +1,4 @@
-"""Orbit the nearest player, or the world origin when alone."""
+"""Orbit the nearest player, or the world origin when alone, reversing on anything in the way."""
 
 from __future__ import annotations
 
@@ -20,10 +20,19 @@ from common import (
     log_message,
     run_input_loop,
 )
+from common.controls import TICK_RATE
 from common.deployment import validate_duration
 
 ORBIT_RADIUS = 12
 RADIAL_CORRECTION_DISTANCE = 6
+MOVE_SPEED = 8  # metres per second at full input (MOVE_SPEED in packages/shared/src/sim/constants.ts)
+# Blocked means covering under half the commanded distance over a few ticks: the world's edge or a
+# wall is soaking up the move. The window is long enough that one late snapshot doesn't count.
+BLOCKED_PROGRESS = 0.5
+BLOCKED_TICKS = 4
+# After joining or reversing, the snapshots still show the old input for a round trip, so the
+# check waits this long before judging again.
+SETTLE_TICKS = 15
 
 
 async def run_circle_bot(
@@ -49,6 +58,7 @@ async def run_circle_bot(
     inputs = asyncio.create_task(run_input_loop(controls, stop))
     completed = False
     target_key: str | None = None
+    spin = Spin()
     observed_until = connected_at
 
     log_message(name, "joined room", player_id=connection.id, room=connection.room)
@@ -74,7 +84,9 @@ async def run_circle_bot(
                         stop.set()
                     continue
 
-                target = _steer(state, controls)
+                if spin.blocked(state.tick, state.me.pos, controls):
+                    log_message(name, "orbit reversed", tick=state.tick, direction=spin.direction)
+                target = _steer(state, controls, spin.direction)
                 next_target = target.id if target else "origin"
                 if next_target != target_key:
                     target_key = next_target
@@ -111,7 +123,53 @@ async def run_circle_bot(
     }
 
 
-def _steer(state: WorldState, controls: Controls) -> Player | None:
+class Spin:
+    """Which way round the orbit goes, flipped as soon as the bot stops making headway."""
+
+    def __init__(self) -> None:
+        self.direction = 1
+        self._settle_until: int | None = None
+        # Where the window started: tick, position, and the commanded move in world metres per
+        # second at full speed.
+        self._start: tuple[int, float, float, float, float] | None = None
+
+    def blocked(self, tick: int, pos: Vec3, controls: Controls) -> bool:
+        """Judge the move commanded so far against where the bot got to; reverse if it stalled."""
+        if self._settle_until is None:
+            self._settle_until = tick + SETTLE_TICKS
+        dx, dz = _world_move(controls)
+        if tick < self._settle_until or self._start is None:
+            self._start = (tick, pos.x, pos.z, dx, dz)
+            return False
+        start_tick, x, z, sdx, sdz = self._start
+        elapsed = tick - start_tick
+        if elapsed < BLOCKED_TICKS:
+            return False
+        self._start = (tick, pos.x, pos.z, dx, dz)
+        wanted = sdx * sdx + sdz * sdz
+        if wanted < 1e-6:
+            return False
+        # Metres along the commanded line, scaled up as if the command had been full speed.
+        made = ((pos.x - x) * sdx + (pos.z - z) * sdz) / wanted
+        if made >= BLOCKED_PROGRESS * MOVE_SPEED * elapsed / TICK_RATE:
+            return False
+        self.direction = -self.direction
+        self._settle_until = tick + SETTLE_TICKS
+        return True
+
+
+# The commanded move in world x/z, as the sim turns an input frame's mx/my into motion
+# (stepPlayer in packages/shared/src/sim/player.ts).
+def _world_move(controls: Controls) -> tuple[float, float]:
+    sin_y = math.sin(controls.yaw)
+    cos_y = math.cos(controls.yaw)
+    return (
+        sin_y * controls.forward + cos_y * controls.right,
+        cos_y * controls.forward - sin_y * controls.right,
+    )
+
+
+def _steer(state: WorldState, controls: Controls, direction: int) -> Player | None:
     me = state.me
     if me is None:
         return None
@@ -125,7 +183,7 @@ def _steer(state: WorldState, controls: Controls) -> Player | None:
         -1.0,
         min(1.0, (distance - ORBIT_RADIUS) / RADIAL_CORRECTION_DISTANCE),
     )
-    controls.move(forward=radial, right=1)
+    controls.move(forward=radial, right=direction)
     return target
 
 
