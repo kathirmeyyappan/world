@@ -20,9 +20,10 @@ export class Death {
     });
   }
 
-  show(shooterName: string): void {
+  // `how`: "shot by kathir", "you fell".
+  show(how: string): void {
     if (this.timer !== null) return;
-    this.by.textContent = `shot by ${shooterName}`;
+    this.by.textContent = how;
     this.root.classList.remove('hidden');
     document.exitPointerLock?.();
     let left = DEATH_SCREEN_SECONDS;

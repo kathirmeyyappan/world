@@ -21,9 +21,10 @@ import {
 import { parseCommand, type Command } from './commands';
 import { resolveFire } from './sim/combat';
 import { PositionHistory, rewindTick } from './sim/rewind';
-import { applyDamage, damageFor } from './sim/health';
+import { applyDamage, damageFor, fallDamage } from './sim/health';
 import { BOTS, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
+import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { createPlayer, stepPlayer } from './sim/player';
@@ -252,19 +253,35 @@ export class Room {
       player: p,
     }));
     for (const hit of resolveFire(spec, me, targets, this.structures))
-      this.damage(seat, hit.target.player, damageFor(spec, hit.headshot), hit.headshot);
+      this.damage(hit.target.player, damageFor(spec, hit.headshot), { shooter: seat, headshot: hit.headshot });
   }
 
-  // Takes hearts off `victim` for a shot by `shooter`, and kills them at zero. A kill is one
-  // structured message; clients word the announcement.
-  private damage(shooter: Seat, victim: PlayerState, damage: number, headshot: boolean): void {
+  // Takes hearts off `victim`, for a shot by `by.shooter` or, with no `by`, a fall, and kills them
+  // at zero. A death is one structured message; clients word the announcement.
+  private damage(victim: PlayerState, damage: number, by: { shooter: Seat; headshot: boolean } | null): void {
     const killed = applyDamage(victim, damage);
-    this.broadcast({ t: 'hit', shooter: shooter.state.id, victim: victim.id, damage, headshot, hearts: victim.hearts });
+    const shooter = by?.shooter.state ?? null;
+    const headshot = by?.headshot ?? false;
+    this.broadcast({
+      t: 'hit',
+      shooter: shooter?.id ?? null,
+      victim: victim.id,
+      damage,
+      headshot,
+      hearts: victim.hearts,
+    });
     if (!killed) return;
     const seat = this.seats.get(victim.id);
     if (seat) seat.diedTick = this.tick;
-    shooter.state.kills++;
-    this.broadcast({ t: 'kill', shooter: shooter.state.id, victim: victim.id, item: shooter.state.item!.id, headshot });
+    if (!shooter) return this.broadcast({ t: 'fell', victim: victim.id });
+    shooter.kills++;
+    this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item: shooter.item!.id, headshot });
+  }
+
+  // A step that ended in a landing `fell` metres below where the fall began.
+  private land(seat: Seat, fell: number): void {
+    const damage = fallDamage(fell);
+    if (damage > 0 && !seat.state.dead) this.damage(seat.state, damage, null);
   }
 
   step(): void {
@@ -277,11 +294,11 @@ export class Room {
       }
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
-        stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures);
+        this.land(seat, stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures));
         continue;
       }
       for (let i = 0; i < n; i++) {
-        stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape, this.structures);
+        this.land(seat, stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape, this.structures));
         this.applyActions(seat, seat.queue[i]);
       }
       seat.queue.splice(0, n);
@@ -323,6 +340,9 @@ export class Room {
         return;
       case 'equip':
         this.equip(seat, command.item);
+        return;
+      case 'wear':
+        this.wear(seat, command.gear);
         return;
       case 'avatar': {
         // Like a name-given item: a name-given look can't be changed; anyone else switches for good.
@@ -384,6 +404,14 @@ export class Room {
       bot.diedTick = this.tick;
     }
     this.broadcast({ t: 'system', text: `${seat.state.name} killed ${botRollCall(bots.map((b) => b.state.name))}` });
+  }
+
+  // Gear goes on beside whatever weapon they hold; wearing it again restarts its timer and tank.
+  private wear(seat: Seat, id: GearId): void {
+    const me = seat.state;
+    me.gear = createGear(id);
+    seat.link.send({ t: 'system', text: `you put on a ${id} for ${GEAR[id].seconds}s. ${gearHelp(id)}.` });
+    this.broadcast({ t: 'system', text: `${me.name} put on a ${id}` }, me.id);
   }
 
   // One item at a time. A permanent holder can't swap; anyone else can, and re-equipping the

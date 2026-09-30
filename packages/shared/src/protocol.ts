@@ -21,8 +21,10 @@ export type ServerMessage =
   | { t: 'chat'; id: string; name: string; color: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
-  | { t: 'hit'; shooter: string; victim: string; damage: number; headshot: boolean; hearts: number } // a shot landed
+  // Hearts came off: a shot landed, or with no shooter, a fall.
+  | { t: 'hit'; shooter: string | null; victim: string; damage: number; headshot: boolean; hearts: number }
   | { t: 'kill'; shooter: string; victim: string; item: ItemId; headshot: boolean } // clients announce it
+  | { t: 'fell'; victim: string } // a fall killed them
   | { t: 'pong'; at: number }
   | { t: 'error'; message: string };
 

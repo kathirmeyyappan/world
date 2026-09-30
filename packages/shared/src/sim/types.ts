@@ -1,4 +1,5 @@
 import type { AvatarId } from './avatars';
+import type { GearState } from './gear';
 import type { ItemAction, ItemState } from './items';
 
 export interface Vec3 {
@@ -19,9 +20,12 @@ export interface PlayerState {
   lastSeq: number;
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal
-  item: ItemState | null; // what they're holding, if anything
+  item: ItemState | null; // the weapon they're holding, if any
+  gear: GearState | null; // what they're wearing beside it, if anything (sim/gear.ts)
   scoped: boolean; // aiming down the sniper's scope (reported by the client, kept here so everyone sees it)
   firing: boolean; // a hold item is spraying this tick
+  thrusting: boolean; // their gear is lifting them this tick (a jetpack's jet)
+  fallTop: number | null; // feet height a fall is measured from: its top, or where the jetpack last pushed; null on the ground
   avatar: AvatarId; // how they look; cosmetic only
   avatarLocked: boolean; // the name chose the avatar; commands can't change it
   hearts: number; // MAX_HEARTS at spawn, down to 0 when shot enough

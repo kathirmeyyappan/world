@@ -53,10 +53,16 @@ export class MobileControls {
         e.preventDefault();
         jump.classList.add('active');
         input.requestJump();
+        input.holdJump(true);
       },
       { passive: false },
     );
-    jump?.addEventListener('touchend', () => jump.classList.remove('active'));
+    const release = () => {
+      jump?.classList.remove('active');
+      input.holdJump(false);
+    };
+    jump?.addEventListener('touchend', release);
+    jump?.addEventListener('touchcancel', release);
   }
 
   private move(x: number, y: number): void {

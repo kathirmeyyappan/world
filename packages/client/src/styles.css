@@ -666,6 +666,42 @@ body {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Worn gear: a smaller panel above the item hint and its fuel bar, or in the hint's place when no
+   weapon is held. */
+#gear {
+  position: fixed;
+  bottom: 150px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px 7px;
+  z-index: 50;
+  font: 14px var(--mono);
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 1px;
+  white-space: nowrap;
+  pointer-events: none;
+  background: rgba(11, 13, 20, 0.8);
+  border: 2px solid rgba(100, 181, 246, 0.6);
+  box-shadow: 3px 3px 0 #000;
+}
+#fuel:not(.hidden) ~ #gear {
+  bottom: 172px;
+}
+#item-hint.hidden ~ #gear {
+  bottom: 76px;
+}
+#gear .tank {
+  margin-top: 5px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+#gear .fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #3d8bfd, #9fd4ff);
+  transition: width 0.1s linear;
+}
+
 #item-hint {
   position: fixed;
   bottom: 76px;
@@ -1231,6 +1267,14 @@ body {
     bottom: 146px;
     width: 160px;
     height: 10px;
+  }
+  #gear {
+    padding: 3px 8px 5px;
+    font-size: 11px;
+  }
+  #gear .tank {
+    margin-top: 3px;
+    height: 6px;
   }
   #command-hint {
     top: 26%;

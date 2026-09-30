@@ -3,6 +3,7 @@
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
   CUBES,
+  GEAR,
   ITEMS,
   LANDMARKS,
   SKY_OBJECTS,
@@ -43,6 +44,7 @@ import { CommandsMenu } from '../ui/CommandsMenu';
 import { DamageFlash } from '../ui/DamageFlash';
 import { Death } from '../ui/Death';
 import { Fuel } from '../ui/Fuel';
+import { GearHud } from '../ui/GearHud';
 import { Hearts } from '../ui/Hearts';
 import { HitNotice } from '../ui/HitNotice';
 import { Hud } from '../ui/Hud';
@@ -85,6 +87,7 @@ export class Game {
   private readonly death = new Death();
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();
+  private readonly gearHud = new GearHud();
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
@@ -217,15 +220,23 @@ export class Game {
     if (!mouse) this.mouseFiring = false;
     this.mouseWasHeld = mouse;
 
-    const held = this.held;
-    if (!held || this.dead) return [];
-    const spec = ITEMS[held.id];
+    if (this.dead) return [];
     const actions: ItemAction[] = [];
-    const shoot = spec.actions.shoot;
-    const key = !!shoot && (this.input.isDown(shoot.key) || this.input.wasPressed(shoot.key));
-    if (shoot && (key || this.mouseFiring)) actions.push('shoot');
-    if (spec.actions.scope && this.scoped) actions.push('scope');
+    const held = this.held;
+    if (held) {
+      const spec = ITEMS[held.id];
+      const shoot = spec.actions.shoot;
+      const key = !!shoot && (this.input.isDown(shoot.key) || this.input.wasPressed(shoot.key));
+      if (shoot && (key || this.mouseFiring)) actions.push('shoot');
+      if (spec.actions.scope && this.scoped) actions.push('scope');
+    }
     this.localEffects(actions.includes('shoot'));
+    // Gear actions are holds, on their key (the jetpack's is the jump key, which the touch jump
+    // button also holds down).
+    const gear = this.prediction?.state.gear;
+    if (gear)
+      for (const [action, spec] of Object.entries(GEAR[gear.id].actions))
+        if (this.input.isDown(spec.key)) actions.push(action as ItemAction);
     return actions;
   }
 
@@ -340,13 +351,12 @@ export class Game {
       case 'kill':
         this.hud.announceKill(m.shooter, m.victim, m.item, m.headshot);
         this.hud.setDead(m.victim);
-        if (m.victim === this.myId) {
-          this.dead = true;
-          this.commandHint.markUsed(); // they've been in a fight; no onboarding after the reload
-          this.setScoped(false);
-          this.syncBlocked();
-          this.death.show(this.hud.playerName(m.shooter));
-        }
+        if (m.victim === this.myId) this.die(`shot by ${this.hud.playerName(m.shooter)}`);
+        return;
+      case 'fell':
+        this.hud.announceFall(m.victim);
+        this.hud.setDead(m.victim);
+        if (m.victim === this.myId) this.die('you fell');
         return;
       case 'pong':
         this.hud.setPing(now - m.at);
@@ -357,9 +367,24 @@ export class Game {
     }
   }
 
-  // A shot landed. The victim's client flashes red and drops hearts, the shooter's says who
-  // they hit, and everyone else sees the victim blink.
-  private onHit(m: { shooter: string; victim: string; damage: number; headshot: boolean; hearts: number }): void {
+  // The local player died; `how` heads the death screen.
+  private die(how: string): void {
+    this.dead = true;
+    this.commandHint.markUsed(); // they've been in a fight; no onboarding after the reload
+    this.setScoped(false);
+    this.syncBlocked();
+    this.death.show(how);
+  }
+
+  // A shot landed, or with no shooter, a fall hurt. The victim's client flashes red and drops
+  // hearts, the shooter's says who they hit, and everyone else sees the victim blink.
+  private onHit(m: {
+    shooter: string | null;
+    victim: string;
+    damage: number;
+    headshot: boolean;
+    hearts: number;
+  }): void {
     if (m.victim === this.myId) {
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
@@ -420,8 +445,9 @@ export class Game {
     );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
+    this.gearHud.set(this.dead ? null : self.gear);
     this.commandHint.update(
-      !!held || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened,
+      !!held || !!self.gear || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened,
       this.dead || this.hud.isChatOpen(),
     );
 

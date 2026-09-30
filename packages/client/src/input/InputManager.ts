@@ -131,6 +131,12 @@ export class InputManager {
     if (!this.blocked) this.jumpRequested = true;
   }
 
+  // The touch jump button: holding it holds the jump key (Space) down, for gear used by holding jump.
+  holdJump(held: boolean): void {
+    if (held && !this.blocked) this.keys.add('Space');
+    else this.keys.delete('Space');
+  }
+
   // Once per rendered frame: fold accumulated mouse motion into the view angles.
   update(): void {
     const k = LOOK_SENSITIVITY * this.lookScale;

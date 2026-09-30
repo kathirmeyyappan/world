@@ -1,4 +1,4 @@
-// The commands menu: every chat command, grouped, built from the item and avatar registries so
+// The commands menu: every chat command, grouped, built from the item, gear and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
 // or the touch button, closed with Q/C or, on touch, a tap anywhere on it; purely informational.
 // Blocks game input while open, like the cube card.
@@ -9,6 +9,8 @@ import {
   BOT_DEFAULT_SECONDS,
   BOT_IDS,
   COMMAND_SHORTCUTS,
+  GEAR,
+  GEAR_IDS,
   ITEMS,
   ITEM_IDS,
 } from '@world/shared';
@@ -85,7 +87,13 @@ function buildGroups(): Group[] {
       ],
     },
     { title: 'wear skin', rows: skins.map((id) => [`/${id}`, AVATARS[id].blurb]) },
-    { title: 'other', rows: [[commandLabel('speedy'), 'run faster for a bit']] },
+    {
+      title: 'other',
+      rows: [
+        [commandLabel('speedy'), 'run faster for a bit'],
+        ...GEAR_IDS.map((id): Group['rows'][number] => [commandLabel(id), GEAR[id].blurb]),
+      ],
+    },
   ];
 }
 

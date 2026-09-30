@@ -118,7 +118,7 @@ export class StandardAvatar implements Avatar {
     this.armL.rotation.x = -swing * 0.8;
     this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : swing * 0.8;
     this.body.position.y = airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.04;
-    this.items.update(p.item, p.firing);
+    this.items.update(p);
     if (p.dead !== this.dead) {
       this.dead = p.dead;
       // Fallen: the whole body tipped onto its side, tag left standing so the name stays readable.

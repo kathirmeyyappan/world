@@ -6,6 +6,7 @@ import {
   type CubeSnapshot,
   type PlayerState,
   type ItemId,
+  type GearId,
   type AvatarId,
 } from '@world/shared';
 
@@ -27,6 +28,8 @@ export interface RemotePlayer {
   reading: string | null;
   item: ItemId | null;
   firing: boolean;
+  gear: GearId | null;
+  thrusting: boolean;
   dead: boolean;
   avatar: AvatarId;
   // Standing on something (a floor, a stair, a deck): the sim zeroes vy whenever a player is on the
@@ -89,6 +92,8 @@ export class Interpolation {
         reading: b.reading,
         item: b.item?.id ?? null,
         firing: b.firing,
+        gear: b.gear?.id ?? null,
+        thrusting: b.thrusting,
         dead: b.dead,
         avatar: b.avatar,
         grounded: b.vy === 0,

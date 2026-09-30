@@ -10,6 +10,7 @@ export * from './sim/combat';
 export * from './sim/rewind';
 export * from './sim/health';
 export * from './sim/items';
+export * from './sim/gear';
 export * from './sim/avatars';
 export * from './sim/bots';
 export * from './sim/defaultBots';

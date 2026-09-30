@@ -147,7 +147,7 @@ export class ElizabethAvatar implements Avatar {
     this.flipperR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : Math.sin(this.phase) * 0.3 * effort;
     this.flipperR.rotation.z = p.item ? 0 : 0.3;
 
-    this.items.update(p.item, p.firing);
+    this.items.update(p);
     if (p.dead !== this.dead) {
       this.dead = p.dead;
       // Tipped onto its side; the egg's half-width keeps it resting on the ground.

@@ -148,7 +148,7 @@ export class SahurAvatar implements Avatar {
     this.log.rotation.set(p.pitch * 0.12, 0, Math.sin(now / 1700 + this.twitchOffset) * 0.03 + twitch);
 
     this.bat.setEnabled(!p.item);
-    this.items.update(p.item, p.firing);
+    this.items.update(p);
 
     if (p.dead !== this.dead) {
       this.dead = p.dead;

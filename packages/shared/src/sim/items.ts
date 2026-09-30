@@ -1,7 +1,8 @@
-// Equippable items. One at a time; chat commands swap freely unless the player's name carries an
-// item's tag, in which case they spawn holding it for good and can never swap. Adding a weapon
-// means adding a row here, a shape in the client's Weapons.ts, and nothing on the wire: every
-// item action travels inside the input frame.
+// Weapons: the items a player holds. One at a time; chat commands swap freely unless the player's
+// name carries a weapon's tag, in which case they spawn holding it for good and can never swap.
+// Gear (sim/gear.ts) is the other kind of item, worn in its own slot beside the weapon. Adding a
+// weapon means adding a row here, a shape in the client's Weapons.ts, and nothing on the wire:
+// every item action travels inside the input frame.
 import { TICK_RATE } from './constants';
 import { HEADSHOT_MULTIPLIER } from './health';
 
@@ -9,9 +10,9 @@ export type ItemId = 'gun' | 'sniper' | 'flamethrower';
 
 // Things an item can do. Each is bound to a key on the client and reported in InputFrame.actions:
 //   tap     fires on the press (the first tick the action is held), then the cooldown
-//   hold    fires every cooldown while held, burning fuel
+//   hold    works while held, burning fuel: a flamethrower fires every cooldown, a jetpack pushes every tick
 //   toggle  a state the client flips and reports while on (the sniper's scope)
-export type ItemAction = 'shoot' | 'scope';
+export type ItemAction = 'shoot' | 'scope' | 'thrust';
 export type ActionMode = 'tap' | 'hold' | 'toggle';
 
 export interface ActionSpec {
@@ -101,7 +102,14 @@ export function isItemId(v: unknown): v is ItemId {
 }
 
 export function isItemAction(v: unknown): v is ItemAction {
-  return v === 'shoot' || v === 'scope';
+  return v === 'shoot' || v === 'scope' || v === 'thrust';
+}
+
+// A tank after `dt` seconds: down while `burning`, back up at FUEL_REFILL_RATE of the burn rate
+// while `refilling`, kept between empty and `full` (float slop near empty counts as empty).
+export function nextFuel(fuel: number, full: number, burning: boolean, refilling: boolean, dt: number): number {
+  const next = burning ? fuel - dt : refilling ? Math.min(full, fuel + dt * FUEL_REFILL_RATE) : fuel;
+  return next < 1e-9 ? 0 : next;
 }
 
 // The item a name entitles its owner to for the whole session, if any. Longer tags win so a
@@ -115,13 +123,29 @@ export function permanentItemFor(name: string): ItemId | null {
 // "K or click to shoot, F to scope", for hints and chat notices. Shooting also works with a
 // click, so say so; hold items say hold.
 export function itemHelp(id: ItemId, sep = ', '): string {
-  return Object.entries(ITEMS[id].actions)
+  return actionHelp(ITEMS[id].actions, sep);
+}
+
+// The same for any item's actions, naming each key with `keyName`.
+export function actionHelp(
+  actions: Partial<Record<ItemAction, ActionSpec>>,
+  sep = ', ',
+  keyName: (code: string) => string = keyLabel,
+): string {
+  return Object.entries(actions)
     .map(
       ([action, spec]) =>
-        `${spec.mode === 'hold' ? 'hold ' : ''}${keyLabel(spec.key)}${action === 'shoot' ? ' or click' : ''} to ${action === 'shoot' && spec.mode === 'hold' ? 'spray' : action}`,
+        `${spec.mode === 'hold' ? 'hold ' : ''}${keyName(spec.key)}${ACTION_HELP[action as ItemAction](spec)}`,
     )
     .join(sep);
 }
+
+// What follows the key in actionHelp.
+const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
+  shoot: (spec) => ` or click to ${spec.mode === 'hold' ? 'spray' : 'shoot'}`,
+  scope: () => ' to scope',
+  thrust: () => ' to fly',
+};
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1": the numbers that matter, for
 // the hint bar. Derived from the spec so it can't drift from what the Room does.
