@@ -1,28 +1,59 @@
-// Tung Tung Tung Sahur: a 3.2 m wooden log (60% taller than everyone else) on long stick legs,
-// with a bat in its right hand. It is meant to be uncanny: bulging eyes whose pupils follow the
-// viewer's camera wherever it is, brows raised in a fixed stare, a grin too wide and a little
-// lopsided, arms that hang dead while it walks stiff-legged, and now and then a small twitch of the
-// head. It dies flat on its back, still staring up. Bot-only (AVATARS.sahur isn't wearable); the
-// hit capsule, movement and items are everyone's, and a held item replaces the bat.
-import { Color3, DynamicTexture, Matrix, Mesh, MeshBuilder, Texture, TransformNode, Vector3 } from '@babylonjs/core';
+// Tung Tung Tung Sahur: a 3.2 m varnished wooden log (60% taller than everyone else) with a human
+// face carved into its upper end, standing on long thin legs and trailing a bat from lanky arms.
+// It is meant to be uncanny, so the face is sculpted rather than drawn: a heavy brow ridge,
+// wide deep-set eyeballs under carved lids that roll to follow the viewer's camera, a long straight
+// nose, high cheekbones, a closed-lip smile with smile lines, and a chin. It walks stiff-legged with
+// dead arms, twitches its head now and then, and dies flat on its back, face up. Bot-only
+// (AVATARS.sahur isn't wearable); the hit capsule, movement and items are everyone's, and a held item
+// replaces the bat.
+import {
+  Color3,
+  DynamicTexture,
+  Matrix,
+  Mesh,
+  MeshBuilder,
+  Texture,
+  TransformNode,
+  Vector3,
+  type StandardMaterial,
+} from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, createTag, flat, placeShadow, type Avatar } from './common';
+import { centreOf, createShadowBlob, createTag, flat, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
-// Metres, feet at 0. The log stands on the hips and runs to the top of the head.
+// Metres, feet at 0. The log stands on the hips and runs to the top of the head; face heights are
+// in the log's frame (above the hips).
 const HEIGHT = 3.2;
-const HIP = 1.25;
-const RADIUS = 0.3;
-const EYE_Y = 2.78;
-const EYE_X = 0.115;
+const HIP = 1.4;
+const RADIUS = 0.33; // side to side
+const DEPTH = 0.9; // front-to-back radius as a fraction of RADIUS: a slightly flattened log
+const EYE_Y = 1.44;
+const EYE_X = 0.13;
 const EYE_SIZE = 0.2;
-const EYE_TURN = 0.75; // radians an eye can roll from straight ahead toward the viewer
-const MOUTH_Y = 2.36;
-const SHOULDER_Y = 2.05;
-const ARM_LENGTH = 1.0;
+const EYE_TURN = 0.7; // radians an eye can roll from straight ahead toward the viewer
+const NOSE_TOP = 1.46;
+const NOSE_TIP = 1.1;
+const MOUTH_Y = 0.95;
+const MOUTH_HALF = 0.19;
+const SHOULDER_Y = 0.72;
+const UPPER_ARM = 0.62;
+const FOREARM = 0.6;
+const THIGH = 0.71;
+const SHIN = 0.69;
 const TWITCH_EVERY_MS = 4300; // roughly; each avatar's twitches are offset by its id
+
+// The log's front surface at x across it: a point on the face there sits at this z.
+function faceZ(x: number): number {
+  return RADIUS * DEPTH * Math.sqrt(Math.max(0, 1 - (x / RADIUS) ** 2));
+}
+
+interface Limb {
+  top: TransformNode; // pivot at the shoulder or hip
+  joint: TransformNode; // pivot at the elbow or knee
+  end: TransformNode; // the hand or foot
+}
 
 export class SahurAvatar implements Avatar {
   readonly kind = 'sahur' as const;
@@ -30,10 +61,10 @@ export class SahurAvatar implements Avatar {
   private readonly root: TransformNode;
   private readonly body: TransformNode;
   private readonly log: TransformNode; // everything above the hips, which sways and twitches
-  private readonly legL: Mesh;
-  private readonly legR: Mesh;
-  private readonly armL: Mesh;
-  private readonly armR: Mesh;
+  private readonly legL: Limb;
+  private readonly legR: Limb;
+  private readonly armL: Limb;
+  private readonly armR: Limb;
   private readonly bat: Mesh;
   private readonly eyes: TransformNode[] = []; // a pivot at each eyeball's centre, iris and pupil on its front
   private readonly shadow: Mesh;
@@ -62,112 +93,233 @@ export class SahurAvatar implements Avatar {
     this.log.parent = this.body;
     this.log.position.y = HIP;
 
-    const wood = flat(scene, `sahur-wood-${id}`, new Color3(1, 1, 1), 0.35);
+    const wood = varnished(flat(scene, `sahur-wood-${id}`, new Color3(1, 1, 1), 0.42));
     wood.diffuseTexture = grainTexture(scene, `sahur-grain-${id}`);
-    const stick = flat(scene, `sahur-stick-${id}`, new Color3(0.58, 0.36, 0.17), 0.2);
-    const pale = flat(scene, `sahur-pale-${id}`, new Color3(0.86, 0.62, 0.36), 0.3);
-    const dark = flat(scene, `sahur-dark-${id}`, new Color3(0.2, 0.1, 0.05), 0);
-    const white = flat(scene, `sahur-white-${id}`, new Color3(0.95, 0.93, 0.86), 0.5);
-    const black = flat(scene, `sahur-black-${id}`, new Color3(0.02, 0.02, 0.02), 0);
-    const iris = flat(scene, `sahur-iris-${id}`, new Color3(0.26, 0.15, 0.08), 0.05);
-    this.hitFlash = new HitFlash([wood, stick, pale]);
+    const carved = wood; // the features are carved out of the log, so they share its wood
+    const crease = flat(scene, `sahur-crease-${id}`, new Color3(0.36, 0.17, 0.07), 0.05);
+
+    const white = varnished(flat(scene, `sahur-white-${id}`, new Color3(0.95, 0.93, 0.88), 0.45));
+    const iris = flat(scene, `sahur-iris-${id}`, new Color3(0.2, 0.11, 0.05), 0.05);
+    const black = flat(scene, `sahur-black-${id}`, new Color3(0.01, 0.01, 0.01), 0);
+    const glint = flat(scene, `sahur-glint-${id}`, new Color3(1, 1, 1), 1);
+    const batWood = varnished(flat(scene, `sahur-bat-${id}`, new Color3(0.9, 0.62, 0.34), 0.3));
+    this.hitFlash = new HitFlash([wood, batWood]);
+
+    const ball = (name: string, mat: StandardMaterial, size: Vector3, at: Vector3, parent: TransformNode) => {
+      const m = MeshBuilder.CreateSphere(name, { diameter: 1, segments: 10 }, scene);
+      m.material = mat;
+      m.parent = parent;
+      m.scaling.copyFrom(size);
+      m.position.copyFrom(at);
+      m.isPickable = false;
+      return m;
+    };
+    const tube = (name: string, mat: StandardMaterial, path: Vector3[], radius: number) => {
+      const m = MeshBuilder.CreateTube(name, { path, radius, tessellation: 6, cap: Mesh.CAP_ALL }, scene);
+      m.material = mat;
+      m.parent = this.log;
+      m.isPickable = false;
+      return m;
+    };
+    // A curve across the face, `lift(u)` above `y` at u = x / half, hugging the surface.
+    const across = (half: number, y: number, lift: (u: number) => number, proud: number) =>
+      Array.from({ length: 11 }, (_, i) => {
+        const u = -1 + (2 * i) / 10;
+        const x = u * half;
+        return new Vector3(x, y + lift(u), faceZ(x) + proud);
+      });
 
     logMesh(scene, `sahur-body-${id}`, this.log, wood);
-    const faceZ = (x: number) => Math.sqrt(RADIUS * RADIUS - x * x); // the log's front surface at x
 
-    // Eyes: bulging white balls half sunk into the wood, each with a brown iris and a black pupil on a
-    // pivot at the ball's centre. Every frame (update) the pivots roll toward the viewer, so it stares
-    // at whoever is looking, from any side.
+    // Brow ridge: one heavy bar of wood across both eyes, standing proud of the face.
+    ball(
+      `sahur-brow-${id}`,
+      carved,
+      new Vector3(0.56, 0.1, 0.1),
+      new Vector3(0, EYE_Y + 0.125, faceZ(0) - 0.03),
+      this.log,
+    );
+
+    // Eyes: a dark socket, then a white eyeball whose front bulges out of it, a carved upper lid
+    // over its top third and a bag under it. The iris, pupil and glint ride a pivot at the eyeball's
+    // centre that rolls toward the viewer (update), so it stares at whoever looks, from any side.
     for (const side of [-1, 1]) {
       const x = side * EYE_X;
-      const ball = MeshBuilder.CreateSphere(`sahur-eye-${side}-${id}`, { diameter: EYE_SIZE, segments: 6 }, scene);
-      ball.convertToFlatShadedMesh();
-      ball.material = white;
-      ball.parent = this.log;
-      ball.position.set(x, EYE_Y - HIP, faceZ(x) - 0.02);
-      ball.isPickable = false;
+      const z = faceZ(x) - 0.035;
+      ball(
+        `sahur-socket-${side}-${id}`,
+        crease,
+        new Vector3(0.25, 0.19, 0.05),
+        new Vector3(x, EYE_Y, faceZ(x) - 0.012),
+        this.log,
+      );
+      ball(
+        `sahur-eye-${side}-${id}`,
+        white,
+        new Vector3(EYE_SIZE, EYE_SIZE, EYE_SIZE),
+        new Vector3(x, EYE_Y, z),
+        this.log,
+      );
+      const lid = MeshBuilder.CreateSphere(
+        `sahur-lid-${side}-${id}`,
+        { diameter: EYE_SIZE + 0.02, segments: 10, slice: 0.36 },
+        scene,
+      );
+      lid.material = carved;
+      lid.parent = this.log;
+      lid.position.set(x, EYE_Y, z);
+      lid.rotation.x = -0.35; // tipped forward so it hoods the front of the eyeball
+      lid.isPickable = false;
+      ball(
+        `sahur-bag-${side}-${id}`,
+        carved,
+        new Vector3(0.19, 0.045, 0.07),
+        new Vector3(x, EYE_Y - 0.1, z + 0.06),
+        this.log,
+      );
+
       const pivot = new TransformNode(`sahur-eye-pivot-${side}-${id}`, scene);
       pivot.parent = this.log;
-      pivot.position.copyFrom(ball.position);
-      disc(scene, `sahur-iris-${side}-${id}`, pivot, iris, 0.085).position.z = EYE_SIZE / 2 - 0.004;
-      disc(scene, `sahur-pupil-${side}-${id}`, pivot, black, 0.045).position.z = EYE_SIZE / 2 + 0.002;
+      pivot.position.set(x, EYE_Y, z);
+      const r = EYE_SIZE / 2;
+      disc(scene, `sahur-iris-${side}-${id}`, pivot, iris, 0.095).position.z = r - 0.003;
+      disc(scene, `sahur-pupil-${side}-${id}`, pivot, black, 0.05).position.z = r + 0.001;
+      disc(scene, `sahur-glint-${side}-${id}`, pivot, glint, 0.016).position.set(-0.015, 0.017, r + 0.003);
       this.eyes.push(pivot);
-      // Brows: thin, high and arched outward, a surprised look that never relaxes.
-      const brow = box(scene, `sahur-brow-${side}-${id}`, 0.15, 0.025, 0.03, dark, this.log);
-      brow.position.set(x + side * 0.02, EYE_Y - HIP + 0.19, faceZ(x) + 0.005);
-      brow.rotation.z = -side * 0.28;
     }
 
-    // Nose: a long ridge down the middle of the face.
-    const nose = box(scene, `sahur-nose-${id}`, 0.07, 0.3, 0.1, pale, this.log);
-    nose.position.set(0, (EYE_Y + MOUTH_Y) / 2 - HIP + 0.02, RADIUS + 0.03);
-
-    // Mouth: a thin dark grin from cheek to cheek, corners curling up, the left one higher. Short
-    // dark creases bracket the corners.
-    const SEGMENTS = 9;
-    const HALF = 0.21;
-    for (let i = 0; i < SEGMENTS; i++) {
-      const x = -HALF + ((i + 0.5) / SEGMENTS) * 2 * HALF;
-      const u = x / HALF;
-      const y = MOUTH_Y - HIP + 0.075 * u * u + (u < 0 ? 0.018 * -u : 0);
-      const seg = box(scene, `sahur-mouth-${i}-${id}`, (2 * HALF) / SEGMENTS + 0.012, 0.028, 0.03, dark, this.log);
-      seg.position.set(x, y, faceZ(x) + 0.004);
-      seg.rotation.y = Math.asin(x / RADIUS);
-      seg.rotation.z = Math.atan(0.15 * u) * 0.9;
-    }
-    for (const side of [-1, 1]) {
-      const crease = box(scene, `sahur-crease-${side}-${id}`, 0.018, 0.1, 0.03, dark, this.log);
-      const x = side * (HALF + 0.03);
-      crease.position.set(x, MOUTH_Y - HIP + 0.07, faceZ(x) + 0.002);
-      crease.rotation.set(0, Math.asin(x / RADIUS), side * 0.35);
-    }
-
-    // Legs: thin sticks from the hips, pivoting there, each on a small flat foot.
-    const leg = (side: number) => {
-      const m = box(scene, `sahur-leg-${side}-${id}`, 0.075, HIP, 0.075, stick, this.body);
-      m.position.set(side * 0.13, HIP / 2, 0);
-      m.setPivotPoint(new Vector3(0, HIP / 2, 0));
-      const foot = box(scene, `sahur-foot-${side}-${id}`, 0.1, 0.04, 0.2, stick, m);
-      foot.position.set(0, -HIP / 2 + 0.02, 0.05);
-      return m;
-    };
-    this.legL = leg(-1);
-    this.legR = leg(1);
-
-    // Arms: sticks hanging from the shoulders, splayed a little, with a knob of a hand.
-    const arm = (side: number) => {
-      const m = box(scene, `sahur-arm-${side}-${id}`, 0.06, ARM_LENGTH, 0.06, stick, this.log);
-      m.position.set(side * (RADIUS + 0.04), SHOULDER_Y - HIP - ARM_LENGTH / 2, 0.02);
-      m.setPivotPoint(new Vector3(0, ARM_LENGTH / 2, 0));
-      m.rotation.z = side * 0.12;
-      const hand = box(scene, `sahur-hand-${side}-${id}`, 0.09, 0.1, 0.09, stick, m);
-      hand.position.y = -ARM_LENGTH / 2 - 0.03;
-      return m;
-    };
-    this.armL = arm(-1);
-    this.armR = arm(1);
-
-    // The bat: a tapered club in the right hand, hanging forward and down past the knee.
-    this.bat = MeshBuilder.CreateCylinder(
-      `sahur-bat-${id}`,
-      { diameterTop: 0.05, diameterBottom: 0.11, height: 1.0, tessellation: 8 },
+    // Nose: a long straight ridge from between the brows to a rounded tip, with a wing either side.
+    const ridge = MeshBuilder.CreateCylinder(
+      `sahur-nose-${id}`,
+      { diameterTop: 0.08, diameterBottom: 0.13, height: NOSE_TOP - NOSE_TIP, tessellation: 4 },
       scene,
     );
-    this.bat.convertToFlatShadedMesh();
-    this.bat.material = pale;
-    this.bat.parent = this.armR;
-    this.bat.position.set(0, -ARM_LENGTH / 2 - 0.35, 0.18);
-    this.bat.rotation.x = 0.45;
+    ridge.material = carved;
+    ridge.parent = this.log;
+    ridge.rotation.set(-0.2, Math.PI / 4, 0); // an edge forward, the lower end further out
+    ridge.position.set(0, (NOSE_TOP + NOSE_TIP) / 2, faceZ(0) + 0.045);
+    ridge.isPickable = false;
+    ball(
+      `sahur-nose-tip-${id}`,
+      carved,
+      new Vector3(0.11, 0.09, 0.1),
+      new Vector3(0, NOSE_TIP + 0.02, faceZ(0) + 0.09),
+      this.log,
+    );
+    for (const side of [-1, 1])
+      ball(
+        `sahur-nostril-${side}-${id}`,
+        carved,
+        new Vector3(0.065, 0.055, 0.06),
+        new Vector3(side * 0.06, NOSE_TIP + 0.005, faceZ(0.06) + 0.035),
+        this.log,
+      );
+
+    // Cheekbones: long low ridges sloping out and down from under the eyes.
+    for (const side of [-1, 1]) {
+      const x = side * 0.19;
+      const cheek = ball(
+        `sahur-cheek-${side}-${id}`,
+        carved,
+        new Vector3(0.2, 0.07, 0.06),
+        new Vector3(x, EYE_Y - 0.2, faceZ(x) - 0.012),
+        this.log,
+      );
+      cheek.rotation.set(0, side * 0.5, -side * 0.4);
+    }
+
+    // Mouth: closed lips in a wide smile, corners turned up (the left a touch higher), a dark line
+    // between them, smile lines from the nose wings down past the corners, and a small chin.
+    const smile = (u: number) => 0.05 * u * u + (u < 0 ? -0.014 * u : 0);
+    tube(`sahur-lip-top-${id}`, carved, across(MOUTH_HALF, MOUTH_Y + 0.016, smile, 0.006), 0.013);
+    tube(
+      `sahur-lip-bottom-${id}`,
+      carved,
+      across(MOUTH_HALF * 0.8, MOUTH_Y - 0.02, (u) => smile(u) * 0.7, 0.006),
+      0.017,
+    );
+    tube(`sahur-mouth-${id}`, crease, across(MOUTH_HALF * 1.02, MOUTH_Y, smile, 0.016), 0.006);
+    for (const side of [-1, 1]) {
+      const fold = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+        const x = side * (0.08 + 0.15 * t);
+        return new Vector3(x, NOSE_TIP - 0.01 - 0.2 * t + 0.06 * t * t, faceZ(x) + 0.004);
+      });
+      tube(`sahur-fold-${side}-${id}`, crease, fold, 0.005);
+    }
+    ball(
+      `sahur-chin-${id}`,
+      carved,
+      new Vector3(0.18, 0.1, 0.05),
+      new Vector3(0, MOUTH_Y - 0.12, faceZ(0) - 0.012),
+      this.log,
+    );
+
+    // Limbs: thin wooden rods jointed at the elbow or knee, pivoting at the top.
+    const limb = (
+      name: string,
+      parent: TransformNode,
+      at: Vector3,
+      upper: number,
+      lower: number,
+      radius: number,
+    ): Limb => {
+      const top = new TransformNode(`${name}-top`, scene);
+      top.parent = parent;
+      top.position.copyFrom(at);
+      rod(scene, `${name}-upper`, top, carved, upper, radius);
+      const joint = new TransformNode(`${name}-joint`, scene);
+      joint.parent = top;
+      joint.position.y = -upper;
+      ball(`${name}-joint-knob`, carved, new Vector3(radius * 2.4, radius * 2.4, radius * 2.4), Vector3.Zero(), joint);
+      rod(scene, `${name}-lower`, joint, carved, lower, radius * 0.9);
+      const end = new TransformNode(`${name}-end`, scene);
+      end.parent = joint;
+      end.position.y = -lower;
+      return { top, joint, end };
+    };
+    this.legL = limb(`sahur-legL-${id}`, this.body, new Vector3(-0.13, HIP + 0.05, 0), THIGH, SHIN, 0.045);
+    this.legR = limb(`sahur-legR-${id}`, this.body, new Vector3(0.13, HIP + 0.05, 0), THIGH, SHIN, 0.045);
+    for (const leg of [this.legL, this.legR])
+      ball(`${leg.top.name}-foot`, carved, new Vector3(0.11, 0.05, 0.22), new Vector3(0, -0.025, 0.06), leg.end);
+    this.armL = limb(
+      `sahur-armL-${id}`,
+      this.log,
+      new Vector3(-(RADIUS + 0.03), SHOULDER_Y, 0),
+      UPPER_ARM,
+      FOREARM,
+      0.04,
+    );
+    this.armR = limb(`sahur-armR-${id}`, this.log, new Vector3(RADIUS + 0.03, SHOULDER_Y, 0), UPPER_ARM, FOREARM, 0.04);
+    for (const [side, arm] of [
+      [-1, this.armL],
+      [1, this.armR],
+    ] as const) {
+      arm.top.rotation.z = side * 0.1; // hanging just clear of the log
+      arm.joint.rotation.x = -0.12; // elbows soft, forearms a little forward
+      ball(`${arm.top.name}-hand`, carved, new Vector3(0.08, 0.1, 0.07), new Vector3(0, -0.04, 0), arm.end);
+    }
+
+    // The bat: a tapered club gripped at the handle, its end resting on the ground ahead.
+    this.bat = MeshBuilder.CreateCylinder(
+      `sahur-bat-${id}`,
+      { diameterTop: 0.045, diameterBottom: 0.12, height: 1.15, tessellation: 12 },
+      scene,
+    );
+    this.bat.material = batWood;
+    this.bat.parent = this.armR.end;
+    this.bat.setPivotPoint(new Vector3(0, 0.55, 0)); // the grip, near the handle's end
+    this.bat.position.set(0, -0.55, 0);
+    this.bat.rotation.x = -0.5; // the barrel out in front
     this.bat.isPickable = false;
 
     // A held item goes in the right hand instead of the bat; the flamethrower's tank rides on the back.
     this.items = new HeldItems(
       engine,
       `sahur-${id}`,
-      this.armR,
-      new Vector3(0, -ARM_LENGTH / 2 - 0.02, 0.04),
+      this.armR.end,
+      new Vector3(0, -0.05, 0.04),
       this.log,
-      new Vector3(0, SHOULDER_Y - HIP - 0.1, -(RADIUS + 0.1)),
+      new Vector3(0, SHOULDER_Y + 0.1, -(RADIUS * DEPTH + 0.1)),
     );
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.2);
@@ -189,34 +341,39 @@ export class SahurAvatar implements Avatar {
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.y = p.yaw;
 
-    // Stilted walk: stiff legs swing from the hip and the log bobs, but the arms just hang.
+    // Stilted walk: stiff thighs swing from the hip, a knee bends only as its leg swings back, and
+    // the log bobs; the arms barely move.
     if (moved > 0.002 && !airborne) this.phase += moved * 3.2;
     const effort = airborne ? 0 : Math.min(1, moved * 60);
-    const swing = airborne ? 0.25 : Math.sin(this.phase) * 0.38 * effort;
-    this.legL.rotation.x = swing;
-    this.legR.rotation.x = -swing;
-    this.log.position.y = HIP + (airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.07 * effort);
+    const swing = airborne ? 0.2 : Math.sin(this.phase) * 0.38 * effort;
+    this.legL.top.rotation.x = swing;
+    this.legR.top.rotation.x = -swing;
+    this.legL.joint.rotation.x = Math.max(0, -swing) * 0.9;
+    this.legR.joint.rotation.x = Math.max(0, swing) * 0.9;
+    this.log.position.y = HIP + (airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.06 * effort);
 
     // The log leans a little with the look and sways slowly; every few seconds, a short jerk sideways.
     const now = performance.now();
     const sinceTwitch = (now + this.twitchOffset) % TWITCH_EVERY_MS;
     const twitch = sinceTwitch < 140 ? Math.sin((sinceTwitch / 140) * Math.PI) * 0.12 : 0;
-    this.log.rotation.set(p.pitch * 0.15, 0, Math.sin(now / 1700 + this.twitchOffset) * 0.035 + twitch);
+    this.log.rotation.set(p.pitch * 0.12, 0, Math.sin(now / 1700 + this.twitchOffset) * 0.03 + twitch);
 
-    this.armL.rotation.x = 0;
-    this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : 0;
+    const dangle = Math.sin(this.phase) * 0.05 * effort;
+    this.armL.top.rotation.x = dangle;
+    this.armR.top.rotation.x = p.item ? -Math.PI / 2 + p.pitch : -dangle;
+    this.armR.joint.rotation.x = p.item ? 0 : -0.12;
     this.bat.setEnabled(!p.item);
     this.items.update(p.item, p.firing);
 
     if (p.dead !== this.dead) {
       this.dead = p.dead;
-      // Fallen flat on its back like a felled log, face to the sky; lifted by its radius to lie on
+      // Fallen flat on its back like a felled log, face to the sky, lifted by its depth to lie on
       // the ground rather than through it.
       this.body.rotation.x = p.dead ? -Math.PI / 2 : 0;
-      this.body.position.y = p.dead ? RADIUS : 0;
+      this.body.position.y = p.dead ? RADIUS * DEPTH : 0;
     }
     if (p.dead) {
-      this.legL.rotation.x = this.legR.rotation.x = 0;
+      for (const leg of [this.legL, this.legR]) leg.top.rotation.x = leg.joint.rotation.x = 0;
       this.log.rotation.set(0, 0, 0);
       this.log.position.y = HIP;
     }
@@ -256,59 +413,76 @@ export class SahurAvatar implements Avatar {
   }
 }
 
-// The log from the hips up: slightly narrower at the bottom, straight sides, a rounded top. Nine
-// sides and flat shading keep it rough-hewn.
-function logMesh(scene: Engine['scene'], name: string, parent: TransformNode, mat: ReturnType<typeof flat>): Mesh {
+// Polished wood: a soft highlight, so the carving reads by its shine as well as its shading.
+function varnished(m: StandardMaterial): StandardMaterial {
+  m.specularColor = new Color3(0.22, 0.16, 0.1);
+  m.specularPower = 24;
+  return m;
+}
+
+// The log from the hips up: slightly narrower at the bottom, straight sides and a rounded top,
+// smooth-shaded and flattened front to back.
+function logMesh(scene: Engine['scene'], name: string, parent: TransformNode, mat: StandardMaterial): Mesh {
   const top = HEIGHT - HIP;
-  const shape = [
-    new Vector3(0, 0, 0),
-    new Vector3(RADIUS * 0.88, 0, 0),
-    new Vector3(RADIUS, 0.25, 0),
-    new Vector3(RADIUS, top - 0.14, 0),
-    new Vector3(RADIUS * 0.8, top - 0.03, 0),
-    new Vector3(RADIUS * 0.4, top, 0),
-    new Vector3(0, top, 0),
-  ];
-  const m = MeshBuilder.CreateLathe(name, { shape, tessellation: 9, sideOrientation: Mesh.DOUBLESIDE }, scene);
-  m.convertToFlatShadedMesh();
+  const shape = [new Vector3(0, 0, 0), new Vector3(RADIUS * 0.9, 0, 0), new Vector3(RADIUS, 0.2, 0)];
+  const dome = 0.22;
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    shape.push(new Vector3(RADIUS * Math.cos(a), top - dome + dome * Math.sin(a), 0));
+  }
+  const m = MeshBuilder.CreateLathe(name, { shape, tessellation: 24, sideOrientation: Mesh.DOUBLESIDE }, scene);
+  m.scaling.z = DEPTH;
   m.material = mat;
   m.parent = parent;
   m.isPickable = false;
   return m;
 }
 
-// Wood: tan with darker grain running up the log in uneven streaks, a few knots, pixel-sized.
+// A limb's rod: a thin cylinder hanging down from its pivot.
+function rod(
+  scene: Engine['scene'],
+  name: string,
+  parent: TransformNode,
+  mat: StandardMaterial,
+  length: number,
+  radius: number,
+): Mesh {
+  const m = MeshBuilder.CreateCylinder(name, { diameter: radius * 2, height: length, tessellation: 8 }, scene);
+  m.material = mat;
+  m.parent = parent;
+  m.position.y = -length / 2;
+  m.isPickable = false;
+  return m;
+}
+
+// Wood: warm tan with faint grain running up the log, low in contrast so it reads as polished.
 function grainTexture(scene: Engine['scene'], name: string): DynamicTexture {
   const size = 32;
   const tex = new DynamicTexture(name, size, scene, false, Texture.NEAREST_SAMPLINGMODE);
   const ctx = tex.getContext() as CanvasRenderingContext2D;
-  ctx.fillStyle = '#c98c4f';
+  ctx.fillStyle = '#e09a52';
   ctx.fillRect(0, 0, size, size);
   let seed = 11;
   const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   for (let x = 0; x < size; x++) {
-    if (rng() < 0.35) {
-      ctx.fillStyle = rng() < 0.5 ? '#a86f3a' : '#b67b42';
+    if (rng() < 0.3) {
+      ctx.fillStyle = rng() < 0.5 ? '#d48e4a' : '#d9934d';
       for (let y = 0; y < size; y++) if (rng() < 0.85) ctx.fillRect(x, y, 1, 1);
     }
-  }
-  for (let k = 0; k < 3; k++) {
-    ctx.fillStyle = '#7d4f28';
-    ctx.fillRect(Math.floor(rng() * (size - 2)), Math.floor(rng() * (size - 3)), 2, 3);
   }
   tex.update();
   return tex;
 }
 
-// A thin disc facing +z, for the irises and pupils.
+// A thin disc facing +z, for the irises, pupils and glints.
 function disc(
   scene: Engine['scene'],
   name: string,
   parent: TransformNode,
-  mat: ReturnType<typeof flat>,
+  mat: StandardMaterial,
   diameter: number,
 ): Mesh {
-  const m = MeshBuilder.CreateCylinder(name, { diameter, height: 0.01, tessellation: 10 }, scene);
+  const m = MeshBuilder.CreateCylinder(name, { diameter, height: 0.006, tessellation: 12 }, scene);
   m.rotation.x = Math.PI / 2;
   m.material = mat;
   m.parent = parent;
