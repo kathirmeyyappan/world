@@ -443,7 +443,7 @@ export class Game {
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.minimap.update({
-      me: { x: p.x, z: p.z, yaw: this.input.yaw },
+      me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,
       cubes: sampled.cubes,
     });
@@ -520,12 +520,12 @@ export class Game {
   debug(): {
     id: string;
     pos: { x: number; y: number; z: number };
-    remotes: { id: string; name: string; x: number; z: number }[];
+    remotes: { id: string; name: string; x: number; y: number; z: number }[];
     sky: { id: string; x: number; z: number }[];
   } {
     const remotes = this.interp
       .sample(performance.now(), this.myId)
-      .players.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z }));
+      .players.map((p) => ({ id: p.id, name: p.name, x: p.x, y: p.y, z: p.z }));
     const sky = [...this.skyByMesh.values()].map((s) => ({
       id: s.content.id,
       x: Math.round(s.mesh.position.x),

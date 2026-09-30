@@ -240,7 +240,9 @@ protocol.
   browser interpolation.
 - Look is client-authoritative; movement, jumping, shooting, damage, and death are
   server-authoritative.
-- `Player.pos` is eye position. Yaw `0` faces `+z`; positive pitch looks down.
+- `Player.pos` is eye position, in three dimensions: structures put players on floors, stairs and
+  bridges, so `y` varies (feet are at `pos.y - 1.7`). Use straight-line distance, not `x`/`z` only,
+  when choosing targets. Yaw `0` faces `+z`; positive pitch looks down, and `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim

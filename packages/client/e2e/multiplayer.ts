@@ -12,8 +12,8 @@ declare global {
     __world?: {
       debug: () => {
         id: string;
-        pos: { x: number; z: number };
-        remotes: { id: string; name: string; x: number; z: number }[];
+        pos: { x: number; y: number; z: number };
+        remotes: { id: string; name: string; x: number; y: number; z: number }[];
       };
       setLook: (yaw: number, pitch?: number) => void;
     };
@@ -94,15 +94,15 @@ async function main() {
     await alice.keyboard.up('KeyW');
     await alice.waitForTimeout(400);
     const after = await debug(alice);
-    const moved = Math.hypot(after.pos.x - before.pos.x, after.pos.z - before.pos.z);
+    const moved = Math.hypot(after.pos.x - before.pos.x, after.pos.y - before.pos.y, after.pos.z - before.pos.z);
     console.log(`alice predicted move: ${moved.toFixed(2)}m`);
     if (moved < 2) throw new Error('alice did not move');
 
     const seenByBob = (await debug(bob)).remotes.find((r) => r.name === 'alice');
     if (!seenByBob) throw new Error('bob does not see alice');
-    const err = Math.hypot(seenByBob.x - after.pos.x, seenByBob.z - after.pos.z);
+    const err = Math.hypot(seenByBob.x - after.pos.x, seenByBob.y - after.pos.y, seenByBob.z - after.pos.z);
     console.log(
-      `bob sees alice at (${seenByBob.x.toFixed(2)}, ${seenByBob.z.toFixed(2)}), ${err.toFixed(2)}m from her predicted spot`,
+      `bob sees alice at (${seenByBob.x.toFixed(2)}, ${seenByBob.y.toFixed(2)}, ${seenByBob.z.toFixed(2)}), ${err.toFixed(2)}m from her predicted spot`,
     );
     if (err > 1) throw new Error('bob sees alice far from where she is');
 
