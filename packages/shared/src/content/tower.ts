@@ -1,9 +1,11 @@
-// Tung Tung Tower: an 80 m brick keep in the middle of the annex, sealed floor by floor. Each storey
-// is 20 m, and a wooden stair climbs half a turn against the inside wall from each floor up through a
-// hole in the one above, so the flights chain into one spiral: ground, 20, 40, then the top floor at
-// 60, whose west door opens onto a sky bridge. The bridge runs back over the floor bridge (inside
-// the outline's corridor, so players can't be clamped off it) to a floating terrace above the main
-// disc. A roof with battlements closes the top.
+// Tung Tung Tower: an 80 m brick keep in the middle of the annex, sealed floor by floor, with an
+// entrance on each side. Each storey is 20 m, and a wooden stair climbs half a turn against the
+// inside wall from each floor up through a hole in the one above, so the flights chain into one
+// spiral: ground, 20, 40, then the top floor at 60. Every floor above the ground has six doors out
+// to a balcony ringing the tower behind a low parapet (a sniper's perch), and the top balcony's west
+// side opens onto a sky bridge. The bridge runs back over the floor bridge (inside the outline's
+// corridor, so players can't be clamped off it) to a floating terrace above the main disc. A roof
+// with battlements closes the top.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 
 const X = 112; // the annex's centre (sim/world.ts)
@@ -17,10 +19,20 @@ const STAIR_INNER = INNER - STAIR_WIDTH;
 const FLOOR_R = INNER + WALL / 2; // floors run into the wall, so there's no gap at its foot
 const STOREY = 20;
 const TOP = 3 * STOREY; // the top floor, where the sky bridge leaves
-const STAIR_START = Math.PI / 2; // the first step, on the +z side; angles run from +x toward +z
-const HOLE = Math.PI / 6; // each floor is open over the last 30° of the flight arriving through it
-const DOOR = Math.PI; // west, facing the main disc
+const deg = (d: number) => (d * Math.PI) / 180; // angles run from +x toward +z
+const STAIR_START = deg(45); // the first step; clear of all four entrances
+const HOLE = deg(30); // each floor is open over the last 30° of the flight arriving through it
 const DOOR_HEIGHT = 3;
+const ENTRANCES = [0, 90, 180, 270].map(deg); // ground floor; 180° faces the floor bridge
+// Balcony doors on each upper floor. Every floor's stair hole ends at 45° or 225°, where that
+// floor's flight also starts, so the doors keep clear of both (a door is 7.5°, one wall segment).
+const BALCONY_DOORS = [0, 75, 127.5, 180, 255, 307.5].map(deg);
+const BRIDGE_DOOR = deg(180); // west, facing the main disc: the top balcony's way onto the bridge
+const BALCONY = 3; // metres of balcony outside the wall
+const PARAPET = 0.8; // under half a body, so it's cover you can shoot over
+// Door sills and the bridge deck sit this far below the floors they meet, so no two surfaces share
+// a height where they overlap (they'd flicker).
+const SILL = 0.02;
 const DECK = 0.4; // thickness of the bridge and terrace decks
 
 const TERRACE = { x: 30, z: 0, w: 16, d: 16 }; // over the east side of the main disc
@@ -36,8 +48,10 @@ const shell: Structure[] = [
     thickness: WALL,
     segments: 48,
     gaps: [
-      { angle: DOOR, bottom: 0, top: DOOR_HEIGHT }, // ground-floor entrance, facing the floor bridge
-      { angle: DOOR, bottom: TOP, top: TOP + DOOR_HEIGHT }, // top-floor door onto the sky bridge
+      ...ENTRANCES.map((angle) => ({ angle, bottom: 0, top: DOOR_HEIGHT })),
+      ...[STOREY, 2 * STOREY, TOP].flatMap((level) =>
+        BALCONY_DOORS.map((angle) => ({ angle, bottom: level - SILL, top: level + DOOR_HEIGHT })),
+      ),
     ],
     material: 'brick',
   }),
@@ -89,13 +103,31 @@ const inside: Structure[] = [
   ),
 ];
 
-// A low wall along a deck edge at the top floor's height, from a to b.
-const rail = (a: { x: number; z: number }, b: { x: number; z: number }): Box => ({
-  ...wall(a, b, RAIL, 0.2, TOP),
+// A ring outside the wall on every upper floor, reached through BALCONY_DOORS, behind a parapet
+// that opens only where the sky bridge leaves the top one.
+const balconies: Structure[] = [STOREY, 2 * STOREY, TOP].flatMap((level) => [
+  ...roundFloor({ x: X, z: Z, inner: OUTER, r: OUTER + BALCONY, y: level, material: 'flagstone' }),
+  ...roundWall({
+    x: X,
+    z: Z,
+    r: OUTER + BALCONY - 0.1,
+    y: level,
+    h: PARAPET,
+    thickness: 0.2,
+    segments: 48,
+    gaps: level === TOP ? [{ angle: BRIDGE_DOOR, bottom: level, top: level + PARAPET }] : [],
+    material: 'brick',
+  }),
+]);
+
+// A low wall along a deck edge, standing on the deck's top at y, from a to b.
+const rail = (a: { x: number; z: number }, b: { x: number; z: number }, y = TOP): Box => ({
+  ...wall(a, b, RAIL, 0.2, y),
   material: 'brick',
 });
 
-const bridgeStart = X - FLOOR_R; // back through the doorway to where the top floor ends
+const BRIDGE_TOP = TOP - SILL; // just under the balcony it tucks beneath
+const bridgeStart = X - OUTER - BALCONY + 0.2; // under the top balcony's outer edge, so no sliver between
 const bridgeEnd = TERRACE.x + TERRACE.w / 2;
 const halfW = BRIDGE_WIDTH / 2;
 const skyway: Structure[] = [
@@ -103,14 +135,14 @@ const skyway: Structure[] = [
     kind: 'box',
     x: (bridgeStart + bridgeEnd) / 2,
     z: Z,
-    y: TOP - DECK,
+    y: BRIDGE_TOP - DECK,
     w: bridgeStart - bridgeEnd,
     d: BRIDGE_WIDTH,
     h: DECK,
     material: 'flagstone',
   },
-  rail({ x: bridgeEnd, z: Z - halfW }, { x: bridgeStart, z: Z - halfW }),
-  rail({ x: bridgeEnd, z: Z + halfW }, { x: bridgeStart, z: Z + halfW }),
+  rail({ x: bridgeEnd, z: Z - halfW }, { x: bridgeStart, z: Z - halfW }, BRIDGE_TOP),
+  rail({ x: bridgeEnd, z: Z + halfW }, { x: bridgeStart, z: Z + halfW }, BRIDGE_TOP),
 ];
 
 const t = {
@@ -129,4 +161,4 @@ const terrace: Structure[] = [
   rail({ x: t.x1, z: Z + halfW }, { x: t.x1, z: t.z1 }),
 ];
 
-export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...skyway, ...terrace];
+export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...balconies, ...skyway, ...terrace];
