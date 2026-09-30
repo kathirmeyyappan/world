@@ -10,8 +10,8 @@ export class AreaTitle {
   private current: string | null = null;
   private timer = 0;
 
-  update(x: number, feet: number, z: number): void {
-    const name = areaAt(x, feet, z)?.name;
+  update(x: number, z: number): void {
+    const name = areaAt(x, z)?.name;
     if (!name || name === this.current) return;
     this.current = name;
     this.el.textContent = name;

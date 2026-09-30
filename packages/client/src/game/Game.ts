@@ -3,7 +3,6 @@
 import { Ray, UniversalCamera, Vector3 } from '@babylonjs/core';
 import {
   CUBES,
-  EYE_HEIGHT,
   ITEMS,
   SKY_OBJECTS,
   TICK_DT,
@@ -445,7 +444,7 @@ export class Game {
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
-    this.areaTitle.update(p.x, p.y - EYE_HEIGHT, p.z);
+    this.areaTitle.update(p.x, p.z);
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,
