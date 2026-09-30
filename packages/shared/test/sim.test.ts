@@ -6,6 +6,7 @@ import {
   JUMP_VELOCITY,
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
+  STEP_UP,
   TICK_DT,
   WORLD_SHAPE,
   Structures,
@@ -15,6 +16,7 @@ import {
   createPlayer,
   createRng,
   ramp,
+  stairs,
   stepCubes,
   stepPlayer,
   worldDistance,
@@ -174,4 +176,16 @@ test('a roof stops a jump and a doorway lets a player in', () => {
     top = Math.max(top, p.pos.y + 0.3);
   }
   assert.ok(top <= 2.4 + 1e-9, `head stopped at the roof, reached ${top}`);
+});
+
+test('walking climbs stairs without a jump, and a taller step stops you', () => {
+  const up = new Structures(stairs({ x: 0, z: 2 }, { x: 0, z: 5 }, 2, 2));
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  walk(p, 0, 18, up); // 4.8 m: onto the top step, which spans 4.63-5
+  assert.equal(p.pos.y, 2 + EYE_HEIGHT);
+  const tall = new Structures([{ kind: 'box', x: 0, z: 2, w: 2, d: 2, h: STEP_UP + 0.05 }]);
+  const q = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  walk(q, 0, 17, tall);
+  assert.ok(q.pos.y === EYE_HEIGHT && q.pos.z < 1, 'blocked at its edge');
+  assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, 2), /over/);
 });

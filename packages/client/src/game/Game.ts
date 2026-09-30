@@ -50,6 +50,7 @@ import { Pins } from '../ui/Pins';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
+const STEP_EASE_HALF_LIFE = 0.05; // seconds for the camera to catch up with a step up or down
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
@@ -96,6 +97,7 @@ export class Game {
   private mouseWasHeld = false;
   private localCooldownUntil = 0; // when the viewmodel may kick again; mirrors the server's cooldown
   private kick = 0; // camera recoil, radians of upward pitch that decays back
+  private stepEase = 0; // metres the camera trails the predicted eye height after a step
   private hoveredSky: SkyObject | null = null;
 
   private prediction: Prediction | null = null;
@@ -388,14 +390,15 @@ export class Game {
         this.itemActions(),
         this.interp.viewTick,
       );
-      this.prediction.apply(frame);
+      this.stepEase -= this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
 
     const decay = Math.pow(0.5, dt / CORRECTION_HALF_LIFE);
     this.correction.scaleInPlace(decay);
+    this.stepEase *= Math.pow(0.5, dt / STEP_EASE_HALF_LIFE);
     const p = this.prediction.state.pos;
-    this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
+    this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y + this.stepEase, p.z + this.correction.z);
     this.kick *= Math.pow(0.5, dt / KICK_HALF_LIFE);
     if (this.kick < 1e-4) this.kick = 0;
     this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);

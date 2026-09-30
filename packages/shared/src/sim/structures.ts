@@ -7,6 +7,7 @@
 // (default 0, on the floor), and its kind says how high its top is at each point of the footprint.
 // Standing, bumping, ceilings and line of sight are all worked out from those two facts, so a new
 // kind needs a case in `surfaceOf` here and a builder in the client; the compiler asks for both.
+import { STEP_UP } from './constants';
 
 export interface Footprint {
   x: number;
@@ -114,6 +115,35 @@ export function ramp(low: { x: number; z: number }, high: { x: number; z: number
     d: Math.hypot(high.x - low.x, high.z - low.z),
     h,
   };
+}
+
+// A flight of solid steps from `bottom` on the floor (or at y) up to `top`, rising by h in total,
+// width w. Each step rises h / steps; the default keeps that near 0.25 m. Throws if a step is
+// taller than a player can walk up (STEP_UP).
+export function stairs(
+  bottom: { x: number; z: number },
+  top: { x: number; z: number },
+  h: number,
+  w: number,
+  steps = Math.max(1, Math.ceil(h / 0.25)),
+  y = 0,
+): Box[] {
+  if (h / steps > STEP_UP) throw new Error(`stairs: ${steps} steps rising ${h} m are over ${STEP_UP} m each`);
+  const yaw = Math.atan2(top.x - bottom.x, top.z - bottom.z);
+  const depth = Math.hypot(top.x - bottom.x, top.z - bottom.z) / steps;
+  return Array.from({ length: steps }, (_, i) => {
+    const t = (i + 0.5) / steps;
+    return {
+      kind: 'box',
+      x: bottom.x + (top.x - bottom.x) * t,
+      z: bottom.z + (top.z - bottom.z) * t,
+      y,
+      yaw,
+      w,
+      d: depth,
+      h: (h * (i + 1)) / steps,
+    };
+  });
 }
 
 // Four walls and a roof. The doorway is a gap of `door` metres in the middle of the local +z

@@ -268,7 +268,7 @@ space` is the kind to keep). Don't narrate the change or answer the request that
 
 Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
 `packages/shared/src/content/structures.ts`, with kinds and authoring helpers (`wall`, `ramp`,
-`building`, `terrain`) in `packages/shared/src/sim/structures.ts`. The sim collides with them through
+`stairs`, `building`, `terrain`) in `packages/shared/src/sim/structures.ts`. The sim collides with them through
 `sim/collision.ts` (standing, walls, ceilings, line of sight) and the client draws the same list
 (`render/Structures.ts`), so adding an entry is the whole job. Nothing about structures goes over the
 wire: server and client both build the world from that file.
@@ -276,9 +276,10 @@ wire: server and client both build the world from that file.
 ### Adding structures
 
 - Use the helpers rather than hand-computing yaw and centres: `wall(a, b, h)` runs between two floor
-  points, `ramp(low, high, h, w)` rises from `low` to `high`, `building({...})` is four walls, a
-  doorway and a roof, and `terrain({ height })` samples a function. Write raw `{ kind: 'box', ... }`
-  only for simple platforms and pillars.
+  points, `ramp(low, high, h, w)` rises from `low` to `high`, `stairs(bottom, top, h, w)` is solid
+  steps players walk up without jumping (the camera eases over each), `building({...})` is four
+  walls, a doorway and a roof, and `terrain({ height })` samples a function. Write raw
+  `{ kind: 'box', ... }` only for simple platforms and pillars.
 - Group entries by place, one short comment per group saying what it is (`// the annex watchtower`).
   A composite you'll reuse (a staircase, a bridge rail) is a function returning `Structure[]` in
   `sim/structures.ts` next to `building`; a one-off stays inline in the content file.
