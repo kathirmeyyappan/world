@@ -538,9 +538,12 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   await Promise.resolve();
   spawned.length = 0; // alice's arrival spawned the room's default bots; this test is about calls
 
+  const alice = room.players.find((p) => p.id === ida)!;
+  Object.assign(alice.pos, { x: 112, z: 0 }); // the middle of the annex, 62 m from the main disc's edge
   room.receive(ida, { t: 'chat', text: '/circle-bot 60' });
   await Promise.resolve();
-  assert.deepEqual(spawned, [{ bot: 'circle', room: 'late-night', seconds: 60, caller: 'alice' }]);
+  const { spawn: _, ...call } = spawned[0];
+  assert.deepEqual(call, { bot: 'circle', room: 'late-night', seconds: 60, caller: 'alice' });
   assert.ok(
     b.inbox.some((m) => m.t === 'system' && m.text === 'alice called circle-bot for 60s'),
     'everyone hears',
@@ -552,6 +555,9 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   room.receive(ida, { t: 'chat', text: '/circle 9999' });
   await Promise.resolve();
   assert.equal(spawned[2].seconds, 3500, 'capped');
+  for (const { spawn } of spawned) {
+    assert.ok(spawn && Math.hypot(spawn.x - 112, spawn.z) <= 50, `a called bot spawns near the caller: ${spawn?.x}`);
+  }
   room.receive(ida, { t: 'chat', text: '/circle-bot soon' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'usage: /circle-bot [seconds]' });
 
