@@ -310,7 +310,6 @@ export class Game {
         this.hud.addPlayer(m.p);
         return;
       case 'leave': {
-        // A corpse whose seat was dropped goes up in a puff rather than just blinking out.
         const avatar = this.avatars.get(m.id);
         const corpse = avatar?.corpse();
         if (corpse) poof(this.engine, corpse);

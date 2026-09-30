@@ -1,6 +1,6 @@
 // A puff of chunky pixel "+"s scattering from a point: a corpse vanishing when its seat is dropped.
-// Retro on purpose: every "+" is a sprite from a tiny sheet (two sizes, three greys), drawn
-// with nearest sampling, never fades, and blinks out at the end of its own short life.
+// Every "+" is a sprite from a tiny sheet (two sizes, three greys) drawn with nearest sampling; none
+// fade, each blinks out at the end of its own short life.
 // One burst, gone in well under a second; the particle system disposes itself, texture and all.
 import { Color4, DynamicTexture, ParticleSystem, Texture, Vector3 } from '@babylonjs/core';
 import type { Engine } from './Engine';

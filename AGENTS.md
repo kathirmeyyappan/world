@@ -252,6 +252,18 @@ Don't overtest; the suite is already near the point of bloat. Before adding a te
   their numbers in the PR, and don't commit them.
 - If a change seems to need many new tests, the change is probably too big.
 
+## Comments
+
+Comments are welcome; the rule is about who they're written for. Write them for someone reading
+the code cold, long after the conversation or PR that produced it: say what a function, constant or
+block is and why it has to be that way (`// The middle of a node and everything under it, in world
+space` is the kind to keep). Don't narrate the change or answer the request that prompted it.
+
+- No history or contrast with the old behavior: "now", "instead of", "rather than just", "no longer",
+  "used to", "on purpose", "as requested". That belongs in the commit message and PR description.
+- Comment what the code can't say itself: units, invariants, constraints, and the reason behind a
+  non-obvious choice. Skip comments that restate the line below them.
+
 ## Pull requests
 
 Anything visual requires desktop and, for HUD changes, mobile screenshots in the PR description,
