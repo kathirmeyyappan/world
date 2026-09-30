@@ -1,4 +1,29 @@
 // GLSL for the environment. Kept in one place so the ground, sky and boundary share helpers.
+import { EYE_HEIGHT } from '@world/shared';
+
+// The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera.
+export const GROUND_FOG = 0.00035;
+
+// The sky's colour in a direction. Its horizon (`horizon`, the sine of its elevation) is where the
+// floor fades into the fog rather than eye level: 0 standing on the floor, below 0 up high, so
+// looking out from a tower the glow meets the floor instead of floating over a band of fog.
+// Needs fogColor declared first.
+const SKY_GRADIENT = `
+uniform vec3 zenithColor;
+uniform vec3 horizonColor;
+uniform float horizon;
+
+// Height above the horizon, rescaled so the horizon is 0 and straight up is 1.
+float aboveHorizon(vec3 dir) {
+  return (dir.y - horizon) / (1.0 - horizon);
+}
+
+vec3 skyColor(vec3 dir) {
+  float y = aboveHorizon(dir);
+  vec3 col = mix(horizonColor, zenithColor, pow(clamp(y, 0.0, 1.0), 0.6));
+  return mix(fogColor, col, smoothstep(-0.02, 0.12, y));
+}
+`;
 
 export const GROUND_VERTEX = `
 precision highp float;
@@ -41,8 +66,9 @@ float worldDistance(vec2 p) {
 }
 `;
 
-// Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the fog
-// colour. The grid dims past the world's edge.
+// Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
+// colour in that direction, so the floor meets the horizon wherever you're standing. The grid dims
+// past the world's edge.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
@@ -54,6 +80,7 @@ uniform vec3 fogColor;
 uniform float fogScale; // 1 normally, small while scoped so the far end is visible
 uniform float time;
 ${WORLD_SDF}
+${SKY_GRADIENT}
 
 float gridLine(vec2 p, float spacing, float width) {
   vec2 g = abs(fract(p / spacing - 0.5) - 0.5) * spacing;
@@ -73,8 +100,8 @@ void main() {
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
-  float fog = 1.0 - exp(-dist * dist * 0.00035 * fogScale);
-  col = mix(col, fogColor, fog);
+  float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
+  col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -95,20 +122,37 @@ export const SKY_FRAGMENT = `
 precision highp float;
 varying vec3 vDir;
 uniform vec3 fogColor;
-uniform vec3 zenithColor;
-uniform vec3 horizonColor;
 uniform float time;
+${SKY_GRADIENT}
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
+// A star cell for a direction: the direction projected onto the face of a cube around the camera
+// that it points through, cut into 400 × 400 cells per face (a few pixels each), so stars are spread evenly down to
+// whatever horizon the view has (it drops below eye level up high).
+vec2 starCell(vec3 d) {
+  vec3 a = abs(d);
+  vec2 uv;
+  float face;
+  if (a.y >= a.x && a.y >= a.z) {
+    uv = d.xz / a.y;
+    face = d.y > 0.0 ? 0.0 : 1.0;
+  } else if (a.x >= a.z) {
+    uv = d.zy / a.x;
+    face = d.x > 0.0 ? 2.0 : 3.0;
+  } else {
+    uv = d.xy / a.z;
+    face = d.z > 0.0 ? 4.0 : 5.0;
+  }
+  return floor(uv * 200.0) + vec2(face * 500.0, 0.0);
+}
+
 void main() {
-  float h = clamp(vDir.y, 0.0, 1.0);
-  vec3 col = mix(horizonColor, zenithColor, pow(h, 0.6));
-  col = mix(fogColor, col, smoothstep(-0.02, 0.12, vDir.y));
-  vec2 cell = floor(vDir.xz / max(vDir.y, 0.05) * 60.0);
-  float star = step(0.995, hash(cell)) * smoothstep(0.08, 0.35, vDir.y);
+  vec3 col = skyColor(vDir);
+  vec2 cell = starCell(vDir);
+  float star = step(0.995, hash(cell)) * smoothstep(0.08, 0.35, aboveHorizon(vDir));
   float twinkle = 0.6 + 0.4 * sin(time * 2.0 + hash(cell + 1.0) * 6.28);
   col += vec3(0.9, 0.95, 1.0) * star * twinkle * 0.8;
   gl_FragColor = vec4(col, 1.0);
@@ -133,7 +177,8 @@ void main() {
 }
 `;
 
-// The play boundary: a hex mesh that only appears when the camera is close to it.
+// The play boundary: a hex mesh that only appears near the camera: within revealDistance across,
+// and within a few metres of your feet up and down, so it shows at whatever height you're at.
 export const WALL_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
@@ -162,9 +207,11 @@ void main() {
   float line = hexLine(uv, 1.6, 0.06);
   float dist = length(vWorld.xz - cameraPos.xz);
   float reveal = 1.0 - smoothstep(2.0, revealDistance, dist); // fully lit only right at the wall
-  float heightFade = 1.0 - smoothstep(6.0, 14.0, vWorld.y);
+  float feet = cameraPos.y - ${EYE_HEIGHT.toFixed(2)};
+  float heightFade = 1.0 - smoothstep(6.0, 14.0, abs(vWorld.y - feet));
   float pulse = 0.8 + 0.2 * sin(time * 3.0 + vWorld.y * 0.8);
   float alpha = line * reveal * heightFade * pulse;
+  if (alpha <= 0.0) discard; // most of the ribbon, most of the time: skip the blend
   gl_FragColor = vec4(wallColor * (0.6 + 0.4 * reveal), alpha);
 }
 `;
