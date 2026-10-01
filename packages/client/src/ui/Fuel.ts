@@ -17,10 +17,12 @@ export class Fuel {
       this.el.classList.toggle('hidden', !show);
     }
     if (fraction === null) return;
-    const level = Math.round(fraction * 100);
+    // In tenths of a percent: a slow refill (an 8 s tank takes about 27 s) crosses a whole percent
+    // only every quarter second, which reads as the bar stepping.
+    const level = Math.round(fraction * 1000);
     if (level === this.level) return;
     this.level = level;
-    this.fill.style.width = `${level}%`;
+    this.fill.style.width = `${level / 10}%`;
     this.el.classList.toggle('empty', level === 0);
   }
 }
