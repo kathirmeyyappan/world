@@ -337,6 +337,9 @@ protocol.
 - Room capacity is 32 players. A bot is a visible player and occupies a seat. `connect` joins with
   `bot=1`, so `Player.bot` is true for every bot, the roster shows a robot icon, and a room with only
   bots left closes like an empty one (the server disconnects them).
+- A name's tags work for bots only as looks: a bot named with `ELIZABETH` in it looks like her, but
+  no name hands a bot a permanent weapon (a person whose name contains `GUN`, `SNIPER` or
+  `FLAMETHROWER` gets one), so `-n GUNNER` can't leave a sniper unable to draw its rifle.
 - A bot may choose where it spawns and how it looks: pass `spawn` (a feet position, `Vec3`) and
   `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,
   clamping the spot inside the world and standing the bot on the surface under it; the avatar is

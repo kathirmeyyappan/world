@@ -34,7 +34,7 @@ export interface ItemSpec {
   fire: FireShape;
   fireNeedsScope: boolean; // can only shoot while scoped
   fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at FUEL_REFILL_RATE
-  nameTag: string; // a name containing this spawns with the item permanently
+  nameTag: string; // a person whose name contains this spawns with the item permanently
   blurb: string; // one plain line for the commands menu
 }
 
