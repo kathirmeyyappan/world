@@ -253,12 +253,13 @@ body {
   top: 0;
   font: bold 20px var(--mono);
   white-space: nowrap;
+  /* An outline that scales with the text, so a small far name isn't all outline. */
   text-shadow:
-    -2px 0 0 #000,
-    2px 0 0 #000,
-    0 -2px 0 #000,
-    0 2px 0 #000,
-    2px 2px 0 #000;
+    -0.1em 0 0 #000,
+    0.1em 0 0 #000,
+    0 -0.1em 0 #000,
+    0 0.1em 0 #000,
+    0.1em 0.1em 0 #000;
 }
 .pin {
   position: absolute;

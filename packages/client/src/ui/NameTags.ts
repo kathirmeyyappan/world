@@ -1,16 +1,17 @@
 // Remote players' names over their heads, as page text rather than in the 3D scene: the scene
 // renders at a fraction of screen resolution for its pixel look, which turns a name more than a
-// few metres off into a smudge. Each tag sits over the top of its avatar's body, shrinks with
-// distance down to a size that stays readable, and hides while a structure stands between it and
-// the camera. Off-screen players get a pin instead (Pins.ts).
+// few metres off into a smudge. Each tag sits over the top of its avatar's body at the size it
+// would have in the world (lettering TAG_EM metres tall, seen through the camera's field of
+// view), kept between MIN_PX and MAX_PX, and hides while a structure stands between it and the
+// camera. Off-screen players get a pin instead (Pins.ts).
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 import { AVATARS, EYE_HEIGHT, WORLD_STRUCTURES } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
 
 const ABOVE_BODY = 0.3; // metres from the top of the body to the middle of the name
-const PX_METRES = 120; // font size in CSS px at 1 m; it falls off with distance (20 px at 6 m)
-const MIN_PX = 13;
-const MAX_PX = 24;
+const TAG_EM = 0.23; // metres: the font size in the world, about 20 px at 6 m
+const MIN_PX = 9; // far off, small but still sharp
+const MAX_PX = 28;
 
 // The element, and the font size and stacking last written to it (writes only on change).
 interface Tag {
@@ -30,6 +31,7 @@ export class NameTags {
     const viewport = camera.viewport.toGlobal(w, h);
     const transform = scene.getTransformMatrix();
     const eye = camera.globalPosition;
+    const pxPerMetreAt1m = h / (2 * Math.tan(camera.fov / 2)); // vertical field of view
     const seen = new Set<string>();
 
     for (const p of players) {
@@ -47,7 +49,7 @@ export class NameTags {
       tag.el.style.display = visible ? 'block' : 'none';
       if (!visible) continue;
       const d = Vector3.Distance(eye, at);
-      const px = Math.round(Math.min(MAX_PX, Math.max(MIN_PX, PX_METRES / d)));
+      const px = Math.round(Math.min(MAX_PX, Math.max(MIN_PX, (TAG_EM * pxPerMetreAt1m) / d)));
       if (px !== tag.px) {
         tag.px = px;
         tag.el.style.fontSize = `${px}px`;
