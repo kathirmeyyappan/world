@@ -46,7 +46,14 @@ def test_sidecar_spawns_each_worker_from_the_room_request_and_reports_failures()
         assert (
             post(port, {"bot": "stalker", "room": "late-night", "seconds": 600, "caller": "room", **placed})[0] == 202
         )
-        sniper = {"bot": "sniper", "room": "late-night", "seconds": 60, "caller": "kathir", "targets": ["Kat"]}
+        sniper = {
+            "bot": "sniper",
+            "room": "late-night",
+            "seconds": 60,
+            "caller": "kathir",
+            "name": "hunter",
+            "targets": ["Kat"],
+        }
         assert post(port, sniper, "combat")[0] == 202
         assert calls == [
             ("run_dumb_bot", {"bot": "circle", "room": "late-night", "seconds": 60.0}),
@@ -60,7 +67,10 @@ def test_sidecar_spawns_each_worker_from_the_room_request_and_reports_failures()
                     "avatar": "elizabeth",
                 },
             ),
-            ("run_combat_bot", {"bot": "sniper", "room": "late-night", "seconds": 60.0, "targets": ["Kat"]}),
+            (
+                "run_combat_bot",
+                {"bot": "sniper", "room": "late-night", "seconds": 60.0, "name": "hunter", "targets": ["Kat"]},
+            ),
         ]
         status, text = post(port, {"bot": "broken", "room": "x", "seconds": 5})
         assert status == 502 and "modal says no" in text

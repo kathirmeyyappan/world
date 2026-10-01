@@ -30,3 +30,4 @@ def test_quarry_is_every_living_person_or_whoever_the_names_pick() -> None:
     assert {p.name for p in quarry(state, ())} == {"Kathir", "katie"}, "people only, never itself or the dead"
     assert {p.name for p in quarry(state, ("KAT",))} == {"Kathir", "katie"}, "any part of a name, any case"
     assert {p.name for p in quarry(state, ("circle", "bob"))} == {"circle-bot"}, "a named bot, but not the dead"
+    assert quarry(state, ("SNIPER",)) == [], "targets that match its own name still leave it out"

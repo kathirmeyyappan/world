@@ -26,7 +26,7 @@ import {
   TICK_DT,
   TICK_RATE,
 } from './sim/constants';
-import { parseCommand, type Command } from './commands';
+import { parseCommand, type BotCallArgs, type Command } from './commands';
 import { resolveFire } from './sim/combat';
 import { PositionHistory, rewindTick } from './sim/rewind';
 import { applyDamage, damageFor, fallDamage } from './sim/health';
@@ -395,7 +395,7 @@ export class Room {
         return;
       }
       case 'bot':
-        this.callBot(seat, command.bot, command.seconds, command.targets);
+        this.callBot(seat, command.bot, command.call);
         return;
       case 'kill-bots':
         this.killBots(seat);
@@ -406,23 +406,28 @@ export class Room {
     }
   }
 
-  // "/circle-bot 60" or "/sniper-bot 60 kat": ask the host to start a bot in this room, hunting
-  // `targets` if it's a combat bot. People only, and only where the host can reach Modal. There is
-  // no bot cap beyond the room's 32 seats.
-  private callBot(seat: Seat, id: BotId, seconds: number | null, targets: string[]): void {
+  // "/circle-bot -t 60 -n bob" or "/sniper-bot -n hunter --targets kat": ask the host to start a
+  // bot in this room, under its own name or the one given, hunting `targets` if it's a combat bot.
+  // People only, and only where the host can reach Modal. There is no bot cap beyond the room's
+  // 32 seats.
+  private callBot(seat: Seat, id: BotId, call: BotCallArgs | null): void {
     const me = seat.state;
     const bot = BOTS[id];
     const tell = (text: string) => seat.link.send({ t: 'system', text });
-    if (seconds === null) return tell(`usage: /${bot.playerName} ${BOT_ARGUMENTS[bot.worker]}`);
+    if (call === null) return tell(`usage: /${bot.playerName} ${BOT_ARGUMENTS[bot.worker]}`);
+    const { seconds, targets } = call;
+    const name = call.botName === null ? undefined : sanitizeName(call.botName);
     if (me.bot) return tell("bots can't call bots");
     if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
     if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
 
+    const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';
-    this.broadcast({ t: 'system', text: `${me.name} called ${bot.playerName} for ${seconds}s${after}` });
+    this.broadcast({ t: 'system', text: `${me.name} called ${who} for ${seconds}s${after}` });
     const near = this.spawnPoint(me.pos);
     const spawn = { x: near.x, y: near.y - EYE_HEIGHT, z: near.z };
-    const req = botRequest({ bot: id, room: this.publicName, seconds, caller: me.name, spawn }, targets);
+    const named = name === undefined ? {} : { name };
+    const req = botRequest({ bot: id, room: this.publicName, seconds, caller: me.name, spawn, ...named }, targets);
     this.spawnBot(req).catch((err: unknown) => {
       this.log(`bot ${id} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
       tell(`couldn't call ${bot.playerName}`);

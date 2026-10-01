@@ -78,7 +78,8 @@ DUMB_BOTS = {
 
 A combat bot goes in `COMBAT_BOTS` instead.
 
-The key is the `--bot` value; the in-game player name is `<key>-bot`. Do not implement dynamic discovery.
+The key is the `--bot` value; the in-game player name is `<key>-bot` unless the caller names it
+(`-n` in chat, `--name` with `modal run`). Do not implement dynamic discovery.
 An ordinary bot requires no change to `app.py`.
 
 ## Mandatory shared APIs
@@ -258,10 +259,12 @@ Never use `global` for automated testing.
 
 ### Calling bots from chat
 
-`/circle-bot [seconds]`, `/stalker-bot [seconds]` and `/sniper-bot [seconds] [name substrings]` start a bot
-in the caller's room, on the ground within 50 m of them; seconds default to 300 and cap at 3500. The
-`-bot` suffix is optional where the bare word isn't already a command (`/circle`, but `/sniper` is
-the rifle). A combat bot's words after the seconds, which it can leave out, are its `targets`.
+`/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, on the ground
+within 50 m of them. They take flags in any order, each at most once: `-t <seconds>` (default 300,
+capped at 3500), `-n <name>` (what it plays as, `<bot>-bot` without one), and for a combat bot
+`--targets <name substrings…>`, every word up to the next flag. A bare word, an unknown or repeated
+flag, or a flag with no value gets the usage line instead (`BOT_ARGUMENTS`). The `-bot` suffix is
+optional where the bare word isn't already a command (`/circle`, but `/sniper` is the rifle).
 `/kill-bots` drops every living bot in the room dead where it stands, with no kill event; each
 corpse is removed like any bot's, which closes its connection and ends its run. The registry is
 `packages/shared/src/sim/bots.ts` (id, player name, worker, blurb), which also fills the commands
@@ -270,8 +273,8 @@ host must have a spawner) and calls `RoomOptions.spawnBot` with a `BotRequest` f
 `packages/server/src/bots.ts` implements it as one POST to `BOT_SPAWNER_URL/<worker>`, the localhost
 sidecar `infra/bot_sidecar.py` that the Room container's Python process runs. The sidecar spawns the
 worker's function (`BOTS_FUNCTIONS` in `infra/config.py`: `run_dumb_bot` or `run_combat_bot`, each
-looked up once) with `{bot, room, seconds}`, the request's placement (`spawn`, `avatar`) and, for a
-combat bot, `targets`, using the container's own Modal credentials; Node never holds a token. A bot
+looked up once) with `{bot, room, seconds}`, the request's `name` and placement (`spawn`, `avatar`)
+and, for a combat bot, `targets`, using the container's own Modal credentials; Node never holds a token. A bot
 called from chat therefore needs a row in `bots.ts` as well as its Python module; one without a row
 (the observer) is started only with `modal run`.
 
@@ -286,7 +289,7 @@ The Room spawns them once, with `caller: 'room'`.
 - `kathir-world-bots-config` must contain `WORLD_LOBBY_URL`.
 - Run:
   `modal run modal-bots/app.py --bot <registry-key> --room <room> --seconds <n>`, which picks the
-  bot's worker (and `--targets kat,bob` for a combat bot).
+  bot's worker (`--name` renames it, and `--targets kat,bob` aims a combat bot).
 - Both workers share the default image, Secret, CPU, and timeout.
 - Bots run many to a container: the workers are async, so up to `MAX_BOTS_PER_CONTAINER` bots share
   one event loop, the autoscaler adds a container past `TARGET_BOTS_PER_CONTAINER`, and

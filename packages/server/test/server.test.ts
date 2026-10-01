@@ -76,7 +76,7 @@ test('two clients in one room see each other move', async () => {
   }
 });
 
-test('/circle-bot posts the room request to the bot sidecar', async () => {
+test('/circle-bot -t 60 posts the room request to the bot sidecar', async () => {
   const received: { url?: string; body: BotRequest }[] = [];
   const sidecar = createServer((req, res) => {
     let body = '';
@@ -93,7 +93,7 @@ test('/circle-bot posts the room request to the bot sidecar', async () => {
   try {
     const a = connect(port, 'late-night', 'kathir');
     await a.next((m) => m.t === 'welcome');
-    a.send({ t: 'chat', text: '/circle-bot 60' });
+    a.send({ t: 'chat', text: '/circle-bot -t 60' });
     const said = await a.next((m) => m.t === 'system' && m.text.includes('called'));
     assert.equal(said.t === 'system' && said.text, 'kathir called circle-bot for 60s');
     // the first person in brings the room's default bots (sim/defaultBots.ts), then the call

@@ -84,8 +84,9 @@ function buildGroups(): Group[] {
           `/${BOTS[id].playerName} ${BOT_ARGUMENTS[BOTS[id].worker]}`,
           [
             BOTS[id].blurb,
-            ...(BOTS[id].worker === 'combat' ? ['or name a few (any part of a name)'] : []),
-            `${BOT_DEFAULT_SECONDS}s unless you say`,
+            ...(BOTS[id].worker === 'combat' ? ['--targets picks who (any part of a name)'] : []),
+            `-t defaults to ${BOT_DEFAULT_SECONDS}s`,
+            '-n renames it',
           ].join(' · '),
         ]),
         ['/kill-bots', 'every bot in the room drops dead'],

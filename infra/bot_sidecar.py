@@ -2,8 +2,8 @@
 
 The Room container's Python process already carries the container's Modal credentials, so it,
 not Node, spawns the bots app's workers. One route per worker, POST /bots/<worker> with the JSON
-BotRequest that packages/shared defines ({bot, room, seconds, caller}, optionally spawn {x, y, z}
-and avatar, and for a combat bot targets [names]); 202 with the function call id when queued, 4xx
+BotRequest that packages/shared defines ({bot, room, seconds, caller}, optionally name, spawn
+{x, y, z} and avatar, and for a combat bot targets [names]); 202 with the function call id when queued, 4xx
 for a bad request, 502 when Modal refuses. Bound to 127.0.0.1 only.
 """
 
@@ -43,6 +43,8 @@ def _function(name: str) -> modal.Function[..., Any, Any]:
 def _arguments(worker: str, body: dict[str, Any]) -> dict[str, Any]:
     """The worker's keyword arguments from a request body; raises on a malformed one."""
     kwargs: dict[str, Any] = {"bot": str(body["bot"]), "room": str(body["room"]), "seconds": float(body["seconds"])}
+    if "name" in body:
+        kwargs["name"] = str(body["name"])
     if "spawn" in body:
         kwargs["spawn"] = {axis: float(body["spawn"][axis]) for axis in ("x", "y", "z")}
     if "avatar" in body:
@@ -67,7 +69,9 @@ def start_bot_sidecar(port: int, spawn: Spawner = spawn_on_modal) -> ThreadingHT
                 body = json.loads(self.rfile.read(int(self.headers.get("content-length", "0"))))
                 kwargs = _arguments(worker, body)
             except (ValueError, KeyError, TypeError):
-                return self._reply(400, "expected {bot, room, seconds}, optionally spawn {x, y, z}, avatar and targets")
+                return self._reply(
+                    400, "expected {bot, room, seconds}, optionally name, spawn {x, y, z}, avatar and targets"
+                )
             try:
                 call_id = spawn(BOTS_FUNCTIONS[worker], kwargs)
             except Exception as exc:  # noqa: BLE001 (any Modal failure is a 502 to Node)

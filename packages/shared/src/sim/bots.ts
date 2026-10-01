@@ -45,8 +45,8 @@ export const BOTS: Record<BotId, BotSpec> = {
 
 // What follows a bot's command for each worker, for usage lines and the commands menu.
 export const BOT_ARGUMENTS: Record<BotWorker, string> = {
-  dumb: '[seconds]',
-  combat: '[seconds] [name substrings]',
+  dumb: '[-t seconds] [-n name]',
+  combat: '[-t seconds] [-n name] [--targets name substrings]',
 };
 
 export const BOT_IDS = Object.keys(BOTS) as BotId[];
@@ -82,13 +82,15 @@ export function placementFromQuery(get: (key: string) => string | null): BotPlac
 
 // What the room asks the host to start, on the bot's worker. `room` is the public room code the
 // bot joins through the lobby, so it lands in the caller's session; `caller` is who asked ('room'
-// for its starting bots). A combat bot's `targets` are parts of names, any case, that it goes
-// after; none means every person (bots only when named).
+// for its starting bots); `name`, when given, is what the bot plays as instead of its playerName.
+// A combat bot's `targets` are parts of names, any case, that it goes after; none means every
+// person (bots only when named), and never the bot itself.
 interface BotCall extends BotPlacement {
   bot: BotId;
   room: string;
   seconds: number;
   caller: string;
+  name?: string;
 }
 
 export type BotRequest = (BotCall & { worker: 'dumb' }) | (BotCall & { worker: 'combat'; targets: string[] });

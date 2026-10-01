@@ -93,8 +93,8 @@ stays until its run ends.
 Two ways to start one:
 
 - By hand: `modal run modal-bots/app.py --bot circle --room late-night --seconds 60`.
-- From chat: `/circle-bot 60` (or `/stalker-bot`, or `/sniper-bot 60 kat` with names to hunt;
-  seconds default to 300, max 3500). The Room checks the caller is a person and the room has a free
+- From chat: `/circle-bot -t 60` (or `/stalker-bot -n watcher`, or `/sniper-bot -t 60 --targets kat`
+  with names to hunt; flags in any order, seconds default to 300, max 3500). The Room checks the caller is a person and the room has a free
   seat, then the Node server posts the request to a localhost sidecar (`infra/bot_sidecar.py`) in the
   same container, on the bot's worker's route, and that Python process spawns
   `kathir-world-bots/run_dumb_bot` or `run_combat_bot` with the container's own Modal credentials.
