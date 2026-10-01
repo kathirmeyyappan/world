@@ -93,17 +93,18 @@ stays until its run ends.
 Two ways to start one:
 
 - By hand: `modal run modal-bots/app.py --bot circle --room late-night --seconds 60`.
-- From chat: `/circle-bot 60` (or `/stalker-bot`; seconds default to 300, max 3500). The Room checks
-  the caller is a person and the room has a free seat, then the Node server
-  posts the request to a localhost sidecar (`infra/bot_sidecar.py`) in the same container, and that
-  Python process spawns `kathir-world-bots/run_bot` with the container's own Modal credentials. Node
-  never holds a token. Without a sidecar (local dev) the command says bots can't be called.
+- From chat: `/circle-bot 60` (or `/stalker-bot`, or `/sniper-bot 60 kat` with names to hunt;
+  seconds default to 300, max 3500). The Room checks the caller is a person and the room has a free
+  seat, then the Node server posts the request to a localhost sidecar (`infra/bot_sidecar.py`) in the
+  same container, on the bot's worker's route, and that Python process spawns
+  `kathir-world-bots/run_dumb_bot` or `run_combat_bot` with the container's own Modal credentials.
+  Node never holds a token. Without a sidecar (local dev) the command says bots can't be called.
 
 Rooms also start with bots: the first person in brings the line-up from
 `packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`, two circle bots for now), spawned the
 same way with `caller: 'room'`.
 
 Deploy the bots app separately: `modal deploy modal-bots/app.py`, with the `kathir-world-bots-config`
-Secret holding `WORLD_LOBBY_URL`. The contract for writing a bot is in `CLAUDE.md` and `AGENTS.md`.
+Secret holding `WORLD_LOBBY_URL` (`./deploy.sh` deploys both apps and rebuilds the bots' map). The contract for writing a bot is in `CLAUDE.md` and `AGENTS.md`.
 
 ![how a bot gets into a room](bot-flow.png)

@@ -15,7 +15,12 @@ browser players.
 
 ## Creating a bot
 
-Create `modal-bots/bots/<name>_bot.py` with exactly one registered behavior:
+Create `modal-bots/bots/<name>_bot.py` with exactly one registered behavior. It runs on one of the
+bots app's two Modal workers: a dumb bot (circle, stalker, observer) on `run_dumb_bot`, satisfying
+`DumbBotInvocation` in `modal-bots/bots/__init__.py`; a combat bot (the sniper) on
+`run_combat_bot`, satisfying `CombatBotInvocation`, which adds the world map and `targets` (parts of
+player names, any case; empty means every person). A bot that needs to see past walls, find a way
+around, or take names from chat is a combat bot.
 
 ```python
 async def run_example_bot(
@@ -31,7 +36,23 @@ async def run_example_bot(
     ...
 ```
 
-This signature must satisfy `BotInvocation` in `modal-bots/bots/__init__.py`.
+A combat bot also takes the world map and the names it goes after (`CombatBotInvocation`):
+
+```python
+async def run_example_bot(
+    room: str,
+    name: str,
+    seconds: float,
+    *,
+    world: WorldMap,
+    targets: tuple[str, ...] = (),
+    lobby_url: str | None,
+    direct_ws_url: str | None = None,
+    spawn: Vec3 | None = None,
+    avatar: str | None = None,
+) -> dict[str, Any]:
+    ...
+```
 
 Non-negotiable contract:
 
@@ -40,7 +61,8 @@ Non-negotiable contract:
 - Return a JSON-serializable dictionary.
 - Use `lobby_url` in production and `direct_ws_url` only in local integration tests.
 - Pass `spawn` and `avatar` straight through to `connect` (see the placement constraint below).
-- Do not add a Modal decorator. Ordinary bots share `modal-bots/app.py::run_bot`.
+- Do not add a Modal decorator. Bots share the workers in `modal-bots/app.py`, which load the map
+  once per container for combat bots.
 - Do not return live sockets, tasks, dataclasses, or credentials.
 
 Import and register it explicitly:
@@ -48,11 +70,13 @@ Import and register it explicitly:
 ```python
 from .example_bot import run_example_bot
 
-BOT_INVOCATIONS = {
+DUMB_BOTS = {
     "example": run_example_bot,
-    # existing bots...
+    # ...
 }
 ```
+
+A combat bot goes in `COMBAT_BOTS` instead.
 
 The key is the `--bot` value; the in-game player name is `<key>-bot`. Do not implement dynamic discovery.
 An ordinary bot requires no change to `app.py`.
@@ -231,17 +255,22 @@ Never use `global` for automated testing.
 
 ### Calling bots from chat
 
-`/circle-bot [seconds]` and `/stalker-bot [seconds]` (the `-bot` suffix is
-optional) start a bot in the caller's room, on the ground within 50 m of them; seconds default to 300 and cap at 3500. `/kill-bots` drops every living bot in the room dead where it
-stands, with no kill event; each corpse is removed like any bot's, which closes its connection and
-ends its run. The registry is `packages/shared/src/sim/bots.ts` (id, player name, blurb), which
-also fills the commands menu. The Room validates (people only, a free seat, host
-must have a spawner) and calls `RoomOptions.spawnBot`; `packages/server/src/bots.ts` implements it
-as one POST to `BOT_SPAWNER_URL`, the localhost sidecar `infra/bot_sidecar.py` that the Room
-container's Python process runs. The sidecar spawns `kathir-world-bots/run_bot` with
-`{bot, room, seconds}` plus the request's placement (`spawn`, `avatar`) using the container's own
-Modal credentials; Node never holds a token. A bot called from chat therefore needs a row in `bots.ts` as
-well as its Python module; one without a row (the observer) is started only with `modal run`.
+`/circle-bot [seconds]`, `/stalker-bot [seconds]` and `/sniper-bot [seconds] [names…]` start a bot
+in the caller's room, on the ground within 50 m of them; seconds default to 300 and cap at 3500. The
+`-bot` suffix is optional where the bare word isn't already a command (`/circle`, but `/sniper` is
+the rifle). A combat bot's words after the seconds, which it can leave out, are its `targets`.
+`/kill-bots` drops every living bot in the room dead where it stands, with no kill event; each
+corpse is removed like any bot's, which closes its connection and ends its run. The registry is
+`packages/shared/src/sim/bots.ts` (id, player name, worker, blurb), which also fills the commands
+menu with each worker's arguments (`BOT_ARGUMENTS`). The Room validates (people only, a free seat,
+host must have a spawner) and calls `RoomOptions.spawnBot` with a `BotRequest` for the bot's worker;
+`packages/server/src/bots.ts` implements it as one POST to `BOT_SPAWNER_URL/<worker>`, the localhost
+sidecar `infra/bot_sidecar.py` that the Room container's Python process runs. The sidecar spawns the
+worker's function (`BOTS_FUNCTIONS` in `infra/config.py`: `run_dumb_bot` or `run_combat_bot`, each
+looked up once) with `{bot, room, seconds}`, the request's placement (`spawn`, `avatar`) and, for a
+combat bot, `targets`, using the container's own Modal credentials; Node never holds a token. A bot
+called from chat therefore needs a row in `bots.ts` as well as its Python module; one without a row
+(the observer) is started only with `modal run`.
 
 Rooms also start with bots: the first person to join brings the line-up from
 `packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`: two circle bots anywhere, and a
@@ -253,13 +282,14 @@ The Room spawns them once, with `caller: 'room'`.
 
 - `kathir-world-bots-config` must contain `WORLD_LOBBY_URL`.
 - Run:
-  `modal run modal-bots/app.py --bot <registry-key> --room <room> --seconds <n>`.
-- Registered bots share the default image, Secret, CPU, and timeout.
-- Bots run many to a container: `run_bot` is async, so up to `MAX_BOTS_PER_CONTAINER` bots share
+  `modal run modal-bots/app.py --bot <registry-key> --room <room> --seconds <n>`, which picks the
+  bot's worker (and `--targets kat,bob` for a combat bot).
+- Both workers share the default image, Secret, CPU, and timeout.
+- Bots run many to a container: the workers are async, so up to `MAX_BOTS_PER_CONTAINER` bots share
   one event loop, the autoscaler adds a container past `TARGET_BOTS_PER_CONTAINER`, and
   `MAX_BOT_CONTAINERS` bounds the fleet. A bot must never block the loop (no sync sleeps or I/O).
 - A GPU bot or one requiring materially different dependencies/resources should use a separate
-  worker rather than conditional resource logic in `run_bot`.
+  worker rather than conditional resource logic in the existing ones.
 - Add dependencies to both `modal-bots/pyproject.toml` and `bot_image` in
   `modal-bots/common/deployment.py`, then execute a real `modal run`.
 

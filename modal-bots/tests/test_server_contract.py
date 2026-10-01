@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import math
 import os
 import selectors
@@ -16,8 +17,9 @@ from typing import Any
 import pytest
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
+from bots.sniper_bot import run_sniper_bot
 from bots.stalker_bot import run_stalker_bot
-from common import Connection, Controls, RoomConnectionError, Snapshot, Vec3, WorldState, connect, run_input_loop
+from common import Connection, Controls, Event, RoomConnectionError, Snapshot, Vec3, WorldState, connect, run_input_loop
 from common.navigation import Route
 from common.world import load_world_map
 
@@ -272,3 +274,32 @@ def test_a_route_walks_up_the_tower_stair_and_out_onto_a_balcony(room_server: st
     eye = asyncio.run(scenario())
     assert eye.y == pytest.approx(21.7), "on floor 1"
     assert math.hypot(eye.x - 112, eye.z) > 20, "outside the wall"
+
+
+def test_sniper_shoots_a_person_in_sight_then_waits_out_its_cooldown(room_server: str) -> None:
+    async def scenario() -> tuple[list[int], dict[str, Any]]:
+        person = await seat_person(room_server, "python-sniper")
+        me = next(p for p in person.welcome.players if p.id == person.id)
+        # On the open main disc, 20 m nearer its middle: nothing in the way.
+        away = 20 / max(1.0, math.hypot(me.pos.x, me.pos.z))
+        spot = Vec3(me.pos.x * (1 - away), 0, me.pos.z * (1 - away))
+        sniper = asyncio.create_task(
+            run_sniper_bot("python-sniper", seconds=6, world=load_world_map(), direct_ws_url=room_server, spawn=spot)
+        )
+        hit_ticks: list[int] = []
+        tick = person.welcome.tick
+        try:
+            while not sniper.done():
+                message = await asyncio.wait_for(person.receive(), timeout=2)
+                if isinstance(message, Snapshot):
+                    tick = message.tick
+                elif isinstance(message, Event) and message.t == "hit" and message.data["victim"] == person.id:
+                    hit_ticks.append(tick)
+            return hit_ticks, await sniper
+        finally:
+            await person.close()
+
+    hit_ticks, report = asyncio.run(scenario())
+
+    assert report["shots"] >= 2 and len(hit_ticks) >= 2, report
+    assert all(b - a >= 90 for a, b in itertools.pairwise(hit_ticks)), f"3 s between shots: {hit_ticks}"

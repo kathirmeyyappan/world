@@ -58,6 +58,8 @@ class WorldMap:
         self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in data["nodes"])
         self.edges = tuple(tuple(int(j) for j in out) for out in data["edges"])
         self.jumps = tuple(frozenset(int(j) for j in out) for out in data["jumps"])
+        # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
+        self.lookouts = tuple(int(i) for i in data["lookouts"])
         self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):

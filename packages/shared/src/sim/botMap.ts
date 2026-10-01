@@ -28,6 +28,14 @@ const SPACING = 1; // metres between grid columns: under a doorway's clear width
 const WALL_CLEARANCE = 0.05; // metres a node's body may be pushed by a wall before it doesn't count
 const MAX_RISE = 1.5; // metres between neighbouring nodes worth trying an edge across
 const SIGHT_CHECKS = 64;
+// A lookout stands this high or more, on floor (walks to at least LOOKOUT_FLOOR of its eight
+// neighbours, so not along a rail or parapet top), and at eye level sees this far out along this many of a ring of level sight
+// lines: the balconies and decks, not the floors inside the tower's wall.
+const LOOKOUT_HEIGHT = 15;
+const LOOKOUT_RANGE = 30;
+const LOOKOUT_LINES = 16;
+const LOOKOUT_OPEN = 7;
+const LOOKOUT_FLOOR = 5;
 
 export interface BotMap {
   source: number; // botMapSource() when it was built
@@ -35,6 +43,7 @@ export interface BotMap {
   nodes: [number, number, number][]; // feet x, y, z
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
   jumps: number[][]; // per node, the ones only a running jump toward them reaches
+  lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
   // Python side's line of sight is checked against these.
   sightChecks: number[][];
@@ -54,7 +63,17 @@ export function botMapSource(): number {
     GRAVITY,
     JUMP_VELOCITY,
   ];
-  const settings = [SPACING, WALL_CLEARANCE, MAX_RISE, SIGHT_CHECKS];
+  const settings = [
+    SPACING,
+    WALL_CLEARANCE,
+    MAX_RISE,
+    SIGHT_CHECKS,
+    LOOKOUT_HEIGHT,
+    LOOKOUT_RANGE,
+    LOOKOUT_LINES,
+    LOOKOUT_OPEN,
+    LOOKOUT_FLOOR,
+  ];
   return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings]));
 }
 
@@ -92,6 +111,7 @@ export function buildBotMap(): BotMap {
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
     edges,
     jumps,
+    lookouts: lookouts(nodes, edges, jumps),
     sightChecks: sightChecks(nodes),
   };
 }
@@ -171,6 +191,25 @@ function reaches(a: Vec3, b: Vec3, jump: boolean): boolean {
     return off < 0.2 && along < length + 0.4 && Math.abs(p.pos.y - EYE_HEIGHT - b.y) < 0.3;
   }
   return false;
+}
+
+// The high spots with a view (LOOKOUT_*) that a walk from the middle of the world reaches.
+function lookouts(nodes: Vec3[], edges: number[][], jumps: number[][]): number[] {
+  const start = nodes.findIndex((n) => n.x === 0 && n.y === 0 && n.z === 0);
+  const reached = new Set([start]);
+  const queue = [start];
+  for (let i = queue.pop(); i !== undefined; i = queue.pop())
+    for (const j of [...edges[i], ...jumps[i]]) if (!reached.has(j)) (reached.add(j), queue.push(j));
+  return nodes.flatMap((n, i) => {
+    if (n.y < LOOKOUT_HEIGHT || edges[i].length < LOOKOUT_FLOOR || !reached.has(i)) return [];
+    const eye = { x: n.x, y: n.y + EYE_HEIGHT, z: n.z };
+    let open = 0;
+    for (let k = 0; k < LOOKOUT_LINES; k++) {
+      const a = (k / LOOKOUT_LINES) * 2 * Math.PI;
+      if (WORLD_STRUCTURES.raycast(eye, { x: Math.sin(a), y: 0, z: Math.cos(a) }, LOOKOUT_RANGE) === Infinity) open++;
+    }
+    return open >= LOOKOUT_OPEN ? [i] : [];
+  });
 }
 
 // Eye-to-eye segments between nodes on or around the structures, half of them blocked.

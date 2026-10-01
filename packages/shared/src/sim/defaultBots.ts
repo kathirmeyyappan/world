@@ -11,6 +11,7 @@ import { BOT_MAX_SECONDS, type BotId, type BotPlacement } from './bots';
 export interface DefaultBot extends BotPlacement {
   bot: BotId;
   seconds: number; // how long each stays; they leave earlier if the room empties
+  targets?: string[]; // a combat bot's quarry (BotRequest); none means every person
 }
 
 // A room's own bots stay as long as a bot can; only people calling one get the shorter default.

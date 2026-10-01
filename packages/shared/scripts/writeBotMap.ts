@@ -7,5 +7,5 @@ const out = new URL('../../../modal-bots/common/world_map.json.gz', import.meta.
 const map = buildBotMap();
 writeFileSync(out, gzipSync(JSON.stringify(map), { level: 9 }));
 console.log(
-  `wrote ${map.nodes.length} nodes, ${map.edges.flat().length} walks and ${map.jumps.flat().length} jumps to ${out.pathname}`,
+  `wrote ${map.nodes.length} nodes, ${map.edges.flat().length} walks, ${map.jumps.flat().length} jumps and ${map.lookouts.length} lookouts to ${out.pathname}`,
 );

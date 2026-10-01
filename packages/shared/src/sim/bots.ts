@@ -1,32 +1,52 @@
-// Bots a player can call from chat. Each runs as a Modal function (see modal-bots/) that joins
-// the caller's room as a flagged player for a while. The registry key is what the Modal worker
-// takes; the player name is what everyone sees. A row here needs a bot module under
-// modal-bots/bots/; a module without a row (the observer) is only started by hand with `modal run`.
+// Bots a player can call from chat. Each runs on one of the bots app's Modal workers (see
+// modal-bots/) and joins the caller's room as a flagged player for a while. The registry key is
+// what the worker takes; the player name is what everyone sees. A row here needs a bot module
+// under modal-bots/bots/, registered with its worker; a module without a row (the observer) is
+// only started by hand with `modal run`.
 import { isAvatarId, type AvatarId } from './avatars';
 import type { Vec3 } from './types';
 
-export type BotId = 'circle' | 'stalker';
+export type BotId = 'circle' | 'stalker' | 'sniper';
+
+// The bots app's workers, each with its own arguments. A dumb bot takes only how long to stay; a
+// combat bot reads the world map (line of sight, a way round) and takes the names it hunts.
+export type BotWorker = 'dumb' | 'combat';
 
 export interface BotSpec {
   id: BotId;
   playerName: string; // in-game name, `<id>-bot`
+  worker: BotWorker;
   blurb: string; // one plain line for the commands menu
 }
 
 export const BOT_DEFAULT_SECONDS = 300; // a called bot's stay when the caller doesn't say
-export const BOT_MAX_SECONDS = 3500; // the Modal worker's own cap (MAX_BOT_SECONDS)
+export const BOT_MAX_SECONDS = 3500; // the Modal workers' own cap (MAX_BOT_SECONDS)
 
 export const BOTS: Record<BotId, BotSpec> = {
   circle: {
     id: 'circle',
     playerName: 'circle-bot',
+    worker: 'dumb',
     blurb: 'finds the nearest player and circles them',
   },
   stalker: {
     id: 'stalker',
     playerName: 'stalker-bot',
+    worker: 'dumb',
     blurb: 'stands still and turns to watch the nearest person',
   },
+  sniper: {
+    id: 'sniper',
+    playerName: 'sniper-bot',
+    worker: 'combat',
+    blurb: 'climbs to a lookout and snipes every person',
+  },
+};
+
+// What follows a bot's command for each worker, for usage lines and the commands menu.
+export const BOT_ARGUMENTS: Record<BotWorker, string> = {
+  dumb: '[seconds]',
+  combat: '[seconds] [names…]',
 };
 
 export const BOT_IDS = Object.keys(BOTS) as BotId[];
@@ -60,11 +80,21 @@ export function placementFromQuery(get: (key: string) => string | null): BotPlac
   return placement;
 }
 
-// What the room asks the host to start. `room` is the public room code the bot joins through the
-// lobby, so it lands in the caller's session; `caller` is who asked ('room' for its starting bots).
-export interface BotRequest extends BotPlacement {
+// What the room asks the host to start, on the bot's worker. `room` is the public room code the
+// bot joins through the lobby, so it lands in the caller's session; `caller` is who asked ('room'
+// for its starting bots). A combat bot's `targets` are parts of names, any case, that it goes
+// after; none means every person (bots only when named).
+interface BotCall extends BotPlacement {
   bot: BotId;
   room: string;
   seconds: number;
   caller: string;
+}
+
+export type BotRequest = (BotCall & { worker: 'dumb' }) | (BotCall & { worker: 'combat'; targets: string[] });
+
+export function botRequest(call: BotCall, targets: readonly string[] = []): BotRequest {
+  return BOTS[call.bot].worker === 'combat'
+    ? { ...call, worker: 'combat', targets: [...targets] }
+    : { ...call, worker: 'dumb' };
 }

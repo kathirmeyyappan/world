@@ -30,7 +30,7 @@ text{fill:#e6e8ef;font-size:13px}
 <rect x="40" y="90" width="180" height="60" class="box browser"/><text x="130" y="114" text-anchor="middle" class="lane">Browser</text><text x="130" y="134" text-anchor="middle" class="sub">kathir, in room "late-night"</text>
 <rect x="290" y="90" width="300" height="60" class="box modal"/><text x="440" y="114" text-anchor="middle" class="lane">Room container</text><text x="440" y="134" text-anchor="middle" class="tag">Node room server + Python sidecar :8001</text>
 <rect x="660" y="90" width="200" height="60" class="box proxy"/><text x="760" y="114" text-anchor="middle" class="lane">Modal</text><text x="760" y="134" text-anchor="middle" class="sub">control plane · FPRS proxy</text>
-<rect x="930" y="90" width="220" height="60" class="box bot"/><text x="1040" y="114" text-anchor="middle" class="lane">Bot container</text><text x="1040" y="134" text-anchor="middle" class="tag">kathir-world-bots/run_bot</text>
+<rect x="930" y="90" width="220" height="60" class="box bot"/><text x="1040" y="114" text-anchor="middle" class="lane">Bot container</text><text x="1040" y="134" text-anchor="middle" class="tag">kathir-world-bots/run_*_bot</text>
 <rect x="1240" y="90" width="280" height="60" class="box modal"/><text x="1380" y="114" text-anchor="middle" class="lane">lobby</text><text x="1380" y="134" text-anchor="middle" class="tag">@app.function · /join/{room}</text>
 <line x1="130" y1="150" x2="130" y2="760" class="lifeline"/><line x1="440" y1="150" x2="440" y2="760" class="lifeline"/><line x1="760" y1="150" x2="760" y2="760" class="lifeline"/><line x1="1040" y1="150" x2="1040" y2="760" class="lifeline"/><line x1="1380" y1="150" x2="1380" y2="760" class="lifeline"/>
 </g>
@@ -47,14 +47,14 @@ text{fill:#e6e8ef;font-size:13px}
 <!-- 2 sidecar -->
 <circle cx="440" cy="345" r="9" fill="#5ee6a8"/><text x="440" y="349" text-anchor="middle" class="step">2</text>
 <rect x="300" y="360" width="280" height="52" class="hl"/>
-<text x="310" y="378" class="code">Node → POST http://127.0.0.1:8001/bots</text>
+<text x="310" y="378" class="code">Node → POST http://127.0.0.1:8001/bots/dumb</text>
 <text x="310" y="395" class="code">{bot:"circle", room:"late-night", seconds:60, caller}</text>
-<text x="300" y="428" class="lbl2">Node holds no Modal token; the Python process next to it has the container's own credentials.</text>
+<text x="300" y="428" class="lbl2">One route per worker (bots.ts): /bots/combat adds targets. Node holds no Modal token; the sidecar has the container's.</text>
 
 <!-- 3 spawn -->
 <circle cx="600" cy="460" r="9" fill="#f6c453"/><text x="600" y="464" text-anchor="middle" class="step">3</text>
 <line x1="615" y1="460" x2="755" y2="460" class="a ctl"/><text x="685" y="452" text-anchor="middle" class="code ctl">Function.from_name(…).spawn()</text>
-<line x1="765" y1="480" x2="1035" y2="480" class="a ctl"/><text x="900" y="473" text-anchor="middle" class="lbl2">queue one input: run_bot(bot, room, seconds) · container starts (or reuses a warm one)</text>
+<line x1="765" y1="480" x2="1035" y2="480" class="a ctl"/><text x="900" y="473" text-anchor="middle" class="lbl2">queue one input: run_dumb_bot(bot, room, seconds) · a combat bot also gets the world map and targets</text>
 <line x1="755" y1="500" x2="447" y2="500" class="a"/><text x="600" y="517" text-anchor="middle" class="lbl2">202 + function call id → Node logs it. Failure → 502 → "couldn't call circle-bot" to the caller.</text>
 
 <!-- 4 lobby -->
@@ -81,5 +81,5 @@ text{fill:#e6e8ef;font-size:13px}
 <text x="56" y="882" class="lbl">• Last person leaves: bots don't keep a room open. 30 s later Node closes the room and closes every bot socket with reason "room closed"; the function returns its report.</text>
 <text x="56" y="904" class="lbl">• No bot cap: the room's 32 seats are the only limit. A full room answers the caller "this room is full"; a bot that finds it full by the time it arrives fails in Modal logs.</text>
 <text x="56" y="926" class="lbl">• No people there: a bot can't join a room with no one in it (lobby 409, Node "no one here"), so a bot that spawns after everyone left never starts a room nothing would close.</text>
-<text x="56" y="948" class="lbl2">Local dev: no sidecar, so "/circle-bot" answers "bots can't be called in this room"; bots are run by hand with direct_ws_url. The manual path (modal run … --bot circle) is the same function without steps 1 to 3.</text>
+<text x="56" y="948" class="lbl2">Local dev: no sidecar, so "/circle-bot" answers "bots can't be called in this room"; bots are run by hand with direct_ws_url. The manual path (modal run modal-bots/app.py --bot circle) is the same function without steps 1 to 3.</text>
 </svg></body></html>

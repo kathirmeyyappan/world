@@ -5,6 +5,7 @@
 import {
   AVATARS,
   AVATAR_IDS,
+  BOT_ARGUMENTS,
   BOTS,
   BOT_DEFAULT_SECONDS,
   BOT_IDS,
@@ -80,8 +81,12 @@ function buildGroups(): Group[] {
       title: 'bot commands',
       rows: [
         ...BOT_IDS.map((id): Group['rows'][number] => [
-          `/${BOTS[id].playerName} [seconds]`,
-          `${BOTS[id].blurb} · ${BOT_DEFAULT_SECONDS}s unless you say`,
+          `/${BOTS[id].playerName} ${BOT_ARGUMENTS[BOTS[id].worker]}`,
+          [
+            BOTS[id].blurb,
+            ...(BOTS[id].worker === 'combat' ? ['or name a few (any part of a name)'] : []),
+            `${BOT_DEFAULT_SECONDS}s unless you say`,
+          ].join(' · '),
         ]),
         ['/kill-bots', 'every bot in the room drops dead'],
       ],
