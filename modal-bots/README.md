@@ -12,8 +12,9 @@ modal run modal-bots/app.py --bot circle --room global --seconds 30
 modal run modal-bots/app.py --bot sniper --room global --seconds 60 --name hunter --targets kat,bob
 ```
 
-Or from the game's chat, with flags in any order: `/circle-bot -t 60`, `/stalker-bot -n watcher`,
-`/sniper-bot -t 60 -n hunter --targets kat bob` (300 s by default, 3500 max). The room server spawns the bot's worker, `run_dumb_bot` or `run_combat_bot`;
+Or from the game's chat, with flags in any order: `/circle-bot -t 60`, `/stalker-bot -s tung`,
+`/sniper-bot -t 60 -n hunter --targets kat bob` (300 s by default, 3500 max; the flags are in
+`CLAUDE.md`). The room server spawns the bot's worker, `run_dumb_bot` or `run_combat_bot`;
 see `CLAUDE.md`.
 
 - `observer` joins, stands still, and returns a report of what it saw. `modal run` only.

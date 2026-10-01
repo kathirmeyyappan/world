@@ -3,7 +3,7 @@
 // what the worker takes; the player name is what everyone sees. A row here needs a bot module
 // under modal-bots/bots/, registered with its worker; a module without a row (the observer) is
 // only started by hand with `modal run`.
-import { isAvatarId, type AvatarId } from './avatars';
+import { AVATAR_IDS, AVATARS, isAvatarId, type AvatarId } from './avatars';
 import type { Vec3 } from './types';
 
 export type BotId = 'circle' | 'stalker' | 'sniper';
@@ -43,28 +43,67 @@ export const BOTS: Record<BotId, BotSpec> = {
   },
 };
 
-// What follows a bot's command for each worker, for usage lines and the commands menu.
-export const BOT_ARGUMENTS: Record<BotWorker, string> = {
-  dumb: '[-t seconds] [-n name]',
-  combat: '[-t seconds] [-n name] [--targets name substrings]',
-};
+// The flags a bot command takes, in any order, each at most once. commands.ts parses them and the
+// usage lines and commands menu are written from here, so a new flag is a row here and its case in
+// the parser. Each has a short form where one's free, a long form, and the bots it works for.
+export type BotFlag = 'time' | 'name' | 'skin' | 'targets';
 
-// Each flag a bot command takes (commands.ts parses them), explained for the commands menu, and
-// the bots it works for.
-export const BOT_FLAGS: { flag: string; help: string; workers: BotWorker[] }[] = [
-  {
-    flag: '-t seconds',
+export interface BotFlagSpec {
+  short: string | null; // '-t'; null when only the long form exists
+  long: string; // '--time'
+  value: string; // what follows it, for usage lines
+  help: string; // one line for the commands menu
+  workers: BotWorker[];
+}
+
+// The skins a bot can wear: every avatar with a chat command, by that command.
+const SKINS = AVATAR_IDS.filter((id) => id !== 'standard' && AVATARS[id].command).map((id) => AVATARS[id].command);
+
+export const BOT_FLAGS: Record<BotFlag, BotFlagSpec> = {
+  time: {
+    short: '-t',
+    long: '--time',
+    value: 'seconds',
     help: `how long it stays, in seconds: ${BOT_DEFAULT_SECONDS} unless you say, up to ${BOT_MAX_SECONDS}`,
     workers: ['dumb', 'combat'],
   },
-  { flag: '-n name', help: 'what it plays as, instead of its own name', workers: ['dumb', 'combat'] },
-  {
-    flag: '--targets names…',
+  name: {
+    short: '-n',
+    long: '--name',
+    value: 'name',
+    help: 'what it plays as, instead of its own name (circle-bot and so on)',
+    workers: ['dumb', 'combat'],
+  },
+  skin: {
+    short: '-s',
+    long: '--skin',
+    value: 'skin',
+    help: `how it looks: a skin's command (${SKINS.join(', ')})`,
+    workers: ['dumb', 'combat'],
+  },
+  targets: {
+    short: null,
+    long: '--targets',
+    value: 'name substrings',
     help: 'who it goes after: words up to the next flag, each any part of a name, any case; every person if left out',
     workers: ['combat'],
   },
-];
-export const BOT_EXAMPLE = '/sniper-bot -t 120 -n hunter --targets kat bob';
+};
+
+export const BOT_FLAG_IDS = Object.keys(BOT_FLAGS) as BotFlag[];
+
+export function botFlagFor(word: string): BotFlag | null {
+  return BOT_FLAG_IDS.find((f) => BOT_FLAGS[f].short === word || BOT_FLAGS[f].long === word) ?? null;
+}
+
+// "[-t seconds] [-n name] [-s skin]": a worker's flags, short forms where they have them.
+export function botArguments(worker: BotWorker): string {
+  return BOT_FLAG_IDS.filter((f) => BOT_FLAGS[f].workers.includes(worker))
+    .map((f) => `[${BOT_FLAGS[f].short ?? BOT_FLAGS[f].long} ${BOT_FLAGS[f].value}]`)
+    .join(' ');
+}
+
+export const BOT_EXAMPLE = '/sniper-bot -t 120 -n hunter -s tung --targets kat bob';
 
 export const BOT_IDS = Object.keys(BOTS) as BotId[];
 

@@ -5,8 +5,8 @@
 import {
   AVATARS,
   AVATAR_IDS,
-  BOT_ARGUMENTS,
   BOT_EXAMPLE,
+  BOT_FLAG_IDS,
   BOT_FLAGS,
   BOTS,
   BOT_IDS,
@@ -15,6 +15,7 @@ import {
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
+  botArguments,
   type BotWorker,
 } from '@world/shared';
 import { IS_TOUCH, onTap } from '../input/touch';
@@ -83,7 +84,7 @@ function buildGroups(): Group[] {
       title: 'bot commands',
       rows: [
         ...BOT_IDS.map((id): Group['rows'][number] => [
-          `/${BOTS[id].playerName} ${BOT_ARGUMENTS[BOTS[id].worker]}`,
+          nobreak(`/${BOTS[id].playerName} ${botArguments(BOTS[id].worker)}`),
           BOTS[id].blurb,
         ]),
         ['/kill-bots', 'every bot in the room drops dead'],
@@ -93,8 +94,12 @@ function buildGroups(): Group[] {
       // Each flag with the bots that take it, then one command putting them together.
       title: 'bot flags, in any order, each at most once',
       rows: [
-        ...BOT_FLAGS.map((f): Group['rows'][number] => [f.flag, `${f.help} (${botsTaking(f.workers)})`]),
-        [BOT_EXAMPLE, 'for example'],
+        ...BOT_FLAG_IDS.map((id): Group['rows'][number] => {
+          const f = BOT_FLAGS[id];
+          const long = f.short === null ? '' : `, or ${nobreak(f.long)}`;
+          return [nobreak(`${f.short ?? f.long} ${f.value}`), `${f.help} (${botsTaking(f.workers)}${long})`];
+        }),
+        [nobreak(BOT_EXAMPLE), 'for example'],
       ],
     },
     { title: 'wear skin', rows: skins.map((id) => [`/${AVATARS[id].command}`, AVATARS[id].blurb]) },
@@ -106,6 +111,11 @@ function buildGroups(): Group[] {
       ],
     },
   ];
+}
+
+// Flags and commands with their hyphens unbreakable, so a line never wraps inside "--skin".
+function nobreak(text: string): string {
+  return text.replaceAll('-', '\u2011');
 }
 
 // "every bot", or the ones that take a flag by name.

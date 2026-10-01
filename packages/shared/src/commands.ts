@@ -2,7 +2,16 @@
 // being broadcast. Anyone seated can run them, bots included. Add a command by extending the
 // union and the switch in Room.
 import { avatarForCommand, type AvatarId } from './sim/avatars';
-import { BOT_DEFAULT_SECONDS, BOT_MAX_SECONDS, BOTS, botIdFor, type BotId } from './sim/bots';
+import {
+  BOT_DEFAULT_SECONDS,
+  BOT_FLAGS,
+  BOT_MAX_SECONDS,
+  BOTS,
+  botFlagFor,
+  botIdFor,
+  type BotFlag,
+  type BotId,
+} from './sim/bots';
 import { isGearId, type GearId } from './sim/gear';
 import { isItemId, type ItemId } from './sim/items';
 
@@ -40,38 +49,48 @@ export function parseCommand(text: string): Command | null {
   return { name: 'unknown', raw };
 }
 
-// What a bot command asked for: how long the bot stays, what it's called (null: its own name),
-// and, for a combat bot, the name substrings it goes after.
+// What a bot command asked for: how long the bot stays, what it's called (null: its own name), how
+// it looks (null: its own look), and, for a combat bot, the name substrings it goes after.
 export interface BotCallArgs {
   seconds: number;
   botName: string | null;
+  avatar: AvatarId | null;
   targets: string[];
 }
 
-// "/sniper-bot -t 60 -n hunter --targets kat bob": flags in any order, each at most once.
-// -t is the seconds (default when left out, capped), -n the bot's name, and --targets, for a
-// combat bot only, every word up to the next flag. Anything else (a bare word, an unknown or
-// repeated flag, a flag with no value) makes it null, and the room answers with the usage line.
+// "/sniper-bot -t 60 -n hunter -s tung --targets kat bob": the flags in BOT_FLAGS (short or long
+// form), in any order, each at most once, and only those the bot's worker takes. Anything else (a
+// bare word, an unknown or repeated flag, a flag with no value or a bad one) makes it null, and the
+// room answers with the usage line.
 function botCommand(bot: BotId, args: string[]): Command {
   const bad: Command = { name: 'bot', bot, call: null };
-  const call: BotCallArgs = { seconds: BOT_DEFAULT_SECONDS, botName: null, targets: [] };
-  const given = new Set<string>();
+  const call: BotCallArgs = { seconds: BOT_DEFAULT_SECONDS, botName: null, avatar: null, targets: [] };
+  const given = new Set<BotFlag>();
   for (let i = 0; i < args.length; i++) {
-    const flag = args[i];
-    if (given.has(flag)) return bad;
+    const flag = botFlagFor(args[i]);
+    if (flag === null || given.has(flag) || !BOT_FLAGS[flag].workers.includes(BOTS[bot].worker)) return bad;
     given.add(flag);
     const value = (): string | null => (i + 1 < args.length && !args[i + 1].startsWith('-') ? args[++i] : null);
-    if (flag === '-t') {
-      const n = Number(value());
-      if (!Number.isFinite(n) || n <= 0) return bad;
-      call.seconds = Math.min(BOT_MAX_SECONDS, Math.round(n));
-    } else if (flag === '-n') {
-      call.botName = value();
-      if (call.botName === null) return bad;
-    } else if (flag === '--targets' && BOTS[bot].worker === 'combat') {
-      for (let word = value(); word !== null; word = value()) call.targets.push(word);
-      if (call.targets.length === 0) return bad;
-    } else return bad;
+    switch (flag) {
+      case 'time': {
+        const n = Number(value());
+        if (!Number.isFinite(n) || n <= 0) return bad;
+        call.seconds = Math.min(BOT_MAX_SECONDS, Math.round(n));
+        break;
+      }
+      case 'name':
+        call.botName = value();
+        if (call.botName === null) return bad;
+        break;
+      case 'skin':
+        call.avatar = avatarForCommand(value() ?? '');
+        if (call.avatar === null) return bad;
+        break;
+      case 'targets':
+        for (let word = value(); word !== null; word = value()) call.targets.push(word);
+        if (call.targets.length === 0) return bad;
+        break;
+    }
   }
   return { name: 'bot', bot, call };
 }
