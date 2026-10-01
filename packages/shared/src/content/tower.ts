@@ -176,10 +176,20 @@ export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: OU
 // The middle of each floor's top, ground floor first: where to stand something on floor n.
 export const TUNG_TUNG_TOWER_FLOORS: Vec3[] = [GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((y) => ({ x: X, y, z: Z }));
 
-// Each level's open floor, for placing things (content/regions.ts): the four floors inside the
-// stair, which runs round against the wall, and the whole roof.
+// The four floors inside the wall, ground floor first: each one's open disc inside the stair,
+// which runs round against the wall.
+export const TUNG_TUNG_TOWER_INSIDE: Region[] = [GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((y): Region => ({
+  kind: 'disc',
+  x: X,
+  z: Z,
+  r: STAIR_INNER,
+  y,
+}));
+
+// Each level's open floor, for placing things (content/regions.ts): the four inside, and the whole
+// roof.
 export const TUNG_TUNG_TOWER_LEVELS: Region[] = [
-  ...[GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((y): Region => ({ kind: 'disc', x: X, z: Z, r: STAIR_INNER, y })),
+  ...TUNG_TUNG_TOWER_INSIDE,
   { kind: 'disc', x: X, z: Z, r: INNER, y: HEIGHT },
 ];
 

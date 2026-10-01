@@ -16,7 +16,8 @@ WARMUP_SESSION_IDLE_TIMEOUT = 5
 MAX_SESSIONS_PER_CONTAINER = 64
 TARGET_SESSIONS_PER_CONTAINER = 3
 
-# The bots app (modal-bots/) and the function the room's sidecar spawns for chat commands.
+# The bots app (modal-bots/) and, per worker a bot runs on (BotWorker in
+# packages/shared/src/sim/bots.ts), the function the room's sidecar spawns for chat commands.
 BOTS_APP_NAME = "kathir-world-bots"
-BOTS_FUNCTION_NAME = "run_bot"
+BOTS_FUNCTIONS = {"dumb": "run_dumb_bot", "combat": "run_combat_bot"}
 BOT_SIDECAR_PORT = 8001

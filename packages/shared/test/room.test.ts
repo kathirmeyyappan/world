@@ -559,6 +559,7 @@ test("the first person in brings the room's default bots; nobody else does", asy
     seconds,
     caller: 'room',
     ...placement,
+    worker: 'dumb',
   }));
   assert.deepEqual(spawned, expected, 'placements ride along with the request');
   assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'circle-bot x2, stalker-bot x3 on the way'));
@@ -590,10 +591,10 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
 
   const alice = room.players.find((p) => p.id === ida)!;
   Object.assign(alice.pos, { x: 112, z: 0 }); // the middle of the annex, 62 m from the main disc's edge
-  room.receive(ida, { t: 'chat', text: '/circle-bot 60' });
+  room.receive(ida, { t: 'chat', text: '/circle-bot -t 60' });
   await Promise.resolve();
   const { spawn: _, ...call } = spawned[0];
-  assert.deepEqual(call, { bot: 'circle', room: 'late-night', seconds: 60, caller: 'alice' });
+  assert.deepEqual(call, { bot: 'circle', room: 'late-night', seconds: 60, caller: 'alice', worker: 'dumb' });
   assert.ok(
     b.inbox.some((m) => m.t === 'system' && m.text === 'alice called circle-bot for 60s'),
     'everyone hears',
@@ -602,14 +603,35 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   room.receive(ida, { t: 'chat', text: '/stalker' });
   await Promise.resolve();
   assert.equal(spawned[1].seconds, 300, "no number: the bot's default");
-  room.receive(ida, { t: 'chat', text: '/circle 9999' });
+  room.receive(ida, { t: 'chat', text: '/circle --time 9999' });
   await Promise.resolve();
   assert.equal(spawned[2].seconds, 3500, 'capped');
+  // Flags in any order, short or long; a combat bot also takes --targets. Plain /sniper is the rifle.
+  room.receive(ida, { t: 'chat', text: '/sniper-bot -t 60 --targets Kat bob' });
+  room.receive(ida, { t: 'chat', text: '/sniper-bot --targets kat --skin tung -n hunter' });
+  await Promise.resolve();
+  assert.deepEqual(
+    spawned.slice(3).map((r) => r.worker === 'combat' && [r.seconds, r.name, r.avatar, r.targets]),
+    [
+      [60, undefined, undefined, ['Kat', 'bob']],
+      [300, 'hunter', 'sahur', ['kat']],
+    ],
+  );
+  assert.ok(b.inbox.some((m) => m.t === 'system' && m.text === 'alice called hunter (sniper-bot) for 300s after kat'));
   for (const { spawn } of spawned) {
     assert.ok(spawn && Math.hypot(spawn.x - 112, spawn.z) <= 50, `a called bot spawns near the caller: ${spawn?.x}`);
   }
-  room.receive(ida, { t: 'chat', text: '/circle-bot soon' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'usage: /circle-bot [seconds]' });
+  for (const text of [
+    '/circle-bot 60',
+    '/circle-bot -t soon',
+    '/circle-bot -n',
+    '/circle-bot -s nobody',
+    '/circle-bot --targets kat',
+    '/circle-bot -t 5 --time 6',
+  ])
+    room.receive(ida, { t: 'chat', text });
+  assert.equal(spawned.length, 5, 'no bare words, bad or missing values, wrong flags or repeats');
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'usage: /circle-bot -t [seconds] -n [name] -s [skin]' });
 
   room.receive(idb, { t: 'chat', text: '/circle-bot' });
   assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "bots can't call bots" });
@@ -618,7 +640,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   while (room.playerCount < MAX_PLAYERS) room.join('bot', link(), { bot: true });
   room.receive(ida, { t: 'chat', text: '/stalker-bot' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room is full' });
-  assert.equal(spawned.length, 3);
+  assert.equal(spawned.length, 5);
 
   fail = true;
   const c = link();

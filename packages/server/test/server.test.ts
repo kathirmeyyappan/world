@@ -76,7 +76,7 @@ test('two clients in one room see each other move', async () => {
   }
 });
 
-test('/circle-bot posts the room request to the bot sidecar', async () => {
+test('/circle-bot -t 60 posts the room request to the bot sidecar', async () => {
   const received: { url?: string; body: BotRequest }[] = [];
   const sidecar = createServer((req, res) => {
     let body = '';
@@ -93,18 +93,18 @@ test('/circle-bot posts the room request to the bot sidecar', async () => {
   try {
     const a = connect(port, 'late-night', 'kathir');
     await a.next((m) => m.t === 'welcome');
-    a.send({ t: 'chat', text: '/circle-bot 60' });
+    a.send({ t: 'chat', text: '/circle-bot -t 60' });
     const said = await a.next((m) => m.t === 'system' && m.text.includes('called'));
     assert.equal(said.t === 'system' && said.text, 'kathir called circle-bot for 60s');
     // the first person in brings the room's default bots (sim/defaultBots.ts), then the call
     const defaults = defaultBotsFor('late-night').map(({ bot, seconds, ...placement }) => ({
-      url: '/bots',
-      body: { bot, room: 'late-night', seconds, caller: 'room', ...placement },
+      url: '/bots/dumb',
+      body: { bot, room: 'late-night', seconds, caller: 'room', ...placement, worker: 'dumb' },
     }));
     for (let i = 0; i < 50 && received.length <= defaults.length; i++) await new Promise((r) => setTimeout(r, 20));
     assert.deepEqual(received.slice(0, -1), defaults);
     const { spawn: near, ...call } = received[received.length - 1].body;
-    assert.deepEqual(call, { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir' });
+    assert.deepEqual(call, { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir', worker: 'dumb' });
     assert.equal(typeof near?.x, 'number', 'a called bot spawns near its caller');
     a.ws.close();
   } finally {

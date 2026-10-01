@@ -14,6 +14,7 @@ import gzip
 import heapq
 import json
 import math
+import random
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import cache
@@ -27,6 +28,40 @@ EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
 JUMP_COST = 2.0  # metres of walking a route would rather take than one jump
+
+
+@dataclass(frozen=True, slots=True)
+class Region:
+    """A floor area (Region in packages/shared/src/sim/regions.ts): a disc of radius ``r``, or a
+    ``w`` x ``d`` rectangle along the axes, centred on (x, z) at height ``y``."""
+
+    kind: str
+    x: float
+    z: float
+    y: float
+    r: float = 0
+    w: float = 0
+    d: float = 0
+
+    def random_point(self, margin: float, rng: random.Random) -> Vec3:
+        """A spot on it at least ``margin`` from its edge, uniform over its area."""
+        if self.kind == "disc":
+            radius = max(0.0, self.r - margin) * math.sqrt(rng.random())
+            angle = rng.uniform(0, 2 * math.pi)
+            return Vec3(self.x + radius * math.cos(angle), self.y, self.z + radius * math.sin(angle))
+        half_w, half_d = max(0.0, self.w / 2 - margin), max(0.0, self.d / 2 - margin)
+        return Vec3(self.x + rng.uniform(-half_w, half_w), self.y, self.z + rng.uniform(-half_d, half_d))
+
+
+@dataclass(frozen=True, slots=True)
+class Hitbox:
+    """What a shot has to land in (Hitbox in packages/shared/src/sim/avatars.ts): an upright capsule
+    from the feet up to ``top`` metres, ``radius`` round its axis, whose top ``head`` metres are the
+    head."""
+
+    top: float
+    radius: float
+    head: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +93,25 @@ class WorldMap:
         self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in data["nodes"])
         self.edges = tuple(tuple(int(j) for j in out) for out in data["edges"])
         self.jumps = tuple(frozenset(int(j) for j in out) for out in data["jumps"])
+        # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
+        self.lookouts = tuple(int(i) for i in data["lookouts"])
+        self.hitboxes = {
+            avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
+            for avatar, h in data["hitboxes"].items()
+        }
+        # The tower's four floors inside its wall, ground floor first.
+        self.tower_inside = tuple(
+            Region(
+                kind=str(r["kind"]),
+                x=float(r["x"]),
+                z=float(r["z"]),
+                y=float(r["y"]),
+                r=float(r.get("r", 0)),
+                w=float(r.get("w", 0)),
+                d=float(r.get("d", 0)),
+            )
+            for r in data["towerInside"]
+        )
         self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):
@@ -67,6 +121,10 @@ class WorldMap:
         self._columns: dict[tuple[int, int], list[int]] = {}
         for i, n in enumerate(self.nodes):
             self._columns.setdefault((round(n.x), round(n.z)), []).append(i)
+
+    def hitbox(self, avatar: str) -> Hitbox:
+        """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
+        return self.hitboxes.get(avatar, self.hitboxes["standard"])
 
     def clear(self, a: Vec3, b: Vec3) -> bool:
         """Whether nothing stands between ``a`` and ``b``: a shot from one reaches the other."""
@@ -90,6 +148,20 @@ class WorldMap:
                     if distance < best_distance:
                         best, best_distance = i, distance
         return best
+
+    def nodes_near(self, feet: Vec3, radius: float, rise: float = 3) -> list[int]:
+        """Every node within ``radius`` metres across the floor of ``feet`` and ``rise`` up or down:
+        the spots around a player on their own floor."""
+        span = math.ceil(radius)
+        cx, cz = round(feet.x), round(feet.z)
+        return [
+            i
+            for dx in range(-span, span + 1)
+            for dz in range(-span, span + 1)
+            for i in self._columns.get((cx + dx, cz + dz), ())
+            if math.hypot(self.nodes[i].x - feet.x, self.nodes[i].z - feet.z) <= radius
+            and abs(self.nodes[i].y - feet.y) <= rise
+        ]
 
     def path(self, start: int, goal: int) -> list[int] | None:
         """The shortest way from node ``start`` to node ``goal`` (both ends included), or None

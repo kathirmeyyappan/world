@@ -6,19 +6,19 @@ import {
   AVATARS,
   AVATAR_IDS,
   BOTS,
-  BOT_DEFAULT_SECONDS,
   BOT_IDS,
   COMMAND_SHORTCUTS,
   GEAR,
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
+  botArguments,
 } from '@world/shared';
 import { IS_TOUCH, onTap } from '../input/touch';
 
 interface Group {
   title: string;
-  rows: [command: string, note: string][];
+  rows: [command: string, note: string, args?: string][]; // args: dimmed after the command
   empty?: string;
 }
 
@@ -80,8 +80,9 @@ function buildGroups(): Group[] {
       title: 'bot commands',
       rows: [
         ...BOT_IDS.map((id): Group['rows'][number] => [
-          `/${BOTS[id].playerName} [seconds]`,
-          `${BOTS[id].blurb} · ${BOT_DEFAULT_SECONDS}s unless you say`,
+          `/${BOTS[id].playerName}`,
+          BOTS[id].blurb,
+          nobreak(botArguments(BOTS[id].worker)),
         ]),
         ['/kill-bots', 'every bot in the room drops dead'],
       ],
@@ -97,6 +98,15 @@ function buildGroups(): Group[] {
   ];
 }
 
+// Flags and their values unbreakable, so a line wraps only between "-t [seconds]" and the next,
+// never inside "--skin" or "[name substrings]".
+function nobreak(text: string): string {
+  return text
+    .replaceAll('-', '\u2011')
+    .replace(/\[[^\]]*\]/g, (value) => value.replaceAll(' ', '\u00a0'))
+    .replaceAll(' [', '\u00a0[');
+}
+
 function commandLabel(name: string): string {
   const shortcuts = Object.entries(COMMAND_SHORTCUTS)
     .filter(([, command]) => command === name)
@@ -105,6 +115,11 @@ function commandLabel(name: string): string {
 }
 
 function groupHtml(g: Group): string {
-  const rows = g.rows.map(([c, n]) => `<li><span class="cmd">${c}</span><span class="note">${n}</span></li>`).join('');
+  const rows = g.rows
+    .map(([c, n, a]) => {
+      const args = a ? ` <span class="args">${a}</span>` : '';
+      return `<li><span class="cmd">${c}${args}</span><span class="note">${n}</span></li>`;
+    })
+    .join('');
   return `<section><h2>${g.title}</h2>${rows ? `<ul>${rows}</ul>` : `<p class="empty">${g.empty ?? ''}</p>`}</section>`;
 }
