@@ -256,7 +256,7 @@ protocol.
   when choosing targets. Yaw `0` faces `+z`; positive pitch looks down, and `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
-- Falls hurt: landing 20 m or more below where a fall began costs a heart per 10 m, in half hearts.
+- Falls hurt: landing 15 m or more below where a fall began costs a heart per 10 m, in half hearts.
   That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell` event rather than
   `kill`. A jetpack's thrust restarts the fall wherever it pushes.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim

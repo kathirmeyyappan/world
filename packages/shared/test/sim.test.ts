@@ -127,8 +127,8 @@ test('/speedy boost multiplies movement and wears off', () => {
   assert.ok(Math.abs(p.pos.z - before - 0.8) < 1e-9, 'back to normal speed');
 });
 
-test('a fall costs a heart per 10 m from 20 m, in half hearts; a jetpack lifts and breaks the fall', () => {
-  assert.deepEqual([19.9, 20, 27, 34.9].map(fallDamage), [0, 2, 2.5, 3]);
+test('a fall costs a heart per 10 m from 15 m, in half hearts; a jetpack lifts and breaks the fall', () => {
+  assert.deepEqual([14.9, 15, 27, 34.9].map(fallDamage), [0, 1.5, 2.5, 3]);
   const open = new Structures([]);
   // Dropped with feet 30 m up; `thrustBelow` holds the jetpack's thrust once the feet are that low.
   const drop = (thrustBelow: number) => {
