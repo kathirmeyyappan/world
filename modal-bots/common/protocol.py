@@ -51,7 +51,6 @@ class Player:
     scoped: bool
     firing: bool
     thrusting: bool
-    fall_top: float | None
     avatar: str
     avatar_locked: bool
     hearts: float
@@ -153,7 +152,6 @@ def player(data: Mapping[str, Any]) -> Player:
         scoped=data["scoped"],
         firing=data["firing"],
         thrusting=data["thrusting"],
-        fall_top=data["fallTop"],
         avatar=data["avatar"],
         avatar_locked=data["avatarLocked"],
         hearts=data["hearts"],

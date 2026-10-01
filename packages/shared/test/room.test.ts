@@ -236,7 +236,7 @@ test('weapon command shortcuts equip the matching item', () => {
   assert.equal(player.item?.id, 'flamethrower');
 });
 
-test('a long fall hurts like a shot with no shooter, and a fatal one is announced as a fall', () => {
+test('a hard landing hurts like a shot with no shooter, and a fatal one is announced as a fall', () => {
   const room = new Room('falls', { seed: 3, structures: new Structures([]) });
   const a = link();
   const id = room.join('alice', a)!;
@@ -248,10 +248,10 @@ test('a long fall hurts like a shot with no shooter, and a fatal one is announce
   fall(41);
   assert.deepEqual(
     a.inbox.find((m) => m.t === 'hit'),
-    { t: 'hit', shooter: null, victim: id, damage: 4, headshot: false, hearts: MAX_HEARTS - 4 },
+    { t: 'hit', shooter: null, victim: id, damage: 5, headshot: false, hearts: MAX_HEARTS - 5 },
   );
   fall(14);
-  assert.equal(alice.hearts, MAX_HEARTS - 4, 'under 15 m is free');
+  assert.equal(alice.hearts, MAX_HEARTS - 5, 'under 15 m is free');
   fall(70);
   assert.ok(alice.dead);
   assert.ok(a.inbox.some((m) => m.t === 'fell' && m.victim === id));
