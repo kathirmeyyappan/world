@@ -199,8 +199,9 @@ become the `reading` field; use `read_cube`. Attack clicks become the `shoot` ac
 `fire_once` or `shoot`. Sky-object clicks are entirely client-side and have no server interaction.
 
 Tap weapons require a press frame followed by a release frame. Hold weapons require `shoot` on
-every frame. Sniper shots require scope to remain enabled. Run exactly one input loop per
-connection; never call `send_input()` concurrently from multiple tasks.
+every frame. Sniper shots require scope to remain enabled, and a scoped player walks at 30% speed
+and can't jump. Run exactly one input loop per connection; never call `send_input()` concurrently
+from multiple tasks.
 
 ### Active-bot lifecycle
 
@@ -257,7 +258,7 @@ protocol.
   when choosing targets. Yaw `0` faces `+z`; positive pitch looks down, and `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
-- Falls hurt: landing 20 m or more below where a fall began costs a heart per 10 m, in half hearts.
+- Falls hurt: landing 15 m or more below where a fall began costs a heart per 10 m, in half hearts.
   That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell` event rather than
   `kill`. A jetpack's thrust restarts the fall wherever it pushes.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim

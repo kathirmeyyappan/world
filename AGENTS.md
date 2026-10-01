@@ -116,7 +116,7 @@ Important semantics:
 - `jump` and `fire_once` last one frame.
 - `shoot(True)` persists and is for held actions such as flamethrower fire.
 - Tap weapons need a press frame followed by a release frame.
-- Sniper firing requires persistent scope.
+- Sniper firing requires persistent scope. A scoped player walks at 30% speed and can't jump.
 - Use exactly one `run_input_loop` per connection. Do not send frames concurrently.
 - There is no generic server-side click. Cube clicks become `reading`; use `read_cube`. Attack
   clicks become `shoot`; use `fire_once` or `shoot`. Sky clicks are client-only.
@@ -157,7 +157,7 @@ with concurrent receive and input loops.
   dimensions: structures put players on floors, stairs and bridges, so `y` varies (feet are at
   `pos.y - 1.7`). Choose targets by straight-line distance, not `x`/`z` only; `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard.
-- Falls hurt: landing 20 m or more below where a fall began costs a heart per 10 m, in half hearts.
+- Falls hurt: landing 15 m or more below where a fall began costs a heart per 10 m, in half hearts.
   That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell` event rather than
   `kill`. A jetpack's thrust restarts the fall wherever it pushes.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.

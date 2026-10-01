@@ -241,8 +241,8 @@ test('a long fall hurts like a shot with no shooter, and a fatal one is announce
     a.inbox.find((m) => m.t === 'hit'),
     { t: 'hit', shooter: null, victim: id, damage: 4, headshot: false, hearts: MAX_HEARTS - 4 },
   );
-  fall(19);
-  assert.equal(alice.hearts, MAX_HEARTS - 4, 'under 20 m is free');
+  fall(14);
+  assert.equal(alice.hearts, MAX_HEARTS - 4, 'under 15 m is free');
   fall(70);
   assert.ok(alice.dead);
   assert.ok(a.inbox.some((m) => m.t === 'fell' && m.victim === id));
