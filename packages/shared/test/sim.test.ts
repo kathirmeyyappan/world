@@ -5,6 +5,7 @@ import {
   GEAR,
   ITEMS,
   JUMP_VELOCITY,
+  SCOPED_SPEED_MULTIPLIER,
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
   STEP_UP,
@@ -16,6 +17,7 @@ import {
   clonePlayer,
   createCubes,
   createGear,
+  createItem,
   createPlayer,
   fallDamage,
   createRng,
@@ -115,7 +117,7 @@ test('cubes all live in the main disc and cover it evenly', () => {
   assert.equal(quadrants.size, 8, 'over ten minutes the cubes visit every quadrant, inner and outer');
 });
 
-test('/speedy boost multiplies movement and wears off', () => {
+test('/speedy boost multiplies movement and wears off; a scope slows it and stops jumps', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   p.boost = SPEEDY_SECONDS;
   stepPlayer(p, frame(1, { my: 1 }), 1, WORLD_SHAPE);
@@ -125,6 +127,13 @@ test('/speedy boost multiplies movement and wears off', () => {
   const before = p.pos.z;
   stepPlayer(p, frame(99, { my: 1 }), 0.1, WORLD_SHAPE);
   assert.ok(Math.abs(p.pos.z - before - 0.8) < 1e-9, 'back to normal speed');
+
+  // Scoped: 30% of the walk, and the jump does nothing.
+  p.item = createItem('sniper', false);
+  const at = p.pos.z;
+  stepPlayer(p, frame(100, { my: 1, jump: true, actions: ['scope'] }), 0.1, WORLD_SHAPE);
+  assert.ok(Math.abs(p.pos.z - at - 0.8 * SCOPED_SPEED_MULTIPLIER) < 1e-9, 'scoped walk');
+  assert.equal(p.vy, 0, 'no jump while scoped');
 });
 
 test('a fall costs a heart per 10 m from 20 m, in half hearts; a jetpack lifts and breaks the fall', () => {

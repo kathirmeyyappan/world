@@ -8,6 +8,7 @@ import {
   MOVE_SPEED,
   PLAYER_PADDING,
   PLAYER_RADIUS,
+  SCOPED_SPEED_MULTIPLIER,
   SPEEDY_MULTIPLIER,
   STEP_DOWN,
   STEP_UP,
@@ -97,17 +98,20 @@ export function stepPlayer(
     p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
     p.reading = input.reading;
     p.lastSeq = input.seq;
-    if (input.jump && isGrounded(p, structures) && !p.dead) p.vy = JUMP_VELOCITY;
   }
 
-  const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1);
+  const boosted = p.boost > 0;
   p.boost = Math.max(0, p.boost - dt);
   if (p.item && !p.item.permanent) {
     p.item.left -= dt;
     if (p.item.left <= 0) p.item = null;
   }
   stepItem(p, input, dt);
-  const lift = stepGear(p, input ? input.actions : [], isGrounded(p, structures), dt);
+  // Scoped (decided by stepItem from this frame) slows the walk and pins them to the ground.
+  const speed = MOVE_SPEED * (boosted ? SPEEDY_MULTIPLIER : 1) * (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1);
+  const grounded = isGrounded(p, structures);
+  if (input?.jump && grounded && !p.dead && !p.scoped) p.vy = JUMP_VELOCITY;
+  const lift = stepGear(p, input ? input.actions : [], grounded, dt);
 
   // Vertical: fall (or rise on the gear's lift, which never slows a faster climb), stop the head at
   // any underside above it, land on the highest top within a step of where the feet were.

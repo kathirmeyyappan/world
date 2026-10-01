@@ -198,8 +198,9 @@ become the `reading` field; use `read_cube`. Attack clicks become the `shoot` ac
 `fire_once` or `shoot`. Sky-object clicks are entirely client-side and have no server interaction.
 
 Tap weapons require a press frame followed by a release frame. Hold weapons require `shoot` on
-every frame. Sniper shots require scope to remain enabled. Run exactly one input loop per
-connection; never call `send_input()` concurrently from multiple tasks.
+every frame. Sniper shots require scope to remain enabled, and a scoped player walks at 30% speed
+and can't jump. Run exactly one input loop per connection; never call `send_input()` concurrently
+from multiple tasks.
 
 ### Active-bot lifecycle
 

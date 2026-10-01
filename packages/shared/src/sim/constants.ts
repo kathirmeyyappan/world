@@ -20,6 +20,9 @@ export const MAX_PITCH = Math.PI / 2 - 0.1;
 export const SPEEDY_MULTIPLIER = 1.8;
 export const SPEEDY_SECONDS = 20;
 
+// Aiming down a scope: walking at this fraction of the speed, and no jumping.
+export const SCOPED_SPEED_MULTIPLIER = 0.3;
+
 // Shooting: hits are resolved on the server against each avatar's hit capsule (sim/avatars.ts).
 // Ranges and cooldowns are per item, in items.ts.
 export const DEATH_SCREEN_SECONDS = 10;
