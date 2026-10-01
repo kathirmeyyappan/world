@@ -5,9 +5,6 @@
 import {
   AVATARS,
   AVATAR_IDS,
-  BOT_EXAMPLE,
-  BOT_FLAG_IDS,
-  BOT_FLAGS,
   BOTS,
   BOT_IDS,
   COMMAND_SHORTCUTS,
@@ -16,7 +13,6 @@ import {
   ITEMS,
   ITEM_IDS,
   botArguments,
-  type BotWorker,
 } from '@world/shared';
 import { IS_TOUCH, onTap } from '../input/touch';
 
@@ -91,22 +87,6 @@ function buildGroups(): Group[] {
         ['/kill-bots', 'every bot in the room drops dead'],
       ],
     },
-    {
-      // Each flag with the bots that take it, then one command putting them together.
-      title: 'bot flags, in any order, each at most once',
-      rows: [
-        ...BOT_FLAG_IDS.map((id): Group['rows'][number] => {
-          const f = BOT_FLAGS[id];
-          const long = f.short === null ? '' : `, or ${nobreak(f.long)}`;
-          return [nobreak(f.short ?? f.long), `${f.help} (${botsTaking(f.workers)}${long})`, nobreak(`[${f.value}]`)];
-        }),
-        [
-          BOT_EXAMPLE.slice(0, BOT_EXAMPLE.indexOf(' ')),
-          'for example',
-          nobreak(BOT_EXAMPLE.slice(BOT_EXAMPLE.indexOf(' ') + 1)),
-        ],
-      ],
-    },
     { title: 'wear skin', rows: skins.map((id) => [`/${AVATARS[id].command}`, AVATARS[id].blurb]) },
     {
       title: 'other',
@@ -125,12 +105,6 @@ function nobreak(text: string): string {
     .replaceAll('-', '\u2011')
     .replace(/\[[^\]]*\]/g, (value) => value.replaceAll(' ', '\u00a0'))
     .replaceAll(' [', '\u00a0[');
-}
-
-// "every bot", or the ones that take a flag by name.
-function botsTaking(workers: BotWorker[]): string {
-  const ids = BOT_IDS.filter((id) => workers.includes(BOTS[id].worker));
-  return ids.length === BOT_IDS.length ? 'every bot' : ids.map((id) => `/${BOTS[id].playerName}`).join(', ');
 }
 
 function commandLabel(name: string): string {

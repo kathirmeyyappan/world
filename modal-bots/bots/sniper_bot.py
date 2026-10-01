@@ -21,7 +21,7 @@ aiming at.
    read a few snapshots old (AIM_LAG_TICKS, a reaction time): where they were then, carried on at
    the speed they had, so standing still or moving steadily is fatal and darting or jumping about
    is how to dodge. It aims at a random spot on their hitbox (the
-   map's, for their avatar): the chest 65% of the time, the head 25%, and 10% just past their side
+   map's, for their avatar): the chest 35% of the time, the head 15%, and 50% just past their side
    (AIM_ZONES). After a hit it can't fire for HIT_COOLDOWN_SECONDS, after a miss only
    MISS_COOLDOWN_SECONDS. After a shot from FAR or further it steps to the nearest spot within
    HIDE_RADIUS that its target can't see, if there is one, and comes back out to its lookout when
@@ -84,7 +84,7 @@ SIGHT_EVERY = 3  # ticks between sight checks
 SIGHT_CHECKS = 6  # the nearest this many quarry are checked for a clear line
 CHEST_DROP = 0.5  # metres below the eye that it checks the line of sight to: the middle of the body
 # Where each shot is aimed, and how often: the chest, the head, or just past the body's side.
-AIM_ZONES = {"chest": 0.65, "head": 0.25, "miss": 0.1}
+AIM_ZONES = {"chest": 0.35, "head": 0.15, "miss": 0.5}
 AIM_SPREAD = 0.8  # how far off the axis a shot on the body goes, as a share of the hitbox radius
 MISS_BY = (0.1, 0.6)  # metres past the hitbox's side that a near miss goes
 SPOT_CHOICES = 40  # spots it weighs when picking where to shoot from
