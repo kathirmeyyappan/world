@@ -28,8 +28,6 @@ export type WorldPart = Disc | Bridge;
 
 export { ANNEX, FLOOR_BRIDGE, MAIN_DISC };
 export const WORLD_SHAPE: WorldPart[] = [MAIN_DISC, ANNEX, FLOOR_BRIDGE];
-// Where people (and bots that don't choose a spot) spawn: the main area, never the tower's grounds.
-export const SPAWN_AREA: Disc = MAIN_DISC;
 
 // The structures standing inside the outline, indexed for the sim's queries.
 export const WORLD_STRUCTURES = new Structures(STRUCTURES);

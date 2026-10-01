@@ -1,5 +1,6 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
 import { isItemAction, type ItemId } from './sim/items';
+import type { PickupKind } from './sim/pickups';
 import type { InputFrame, PlayerState } from './sim/types';
 
 export interface CubeSnapshot {
@@ -11,11 +12,29 @@ export interface CubeSnapshot {
   ry: number;
 }
 
+// A pickup where it floats this tick (sim/pickups.ts); `ry` is its spin.
+export interface PickupSnapshot {
+  id: string;
+  kind: PickupKind;
+  x: number;
+  y: number;
+  z: number;
+  ry: number;
+}
+
 export type ClientMessage = { t: 'input'; f: InputFrame } | { t: 'chat'; text: string } | { t: 'ping'; at: number };
 
 export type ServerMessage =
-  | { t: 'welcome'; id: string; room: string; tick: number; players: PlayerState[]; cubes: CubeSnapshot[] }
-  | { t: 'snap'; tick: number; players: PlayerState[]; cubes: CubeSnapshot[] }
+  | {
+      t: 'welcome';
+      id: string;
+      room: string;
+      tick: number;
+      players: PlayerState[];
+      cubes: CubeSnapshot[];
+      pickups: PickupSnapshot[];
+    }
+  | { t: 'snap'; tick: number; players: PlayerState[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[] }
   | { t: 'join'; p: PlayerState }
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; color: string; text: string }

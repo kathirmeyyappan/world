@@ -157,6 +157,8 @@ with concurrent receive and input loops.
   dimensions: structures put players on floors, stairs and bridges, so `y` varies (feet are at
   `pos.y - 1.7`). Choose targets by straight-line distance, not `x`/`z` only; `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard.
+- Snapshots carry the floating pickups (`state.pickups`); walking into a heart below full health
+  gives back 3 hearts, up to 10.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
@@ -319,10 +321,15 @@ wire: server and client both build the world from that file.
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Spawns land in the main disc only (`SPAWN_AREA`), standing on the ground (or anything within a step
+- Named places to put things are regions in `content/regions.ts`: a disc or rectangle on a floor at
+  a height, which landmarks export (the tower's five levels, the terrace). Spawns land in the main
+  disc only (`SPAWN_AREA`), standing on the ground (or anything within a step
   of it) with headroom, so a building's ground floor there can be a spawn point and roofs, decks and
   wall tops never are. Info cubes wander the main disc
   at about 3 m and pass through structures, so tall pieces there will have cubes floating through them.
+- Hearts are pickups (`sim/pickups.ts`) floating 1.4 m over the regions listed in
+  `content/pickups.ts`, with a count per region and a 30 s respawn; they pass through structures like
+  cubes, so keep a region clear of stairs and walls at that height.
 - Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
   hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:
   the hole has to cover the stretch where the stair is within about 2.7 m of the floor above.

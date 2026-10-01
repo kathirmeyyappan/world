@@ -227,6 +227,38 @@ test('weapon command shortcuts equip the matching item', () => {
   assert.equal(player.item?.id, 'flamethrower');
 });
 
+test('hearts: walking into one heals 3 up to full, a full player leaves it, and it comes back 30 s later', () => {
+  const welcome = link();
+  new Room('default-hearts', { seed: 1 }).join('a', welcome);
+  assert.equal(welcome.inbox[0].t === 'welcome' && welcome.inbox[0].pickups.length, 14, 'the world starts with 14');
+
+  const area = {
+    region: { kind: 'disc', x: 0, z: 0, r: 4, y: 0 },
+    kind: 'heart',
+    count: 1,
+    respawnSeconds: 30,
+  } as const;
+  const room = new Room('hearts', { seed: 2, structures: new Structures([]), pickupAreas: [area] });
+  const a = link();
+  const id = room.join('alice', a)!;
+  const alice = room.players.find((p) => p.id === id)!;
+  const hearts = () => {
+    const snap = [...a.inbox].reverse().find((m) => m.t === 'snap');
+    return snap?.t === 'snap' ? snap.pickups : [];
+  };
+  room.step();
+  const [heart] = hearts();
+  Object.assign(alice.pos, { x: heart.x, z: heart.z });
+  room.step();
+  assert.equal(hearts().length, 1, 'full health: left where it is');
+  alice.hearts = 8.5;
+  room.step();
+  assert.equal(alice.hearts, MAX_HEARTS, 'healed, capped at full');
+  assert.equal(hearts().length, 0);
+  for (let i = 0; i < TICK_RATE * 30; i++) room.step();
+  assert.equal(hearts().length, 1, 'another 30 s later');
+});
+
 test('a hard landing hurts like a shot with no shooter, and a fatal one is announced as a fall', () => {
   const room = new Room('falls', { seed: 3, structures: new Structures([]) });
   const a = link();

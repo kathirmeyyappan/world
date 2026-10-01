@@ -66,7 +66,7 @@ def test_lobby_failure_is_clear() -> None:
 
 
 def test_connection_requires_welcome() -> None:
-    socket = FakeWebSocket('{"t":"snap","tick":1,"players":[],"cubes":[]}')
+    socket = FakeWebSocket('{"t":"snap","tick":1,"players":[],"cubes":[],"pickups":[]}')
     with pytest.raises(RoomConnectionError, match="not 'welcome'"):
         asyncio.run(
             connection._welcome(

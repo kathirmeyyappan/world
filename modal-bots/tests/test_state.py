@@ -27,6 +27,7 @@ def test_reduces_snapshots_and_roster_events() -> None:
                 "tick": 43,
                 "players": [player("p1"), player("p2", "alice")],
                 "cubes": [cube("notion")],
+                "pickups": [],
             }
         )
     )

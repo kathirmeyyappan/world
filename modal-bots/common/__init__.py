@@ -3,7 +3,7 @@
 from .connection import Connection, RoomConnectionError, connect
 from .controls import Controls, run_input_loop
 from .logging import log_death, log_kill, log_message
-from .protocol import Cube, Event, Gear, Item, Message, Player, ProtocolError, Snapshot, Vec3, Welcome
+from .protocol import Cube, Event, Gear, Item, Pickup, Message, Player, ProtocolError, Snapshot, Vec3, Welcome
 from .state import WorldState
 
 __all__ = [
@@ -13,6 +13,7 @@ __all__ = [
     "Event",
     "Gear",
     "Item",
+    "Pickup",
     "Message",
     "Player",
     "ProtocolError",
