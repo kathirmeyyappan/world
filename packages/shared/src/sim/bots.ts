@@ -49,6 +49,23 @@ export const BOT_ARGUMENTS: Record<BotWorker, string> = {
   combat: '[-t seconds] [-n name] [--targets name substrings]',
 };
 
+// Each flag a bot command takes (commands.ts parses them), explained for the commands menu, and
+// the bots it works for.
+export const BOT_FLAGS: { flag: string; help: string; workers: BotWorker[] }[] = [
+  {
+    flag: '-t seconds',
+    help: `how long it stays, in seconds: ${BOT_DEFAULT_SECONDS} unless you say, up to ${BOT_MAX_SECONDS}`,
+    workers: ['dumb', 'combat'],
+  },
+  { flag: '-n name', help: 'what it plays as, instead of its own name', workers: ['dumb', 'combat'] },
+  {
+    flag: '--targets names…',
+    help: 'who it goes after: words up to the next flag, each any part of a name, any case; every person if left out',
+    workers: ['combat'],
+  },
+];
+export const BOT_EXAMPLE = '/sniper-bot -t 120 -n hunter --targets kat bob';
+
 export const BOT_IDS = Object.keys(BOTS) as BotId[];
 
 export function isBotId(v: unknown): v is BotId {

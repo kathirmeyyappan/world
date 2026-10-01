@@ -6,14 +6,16 @@ import {
   AVATARS,
   AVATAR_IDS,
   BOT_ARGUMENTS,
+  BOT_EXAMPLE,
+  BOT_FLAGS,
   BOTS,
-  BOT_DEFAULT_SECONDS,
   BOT_IDS,
   COMMAND_SHORTCUTS,
   GEAR,
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
+  type BotWorker,
 } from '@world/shared';
 import { IS_TOUCH, onTap } from '../input/touch';
 
@@ -82,14 +84,17 @@ function buildGroups(): Group[] {
       rows: [
         ...BOT_IDS.map((id): Group['rows'][number] => [
           `/${BOTS[id].playerName} ${BOT_ARGUMENTS[BOTS[id].worker]}`,
-          [
-            BOTS[id].blurb,
-            ...(BOTS[id].worker === 'combat' ? ['--targets picks who (any part of a name)'] : []),
-            `-t defaults to ${BOT_DEFAULT_SECONDS}s`,
-            '-n renames it',
-          ].join(' · '),
+          BOTS[id].blurb,
         ]),
         ['/kill-bots', 'every bot in the room drops dead'],
+      ],
+    },
+    {
+      // Each flag with the bots that take it, then one command putting them together.
+      title: 'bot flags, in any order, each at most once',
+      rows: [
+        ...BOT_FLAGS.map((f): Group['rows'][number] => [f.flag, `${f.help} (${botsTaking(f.workers)})`]),
+        [BOT_EXAMPLE, 'for example'],
       ],
     },
     { title: 'wear skin', rows: skins.map((id) => [`/${AVATARS[id].command}`, AVATARS[id].blurb]) },
@@ -101,6 +106,12 @@ function buildGroups(): Group[] {
       ],
     },
   ];
+}
+
+// "every bot", or the ones that take a flag by name.
+function botsTaking(workers: BotWorker[]): string {
+  const ids = BOT_IDS.filter((id) => workers.includes(BOTS[id].worker));
+  return ids.length === BOT_IDS.length ? 'every bot' : ids.map((id) => `/${BOTS[id].playerName}`).join(', ');
 }
 
 function commandLabel(name: string): string {

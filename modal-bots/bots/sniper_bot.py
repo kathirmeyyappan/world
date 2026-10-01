@@ -16,11 +16,16 @@ aiming at.
    few every SIGHT_EVERY ticks, nearest first, so whoever is closest gets its attention.
 
 4. Shooting. With someone in sight it watches them, walking or not, and fires once they've stayed
-   in sight for a grace delay, a fresh random 5 to 15 ticks each time (counted from the end of its
-   cooldown for a later shot). For the shot itself it stops and scopes in. Each shot is aimed at a
-   random spot on their hitbox (the map's, for their avatar): the chest 40% of the time, the head
-   20%, and 40% just past their side, a near miss (AIM_ZONES). Then it can't fire again for
-   COOLDOWN_SECONDS.
+   in sight for a grace delay, a fresh random 3 to 10 ticks each time (counted from the end of its
+   cooldown for a later shot). For the shot itself it stops and scopes in. It leads them from a
+   read a few snapshots old (AIM_LAG_TICKS, a reaction time): where they were then, carried on at
+   the speed they had, so standing still or moving steadily is fatal and darting or jumping about
+   is how to dodge. It aims at a random spot on their hitbox (the
+   map's, for their avatar): the chest 65% of the time, the head 25%, and 10% just past their side
+   (AIM_ZONES). After a hit it can't fire for HIT_COOLDOWN_SECONDS, after a miss only
+   MISS_COOLDOWN_SECONDS. After a shot from FAR or further it steps to the nearest spot within
+   HIDE_RADIUS that its target can't see, if there is one, and comes back out to its lookout when
+   it can fire again.
 
 5. Moving. Whatever ``spawn`` it's given, it starts on one of the tower's four inside floors
    (``world.tower_inside``), and from there it always has one spot it's walking to or standing
@@ -41,6 +46,7 @@ import asyncio
 import math
 import random
 import time
+from collections import deque
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
@@ -64,14 +70,21 @@ from common.controls import TICK_RATE
 from common.deployment import validate_duration
 from common.world import EYE_HEIGHT, Hitbox
 
-GRACE_TICKS = (5, 15)  # a target must stay in sight this long (inclusive range) before a shot
-COOLDOWN_SECONDS = 3.0  # no shot for this long after one
+GRACE_TICKS = (3, 10)  # a target must stay in sight this long (inclusive range) before a shot
+HIT_COOLDOWN_SECONDS = 3.0  # no shot for this long after one that hit
+MISS_COOLDOWN_SECONDS = 1.0  # or this long after one that missed
+# Its read of a target is this many snapshots old (a reaction time, inclusive range): it leads them
+# from where and how fast they were going then. Anyone standing or moving steadily (creeping along
+# scoped, strafing in a line) is where it aims; anyone who changed direction or jumped since isn't.
+AIM_LAG_TICKS = (4, 7)
+FAR = 30.0  # metres: after a shot from at least this far it ducks out of sight while it reloads
+HIDE_RADIUS = 4.0  # metres round itself it looks for a spot its target can't see
 SPAWN_GRACE_SECONDS = 5.0  # a player it saw join is left alone this long
 SIGHT_EVERY = 3  # ticks between sight checks
 SIGHT_CHECKS = 6  # the nearest this many quarry are checked for a clear line
 CHEST_DROP = 0.5  # metres below the eye that it checks the line of sight to: the middle of the body
 # Where each shot is aimed, and how often: the chest, the head, or just past the body's side.
-AIM_ZONES = {"chest": 0.4, "head": 0.2, "miss": 0.4}
+AIM_ZONES = {"chest": 0.65, "head": 0.25, "miss": 0.1}
 AIM_SPREAD = 0.8  # how far off the axis a shot on the body goes, as a share of the hitbox radius
 MISS_BY = (0.1, 0.6)  # metres past the hitbox's side that a near miss goes
 SPOT_CHOICES = 40  # spots it weighs when picking where to shoot from
@@ -135,8 +148,11 @@ async def run_sniper_bot(
                         log_kill(name, victim.name if victim else "?", item="sniper", headshot=message.data["headshot"])
                     elif message.data["victim"] == me.id:
                         log_death(name, shooter.name if shooter else "?", item=message.data["item"])
-                if isinstance(message, Event) and message.t == "hit" and message.data["victim"] == me.id:
-                    sniper.hurt = True
+                if isinstance(message, Event) and message.t == "hit":
+                    if message.data["victim"] == me.id:
+                        sniper.hurt = True
+                    elif message.data["shooter"] == me.id:
+                        sniper.landed()
                 if me.dead:
                     stop.set()  # as circle_bot: lie there until the room drops the corpse
                     continue
@@ -192,10 +208,10 @@ def chest(p: Player) -> Vec3:
     return Vec3(p.pos.x, p.pos.y - CHEST_DROP, p.pos.z)
 
 
-def aim_point(origin: Vec3, target: Player, hitbox: Hitbox, zone: str, rng: random.Random) -> Vec3:
-    """A random spot to shoot at from ``origin``, in one of AIM_ZONES on the target's hitbox: up
-    its axis for the zone's height, and sideways across the line of fire (within AIM_SPREAD of the
-    radius on the body, past the radius for a miss)."""
+def aim_point(origin: Vec3, target: Vec3, hitbox: Hitbox, zone: str, rng: random.Random) -> Vec3:
+    """A random spot to shoot at from ``origin``, in one of AIM_ZONES on the hitbox of a player
+    whose eyes are at ``target``: up its axis for the zone's height, and sideways across the line
+    of fire (within AIM_SPREAD of the radius on the body, past the radius for a miss)."""
     neck = hitbox.top - hitbox.head  # where the head band starts, above the feet
     if zone == "head":
         height = rng.uniform(neck + 0.05, hitbox.top - 0.05)
@@ -206,11 +222,9 @@ def aim_point(origin: Vec3, target: Player, hitbox: Hitbox, zone: str, rng: rand
     else:
         height = rng.uniform(0.3 * neck, hitbox.top)
         side = rng.choice((-1, 1)) * (hitbox.radius + rng.uniform(*MISS_BY))
-    dx, dz = target.pos.x - origin.x, target.pos.z - origin.z
+    dx, dz = target.x - origin.x, target.z - origin.z
     across = math.hypot(dx, dz) or 1.0
-    return Vec3(
-        target.pos.x + dz / across * side, target.pos.y - EYE_HEIGHT + height, target.pos.z - dx / across * side
-    )
+    return Vec3(target.x + dz / across * side, target.y - EYE_HEIGHT + height, target.z - dx / across * side)
 
 
 @dataclass
@@ -230,6 +244,9 @@ class Sniper:
     fire_at: int = 0  # the tick it may shoot them: its grace delay's end
     ready_at: int = 0  # the tick its cooldown ends
     spot: int | None = None  # the lookout it's walking to or standing at
+    cover: int | None = None  # a spot nearby out of its last target's sight, while it reloads there
+    last_shot: int = 0  # the tick it last fired
+    seen_at: deque[dict[str, Vec3]] = field(default_factory=lambda: deque(maxlen=AIM_LAG_TICKS[1] + 3))
     route: Route | None = None
     arrived_at: int | None = None  # when it got to its spot
     replan_at: int = 0  # the tick it may pick a spot or find a way again (a second after the last)
@@ -240,6 +257,7 @@ class Sniper:
         me = state.me
         assert me is not None
         tick = state.tick
+        self.seen_at.append({p.id: p.pos for p in state.players.values()})
         quarry = self._quarry(state, tick)
         if tick >= self._next_sight_check:
             self._next_sight_check = tick + SIGHT_EVERY
@@ -295,16 +313,64 @@ class Sniper:
         if not me.scoped or not holding:
             return
         zone = self.rng.choices(list(AIM_ZONES), weights=list(AIM_ZONES.values()))[0]
-        controls.look_at(me.pos, aim_point(me.pos, target, self.world.hitbox(target.avatar), zone, self.rng))
+        controls.look_at(
+            me.pos, aim_point(me.pos, self._lead(target), self.world.hitbox(target.avatar), zone, self.rng)
+        )
         controls.fire_once()
         self.shots += 1
-        self.ready_at = tick + round(COOLDOWN_SECONDS * TICK_RATE)
+        self.last_shot = tick
+        self.ready_at = tick + round(MISS_COOLDOWN_SECONDS * TICK_RATE)  # until it hears it hit
         self.fire_at = self.ready_at + self.rng.randint(*GRACE_TICKS)
-        log_message(self.name, "fired", target=target.name, aim=zone, distance=round(_distance(me.pos, target.pos), 1))
+        distance = _distance(me.pos, target.pos)
+        log_message(self.name, "fired", target=target.name, aim=zone, distance=round(distance, 1))
+        if distance >= FAR:
+            self._take_cover(me, target, tick)
+
+    def _lead(self, target: Player) -> Vec3:
+        """Where it thinks the target's eyes are now: where it saw them AIM_LAG_TICKS ago, carried on
+        at the speed they were going then."""
+        lag = self.rng.randint(*AIM_LAG_TICKS)
+        if len(self.seen_at) < lag + 2:
+            return target.pos
+        then = self.seen_at[-lag].get(target.id, target.pos)
+        before = self.seen_at[-lag - 2].get(target.id, then)
+        ticks = lag - 1  # from the old read to the newest snapshot
+        return Vec3(
+            then.x + (then.x - before.x) / 2 * ticks,
+            then.y + (then.y - before.y) / 2 * ticks,
+            then.z + (then.z - before.z) / 2 * ticks,
+        )
+
+    def landed(self) -> None:
+        """Its last shot hit: wait out the longer cooldown from when it was fired."""
+        self.ready_at = max(self.ready_at, self.last_shot + round(HIT_COOLDOWN_SECONDS * TICK_RATE))
+        self.fire_at = self.ready_at + self.rng.randint(*GRACE_TICKS)
+
+    def _take_cover(self, me: Player, target: Player, tick: int) -> None:
+        """Step to the nearest spot within HIDE_RADIUS that the target can't see, if there is one,
+        and wait there until it can fire again."""
+        hidden = [
+            i
+            for i in self.world.nodes_near(_feet(me), HIDE_RADIUS)
+            if not self.world.clear(_eye(self.world.nodes[i]), chest(target))
+        ]
+        start = self.world.node_at(_feet(me))
+        if not hidden or start is None:
+            return
+        cover = min(hidden, key=lambda i: _distance(me.pos, _eye(self.world.nodes[i])))
+        path = self.world.path(start, cover)
+        if path is not None:
+            self.cover, self.route, self.arrived_at = cover, Route(self.world, path, tick), None
 
     def _plan(self, me: Player, quarry: list[Player], tick: int) -> None:
         """Pick a spot when it has none, or another floor's when it has waited there too long with
         nobody in sight or been hurt; find a way again when it has none or is stuck."""
+        if self.cover is not None:
+            # Hiding while it reloads; once it can fire, back out to its spot for another look.
+            if tick >= self.ready_at:
+                self.cover = None
+                self._route_to_spot(me, tick)
+            return
         if tick < self.replan_at:
             return
         idle = self.arrived_at is not None and tick - max(self.arrived_at, self.last_in_sight) > (
