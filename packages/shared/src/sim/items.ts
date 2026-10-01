@@ -68,9 +68,9 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   flamethrower: {
     id: 'flamethrower',
     seconds: 45,
-    range: 10,
+    range: 20,
     damage: 0.5,
-    cooldownTicks: 15,
+    cooldownTicks: 8,
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
     fireNeedsScope: false,

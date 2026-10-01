@@ -61,7 +61,7 @@ test('resolveFire: hitscan picks one, a cone takes everyone inside it', () => {
   const me = at('me', 0, 0);
   const near = at('near', 0, 4);
   const beside = at('beside', 1.5, 6);
-  const far = at('far', 0, 12);
+  const far = at('far', 0, 22); // past the flamethrower's 20 m
   const wide = at('wide', 5, 6);
   assert.deepEqual(
     resolveFire(ITEMS.gun, me, [near, beside, far, wide]).map((h) => h.target.id),
