@@ -508,9 +508,6 @@ test("a bot stands where it asks, looking how it asks; a person can't choose", (
   const lost = room.players.find((p) => p.id === outside)!;
   assert.ok(worldDistance(lost.pos.x, lost.pos.z) <= -1 + 1e-9, 'clamped inside the outline');
   assert.equal(lost.pos.y, EYE_HEIGHT, 'and standing on what is under it');
-
-  const named = room.join('GUNNER', link(), { bot: true })!;
-  assert.equal(room.players.find((p) => p.id === named)!.item, null, "a bot's name never arms it for good");
 });
 
 test('/kill-bots drops every living bot where it stands, people only', () => {

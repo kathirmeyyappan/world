@@ -34,7 +34,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
-    item: bot ? null : permanentItem(name), // a bot's name never hands it a weapon it can't put down
+    item: permanentItem(name),
     gear: null,
     scoped: false,
     firing: false,
