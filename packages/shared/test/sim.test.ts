@@ -2,18 +2,22 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   EYE_HEIGHT,
+  GEAR,
   ITEMS,
   JUMP_VELOCITY,
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
   STEP_UP,
   TICK_DT,
+  TICK_RATE,
   WORLD_SHAPE,
   Structures,
   building,
   clonePlayer,
   createCubes,
+  createGear,
   createPlayer,
+  fallDamage,
   createRng,
   ramp,
   stairs,
@@ -121,6 +125,36 @@ test('/speedy boost multiplies movement and wears off', () => {
   const before = p.pos.z;
   stepPlayer(p, frame(99, { my: 1 }), 0.1, WORLD_SHAPE);
   assert.ok(Math.abs(p.pos.z - before - 0.8) < 1e-9, 'back to normal speed');
+});
+
+test('a fall costs a heart per 10 m from 20 m, in half hearts; a jetpack lifts and breaks the fall', () => {
+  assert.deepEqual([19.9, 20, 27, 34.9].map(fallDamage), [0, 2, 2.5, 3]);
+  const open = new Structures([]);
+  // Dropped with feet 30 m up; `thrustBelow` holds the jetpack's thrust once the feet are that low.
+  const drop = (thrustBelow: number) => {
+    const p = createPlayer('a', 'a', '#fff', { x: 0, y: 30 + EYE_HEIGHT, z: 0 });
+    p.gear = createGear('jetpack');
+    for (let i = 1; i < 300; i++) {
+      const low = p.pos.y - EYE_HEIGHT < thrustBelow;
+      const fell = stepPlayer(p, frame(i, { actions: low ? ['thrust'] : [] }), TICK_DT, WORLD_SHAPE, open);
+      if (fell) return fell;
+    }
+    return 0;
+  };
+  assert.ok(Math.abs(drop(0) - 30) < 0.1, `the whole 30 m: ${drop(0)}`);
+  assert.ok(drop(3) < 3, 'thrusting in the last 3 m: the fall starts there');
+
+  const p = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  p.gear = createGear('jetpack');
+  const fly = (ticks: number) => {
+    for (let i = 0; i < ticks; i++)
+      stepPlayer(p, frame(p.lastSeq + 1, { actions: ['thrust'] }), TICK_DT, WORLD_SHAPE, open);
+  };
+  fly(TICK_RATE);
+  assert.ok(p.pos.y - EYE_HEIGHT > 5 && p.vy <= GEAR.jetpack.maxRise, `a second of thrust climbs: ${p.pos.y}`);
+  fly(TICK_RATE * GEAR.jetpack.fuelSeconds);
+  assert.equal(p.gear?.fuel, 0);
+  assert.ok(!p.thrusting && p.vy < 0, 'an empty tank drops them');
 });
 
 test('a timed item wears off after its window; a permanent one never does', () => {

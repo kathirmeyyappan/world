@@ -10,6 +10,7 @@ import {
   MAX_REWIND_TICKS,
   MOVE_SPEED,
   Room,
+  Structures,
   TICK_DT,
   TICK_RATE,
   WORLD_SHAPE,
@@ -230,6 +231,30 @@ test('weapon command shortcuts equip the matching item', () => {
     room.receive(playerId, { t: 'chat', text: command });
     assert.equal(player.item?.id, item);
   }
+  room.receive(playerId, { t: 'chat', text: '/jp' });
+  assert.equal(player.gear?.id, 'jetpack', 'gear goes on beside the weapon');
+  assert.equal(player.item?.id, 'flamethrower');
+});
+
+test('a long fall hurts like a shot with no shooter, and a fatal one is announced as a fall', () => {
+  const room = new Room('falls', { seed: 3, structures: new Structures([]) });
+  const a = link();
+  const id = room.join('alice', a)!;
+  const alice = room.players.find((p) => p.id === id)!;
+  const fall = (feet: number) => {
+    alice.pos.y = feet + EYE_HEIGHT;
+    for (let i = 0; i < TICK_RATE * 3; i++) room.step();
+  };
+  fall(41);
+  assert.deepEqual(
+    a.inbox.find((m) => m.t === 'hit'),
+    { t: 'hit', shooter: null, victim: id, damage: 4, headshot: false, hearts: MAX_HEARTS - 4 },
+  );
+  fall(19);
+  assert.equal(alice.hearts, MAX_HEARTS - 4, 'under 20 m is free');
+  fall(70);
+  assert.ok(alice.dead);
+  assert.ok(a.inbox.some((m) => m.t === 'fell' && m.victim === id));
 });
 
 test('commands swap items freely, items time out, and the gun only reaches 20 m', () => {

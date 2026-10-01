@@ -29,6 +29,7 @@ class Controls:
         self._shoot = False
         self._shoot_once = False
         self._scope = False
+        self._thrust = False
 
     def move(self, *, forward: float = 0, right: float = 0) -> None:
         if not math.isfinite(forward) or not math.isfinite(right):
@@ -65,6 +66,10 @@ class Controls:
     def scope(self, enabled: bool = True) -> None:
         self._scope = enabled
 
+    def thrust(self, held: bool = True) -> None:
+        """Hold the worn jetpack's thrust (``/jetpack``) on every frame until released."""
+        self._thrust = held
+
     def read_cube(self, cube: Cube | str | None) -> None:
         self.reading = cube.id if isinstance(cube, Cube) else cube
 
@@ -81,6 +86,8 @@ class Controls:
             actions.append("shoot")
         if self._scope:
             actions.append("scope")
+        if self._thrust:
+            actions.append("thrust")
         frame = {
             "seq": self.seq,
             "mx": self.right,

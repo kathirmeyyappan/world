@@ -187,6 +187,7 @@ controls.fire_once()                # one press frame; the next frame releases i
 controls.shoot(True)                # persistent hold, e.g. flamethrower
 controls.shoot(False)
 controls.scope(True)
+controls.thrust(True)               # hold a worn jetpack's lift (after /jetpack)
 controls.read_cube(cube_or_id)
 await controls.chat("hello")
 await controls.command("sniper")    # sends /sniper
@@ -255,6 +256,9 @@ protocol.
   when choosing targets. Yaw `0` faces `+z`; positive pitch looks down, and `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
+- Falls hurt: landing 20 m or more below where a fall began costs a heart per 10 m, in half hearts.
+  That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell` event rather than
+  `kill`. A jetpack's thrust restarts the fall wherever it pushes.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.

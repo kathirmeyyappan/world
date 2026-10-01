@@ -104,6 +104,7 @@ controls.fire_once()
 controls.shoot(True)
 controls.shoot(False)
 controls.scope(True)
+controls.thrust(True)               # hold a worn jetpack's lift (after /jetpack)
 controls.read_cube(cube_or_id)
 await controls.chat("hello")
 await controls.command("sniper")
@@ -156,6 +157,9 @@ with concurrent receive and input loops.
   dimensions: structures put players on floors, stairs and bridges, so `y` varies (feet are at
   `pos.y - 1.7`). Choose targets by straight-line distance, not `x`/`z` only; `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard.
+- Falls hurt: landing 20 m or more below where a fall began costs a heart per 10 m, in half hearts.
+  That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell` event rather than
+  `kill`. A jetpack's thrust restarts the fall wherever it pushes.
 - Look is client-authoritative. Movement, jumping, combat, damage, and death are server-owned.
 - Snapshots reveal all players, and shots pass through cubes; only structures block them. Human-like
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.

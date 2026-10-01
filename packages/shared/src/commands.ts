@@ -3,19 +3,22 @@
 // union and the switch in Room.
 import { isWearableAvatar, type AvatarId } from './sim/avatars';
 import { BOT_DEFAULT_SECONDS, BOT_MAX_SECONDS, botIdFor, type BotId } from './sim/bots';
+import { isGearId, type GearId } from './sim/gear';
 import { isItemId, type ItemId } from './sim/items';
 
 export type Command =
   | { name: 'speedy' }
   | { name: 'equip'; item: ItemId }
+  | { name: 'wear'; gear: GearId }
   | { name: 'avatar'; avatar: AvatarId }
   | { name: 'bot'; bot: BotId; seconds: number | null } // null: the seconds argument was not a number
   | { name: 'kill-bots' }
   | { name: 'unknown'; raw: string };
 
-export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | 'speedy'>>> = {
+export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | 'speedy'>>> = {
   g: 'gun',
   ft: 'flamethrower',
+  jp: 'jetpack',
   s: 'speedy',
 };
 
@@ -28,6 +31,7 @@ export function parseCommand(text: string): Command | null {
 
   if (normalized === 'speedy') return { name: 'speedy' };
   if (isItemId(normalized)) return { name: 'equip', item: normalized };
+  if (isGearId(normalized)) return { name: 'wear', gear: normalized };
   if (isWearableAvatar(normalized)) return { name: 'avatar', avatar: normalized };
   if (normalized === 'kill-bots') return { name: 'kill-bots' };
   const bot = botIdFor(normalized);

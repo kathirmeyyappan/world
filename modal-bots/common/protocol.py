@@ -28,6 +28,13 @@ class Item:
 
 
 @dataclass(frozen=True, slots=True)
+class Gear:
+    id: str
+    left: float
+    fuel: float
+
+
+@dataclass(frozen=True, slots=True)
 class Player:
     id: str
     name: str
@@ -40,8 +47,11 @@ class Player:
     reading: str | None
     boost: float
     item: Item | None
+    gear: Gear | None
     scoped: bool
     firing: bool
+    thrusting: bool
+    fall_top: float | None
     avatar: str
     avatar_locked: bool
     hearts: float
@@ -126,6 +136,7 @@ def _pick(cls: type[T], data: Mapping[str, Any]) -> T:
 
 def player(data: Mapping[str, Any]) -> Player:
     item_data = data["item"]
+    gear_data = data["gear"]
     return Player(
         id=data["id"],
         name=data["name"],
@@ -138,8 +149,11 @@ def player(data: Mapping[str, Any]) -> Player:
         reading=data["reading"],
         boost=data["boost"],
         item=None if item_data is None else _pick(Item, item_data),
+        gear=None if gear_data is None else _pick(Gear, gear_data),
         scoped=data["scoped"],
         firing=data["firing"],
+        thrusting=data["thrusting"],
+        fall_top=data["fallTop"],
         avatar=data["avatar"],
         avatar_locked=data["avatarLocked"],
         hearts=data["hearts"],

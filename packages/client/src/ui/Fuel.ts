@@ -1,10 +1,13 @@
-// The flamethrower's tank: a bar above the item hint, full when the sim says so. Hidden for
-// items without fuel.
+// A tank's gauge: the flamethrower's bar above the item hint (the default element), or the one in
+// the gear panel. Full when the sim says so; hidden for items without fuel.
 export class Fuel {
-  private readonly el = document.getElementById('fuel')!;
-  private readonly fill = this.el.querySelector<HTMLElement>('.fill')!;
+  private readonly fill: HTMLElement;
   private shown = false;
   private level = -1;
+
+  constructor(private readonly el: HTMLElement = document.getElementById('fuel')!) {
+    this.fill = el.querySelector<HTMLElement>('.fill')!;
+  }
 
   // `fraction` 0..1, or null to hide.
   set(fraction: number | null): void {

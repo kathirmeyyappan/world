@@ -60,7 +60,7 @@ class WorldState:
                     hearts=hearts,
                     dead=hearts <= 0,
                 )
-        elif message.t == "kill":
+        elif message.t in ("kill", "fell"):
             victim = self.players.get(message.data["victim"])
             if victim is not None:
                 self.players[victim.id] = replace(victim, dead=True)

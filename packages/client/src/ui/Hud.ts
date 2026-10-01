@@ -207,6 +207,13 @@ export class Hud {
     this.pushLine(li);
   }
 
+  announceFall(victim: string): void {
+    const li = document.createElement('li');
+    li.className = 'kill';
+    li.textContent = `${this.playerName(victim)} fell to their death`;
+    this.pushLine(li);
+  }
+
   private pushLine(li: HTMLLIElement): void {
     this.chatLog.appendChild(li);
     while (this.chatLog.children.length > CHAT_LINES) this.chatLog.firstChild?.remove();
