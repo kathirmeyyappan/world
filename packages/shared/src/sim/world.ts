@@ -28,6 +28,8 @@ export type WorldPart = Disc | Bridge;
 
 export { ANNEX, FLOOR_BRIDGE, MAIN_DISC };
 export const WORLD_SHAPE: WorldPart[] = [MAIN_DISC, ANNEX, FLOOR_BRIDGE];
+// Where people (and bots that don't choose a spot) spawn: the main area, never the tower's grounds.
+export const SPAWN_AREA: Disc = MAIN_DISC;
 
 // The structures standing inside the outline, indexed for the sim's queries.
 export const WORLD_STRUCTURES = new Structures(STRUCTURES);
@@ -115,18 +117,6 @@ export function randomPointInDisc(disc: Disc, margin: number, rng: Rng): { x: nu
   const a = rng() * Math.PI * 2;
   const d = Math.sqrt(rng()) * r;
   return { x: disc.x + Math.cos(a) * d, z: disc.z + Math.sin(a) * d };
-}
-
-// A random point anywhere in the world's discs, weighted by area, at least `margin` from a wall.
-export function randomPointInWorld(shape: WorldPart[], margin: number, rng: Rng): { x: number; z: number } {
-  const discs = worldDiscs(shape);
-  const total = discs.reduce((s, d) => s + d.r * d.r, 0);
-  let pick = rng() * total;
-  for (const disc of discs) {
-    pick -= disc.r * disc.r;
-    if (pick <= 0) return randomPointInDisc(disc, margin, rng);
-  }
-  return randomPointInDisc(discs[discs.length - 1], margin, rng);
 }
 
 // The disc a point is in, or the nearest one.

@@ -13,7 +13,6 @@ import {
   Structures,
   TICK_DT,
   TICK_RATE,
-  WORLD_SHAPE,
   worldDistance,
   defaultBotsFor,
   type BotRequest,
@@ -91,7 +90,7 @@ test('room calls onEmpty when the last player leaves', () => {
   assert.equal(empty, 1);
 });
 
-test('players spawn at random spots across the whole world, clear of walls', () => {
+test('players spawn at random spots across the main area only, clear of its wall', () => {
   const room = new Room('spawn', { seed: 3 });
   const spots: { x: number; z: number }[] = [];
   for (let i = 0; i < 30; i++) {
@@ -100,17 +99,9 @@ test('players spawn at random spots across the whole world, clear of walls', () 
     const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
     assert.ok(me);
     spots.push({ x: me.pos.x, z: me.pos.z });
-    assert.ok(worldDistance(me.pos.x, me.pos.z, WORLD_SHAPE) <= -3 + 1e-9, 'inside, clear of the wall');
+    assert.ok(Math.hypot(me.pos.x, me.pos.z) <= 50 - 3 + 1e-9, 'in the main disc, clear of its wall');
     room.leave(id);
   }
-  assert.ok(
-    spots.some((p) => p.x > 82),
-    'some spawn in the annex',
-  );
-  assert.ok(
-    spots.some((p) => p.x < 50),
-    'some spawn in the main disc',
-  );
   assert.ok(new Set(spots.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`)).size === spots.length, 'all different');
 });
 

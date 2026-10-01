@@ -33,11 +33,11 @@ import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import type { Structures } from './sim/collision';
 import { CAPSULE_TOP } from './sim/health';
 import {
+  SPAWN_AREA,
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   clampToWorld,
   randomPointInDisc,
-  randomPointInWorld,
   worldDistance,
   type WorldPart,
 } from './sim/world';
@@ -444,7 +444,7 @@ export class Room {
     return { x: p.x, y: this.structures.groundAt(p.x, p.z, feet.y + STEP_UP) + EYE_HEIGHT, z: p.z };
   }
 
-  // Anywhere in the world (or, given `near`, within CALLED_BOT_RANGE of it across the floor), clear
+  // Anywhere in SPAWN_AREA (or, given `near`, within CALLED_BOT_RANGE of it across the floor), clear
   // of the walls and not on top of a cube, standing on the ground (or anything within a step of it)
   // with room for a body above: inside a building's ground floor, never on a roof, and never inside
   // a wall. Returns the eye position.
@@ -452,7 +452,7 @@ export class Room {
     const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, STEP_UP);
     const roomy = (p: { x: number; z: number }) =>
       this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
-    const pick = () => (near ? this.pointNear(near) : randomPointInWorld(this.worldShape, SPAWN_WALL_MARGIN, this.rng));
+    const pick = () => (near ? this.pointNear(near) : randomPointInDisc(SPAWN_AREA, SPAWN_WALL_MARGIN, this.rng));
     let p = pick();
     for (let i = 0; i < 20; i++) {
       if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN) && roomy(p)) break;
