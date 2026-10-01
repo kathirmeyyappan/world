@@ -257,9 +257,10 @@ protocol.
   when choosing targets. Yaw `0` faces `+z`; positive pitch looks down, and `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
-- Falls hurt: landing 15 m or more below where a fall began costs a heart per 10 m, in half hearts.
-  That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell` event rather than
-  `kill`. A jetpack's thrust restarts the fall wherever it pushes.
+- Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
+  takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
+  fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
+  event rather than `kill`.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.

@@ -39,7 +39,6 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     scoped: false,
     firing: false,
     thrusting: false,
-    fallTop: null,
     avatar: avatarFor(name),
     avatarLocked: avatarFor(name) !== 'standard',
     hearts: MAX_HEARTS,
@@ -84,7 +83,7 @@ export function isGrounded(p: PlayerState, structures: Structures = WORLD_STRUCT
 }
 
 // Advances one player by `dt`. A null input means "no frame arrived": gravity still applies.
-// Returns how far they fell if they landed this step (metres, from `fallTop`), else 0; the Room
+// Returns how fast they were falling if they landed this step (m/s, downward), else 0; the Room
 // turns that into fall damage.
 export function stepPlayer(
   p: PlayerState,
@@ -125,22 +124,13 @@ export function stepPlayer(
     p.vy = Math.min(p.vy, 0);
   }
   const floor = structures.groundAt(p.pos.x, p.pos.z, feet + STEP_UP) + EYE_HEIGHT;
+  let landing = 0;
   if (p.pos.y < floor) {
+    landing = Math.max(0, -p.vy);
     p.pos.y = floor;
     p.vy = 0;
   }
   const standing = p.pos.y <= floor;
-
-  // A fall runs from the top of the flight, or from the last tick the gear held them up, to the
-  // landing; landing with the gear still pushing is no fall at all.
-  const feetY = p.pos.y - EYE_HEIGHT;
-  let fell = 0;
-  if (standing) {
-    if (p.fallTop !== null && !p.thrusting) fell = p.fallTop - feetY;
-    p.fallTop = null;
-  } else {
-    p.fallTop = p.thrusting || p.fallTop === null ? feetY : Math.max(p.fallTop, feetY);
-  }
 
   if (input && !p.dead && (input.mx !== 0 || input.my !== 0)) {
     const sinY = Math.sin(p.yaw);
@@ -162,5 +152,5 @@ export function stepPlayer(
       if (ground >= feetNow - STEP_DOWN) p.pos.y = ground + EYE_HEIGHT;
     }
   }
-  return fell;
+  return landing;
 }

@@ -19,6 +19,7 @@ import {
   createGear,
   createItem,
   createPlayer,
+  MAX_HEARTS,
   fallDamage,
   createRng,
   ramp,
@@ -136,22 +137,26 @@ test('/speedy boost multiplies movement and wears off; a scope slows it and stop
   assert.equal(p.vy, 0, 'no jump while scoped');
 });
 
-test('a fall costs a heart per 10 m from 15 m, in half hearts; a jetpack lifts and breaks the fall', () => {
-  assert.deepEqual([14.9, 15, 27, 34.9].map(fallDamage), [0, 1.5, 2.5, 3]);
+test('a landing hurts by its speed: free under a 15 m drop, every heart at 80 m, linear between; a jetpack lifts and brakes', () => {
   const open = new Structures([]);
-  // Dropped with feet 30 m up; `thrustBelow` holds the jetpack's thrust once the feet are that low.
-  const drop = (thrustBelow: number) => {
-    const p = createPlayer('a', 'a', '#fff', { x: 0, y: 30 + EYE_HEIGHT, z: 0 });
+  // Dropped from rest with feet `feet` m up, holding the jetpack's thrust while the feet are between
+  // `brake` heights and falling faster than 3 m/s. Returns the landing speed.
+  const drop = (feet: number, brake: [number, number] = [0, 0]) => {
+    const p = createPlayer('a', 'a', '#fff', { x: 0, y: feet + EYE_HEIGHT, z: 0 });
     p.gear = createGear('jetpack');
-    for (let i = 1; i < 300; i++) {
-      const low = p.pos.y - EYE_HEIGHT < thrustBelow;
-      const fell = stepPlayer(p, frame(i, { actions: low ? ['thrust'] : [] }), TICK_DT, WORLD_SHAPE, open);
-      if (fell) return fell;
+    for (let i = 1; i < 600; i++) {
+      const y = p.pos.y - EYE_HEIGHT;
+      const thrust = y > brake[0] && y < brake[1] && p.vy < -3;
+      const speed = stepPlayer(p, frame(i, { actions: thrust ? ['thrust'] : [] }), TICK_DT, WORLD_SHAPE, open);
+      if (speed) return speed;
     }
     return 0;
   };
-  assert.ok(Math.abs(drop(0) - 30) < 0.1, `the whole 30 m: ${drop(0)}`);
-  assert.ok(drop(3) < 3, 'thrusting in the last 3 m: the fall starts there');
+  assert.deepEqual(
+    [14.9, 40, 80].map((m) => fallDamage(drop(m))),
+    [0, 4.5, MAX_HEARTS],
+  );
+  assert.equal(fallDamage(drop(60, [12, 40])), 0, 'braked to a crawl, let go 12 m up: a soft landing');
 
   const p = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   p.gear = createGear('jetpack');

@@ -25,7 +25,6 @@ export interface PlayerState {
   scoped: boolean; // aiming down the sniper's scope (reported by the client, kept here so everyone sees it)
   firing: boolean; // a hold item is spraying this tick
   thrusting: boolean; // their gear is lifting them this tick (a jetpack's jet)
-  fallTop: number | null; // feet height a fall is measured from: its top, or where the jetpack last pushed; null on the ground
   avatar: AvatarId; // how they look; cosmetic only
   avatarLocked: boolean; // the name chose the avatar; commands can't change it
   hearts: number; // MAX_HEARTS at spawn, down to 0 when shot enough

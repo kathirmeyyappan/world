@@ -1,8 +1,8 @@
 // Hearts and damage. Every player starts with MAX_HEARTS; a weapon takes its `damage` off,
 // times HEADSHOT_MULTIPLIER when the shot lands in the head band at the top of the hit
-// capsule, and a long fall takes fallDamage. Nothing regenerates: you die at zero and rejoin fresh.
+// capsule, and a hard landing takes fallDamage. Nothing regenerates: you die at zero and rejoin fresh.
 import type { Hitbox } from './avatars';
-import { EYE_HEIGHT } from './constants';
+import { EYE_HEIGHT, GRAVITY, TICK_DT } from './constants';
 import type { ItemSpec } from './items';
 
 export const MAX_HEARTS = 10;
@@ -21,15 +21,29 @@ export function capsuleFeetY(eyeY: number): number {
   return eyeY - EYE_HEIGHT;
 }
 
-// A landing this many metres or more below where the fall began costs a heart per
-// FALL_METRES_PER_HEART, rounded down to FALL_DAMAGE_STEP: 15 m takes 1.5 hearts, 27 m 2.5.
+// Falls hurt by how fast you land, measured against a plain drop from rest: landing slower than a
+// FALL_SAFE_DROP-metre drop is free, as fast as a FALL_DEADLY_DROP-metre drop takes every heart, and
+// in between the damage rises linearly with speed, rounded down to FALL_DAMAGE_STEP. Anything that
+// slows the landing (a jetpack braking the fall) saves you the difference.
 export const FALL_SAFE_DROP = 15;
-export const FALL_METRES_PER_HEART = 10;
+export const FALL_DEADLY_DROP = 80;
 export const FALL_DAMAGE_STEP = 0.5;
 
-export function fallDamage(drop: number): number {
-  if (drop < FALL_SAFE_DROP) return 0;
-  return Math.floor(drop / FALL_METRES_PER_HEART / FALL_DAMAGE_STEP) * FALL_DAMAGE_STEP;
+// The speed, m/s, of landing after falling `metres` from rest in the sim, whose ticks add a tick of
+// gravity before moving: a drop of v(v + g·dt)/2g, so a real 80 m drop lands at least this fast.
+export function dropSpeed(metres: number): number {
+  const g = GRAVITY * TICK_DT;
+  return (-g + Math.sqrt(g * g + 8 * GRAVITY * metres)) / 2;
+}
+
+const SAFE_SPEED = dropSpeed(FALL_SAFE_DROP);
+const DEADLY_SPEED = dropSpeed(FALL_DEADLY_DROP);
+
+// Hearts a landing at `speed` m/s (downward) takes.
+export function fallDamage(speed: number): number {
+  if (speed <= SAFE_SPEED) return 0;
+  const hearts = (MAX_HEARTS * (speed - SAFE_SPEED)) / (DEADLY_SPEED - SAFE_SPEED);
+  return Math.min(MAX_HEARTS, Math.floor(hearts / FALL_DAMAGE_STEP) * FALL_DAMAGE_STEP);
 }
 
 export function damageFor(spec: Pick<ItemSpec, 'damage'>, headshot: boolean): number {

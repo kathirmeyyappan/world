@@ -26,7 +26,6 @@ class FakeConnection:
             scoped=False,
             firing=False,
             thrusting=False,
-            fall_top=None,
             avatar="standard",
             avatar_locked=False,
             hearts=10,

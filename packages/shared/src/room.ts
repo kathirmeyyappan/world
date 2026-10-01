@@ -278,9 +278,9 @@ export class Room {
     this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item: shooter.item!.id, headshot });
   }
 
-  // A step that ended in a landing `fell` metres below where the fall began.
-  private land(seat: Seat, fell: number): void {
-    const damage = fallDamage(fell);
+  // A step that ended in a landing at `speed` m/s.
+  private land(seat: Seat, speed: number): void {
+    const damage = fallDamage(speed);
     if (damage > 0 && !seat.state.dead) this.damage(seat.state, damage, null);
   }
 
