@@ -5,7 +5,7 @@
 // to a balcony ringing the tower behind a low parapet (a sniper's perch), and the top balcony's west
 // side opens onto a sky bridge. The bridge runs back over the floor bridge (inside the outline's
 // corridor, so players can't be clamped off it) to a floating terrace above the main disc. A roof
-// with battlements closes the top.
+// closes the top, with the wall standing on past it as a parapet and merlons along that.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
 import type { Vec3 } from '../sim/types';
@@ -13,7 +13,9 @@ import type { Disc } from '../sim/world';
 
 const X = ANNEX.x;
 const Z = ANNEX.z;
-const HEIGHT = 80;
+const HEIGHT = 80; // the roof
+const ROOF_WALL = 1; // the wall stands this far above the roof all the way round (cover to shoot over)
+const MERLON = 1.5; // and every other segment stands this far above that
 const OUTER = 20; // outside face of the wall
 const WALL = 1;
 const INNER = OUTER - WALL; // inside face of the wall
@@ -48,7 +50,7 @@ const shell: Structure[] = [
     x: X,
     z: Z,
     r: OUTER - WALL / 2,
-    h: HEIGHT,
+    h: HEIGHT + ROOF_WALL, // past the roof, whose edge then ends inside the wall rather than level with its top
     thickness: WALL,
     segments: 48,
     gaps: [
@@ -60,7 +62,7 @@ const shell: Structure[] = [
     material: 'brick',
   }),
   ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: HEIGHT, thickness: 0.6, material: 'flagstone' }), // the roof
-  // Battlements: a merlon on every other segment of the wall top.
+  // Battlements: a merlon on every other segment of the parapet.
   ...Array.from({ length: 24 }, (_, k): Box => {
     const a = (k * 2 * Math.PI) / 24;
     const r = OUTER - WALL / 2;
@@ -69,9 +71,9 @@ const shell: Structure[] = [
       ...wall(
         { x: X + r * Math.cos(a - along), z: Z + r * Math.sin(a - along) },
         { x: X + r * Math.cos(a + along), z: Z + r * Math.sin(a + along) },
-        1.5,
+        MERLON,
         WALL,
-        HEIGHT,
+        HEIGHT + ROOF_WALL,
       ),
       material: 'brick',
     };
