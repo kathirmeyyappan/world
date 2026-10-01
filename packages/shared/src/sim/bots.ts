@@ -96,10 +96,10 @@ export function botFlagFor(word: string): BotFlag | null {
   return BOT_FLAG_IDS.find((f) => BOT_FLAGS[f].short === word || BOT_FLAGS[f].long === word) ?? null;
 }
 
-// "[-t seconds] [-n name] [-s skin]": a worker's flags, short forms where they have them.
+// "-t [seconds] -n [name] -s [skin]": a worker's flags, short forms where they have them.
 export function botArguments(worker: BotWorker): string {
   return BOT_FLAG_IDS.filter((f) => BOT_FLAGS[f].workers.includes(worker))
-    .map((f) => `[${BOT_FLAGS[f].short ?? BOT_FLAGS[f].long} ${BOT_FLAGS[f].value}]`)
+    .map((f) => `${BOT_FLAGS[f].short ?? BOT_FLAGS[f].long} [${BOT_FLAGS[f].value}]`)
     .join(' ');
 }
 

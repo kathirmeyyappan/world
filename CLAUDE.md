@@ -399,10 +399,10 @@ but `/sniper` is the rifle). Flags go in any order, each at most once, and each 
 
 | Flag | Bots | Meaning |
 | --- | --- | --- |
-| `-t <seconds>` | all | how long it stays: 300 unless given, up to 3500 |
-| `-n <name>` | all | what it plays as, instead of `<bot>-bot` |
-| `-s <skin>` | all | how it looks: any skin's chat command (`elizabeth`, `tung`) |
-| `--targets <names…>` | combat | who it goes after: the words up to the next flag, each any part of a name |
+| `-t [seconds]` | all | how long it stays: 300 unless given, up to 3500 |
+| `-n [name]` | all | what it plays as, instead of `<bot>-bot` |
+| `-s [skin]` | all | how it looks: any skin's chat command (`elizabeth`, `tung`) |
+| `--targets [name substrings]` | combat | who it goes after: the words up to the next flag, each any part of a name |
 
 So `/sniper-bot -t 120 -n hunter -s tung --targets kat bob`. A bare word, an unknown or repeated
 flag, or a missing or bad value gets the usage line instead. The flags are one table, `BOT_FLAGS` in

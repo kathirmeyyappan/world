@@ -22,7 +22,7 @@ import { IS_TOUCH, onTap } from '../input/touch';
 
 interface Group {
   title: string;
-  rows: [command: string, note: string][];
+  rows: [command: string, note: string, args?: string][]; // args: dimmed after the command
   empty?: string;
 }
 
@@ -84,8 +84,9 @@ function buildGroups(): Group[] {
       title: 'bot commands',
       rows: [
         ...BOT_IDS.map((id): Group['rows'][number] => [
-          nobreak(`/${BOTS[id].playerName} ${botArguments(BOTS[id].worker)}`),
+          `/${BOTS[id].playerName}`,
           BOTS[id].blurb,
+          nobreak(botArguments(BOTS[id].worker)),
         ]),
         ['/kill-bots', 'every bot in the room drops dead'],
       ],
@@ -97,9 +98,13 @@ function buildGroups(): Group[] {
         ...BOT_FLAG_IDS.map((id): Group['rows'][number] => {
           const f = BOT_FLAGS[id];
           const long = f.short === null ? '' : `, or ${nobreak(f.long)}`;
-          return [nobreak(`${f.short ?? f.long} ${f.value}`), `${f.help} (${botsTaking(f.workers)}${long})`];
+          return [nobreak(f.short ?? f.long), `${f.help} (${botsTaking(f.workers)}${long})`, nobreak(`[${f.value}]`)];
         }),
-        [nobreak(BOT_EXAMPLE), 'for example'],
+        [
+          BOT_EXAMPLE.slice(0, BOT_EXAMPLE.indexOf(' ')),
+          'for example',
+          nobreak(BOT_EXAMPLE.slice(BOT_EXAMPLE.indexOf(' ') + 1)),
+        ],
       ],
     },
     { title: 'wear skin', rows: skins.map((id) => [`/${AVATARS[id].command}`, AVATARS[id].blurb]) },
@@ -113,9 +118,13 @@ function buildGroups(): Group[] {
   ];
 }
 
-// Flags and commands with their hyphens unbreakable, so a line never wraps inside "--skin".
+// Flags and their values unbreakable, so a line wraps only between "-t [seconds]" and the next,
+// never inside "--skin" or "[name substrings]".
 function nobreak(text: string): string {
-  return text.replaceAll('-', '\u2011');
+  return text
+    .replaceAll('-', '\u2011')
+    .replace(/\[[^\]]*\]/g, (value) => value.replaceAll(' ', '\u00a0'))
+    .replaceAll(' [', '\u00a0[');
 }
 
 // "every bot", or the ones that take a flag by name.
@@ -132,6 +141,11 @@ function commandLabel(name: string): string {
 }
 
 function groupHtml(g: Group): string {
-  const rows = g.rows.map(([c, n]) => `<li><span class="cmd">${c}</span><span class="note">${n}</span></li>`).join('');
+  const rows = g.rows
+    .map(([c, n, a]) => {
+      const args = a ? ` <span class="args">${a}</span>` : '';
+      return `<li><span class="cmd">${c}${args}</span><span class="note">${n}</span></li>`;
+    })
+    .join('');
   return `<section><h2>${g.title}</h2>${rows ? `<ul>${rows}</ul>` : `<p class="empty">${g.empty ?? ''}</p>`}</section>`;
 }

@@ -631,7 +631,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   ])
     room.receive(ida, { t: 'chat', text });
   assert.equal(spawned.length, 5, 'no bare words, bad or missing values, wrong flags or repeats');
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'usage: /circle-bot [-t seconds] [-n name] [-s skin]' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'usage: /circle-bot -t [seconds] -n [name] -s [skin]' });
 
   room.receive(idb, { t: 'chat', text: '/circle-bot' });
   assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "bots can't call bots" });

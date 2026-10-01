@@ -1390,6 +1390,10 @@ body {
   font: 20px var(--mono);
   color: #fff;
 }
+#commands .args {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.45);
+}
 #commands .note {
   font: 15px var(--mono);
   color: rgba(255, 255, 255, 0.6);
