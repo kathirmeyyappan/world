@@ -70,7 +70,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     seconds: 45,
     range: 20,
     damage: 0.5,
-    cooldownTicks: 8,
+    cooldownTicks: 5,
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
     fireNeedsScope: false,
