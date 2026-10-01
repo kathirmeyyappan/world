@@ -18,7 +18,7 @@ export type Command =
 export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | 'speedy'>>> = {
   g: 'gun',
   ft: 'flamethrower',
-  jp: 'jetpack',
+  j: 'jetpack',
   s: 'speedy',
 };
 
