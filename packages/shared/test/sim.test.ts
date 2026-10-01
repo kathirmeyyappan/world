@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { gunzipSync } from 'node:zlib';
+import { botMapSource, type BotMap } from '../src/sim/botMap';
 import {
   EYE_HEIGHT,
   GEAR,
@@ -258,4 +261,10 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
   walk(q, 0, 17, tall);
   assert.ok(q.pos.y === EYE_HEIGHT && q.pos.z < 1, 'blocked at its edge');
   assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, 2), /over/);
+});
+
+test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {
+  const file = new URL('../../../modal-bots/common/world_map.json.gz', import.meta.url);
+  const map = JSON.parse(gunzipSync(readFileSync(file)).toString()) as BotMap;
+  assert.equal(map.source, botMapSource());
 });

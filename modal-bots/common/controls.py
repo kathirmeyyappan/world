@@ -42,6 +42,20 @@ class Controls:
     def stop(self) -> None:
         self.move()
 
+    def walk_toward(self, origin: Vec3, target: Vec3, speed: float = 1) -> None:
+        """Move across the floor from ``origin`` toward ``target`` at ``speed`` (0 to 1), whichever
+        way the bot is looking: ``move`` is relative to the look, so call this after ``look``."""
+        dx = target.x - origin.x
+        dz = target.z - origin.z
+        length = math.hypot(dx, dz)
+        if length < 1e-6:
+            self.stop()
+            return
+        # The inverse of how the sim turns (mx, my) into world motion (stepPlayer).
+        sin_y, cos_y = math.sin(self.yaw), math.cos(self.yaw)
+        dx, dz = dx / length * speed, dz / length * speed
+        self.move(forward=sin_y * dx + cos_y * dz, right=cos_y * dx - sin_y * dz)
+
     def look(self, yaw: float, pitch: float = 0) -> None:
         if not math.isfinite(yaw) or not math.isfinite(pitch):
             raise ValueError("look angles must be finite")
