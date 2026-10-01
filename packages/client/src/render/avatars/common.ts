@@ -1,5 +1,5 @@
-// Pieces every avatar type shares: the ground shadow, a box helper, the name tag, and the
-// interface the Game drives them through.
+// Pieces every avatar type shares: the ground shadow, a box helper, and the interface the Game
+// drives them through. Names are drawn over avatars by the HUD (ui/NameTags.ts), not in the scene.
 import {
   Color3,
   DynamicTexture,
@@ -96,35 +96,4 @@ export function box(
   m.parent = parent;
   m.isPickable = false;
   return m;
-}
-
-export function createTag(engine: Engine, id: string, name: string, color: string): Mesh {
-  const scene = engine.scene;
-  const width = 256;
-  const height = 64;
-  const tex = new DynamicTexture(`avatar-tag-tex-${id}`, { width, height }, scene, false, Texture.NEAREST_SAMPLINGMODE);
-  tex.hasAlpha = true;
-  const ctx = tex.getContext() as CanvasRenderingContext2D;
-  ctx.clearRect(0, 0, width, height);
-  ctx.font = 'bold 30px "Courier New", monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.strokeText(name, width / 2, height / 2);
-  ctx.fillStyle = color;
-  ctx.fillText(name, width / 2, height / 2);
-  tex.update();
-
-  const plane = MeshBuilder.CreatePlane(`avatar-tag-${id}`, { width: 2, height: 0.5 }, scene);
-  plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
-  plane.isPickable = false;
-  const mat = new StandardMaterial(`avatar-tag-mat-${id}`, scene);
-  mat.diffuseTexture = tex;
-  mat.emissiveTexture = tex;
-  mat.opacityTexture = tex;
-  mat.disableLighting = true;
-  mat.backFaceCulling = false;
-  plane.material = mat;
-  return plane;
 }

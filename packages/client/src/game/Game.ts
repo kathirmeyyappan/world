@@ -50,6 +50,7 @@ import { HitNotice } from '../ui/HitNotice';
 import { Hud } from '../ui/Hud';
 import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
+import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 
 const MAX_TICKS_PER_FRAME = 5;
@@ -77,6 +78,7 @@ export class Game {
   private readonly overlay = new Overlay();
   private readonly hud: Hud;
   private readonly pins = new Pins();
+  private readonly nameTags = new NameTags();
   private readonly interp = new Interpolation();
   private readonly cubes = new Map<string, CubeMesh>();
   private readonly cubeByMesh = new Map<string, CubeMesh>();
@@ -470,6 +472,7 @@ export class Game {
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
+    this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.areaTitle.update(p.x, p.z);
     this.minimap.update({

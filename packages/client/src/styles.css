@@ -241,6 +241,25 @@ body {
   inset: 0;
   pointer-events: none;
 }
+#name-tags {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.name-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: bold 20px var(--mono);
+  white-space: nowrap;
+  text-shadow:
+    -2px 0 0 #000,
+    2px 0 0 #000,
+    0 -2px 0 #000,
+    0 2px 0 #000,
+    2px 2px 0 #000;
+}
 .pin {
   position: absolute;
   left: 0;
