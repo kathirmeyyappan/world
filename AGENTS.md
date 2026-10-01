@@ -98,6 +98,9 @@ Use:
   its rail where only a jump gets there. `Route(world, path, tick)` (`common/navigation.py`) walks
   it: `route.steer(me.pos, tick, controls)` on every snapshot after `look`, and plan again when
   `route.stuck(tick)`. `controls.walk_toward(origin, target)` moves toward a point whatever the look.
+  `world.lookouts` are the high spots with a wide view (balconies, decks); `world.hitbox(avatar)` is
+  what a shot at that avatar has to land in (head band included). All of it comes from the generated
+  map, so after a change to structures, the outline, movement or an avatar, run `npm run bot-map`.
 
 Never import `httpx` or `websockets` from a bot file. Never parse raw protocol JSON, copy lobby
 logic, manage input sequence numbers, or log redirect URLs, session tokens, cookies, or auth
@@ -408,10 +411,12 @@ means prediction and the server disagree). A new kind is different: add a case i
 the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
-Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds from
-the structures with the real sim (`sim/botMap.ts`, about ten seconds). A test fails until you run it
-after changing the structures, the world's outline or the player's movement, so commit the new map
-with the change.
+Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds with
+the real sim (`sim/botMap.ts`, about ten seconds): the structures, the walkable graph, the lookouts,
+and every avatar's hitbox. Rebuild it and commit the new map with the change whenever any of those
+inputs move: a structure or landmark added or changed, the world's outline, the player's body or
+movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
+you do (the map carries a fingerprint of all of them).
 
 Cubes don't know about structures, and the minimap shows only the footprints in
 `content/landmarks.ts` (grey on the floor): list a landmark's there when it's worth navigating by.

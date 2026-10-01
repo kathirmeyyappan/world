@@ -16,14 +16,18 @@ already aiming at.
 
 4. Shooting. With someone in sight it stops, scopes in and aims at their chest. It fires only
    once they've stayed in sight for a grace delay, a fresh random 3 to 10 ticks each time, so it
-   never shoots the instant someone appears. After a shot it can't fire for COOLDOWN_SECONDS: it
-   lets go of the scope and steps to a spot a few metres off (still watching), and each later
-   shot waits out a new grace delay.
+   never shoots the instant someone appears. Each shot is aimed afresh at a random spot on their
+   hitbox (the map's, for their avatar): half the time the chest, 30% the head, and 20% just past
+   their side, a near miss (AIM_ZONES). Aim is at the snapshot, so a target that moves in the
+   meantime can still turn a hit into a miss or the other way round. After a shot it can't fire
+   for COOLDOWN_SECONDS: it lets go of the scope and steps to a spot a few metres off (still
+   watching), and each later shot waits out a new grace delay.
 
 5. Moving. With nobody in sight it walks to a lookout, one of the map's high spots with a wide
    view (the tower's balconies, the terrace and the bridge), picked at random from the nearer
-   ones, along ``world.path``: up the stair and over its rail where it has to. On open ground it
-   weaves from side to side as it goes, so it's harder to hit. At the lookout it waits; after
+   ones, along ``world.path``: up the stair and over its rail where it has to. A long walk (over
+   SPEEDY_TRIP, such as out to the tower) starts with ``/s`` unless it's already fast. On open
+   ground it weaves from side to side as it goes, so it's harder to hit. At the lookout it waits; after
    LOOKOUT_PATIENCE_SECONDS with nobody in sight it tries another.
 
 6. Dying. Like every bot, a dead sniper stops sending input and lies there until the room drops
@@ -60,19 +64,23 @@ from common import (
 )
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
-from common.world import EYE_HEIGHT
+from common.world import EYE_HEIGHT, Hitbox
 
 GRACE_TICKS = (3, 10)  # a target must stay in sight this long (inclusive range) before a shot
 COOLDOWN_SECONDS = 3.0  # no shot for this long after one
 SIGHT_EVERY = 3  # ticks between sight checks
 SIGHT_CHECKS = 6  # the nearest this many quarry are checked for a clear line
-CHEST_DROP = 0.5  # metres below the eye that it aims at: the middle of the body, an easy hit
+CHEST_DROP = 0.5  # metres below the eye that it checks the line of sight to: the middle of the body
+# Where each shot is aimed, and how often: the chest, the head, or just past the body's side.
+AIM_ZONES = {"chest": 0.5, "head": 0.3, "miss": 0.2}
+MISS_BY = (0.1, 0.4)  # metres past the hitbox's side that a near miss goes
 LOOKOUT_CHOICES = 40  # a new lookout is one of this many nearest
 LOOKOUT_PATIENCE_SECONDS = 8.0  # how long it waits at a lookout with nobody in sight
 STEP_ASIDE = (2, 5)  # walking steps (map nodes, about a metre each) it moves off after a shot
 WEAVE = 0.6  # how hard it weaves sideways on open ground, against 1 for walking forward
 WEAVE_SECONDS = (0.4, 1.2)  # how long each weave lasts
 RIFLE_RETRY_TICKS = TICK_RATE  # how long it waits for a /sniper to land before asking again
+SPEEDY_TRIP = 30  # map nodes (about a metre each): a walk to a lookout longer than this runs on /s
 
 
 async def run_sniper_bot(
@@ -132,6 +140,10 @@ async def run_sniper_bot(
                     rifle_asked = state.tick
                     await controls.command("sniper")
                 sniper.decide(state, controls)
+                if sniper.wants_speedy:
+                    sniper.wants_speedy = False
+                    if me.boost <= 0:
+                        await controls.command("s")
     except TimeoutError:
         completed = True
     except RoomConnectionError:
@@ -180,6 +192,27 @@ def chest(p: Player) -> Vec3:
     return Vec3(p.pos.x, p.pos.y - CHEST_DROP, p.pos.z)
 
 
+def aim_point(origin: Vec3, target: Player, hitbox: Hitbox, zone: str, rng: random.Random) -> Vec3:
+    """A random spot to shoot at from ``origin``, in one of AIM_ZONES on the target's hitbox: up
+    its axis for the zone's height, and sideways across the line of fire (within half the radius on
+    the body, past the radius for a miss)."""
+    neck = hitbox.top - hitbox.head  # where the head band starts, above the feet
+    if zone == "head":
+        height = rng.uniform(neck + 0.05, hitbox.top - 0.05)
+        side = rng.uniform(-0.5, 0.5) * hitbox.radius
+    elif zone == "chest":
+        height = rng.uniform(0.5 * neck, neck - 0.1)
+        side = rng.uniform(-0.5, 0.5) * hitbox.radius
+    else:
+        height = rng.uniform(0.3 * neck, hitbox.top)
+        side = rng.choice((-1, 1)) * (hitbox.radius + rng.uniform(*MISS_BY))
+    dx, dz = target.pos.x - origin.x, target.pos.z - origin.z
+    across = math.hypot(dx, dz) or 1.0
+    return Vec3(
+        target.pos.x + dz / across * side, target.pos.y - EYE_HEIGHT + height, target.pos.z - dx / across * side
+    )
+
+
 @dataclass
 class Sniper:
     """What the sniper is doing between snapshots; ``decide`` runs once per snapshot."""
@@ -200,6 +233,7 @@ class Sniper:
     weave_until: int = 0
     _sighted: Player | None = None
     _next_sight_check: int = 0
+    wants_speedy: bool = False  # set off on a long walk: the run loop sends /s
 
     def decide(self, state: WorldState, controls: Controls) -> None:
         me = state.me
@@ -245,11 +279,13 @@ class Sniper:
         holding = me.item is not None and me.item.id == "sniper"
         if tick < self.fire_at or not me.scoped or not holding:
             return
+        zone = self.rng.choices(list(AIM_ZONES), weights=list(AIM_ZONES.values()))[0]
+        controls.look_at(me.pos, aim_point(me.pos, target, self.world.hitbox(target.avatar), zone, self.rng))
         controls.fire_once()
         self.shots += 1
         self.ready_at = tick + round(COOLDOWN_SECONDS * TICK_RATE)
         self.in_sight = None  # the next shot waits out a new grace delay
-        log_message(self.name, "fired", target=target.name, distance=round(_distance(me.pos, target.pos), 1))
+        log_message(self.name, "fired", target=target.name, aim=zone, distance=round(_distance(me.pos, target.pos), 1))
         self._step_aside(me, tick)
 
     def _step_aside(self, me: Player, tick: int) -> None:
@@ -309,6 +345,7 @@ class Sniper:
         path = self.world.path(start, self.lookout)
         if path is not None:
             self.route = Route(self.world, path, tick)
+            self.wants_speedy = len(path) > SPEEDY_TRIP
 
     def _weave(self, route: Route, tick: int, controls: Controls) -> None:
         """Turn some of the walk sideways, a random way for a random while, where the next spot is

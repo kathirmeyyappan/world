@@ -30,6 +30,17 @@ JUMP_COST = 2.0  # metres of walking a route would rather take than one jump
 
 
 @dataclass(frozen=True, slots=True)
+class Hitbox:
+    """What a shot has to land in (Hitbox in packages/shared/src/sim/avatars.ts): an upright capsule
+    from the feet up to ``top`` metres, ``radius`` round its axis, whose top ``head`` metres are the
+    head."""
+
+    top: float
+    radius: float
+    head: float
+
+
+@dataclass(frozen=True, slots=True)
 class Piece:
     """One structure placed in the world: a w x d footprint turned by yaw, from ``base`` up to
     ``top(lx, lz)`` above it at each local point."""
@@ -60,6 +71,10 @@ class WorldMap:
         self.jumps = tuple(frozenset(int(j) for j in out) for out in data["jumps"])
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
         self.lookouts = tuple(int(i) for i in data["lookouts"])
+        self.hitboxes = {
+            avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
+            for avatar, h in data["hitboxes"].items()
+        }
         self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):
@@ -69,6 +84,10 @@ class WorldMap:
         self._columns: dict[tuple[int, int], list[int]] = {}
         for i, n in enumerate(self.nodes):
             self._columns.setdefault((round(n.x), round(n.z)), []).append(i)
+
+    def hitbox(self, avatar: str) -> Hitbox:
+        """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
+        return self.hitboxes.get(avatar, self.hitboxes["standard"])
 
     def clear(self, a: Vec3, b: Vec3) -> bool:
         """Whether nothing stands between ``a`` and ``b``: a shot from one reaches the other."""

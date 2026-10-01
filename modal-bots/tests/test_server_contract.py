@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from bots import sniper_bot
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
 from bots.sniper_bot import run_sniper_bot
@@ -276,7 +277,12 @@ def test_a_route_walks_up_the_tower_stair_and_out_onto_a_balcony(room_server: st
     assert math.hypot(eye.x - 112, eye.z) > 20, "outside the wall"
 
 
-def test_sniper_shoots_a_person_in_sight_then_waits_out_its_cooldown(room_server: str) -> None:
+def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
+    room_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Chest shots only: a headshot kills at once and there'd be no second shot to time.
+    monkeypatch.setattr(sniper_bot, "AIM_ZONES", {"chest": 1.0})
+
     async def scenario() -> tuple[list[int], dict[str, Any]]:
         person = await seat_person(room_server, "python-sniper")
         me = next(p for p in person.welcome.players if p.id == person.id)
@@ -286,20 +292,20 @@ def test_sniper_shoots_a_person_in_sight_then_waits_out_its_cooldown(room_server
         sniper = asyncio.create_task(
             run_sniper_bot("python-sniper", seconds=6, world=load_world_map(), direct_ws_url=room_server, spawn=spot)
         )
-        hit_ticks: list[int] = []
+        shot_ticks: list[int] = []
         tick = person.welcome.tick
         try:
             while not sniper.done():
                 message = await asyncio.wait_for(person.receive(), timeout=2)
                 if isinstance(message, Snapshot):
                     tick = message.tick
-                elif isinstance(message, Event) and message.t == "hit" and message.data["victim"] == person.id:
-                    hit_ticks.append(tick)
-            return hit_ticks, await sniper
+                elif isinstance(message, Event) and message.t == "shot" and message.data["id"] != person.id:
+                    shot_ticks.append(tick)
+            return shot_ticks, await sniper
         finally:
             await person.close()
 
-    hit_ticks, report = asyncio.run(scenario())
+    shot_ticks, report = asyncio.run(scenario())
 
-    assert report["shots"] >= 2 and len(hit_ticks) >= 2, report
-    assert all(b - a >= 90 for a, b in itertools.pairwise(hit_ticks)), f"3 s between shots: {hit_ticks}"
+    assert report["shots"] >= 2 and len(shot_ticks) == report["shots"], report
+    assert all(b - a >= 90 for a, b in itertools.pairwise(shot_ticks)), f"3 s between shots: {shot_ticks}"

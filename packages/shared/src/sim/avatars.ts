@@ -1,8 +1,8 @@
 // Avatar types: how a player looks, and how big a target they make. Movement and items are the
 // same for all of them; only the hit capsule follows the body. Its chat command switches for good;
 // a name containing an avatar's tag spawns as it and can't switch at all. A bot can also ask for any
-// avatar when it joins (BotPlacement), including one with no command. Adding one means a row here
-// and a builder in the client's render/avatars/.
+// avatar when it joins (BotPlacement), including one with no command. Adding one means a row here,
+// a builder in the client's render/avatars/, and `npm run bot-map` (bots aim with these hitboxes).
 export type AvatarId = 'standard' | 'elizabeth' | 'sahur';
 
 // What shots test against (sim/combat.ts): a vertical capsule from the feet up to `top` metres,
