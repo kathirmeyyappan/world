@@ -190,7 +190,8 @@ function onCircle(x: number, z: number, r: number, angle: number): { x: number; 
 
 // A round wall of `segments` straight pieces on a circle of radius r (the wall's centreline),
 // standing from height y to y + h. Each gap cuts a vertical opening (a doorway, a window) between
-// two heights in the piece at that angle.
+// two heights: the piece at that angle, or with `width` (radians) that arc centred on it, which may
+// end partway along a piece (that piece keeps a jamb in the same plane up to the opening's edge).
 export function roundWall(opts: {
   x: number;
   z: number;
@@ -199,7 +200,7 @@ export function roundWall(opts: {
   thickness: number;
   y?: number;
   segments?: number;
-  gaps?: { angle: number; bottom: number; top: number }[];
+  gaps?: { angle: number; bottom: number; top: number; width?: number }[];
   material?: StructureMaterial;
   color?: string;
 }): Box[] {
@@ -208,19 +209,35 @@ export function roundWall(opts: {
   const pieces: Box[] = [];
   for (let i = 0; i < segments; i++) {
     const mid = i * step;
+    // A hair wider than the chord so neighbouring pieces meet at the outer face.
+    const a = onCircle(x, z, r, mid - step * 0.52);
+    const b = onCircle(x, z, r, mid + step * 0.52);
+    // The point on this piece's chord at `offset` radians from its middle.
+    const along = (offset: number) => {
+      const t = offset / (step * 1.04) + 0.5;
+      return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+    };
+    // Each gap's reach over this piece, as offsets from its middle.
     const cuts = gaps
-      .filter((g) => ((Math.round(g.angle / step) % segments) + segments) % segments === i)
-      .sort((a, b) => a.bottom - b.bottom);
+      .map((g) => {
+        const centre = g.width === undefined ? Math.round(g.angle / step) * step : g.angle;
+        const half = (g.width ?? step) / 2;
+        const off = Math.atan2(Math.sin(centre - mid), Math.cos(centre - mid));
+        return { ...g, from: Math.max(off - half, -step / 2), to: Math.min(off + half, step / 2) };
+      })
+      .filter((g) => g.to - g.from > 1e-6)
+      .sort((p, q) => p.bottom - q.bottom);
     let from = y;
     const spans: [number, number][] = [];
     for (const g of cuts) {
       spans.push([from, g.bottom]);
       from = g.top;
+      if (g.from > -step / 2 + 1e-6)
+        pieces.push({ ...wall(a, along(g.from), g.top - g.bottom, thickness, g.bottom), material, color });
+      if (g.to < step / 2 - 1e-6)
+        pieces.push({ ...wall(along(g.to), b, g.top - g.bottom, thickness, g.bottom), material, color });
     }
     spans.push([from, y + h]);
-    // A hair wider than the chord so neighbouring pieces meet at the outer face.
-    const a = onCircle(x, z, r, mid - step * 0.52);
-    const b = onCircle(x, z, r, mid + step * 0.52);
     for (const [lo, hi] of spans)
       if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color });
   }

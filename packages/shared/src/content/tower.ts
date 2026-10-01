@@ -35,6 +35,9 @@ const ENTRANCES = [0, 90, 180, 270].map(deg); // ground floor; 180° faces the f
 // floor's flight also starts, so the doors keep clear of both (a door is 7.5°, one wall segment).
 const BALCONY_DOORS = [0, 75, 127.5, 180, 255, 307.5].map(deg);
 const BRIDGE_DOOR = deg(180); // west, facing the main disc: the top balcony's way onto the bridge
+// The main doors, west toward the main disc on the ground floor and onto the sky bridge from the
+// top floor, are twice the others' width (two wall segments) and height.
+const MAIN_DOOR = { angle: deg(180), width: deg(15), height: 2 * DOOR_HEIGHT };
 const BALCONY = 3; // metres of balcony outside the wall
 const PARAPET = 0.8; // under half a body, so it's cover you can shoot over
 // Door sills, the stair's landings and the bridge deck sit this far below the floors they meet, so
@@ -55,9 +58,17 @@ const shell: Structure[] = [
     thickness: WALL,
     segments: 48,
     gaps: [
-      ...ENTRANCES.map((angle) => ({ angle, bottom: 0, top: DOOR_HEIGHT })),
+      ...ENTRANCES.map((angle) =>
+        angle === MAIN_DOOR.angle
+          ? { angle, width: MAIN_DOOR.width, bottom: 0, top: MAIN_DOOR.height }
+          : { angle, bottom: 0, top: DOOR_HEIGHT },
+      ),
       ...[STOREY, 2 * STOREY, TOP].flatMap((level) =>
-        BALCONY_DOORS.map((angle) => ({ angle, bottom: level - SILL, top: level + DOOR_HEIGHT })),
+        BALCONY_DOORS.map((angle) =>
+          level === TOP && angle === MAIN_DOOR.angle
+            ? { angle, width: MAIN_DOOR.width, bottom: level - SILL, top: level + MAIN_DOOR.height }
+            : { angle, bottom: level - SILL, top: level + DOOR_HEIGHT },
+        ),
       ),
     ],
     material: 'brick',
