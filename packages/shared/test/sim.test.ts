@@ -157,6 +157,7 @@ test('a landing hurts by its speed: free under a 15 m drop, every heart at 80 m,
     [0, 4.5, MAX_HEARTS],
   );
   assert.equal(fallDamage(drop(60, [12, 40])), 0, 'braked to a crawl, let go 12 m up: a soft landing');
+  assert.equal(fallDamage(drop(80, [0, 25])), 0, 'an 80 m fall caught in its last 25 m');
 
   const p = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   p.gear = createGear('jetpack');
