@@ -116,7 +116,7 @@ Important semantics:
 - `jump` and `fire_once` last one frame.
 - `shoot(True)` persists and is for held actions such as flamethrower fire.
 - Tap weapons need a press frame followed by a release frame.
-- Sniper firing requires persistent scope.
+- Sniper firing requires persistent scope. A scoped player walks at 30% speed and can't jump.
 - Use exactly one `run_input_loop` per connection. Do not send frames concurrently.
 - There is no generic server-side click. Cube clicks become `reading`; use `read_cube`. Attack
   clicks become `shoot`; use `fire_once` or `shoot`. Sky clicks are client-only.
