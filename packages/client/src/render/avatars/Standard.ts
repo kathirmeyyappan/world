@@ -1,11 +1,11 @@
 // The standard avatar: a blocky figure in the player's colour with a glowing visor, a shadow on
-// the ground, a walk cycle driven by how far they moved, and a name tag. No outline pass: thin
+// the ground, and a walk cycle driven by how far they moved. No outline pass: thin
 // lines shimmer at the reduced render resolution.
 import { Color3, Mesh, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import { EYE_HEIGHT } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, createTag, placeShadow, type Avatar } from './common';
+import { box, centreOf, createShadowBlob, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
@@ -19,7 +19,6 @@ export class StandardAvatar implements Avatar {
   private readonly armL: Mesh;
   private readonly armR: Mesh;
   private readonly shadow: Mesh;
-  private readonly tag: Mesh;
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
   private dead = false;
@@ -30,7 +29,6 @@ export class StandardAvatar implements Avatar {
   constructor(
     engine: Engine,
     readonly id: string,
-    name: string,
     color: string,
   ) {
     const scene = engine.scene;
@@ -94,10 +92,6 @@ export class StandardAvatar implements Avatar {
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.1);
     this.shadow.parent = this.root;
     this.shadow.position.y = 0.02;
-
-    this.tag = createTag(engine, id, name, color);
-    this.tag.parent = this.root;
-    this.tag.position.y = EYE_HEIGHT + 0.6;
   }
 
   update(p: RemotePlayer): void {
@@ -121,7 +115,7 @@ export class StandardAvatar implements Avatar {
     this.items.update(p);
     if (p.dead !== this.dead) {
       this.dead = p.dead;
-      // Fallen: the whole body tipped onto its side, tag left standing so the name stays readable.
+      // Fallen: the whole body tipped onto its side.
       this.body.rotation.z = p.dead ? Math.PI / 2 : 0;
       this.body.position.x = p.dead ? 0.3 : 0;
     }

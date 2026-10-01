@@ -241,6 +241,26 @@ body {
   inset: 0;
   pointer-events: none;
 }
+#name-tags {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.name-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: bold 20px var(--mono);
+  white-space: nowrap;
+  /* An outline that scales with the text, so a small far name isn't all outline. */
+  text-shadow:
+    -0.1em 0 0 #000,
+    0.1em 0 0 #000,
+    0 -0.1em 0 #000,
+    0 0.1em 0 #000,
+    0.1em 0.1em 0 #000;
+}
 .pin {
   position: absolute;
   left: 0;

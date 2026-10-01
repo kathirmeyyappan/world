@@ -9,13 +9,13 @@ import type { Avatar } from './common';
 
 export type { Avatar } from './common';
 
-export function createAvatar(engine: Engine, p: { id: string; name: string; color: string; avatar: AvatarId }): Avatar {
+export function createAvatar(engine: Engine, p: { id: string; color: string; avatar: AvatarId }): Avatar {
   switch (p.avatar) {
     case 'elizabeth':
-      return new ElizabethAvatar(engine, p.id, p.name, p.color);
+      return new ElizabethAvatar(engine, p.id);
     case 'sahur':
-      return new SahurAvatar(engine, p.id, p.name, p.color);
+      return new SahurAvatar(engine, p.id);
     case 'standard':
-      return new StandardAvatar(engine, p.id, p.name, p.color);
+      return new StandardAvatar(engine, p.id, p.color);
   }
 }

@@ -6,7 +6,7 @@
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, createTag, flat, placeShadow, type Avatar } from './common';
+import { box, centreOf, createShadowBlob, flat, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
@@ -35,8 +35,6 @@ export class ElizabethAvatar implements Avatar {
   constructor(
     engine: Engine,
     readonly id: string,
-    name: string,
-    color: string,
   ) {
     const scene = engine.scene;
     this.root = new TransformNode(`avatar-${id}`, scene);
@@ -119,10 +117,6 @@ export class ElizabethAvatar implements Avatar {
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.5);
     this.shadow.parent = this.root;
     this.shadow.position.y = 0.02;
-
-    const tag = createTag(engine, id, name, color);
-    tag.parent = this.root;
-    tag.position.y = HEIGHT + 0.4;
   }
 
   update(p: RemotePlayer): void {

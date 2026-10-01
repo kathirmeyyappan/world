@@ -9,7 +9,7 @@
 import { Color3, Mesh, MeshBuilder, TransformNode, Vector3, VertexData, type StandardMaterial } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { centreOf, createShadowBlob, createTag, flat, placeShadow, type Avatar } from './common';
+import { centreOf, createShadowBlob, flat, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 import { SAHUR_MODEL } from './sahurModel';
@@ -52,8 +52,6 @@ export class SahurAvatar implements Avatar {
   constructor(
     engine: Engine,
     readonly id: string,
-    name: string,
-    color: string,
   ) {
     const scene = engine.scene;
     const model = SAHUR_MODEL;
@@ -116,10 +114,6 @@ export class SahurAvatar implements Avatar {
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.3);
     this.shadow.parent = this.root;
     this.shadow.position.y = 0.02;
-
-    const tag = createTag(engine, id, name, color);
-    tag.parent = this.root;
-    tag.position.y = model.height + 0.4;
   }
 
   update(p: RemotePlayer): void {
