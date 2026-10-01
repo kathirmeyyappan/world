@@ -20,6 +20,7 @@ class WorldState:
         self.tick = welcome.tick
         self.players = {value.id: value for value in welcome.players}
         self.cubes = {value.id: value for value in welcome.cubes}
+        self.pickups = {value.id: value for value in welcome.pickups}
 
     @property
     def me(self) -> Player | None:
@@ -43,6 +44,7 @@ class WorldState:
             self.tick = message.tick
             self.players = {value.id: value for value in message.players}
             self.cubes = {value.id: value for value in message.cubes}
+            self.pickups = {value.id: value for value in message.pickups}
         elif isinstance(message, Welcome):
             self.requested_room = self.requested_room or message.room
             self._reset(message)
@@ -73,4 +75,5 @@ class WorldState:
             "tick": self.tick,
             "players": [to_dict(value) for value in self.players.values()],
             "cubes": [to_dict(value) for value in self.cubes.values()],
+            "pickups": [to_dict(value) for value in self.pickups.values()],
         }

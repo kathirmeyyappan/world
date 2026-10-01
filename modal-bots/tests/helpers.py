@@ -54,4 +54,5 @@ def welcome() -> dict[str, Any]:
         "tick": 42,
         "players": [player()],
         "cubes": [cube()],
+        "pickups": [],
     }

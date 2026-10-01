@@ -34,7 +34,7 @@ class FakeConnection:
             dead=False,
         )
         self.id = me.id
-        self.welcome = Welcome("p1", "room", 0, (me,), ())
+        self.welcome = Welcome("p1", "room", 0, (me,), (), ())
         self.sent: list[dict[str, Any]] = []
         self.view_tick = 41
 

@@ -8,6 +8,7 @@
 // closes the top, with the wall standing on past it as a parapet and merlons along that.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
+import type { Region } from '../sim/regions';
 import type { Vec3 } from '../sim/types';
 import type { Disc } from '../sim/world';
 
@@ -174,3 +175,13 @@ export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: OU
 
 // The middle of each floor's top, ground floor first: where to stand something on floor n.
 export const TUNG_TUNG_TOWER_FLOORS: Vec3[] = [GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((y) => ({ x: X, y, z: Z }));
+
+// Each level's open floor, for placing things (content/regions.ts): the four floors inside the
+// stair, which runs round against the wall, and the whole roof.
+export const TUNG_TUNG_TOWER_LEVELS: Region[] = [
+  ...[GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((y): Region => ({ kind: 'disc', x: X, z: Z, r: STAIR_INNER, y })),
+  { kind: 'disc', x: X, z: Z, r: INNER, y: HEIGHT },
+];
+
+// The terrace's deck, inside its rails.
+export const TUNG_TUNG_TERRACE: Region = { kind: 'rect', ...TERRACE, y: TOP };

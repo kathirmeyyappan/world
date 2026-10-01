@@ -70,12 +70,25 @@ class Cube:
 
 
 @dataclass(frozen=True, slots=True)
+class Pickup:
+    """Something floating that a player takes by walking into it (a heart gives hearts back)."""
+
+    id: str
+    kind: str
+    x: float
+    y: float
+    z: float
+    ry: float
+
+
+@dataclass(frozen=True, slots=True)
 class Welcome:
     id: str
     room: str
     tick: int
     players: tuple[Player, ...]
     cubes: tuple[Cube, ...]
+    pickups: tuple[Pickup, ...]
     t: str = "welcome"
 
 
@@ -84,6 +97,7 @@ class Snapshot:
     tick: int
     players: tuple[Player, ...]
     cubes: tuple[Cube, ...]
+    pickups: tuple[Pickup, ...]
     t: str = "snap"
 
 
@@ -110,12 +124,14 @@ def decode(payload: str | bytes) -> Message:
                 tick=data["tick"],
                 players=tuple(player(value) for value in data["players"]),
                 cubes=tuple(cube(value) for value in data["cubes"]),
+                pickups=tuple(_pick(Pickup, value) for value in data["pickups"]),
             )
         if data["t"] == "snap":
             return Snapshot(
                 tick=data["tick"],
                 players=tuple(player(value) for value in data["players"]),
                 cubes=tuple(cube(value) for value in data["cubes"]),
+                pickups=tuple(_pick(Pickup, value) for value in data["pickups"]),
             )
         return Event(t=data["t"], data=data)
     except ProtocolError:
@@ -165,7 +181,7 @@ def cube(data: Mapping[str, Any]) -> Cube:
     return _pick(Cube, data)
 
 
-def to_dict(value: Player | Cube) -> dict[str, Any]:
+def to_dict(value: Player | Cube | Pickup) -> dict[str, Any]:
     return asdict(value)
 
 

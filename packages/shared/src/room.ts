@@ -2,7 +2,15 @@
 // Transport-agnostic so the Node server (WebSockets) and the browser's offline mode (a loopback)
 // can both host one. Ticks on a fixed timestep and broadcasts a snapshot after every tick.
 import { CUBE_IDS } from './content/cubes';
-import { isClientMessage, type ClientMessage, type CubeSnapshot, type ServerMessage } from './protocol';
+import { PICKUP_AREAS } from './content/pickups';
+import { SPAWN_AREA } from './content/regions';
+import {
+  isClientMessage,
+  type ClientMessage,
+  type CubeSnapshot,
+  type PickupSnapshot,
+  type ServerMessage,
+} from './protocol';
 import {
   MAX_CHAT_LENGTH,
   EYE_HEIGHT,
@@ -27,13 +35,14 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
+import { randomPointInRegion } from './sim/regions';
+import { createPickups, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import type { Structures } from './sim/collision';
 import { CAPSULE_TOP } from './sim/health';
 import {
-  SPAWN_AREA,
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   clampToWorld,
@@ -84,6 +93,7 @@ export interface RoomOptions {
   onEmpty?: () => void;
   log?: (msg: string) => void;
   spawnBot?: BotSpawner; // absent: bots can't be called from this room
+  pickupAreas?: PickupArea[]; // where pickups float; the world's own (content/pickups.ts) by default
 }
 
 export class Room {
@@ -95,6 +105,7 @@ export class Room {
   private readonly seats = new Map<string, Seat>();
   private readonly history = new PositionHistory(); // where everyone was, for lag compensation
   private readonly cubes: CubeState[];
+  private readonly pickups: PickupField;
   private readonly rng: Rng;
   private readonly onEmpty?: () => void;
   private readonly log: (msg: string) => void;
@@ -109,6 +120,7 @@ export class Room {
     this.structures = opts.structures ?? WORLD_STRUCTURES;
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
+    this.pickups = createPickups(opts.pickupAreas ?? PICKUP_AREAS, this.rng);
     this.onEmpty = opts.onEmpty;
     this.log = opts.log ?? (() => {});
     this.spawnBot = opts.spawnBot;
@@ -167,7 +179,15 @@ export class Room {
     }
     if (opts.room && !this.publicName) this.publicName = opts.room;
     this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, shootHeld: false, diedTick: null });
-    link.send({ t: 'welcome', id, room: this.id, tick: this.tick, players: this.players, cubes: this.cubeSnapshot() });
+    link.send({
+      t: 'welcome',
+      id,
+      room: this.id,
+      tick: this.tick,
+      players: this.players,
+      cubes: this.cubeSnapshot(),
+      pickups: this.pickupSnapshot(),
+    });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
     if (!state.bot && this.humanCount === 1) this.addDefaultBots();
@@ -304,9 +324,11 @@ export class Room {
       seat.queue.splice(0, n);
     }
     stepCubes(this.cubes, TICK_DT, this.worldShape, this.rng);
+    stepPickups(this.pickups, TICK_DT, this.rng);
+    for (const p of this.players) takePickups(this.pickups, p, EYE_HEIGHT);
     this.tick++;
     const players = this.players;
-    this.broadcast({ t: 'snap', tick: this.tick, players, cubes: this.cubeSnapshot() });
+    this.broadcast({ t: 'snap', tick: this.tick, players, cubes: this.cubeSnapshot(), pickups: this.pickupSnapshot() });
     this.history.record(this.tick, players);
   }
 
@@ -314,6 +336,18 @@ export class Room {
     for (const [id, seat] of this.seats) {
       if (id !== except) seat.link.send(msg);
     }
+  }
+
+  private pickupSnapshot(): PickupSnapshot[] {
+    const r = (v: number) => Math.round(v * 100) / 100;
+    return this.pickups.items.map((p) => ({
+      id: p.id,
+      kind: p.kind,
+      x: r(p.pos.x),
+      y: r(p.pos.y),
+      z: r(p.pos.z),
+      ry: r(p.ry),
+    }));
   }
 
   private cubeSnapshot(): CubeSnapshot[] {
@@ -452,7 +486,7 @@ export class Room {
     const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, STEP_UP);
     const roomy = (p: { x: number; z: number }) =>
       this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
-    const pick = () => (near ? this.pointNear(near) : randomPointInDisc(SPAWN_AREA, SPAWN_WALL_MARGIN, this.rng));
+    const pick = () => (near ? this.pointNear(near) : randomPointInRegion(SPAWN_AREA, SPAWN_WALL_MARGIN, this.rng));
     let p = pick();
     for (let i = 0; i < 20; i++) {
       if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN) && roomy(p)) break;

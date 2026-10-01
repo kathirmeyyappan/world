@@ -34,6 +34,7 @@ import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
 import { buildStructures } from '../render/Structures';
+import { Pickups } from '../render/Pickups';
 import { poof } from '../render/Poof';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
@@ -96,6 +97,7 @@ export class Game {
   private readonly damageFlash = new DamageFlash();
   private readonly hitNotice = new HitNotice();
   private readonly viewmodel: Viewmodel;
+  private readonly pickups: Pickups;
   private dead = false;
   private scoped = false;
   private canHit = false;
@@ -130,6 +132,7 @@ export class Game {
     this.camera.fov = DEFAULT_FOV;
     this.engine.scene.activeCamera = this.camera;
     this.viewmodel = new Viewmodel(this.engine, this.camera);
+    this.pickups = new Pickups(this.engine);
 
     CUBES.forEach((content) => {
       const cube = new CubeMesh(this.engine, content);
@@ -302,7 +305,7 @@ export class Game {
         this.prediction = new Prediction(me, WORLD_SHAPE, WORLD_STRUCTURES);
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
-        this.interp.push(m.tick, m.players, m.cubes, now);
+        this.interp.push(m, now);
         this.hud.setSelf(m.id);
         this.hud.setPlayers(m.players);
         for (const p of m.players) if (p.id !== m.id) this.addAvatar(p);
@@ -314,7 +317,7 @@ export class Game {
         return;
       }
       case 'snap': {
-        this.interp.push(m.tick, m.players, m.cubes, now);
+        this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) this.hearts.set(me.hearts);
         this.hud.updateStats(m.players);
@@ -504,6 +507,7 @@ export class Game {
       this.canHit = hit;
       this.hud.setCrosshairTarget(this.canHit);
     }
+    this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
       const cube = this.cubes.get(cs.id);
       if (!cube) continue;

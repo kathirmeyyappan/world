@@ -78,10 +78,10 @@ wire: server and client both build the world from that file.
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Spawns land in the main disc only (`SPAWN_AREA`), standing on the ground (or anything within a step
-  of it) with headroom, so a building's ground floor there can be a spawn point and roofs, decks and
-  wall tops never are. Info cubes wander the main disc
-  at about 3 m and pass through structures, so tall pieces there will have cubes floating through them.
+- Spawns land in the main disc only (`SPAWN_AREA`, a region; see below), standing on the ground
+  (or anything within a step of it) with headroom, so a building's ground floor there can be a spawn
+  point and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
+  pass through structures, so tall pieces there will have cubes floating through them.
 - Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
   hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:
   the hole has to cover the stretch where the stair is within about 2.7 m of the floor above.
@@ -97,6 +97,22 @@ wire: server and client both build the world from that file.
   so draw calls stay in the tens however many pieces there are. The tower's 1,444 pieces render as 19
   meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a
   landmark adds a lot.
+
+### Regions and pickups
+
+- A region (`sim/regions.ts`) is a disc or an axis-aligned rectangle on a floor at height `y`.
+  Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS` and `TUNG_TUNG_TERRACE`) and
+  `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`,
+  `SPAWN_AREA`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
+  reshape a place where it's defined, never at the spawner.
+- Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
+  kind, how many, and how often one comes back. What's where is that list alone.
+- A new kind is a row in `PICKUPS` (float height, reach, and `use(player)`, which applies its effect
+  and returns false when it's no use to them, so it stays) plus a shape in `render/Pickups.ts`; the
+  `Record<PickupKind, …>` there makes the compiler ask. The Room, the wire and the Python mirror
+  already carry every kind.
+- Pickups pass through structures like cubes, so keep a region clear of stairs and walls at the
+  pickup's height. Test a new kind's effect once in `room.test.ts`; content changes need no test.
 
 ### Checking a change
 
@@ -258,6 +274,8 @@ protocol.
   when choosing targets. Yaw `0` faces `+z`; positive pitch looks down, and `look_at` aims in 3D.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
+- Snapshots carry the floating pickups (`state.pickups`); walking into a heart below full health
+  gives back 3 hearts, up to 10.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
