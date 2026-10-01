@@ -21,7 +21,8 @@ server spawns the same `run_bot` function; see `CLAUDE.md`.
 ## Add one
 
 Create `bots/<name>_bot.py` with `run_<name>_bot(...)`, register it in `bots/__init__.py`, and
-build on `common/` (`connect`, `WorldState`, `Controls`, `run_input_loop`, the log helpers).
+build on `common/` (`connect`, `WorldState`, `Controls`, `run_input_loop`, the log helpers, and
+`load_world_map` and `Route` for line of sight and finding a way around).
 The contract, lifecycle and checklist are in the repository's `CLAUDE.md` and `AGENTS.md`.
 
 ## Tests

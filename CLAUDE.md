@@ -129,6 +129,11 @@ means prediction and the server disagree). A new kind is different: add a case i
 the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
+Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds from
+the structures with the real sim (`sim/botMap.ts`, about ten seconds). A test fails until you run it
+after changing the structures, the world's outline or the player's movement, so commit the new map
+with the change.
+
 Cubes don't know about structures, and the minimap shows only the footprints in
 `content/landmarks.ts` (grey on the floor): list a landmark's there when it's worth navigating by.
 
@@ -192,6 +197,13 @@ Bots must use the modules under `modal-bots/common/`:
 - `Controls(connection)` owns input sequence numbers and persistent input intent.
 - `run_input_loop(controls, stop)` sends that intent at the server's 30 Hz tick rate without drift.
 - `log_kill`, `log_death`, and `log_message` write structured JSON to Modal's normal function logs.
+- `load_world_map()` (`common/world.py`) is the world's structures and walkable ground, shared by
+  every bot in the process. `world.clear(a, b)` is the sim's line of sight (what a shot can pass);
+  `world.node_at(feet)` and `world.path(start, goal)` find a way between the spots a player can
+  stand on a 1 m grid, up the stair and over the rail where only a jump gets there.
+  `Route(world, path, tick)` (`common/navigation.py`) walks it: call `route.steer(me.pos, tick,
+  controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
+  `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.

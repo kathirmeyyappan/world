@@ -9,6 +9,7 @@ import socket
 import subprocess
 import time
 from collections.abc import Iterator
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,9 @@ import pytest
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
 from bots.stalker_bot import run_stalker_bot
-from common import Connection, RoomConnectionError, Snapshot, Vec3, connect
+from common import Connection, Controls, RoomConnectionError, Snapshot, Vec3, WorldState, connect, run_input_loop
+from common.navigation import Route
+from common.world import load_world_map
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -228,3 +231,44 @@ def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(r
     assert not report["completed"], "the run ends when its corpse is dropped, not at 30 s"
     assert took < 10
     assert report["watching"] is not None
+
+
+def test_a_route_walks_up_the_tower_stair_and_out_onto_a_balcony(room_server: str) -> None:
+    world = load_world_map()
+    angle = math.radians(255)  # a floor-1 balcony door, just past where the stair's first flight ends
+    goal = world.node_at(Vec3(112 + 21.5 * math.cos(angle), 20, 21.5 * math.sin(angle)))
+    assert goal is not None
+
+    async def scenario() -> Vec3:
+        person = await seat_person(room_server, "python-route")
+        walker = await connect(None, "python-route", "walker", direct_url=room_server, spawn=Vec3(91, 0, 0))
+        state = WorldState(walker.welcome, walker.room)
+        controls = Controls(walker)
+        stop = asyncio.Event()
+        inputs = asyncio.create_task(run_input_loop(controls, stop))
+        route: Route | None = None
+        try:
+            async with asyncio.timeout(30):
+                while True:
+                    state.apply(await walker.receive())
+                    me = state.me
+                    assert me is not None
+                    if route is None or route.stuck(state.tick):
+                        start = world.node_at(Vec3(me.pos.x, me.pos.y - 1.7, me.pos.z))
+                        assert start is not None
+                        path = world.path(start, goal)
+                        assert path is not None
+                        route = Route(world, path, state.tick)
+                    if not route.steer(me.pos, state.tick, controls):
+                        return me.pos
+        finally:
+            stop.set()
+            inputs.cancel()
+            with suppress(asyncio.CancelledError, RoomConnectionError):
+                await inputs
+            await walker.close()
+            await person.close()
+
+    eye = asyncio.run(scenario())
+    assert eye.y == pytest.approx(21.7), "on floor 1"
+    assert math.hypot(eye.x - 112, eye.z) > 20, "outside the wall"

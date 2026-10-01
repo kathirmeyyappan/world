@@ -68,6 +68,12 @@ Use:
 - `Controls` for movement and interaction intent.
 - `run_input_loop` for drift-free 30 Hz input frames.
 - `log_kill`, `log_death`, and `log_message` for structured Modal logs.
+- `load_world_map()` (`common/world.py`) for the world's structures and walkable ground, shared by
+  every bot in the process: `world.clear(a, b)` is the sim's line of sight, and `world.node_at(feet)`
+  and `world.path(start, goal)` find a way over a 1 m grid of standing spots, up the stair and over
+  its rail where only a jump gets there. `Route(world, path, tick)` (`common/navigation.py`) walks
+  it: `route.steer(me.pos, tick, controls)` on every snapshot after `look`, and plan again when
+  `route.stuck(tick)`. `controls.walk_toward(origin, target)` moves toward a point whatever the look.
 
 Never import `httpx` or `websockets` from a bot file. Never parse raw protocol JSON, copy lobby
 logic, manage input sequence numbers, or log redirect URLs, session tokens, cookies, or auth
@@ -371,6 +377,11 @@ in dev `window.__game.correction.length()` should stay at 0 while you walk over 
 means prediction and the server disagree). A new kind is different: add a case in `surfaceOf` and in
 the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
 and one test of its surface in `packages/shared/test/sim.test.ts`.
+
+Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds from
+the structures with the real sim (`sim/botMap.ts`, about ten seconds). A test fails until you run it
+after changing the structures, the world's outline or the player's movement, so commit the new map
+with the change.
 
 Cubes don't know about structures, and the minimap shows only the footprints in
 `content/landmarks.ts` (grey on the floor): list a landmark's there when it's worth navigating by.
