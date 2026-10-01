@@ -46,7 +46,7 @@ export const BOTS: Record<BotId, BotSpec> = {
 // What follows a bot's command for each worker, for usage lines and the commands menu.
 export const BOT_ARGUMENTS: Record<BotWorker, string> = {
   dumb: '[seconds]',
-  combat: '[seconds] [names…]',
+  combat: '[seconds] [name substrings]',
 };
 
 export const BOT_IDS = Object.keys(BOTS) as BotId[];

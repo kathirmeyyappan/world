@@ -255,7 +255,7 @@ Never use `global` for automated testing.
 
 ### Calling bots from chat
 
-`/circle-bot [seconds]`, `/stalker-bot [seconds]` and `/sniper-bot [seconds] [names…]` start a bot
+`/circle-bot [seconds]`, `/stalker-bot [seconds]` and `/sniper-bot [seconds] [name substrings]` start a bot
 in the caller's room, on the ground within 50 m of them; seconds default to 300 and cap at 3500. The
 `-bot` suffix is optional where the bare word isn't already a command (`/circle`, but `/sniper` is
 the rifle). A combat bot's words after the seconds, which it can leave out, are its `targets`.
