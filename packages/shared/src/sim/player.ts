@@ -16,7 +16,7 @@ import {
 import { avatarFor } from './avatars';
 import type { Structures } from './collision';
 import { CAPSULE_TOP, MAX_HEARTS } from './health';
-import { stepGear } from './gear';
+import { stepGear, thrust } from './gear';
 import { ITEMS, createItem, nextFuel, permanentItemFor } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
@@ -110,14 +110,14 @@ export function stepPlayer(
   const speed = MOVE_SPEED * (boosted ? SPEEDY_MULTIPLIER : 1) * (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
   if (input?.jump && grounded && !p.dead && !p.scoped) p.vy = JUMP_VELOCITY;
-  const lift = stepGear(p, input ? input.actions : [], grounded, dt);
+  const push = stepGear(p, input ? input.actions : [], grounded, dt);
 
-  // Vertical: fall (or rise on the gear's lift, which never slows a faster climb), stop the head at
-  // any underside above it, land on the highest top within a step of where the feet were.
+  // Vertical: fall (or brake and rise on the gear's push), stop the head at any underside above it,
+  // land on the highest top within a step of where the feet were.
   const feet = p.pos.y - EYE_HEIGHT;
   const ceiling = structures.ceilingAt(p.pos.x, p.pos.z, p.pos.y + CAPSULE_TOP);
   p.vy -= GRAVITY * dt;
-  if (lift) p.vy = Math.max(p.vy, Math.min(lift.maxRise, p.vy + lift.lift * dt));
+  if (push) p.vy = thrust(p.vy, push, dt);
   p.pos.y += p.vy * dt;
   if (p.pos.y + CAPSULE_TOP > ceiling) {
     p.pos.y = ceiling - CAPSULE_TOP;
