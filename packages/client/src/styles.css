@@ -680,7 +680,7 @@ body {
   height: 100%;
   width: 100%;
   background: linear-gradient(90deg, #ff5a1f, #ffb347);
-  transition: width 0.1s linear;
+  transform-origin: left;
 }
 #fuel.empty {
   border-color: rgba(255, 255, 255, 0.3);
@@ -719,7 +719,7 @@ body {
   height: 100%;
   width: 100%;
   background: linear-gradient(90deg, #3d8bfd, #9fd4ff);
-  transition: width 0.1s linear;
+  transform-origin: left;
 }
 
 #item-hint {
