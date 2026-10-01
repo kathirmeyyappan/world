@@ -22,8 +22,8 @@ export function capsuleFeetY(eyeY: number): number {
 }
 
 // A landing this many metres or more below where the fall began costs a heart per
-// FALL_METRES_PER_HEART, rounded down to FALL_DAMAGE_STEP: 20 m takes 2 hearts, 27 m 2.5.
-export const FALL_SAFE_DROP = 20;
+// FALL_METRES_PER_HEART, rounded down to FALL_DAMAGE_STEP: 15 m takes 1.5 hearts, 27 m 2.5.
+export const FALL_SAFE_DROP = 15;
 export const FALL_METRES_PER_HEART = 10;
 export const FALL_DAMAGE_STEP = 0.5;
 
