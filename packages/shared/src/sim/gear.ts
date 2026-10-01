@@ -22,7 +22,7 @@ export const GEAR: Record<GearId, GearSpec> = {
     id: 'jetpack',
     seconds: 45,
     actions: { thrust: { key: 'Space', mode: 'hold' } }, // the jump key: jump, then keep holding
-    fuelSeconds: 4,
+    fuelSeconds: 8,
     lift: 34,
     maxRise: 9,
     blurb: 'strap on a jetpack; hold jump to fly',

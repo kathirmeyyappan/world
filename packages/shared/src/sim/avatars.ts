@@ -1,8 +1,8 @@
 // Avatar types: how a player looks, and how big a target they make. Movement and items are the
-// same for all of them; only the hit capsule follows the body. The chat command switches for good;
-// a name containing an avatar's tag spawns as it and can't switch at all. A bot can also ask for any avatar when it joins
-// (BotPlacement), including the ones people can't wear. Adding one means a row here and a builder
-// in the client's render/avatars/.
+// same for all of them; only the hit capsule follows the body. Its chat command switches for good;
+// a name containing an avatar's tag spawns as it and can't switch at all. A bot can also ask for any
+// avatar when it joins (BotPlacement), including one with no command. Adding one means a row here
+// and a builder in the client's render/avatars/.
 export type AvatarId = 'standard' | 'elizabeth' | 'sahur';
 
 // What shots test against (sim/combat.ts): a vertical capsule from the feet up to `top` metres,
@@ -19,7 +19,7 @@ export interface AvatarSpec {
   id: AvatarId;
   nameTag: string | null; // a name containing this spawns with the avatar
   blurb: string; // one plain line for the commands menu
-  wearable: boolean; // people can switch to it by chat command (and the menu lists it)
+  command: string | null; // the chat command that switches a person to it (the menu lists it); null: bots only
   hitbox: Hitbox;
 }
 
@@ -28,21 +28,21 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
     id: 'standard',
     nameTag: null,
     blurb: 'back to your normal self',
-    wearable: true,
+    command: 'standard',
     hitbox: { top: 2.0, radius: 0.55, head: 0.5 },
   },
   elizabeth: {
     id: 'elizabeth',
     nameTag: 'ELIZABETH',
     blurb: 'become elizabeth from gintama',
-    wearable: true,
+    command: 'elizabeth',
     hitbox: { top: 2.0, radius: 0.75, head: 0.55 }, // the egg is 1.24 m across, flippers out past that
   },
   sahur: {
     id: 'sahur',
     nameTag: null,
-    blurb: 'tung tung tung sahur, for bots only',
-    wearable: false,
+    blurb: 'become tung tung tung sahur',
+    command: 'tung',
     hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
   },
 };
@@ -53,9 +53,9 @@ export function isAvatarId(v: unknown): v is AvatarId {
   return typeof v === 'string' && v in AVATARS;
 }
 
-// An avatar a person can switch to with its chat command.
-export function isWearableAvatar(v: unknown): v is AvatarId {
-  return isAvatarId(v) && AVATARS[v].wearable;
+// The avatar a chat command word ("tung") switches a person to, if any.
+export function avatarForCommand(word: string): AvatarId | null {
+  return AVATAR_IDS.find((id) => AVATARS[id].command === word) ?? null;
 }
 
 // The avatar a name asks for, else the standard one.
