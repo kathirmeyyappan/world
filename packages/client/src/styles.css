@@ -1392,7 +1392,7 @@ body {
 }
 #commands .args {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.45);
+  color: #81c784;
   overflow-wrap: anywhere; /* inside a flag only when a column is narrower than one */
 }
 #commands .note {
