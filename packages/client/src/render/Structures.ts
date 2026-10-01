@@ -145,8 +145,11 @@ function heightfield(scene: Scene, name: string, s: Terrain, mapping: Mapping): 
 }
 
 // Texture coordinates in metres (one `tile` per repeat) and a vertex colour per face direction.
-// Sides use the piece's own horizontal axis and world height, so courses of brick line up across
-// stacked pieces; tops use world x/z when `worldTop`, so floor tiles line up across neighbours.
+// Every coordinate is measured from the world origin, never from the piece, so two pieces of one
+// look whose faces overlap in the same plane paint the same texel there and can't flicker: sides
+// run along the face (the same way for every face pointing that way) and up world height, and tops
+// use world x/z when `worldTop`, or else axes turned with the piece (a stair's planks run along
+// each step), which match only between pieces turned the same way.
 function paintFaces(
   mesh: Mesh,
   s: Structure,
@@ -163,19 +166,22 @@ function paintFaces(
   const colors: number[] = [];
   for (let i = 0; i < positions.length / 3; i++) {
     const [lx, ly, lz] = [positions[3 * i], positions[3 * i + 1], positions[3 * i + 2]];
-    const [nx, ny, nz] = [Math.abs(normals[3 * i]), normals[3 * i + 1], Math.abs(normals[3 * i + 2])];
+    const [nx, ny, nz] = [normals[3 * i], normals[3 * i + 1], normals[3 * i + 2]];
+    const wx = s.x + lx * cos + lz * sin;
     const wy = ly + lift + base;
+    const wz = s.z - lx * sin + lz * cos;
     let shade: number;
-    if (Math.abs(ny) >= nx && Math.abs(ny) >= nz) {
+    if (Math.abs(ny) >= Math.abs(nx) && Math.abs(ny) >= Math.abs(nz)) {
       shade = ny > 0 ? SHADE.top : SHADE.bottom;
-      if (worldTop) uvs.push((s.x + lx * cos + lz * sin) / tile, (s.z - lx * sin + lz * cos) / tile);
-      else uvs.push(lx / tile, lz / tile);
-    } else if (nx >= nz) {
-      shade = SHADE.sideX;
-      uvs.push(lz / tile, wy / tile);
+      if (worldTop) uvs.push(wx / tile, wz / tile);
+      else uvs.push((wx * cos - wz * sin) / tile, (wx * sin + wz * cos) / tile);
     } else {
-      shade = SHADE.sideZ;
-      uvs.push(lx / tile, wy / tile);
+      shade = Math.abs(nx) >= Math.abs(nz) ? SHADE.sideX : SHADE.sideZ;
+      // The face's normal in the world, turned a quarter about the vertical: along the face.
+      const ax = -nx * sin + nz * cos;
+      const az = -(nx * cos + nz * sin);
+      const len = Math.hypot(ax, az);
+      uvs.push((wx * ax + wz * az) / len / tile, wy / tile);
     }
     colors.push(shade, shade, shade, 1);
   }

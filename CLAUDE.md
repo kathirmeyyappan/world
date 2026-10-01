@@ -90,9 +90,15 @@ wire: server and client both build the world from that file.
 - Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`; each is a
   painter in `packages/client/src/render/structureMaterials.ts`, and a new one is another painter
   there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so they look
-  the same inside and out; don't reach for lights. Two surfaces overlapping at the same height
-  flicker, so where different pieces meet (a door sill under a floor, a bridge deck under a balcony)
-  drop one a couple of centimetres.
+  the same inside and out; don't reach for lights.
+- Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
+  flicker shows wherever they paint different pixels. Structure textures are mapped from the world
+  origin, so pieces of one look (with `worldTop` for their tops) paint identical pixels there, which
+  is what lets the helpers overlap their joints. Anywhere else (two looks, or tops mapped in each
+  piece's frame) keep faces out of one plane: drop one piece a couple of centimetres (a door sill
+  under a floor, a stair's landing step, a bridge deck under a balcony) or stand it on the other
+  rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
+  never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
   so draw calls stay in the tens however many pieces there are. The tower's 1,444 pieces render as 19
   meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a

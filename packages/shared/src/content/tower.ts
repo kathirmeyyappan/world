@@ -37,8 +37,8 @@ const BALCONY_DOORS = [0, 75, 127.5, 180, 255, 307.5].map(deg);
 const BRIDGE_DOOR = deg(180); // west, facing the main disc: the top balcony's way onto the bridge
 const BALCONY = 3; // metres of balcony outside the wall
 const PARAPET = 0.8; // under half a body, so it's cover you can shoot over
-// Door sills and the bridge deck sit this far below the floors they meet, so no two surfaces share
-// a height where they overlap (they'd flicker).
+// Door sills, the stair's landings and the bridge deck sit this far below the floors they meet, so
+// no two surfaces share a height where they overlap (they'd flicker).
 const SILL = 0.02;
 const DECK = 0.4; // thickness of the bridge and terrace decks
 
@@ -90,7 +90,7 @@ const inside: Structure[] = [
     z: Z,
     inner: STAIR_INNER,
     outer: INNER,
-    bottom: 0,
+    bottom: -SILL, // so each landing's step (and the rail post beneath it) sits just under its floor
     rise: TOP,
     turns: 1.5,
     start: STAIR_START,
