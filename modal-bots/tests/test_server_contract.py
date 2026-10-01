@@ -292,7 +292,7 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
         away = 20 / max(1.0, math.hypot(me.pos.x, me.pos.z))
         world = copy.copy(load_world_map())
         world.tower_inside = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0),)
-        sniper = asyncio.create_task(run_sniper_bot("python-sniper", seconds=6, world=world, direct_ws_url=room_server))
+        sniper = asyncio.create_task(run_sniper_bot("python-sniper", seconds=8, world=world, direct_ws_url=room_server))
         shot_ticks: list[int] = []
         tick = person.welcome.tick
         try:
@@ -309,4 +309,4 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
     shot_ticks, report = asyncio.run(scenario())
 
     assert report["shots"] >= 2 and len(shot_ticks) == report["shots"], report
-    assert all(b - a >= 90 for a, b in itertools.pairwise(shot_ticks)), f"3 s between shots: {shot_ticks}"
+    assert all(b - a >= 150 for a, b in itertools.pairwise(shot_ticks)), f"5 s between shots: {shot_ticks}"

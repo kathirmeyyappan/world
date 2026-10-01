@@ -149,6 +149,20 @@ class WorldMap:
                         best, best_distance = i, distance
         return best
 
+    def nodes_near(self, feet: Vec3, radius: float, rise: float = 3) -> list[int]:
+        """Every node within ``radius`` metres across the floor of ``feet`` and ``rise`` up or down:
+        the spots around a player on their own floor."""
+        span = math.ceil(radius)
+        cx, cz = round(feet.x), round(feet.z)
+        return [
+            i
+            for dx in range(-span, span + 1)
+            for dz in range(-span, span + 1)
+            for i in self._columns.get((cx + dx, cz + dz), ())
+            if math.hypot(self.nodes[i].x - feet.x, self.nodes[i].z - feet.z) <= radius
+            and abs(self.nodes[i].y - feet.y) <= rise
+        ]
+
     def path(self, start: int, goal: int) -> list[int] | None:
         """The shortest way from node ``start`` to node ``goal`` (both ends included), or None
         when there's none. It jumps only where walking can't get there (``jumps``)."""
