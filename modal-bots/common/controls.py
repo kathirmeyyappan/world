@@ -28,6 +28,7 @@ class Controls:
         self._jump = False
         self._shoot = False
         self._shoot_once = False
+        self._shot_look: tuple[float, float] | None = None
         self._scope = False
         self._thrust = False
 
@@ -75,7 +76,10 @@ class Controls:
         self._shoot = held
 
     def fire_once(self) -> None:
+        """One press frame, aimed where the bot is looking now: a ``look`` before that frame goes
+        out turns the bot but not the shot."""
         self._shoot_once = True
+        self._shot_look = (self.yaw, self.pitch)
 
     def scope(self, enabled: bool = True) -> None:
         self._scope = enabled
@@ -102,12 +106,13 @@ class Controls:
             actions.append("scope")
         if self._thrust:
             actions.append("thrust")
+        yaw, pitch = self._shot_look or (self.yaw, self.pitch)
         frame = {
             "seq": self.seq,
             "mx": self.right,
             "my": self.forward,
-            "yaw": self.yaw,
-            "pitch": self.pitch,
+            "yaw": yaw,
+            "pitch": pitch,
             "jump": self._jump,
             "reading": self.reading,
             "actions": actions,
@@ -118,6 +123,7 @@ class Controls:
         await self.connection.send({"t": "input", "f": frame})
         self._jump = False
         self._shoot_once = False
+        self._shot_look = None
 
 
 async def run_input_loop(controls: Controls, stop: asyncio.Event) -> None:

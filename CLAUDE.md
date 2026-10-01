@@ -247,7 +247,7 @@ controls.stop()
 controls.look(yaw, pitch)
 controls.look_at(state.me.pos, target.pos)
 controls.jump()                     # one input frame
-controls.fire_once()                # one press frame; the next frame releases it
+controls.fire_once()                # one press frame, aimed where it looks now; the next releases it
 controls.shoot(True)                # persistent hold, e.g. flamethrower
 controls.shoot(False)
 controls.scope(True)

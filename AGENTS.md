@@ -146,7 +146,7 @@ await controls.command("sniper")
 Important semantics:
 
 - Movement is normalized; forward/right are relative to current yaw.
-- `jump` and `fire_once` last one frame.
+- `jump` and `fire_once` last one frame; `fire_once` shoots where the bot looked when it was called.
 - `shoot(True)` persists and is for held actions such as flamethrower fire.
 - Tap weapons need a press frame followed by a release frame.
 - Sniper firing requires persistent scope. A scoped player walks at 30% speed and can't jump.

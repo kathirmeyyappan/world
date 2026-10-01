@@ -15,20 +15,20 @@ already aiming at.
    few every SIGHT_EVERY ticks rather than everyone every tick, to stay cheap.
 
 4. Shooting. With someone in sight it stops, scopes in and aims at their chest. It fires only
-   once they've stayed in sight for a grace delay, a fresh random 3 to 10 ticks each time, so it
-   never shoots the instant someone appears. Each shot is aimed afresh at a random spot on their
-   hitbox (the map's, for their avatar): half the time the chest, 30% the head, and 20% just past
-   their side, a near miss (AIM_ZONES). Aim is at the snapshot, so a target that moves in the
-   meantime can still turn a hit into a miss or the other way round. After a shot it can't fire
-   for COOLDOWN_SECONDS: it lets go of the scope and steps to a spot a few metres off (still
-   watching), and each later shot waits out a new grace delay.
+   once they've stayed in sight for a grace delay, a fresh random 5 to 25 ticks each time (counted
+   from the end of its cooldown for a later shot), so it never shoots the instant someone appears.
+   Each shot is aimed afresh at a random spot on their hitbox (the map's, for their avatar): the
+   chest 45% of the time, the head 25%, and 30% just past their side, a near miss (AIM_ZONES).
+   Aim is at the snapshot, so a target that moves in the meantime can still turn a hit into a
+   miss or the other way round. After a shot it can't fire for COOLDOWN_SECONDS, and it holds
+   still, scoped, while it waits.
 
-5. Moving. With nobody in sight it walks to a lookout, one of the map's high spots with a wide
-   view (the tower's balconies, the terrace and the bridge), picked at random from the nearer
-   ones, along ``world.path``: up the stair and over its rail where it has to. A long walk (over
-   SPEEDY_TRIP, such as out to the tower) starts with ``/s`` unless it's already fast. On open
-   ground it weaves from side to side as it goes, so it's harder to hit. At the lookout it waits; after
-   LOOKOUT_PATIENCE_SECONDS with nobody in sight it tries another.
+5. Moving. Wherever it spawns, it lives in the tower: with nobody in sight it walks to a lookout,
+   one of the map's high spots with a wide view (the tower's balconies, the terrace and the
+   bridge), on a floor picked at random and then a spot on it at random, along ``world.path``: up
+   the stair and over its rail where it has to. A long walk (over SPEEDY_TRIP, such as out to the
+   tower) starts with ``/s`` unless it's already fast. Once there it stays, until it makes a kill:
+   then it picks a lookout on another floor and moves there, so it never camps one spot for good.
 
 6. Dying. Like every bot, a dead sniper stops sending input and lies there until the room drops
    its corpse, which ends the run.
@@ -66,19 +66,16 @@ from common.controls import TICK_RATE
 from common.deployment import validate_duration
 from common.world import EYE_HEIGHT, Hitbox
 
-GRACE_TICKS = (3, 10)  # a target must stay in sight this long (inclusive range) before a shot
+GRACE_TICKS = (5, 25)  # a target must stay in sight this long (inclusive range) before a shot
 COOLDOWN_SECONDS = 3.0  # no shot for this long after one
 SIGHT_EVERY = 3  # ticks between sight checks
 SIGHT_CHECKS = 6  # the nearest this many quarry are checked for a clear line
 CHEST_DROP = 0.5  # metres below the eye that it checks the line of sight to: the middle of the body
 # Where each shot is aimed, and how often: the chest, the head, or just past the body's side.
-AIM_ZONES = {"chest": 0.5, "head": 0.3, "miss": 0.2}
-MISS_BY = (0.1, 0.4)  # metres past the hitbox's side that a near miss goes
-LOOKOUT_CHOICES = 40  # a new lookout is one of this many nearest
-LOOKOUT_PATIENCE_SECONDS = 8.0  # how long it waits at a lookout with nobody in sight
-STEP_ASIDE = (2, 5)  # walking steps (map nodes, about a metre each) it moves off after a shot
-WEAVE = 0.6  # how hard it weaves sideways on open ground, against 1 for walking forward
-WEAVE_SECONDS = (0.4, 1.2)  # how long each weave lasts
+AIM_ZONES = {"chest": 0.45, "head": 0.25, "miss": 0.3}
+AIM_SPREAD = 0.8  # how far off the axis a shot on the body goes, as a share of the hitbox radius
+MISS_BY = (0.1, 0.6)  # metres past the hitbox's side that a near miss goes
+FLOOR = 10  # metres: lookouts closer in height than this are one floor (the bridge's deck and rail)
 RIFLE_RETRY_TICKS = TICK_RATE  # how long it waits for a /sniper to land before asking again
 SPEEDY_TRIP = 30  # map nodes (about a metre each): a walk to a lookout longer than this runs on /s
 
@@ -131,6 +128,7 @@ async def run_sniper_bot(
                     if message.data["shooter"] == me.id:
                         sniper.kills += 1
                         log_kill(name, victim.name if victim else "?", item="sniper", headshot=message.data["headshot"])
+                        sniper.move_floors()
                     elif message.data["victim"] == me.id:
                         log_death(name, shooter.name if shooter else "?", item=message.data["item"])
                 if me.dead:
@@ -194,15 +192,15 @@ def chest(p: Player) -> Vec3:
 
 def aim_point(origin: Vec3, target: Player, hitbox: Hitbox, zone: str, rng: random.Random) -> Vec3:
     """A random spot to shoot at from ``origin``, in one of AIM_ZONES on the target's hitbox: up
-    its axis for the zone's height, and sideways across the line of fire (within half the radius on
-    the body, past the radius for a miss)."""
+    its axis for the zone's height, and sideways across the line of fire (within AIM_SPREAD of the
+    radius on the body, past the radius for a miss)."""
     neck = hitbox.top - hitbox.head  # where the head band starts, above the feet
     if zone == "head":
         height = rng.uniform(neck + 0.05, hitbox.top - 0.05)
-        side = rng.uniform(-0.5, 0.5) * hitbox.radius
+        side = rng.uniform(-AIM_SPREAD, AIM_SPREAD) * hitbox.radius
     elif zone == "chest":
         height = rng.uniform(0.5 * neck, neck - 0.1)
-        side = rng.uniform(-0.5, 0.5) * hitbox.radius
+        side = rng.uniform(-AIM_SPREAD, AIM_SPREAD) * hitbox.radius
     else:
         height = rng.uniform(0.3 * neck, hitbox.top)
         side = rng.choice((-1, 1)) * (hitbox.radius + rng.uniform(*MISS_BY))
@@ -224,16 +222,14 @@ class Sniper:
     shots: int = 0
     kills: int = 0
     in_sight: str | None = None  # who it's aiming at, if anyone
-    fire_at: int = 0  # the tick its grace delay on them ends
+    fire_at: int = 0  # the tick it may shoot them: its grace delay's end
     ready_at: int = 0  # the tick its cooldown ends
+    lookout: int | None = None  # the node it's walking to, or standing on
     route: Route | None = None
-    lookout: int | None = None  # where the route is going, when it's going to a lookout
-    waiting_since: int | None = None  # when it got to its lookout
-    weave: float = 0
-    weave_until: int = 0
+    wants_speedy: bool = False  # set off on a long walk: the run loop sends /s
     _sighted: Player | None = None
     _next_sight_check: int = 0
-    wants_speedy: bool = False  # set off on a long walk: the run loop sends /s
+    _plan_at: int = 0  # the tick it may look for a way again after finding none
 
     def decide(self, state: WorldState, controls: Controls) -> None:
         me = state.me
@@ -243,21 +239,12 @@ class Sniper:
             self._next_sight_check = tick + SIGHT_EVERY
             self._sighted = self._first_in_sight(state, me)
         target = state.players.get(self._sighted.id) if self._sighted else None
-        if target is not None and target.dead:
-            target = None
-        if target is not None and tick >= self.ready_at:
+        if target is not None and not target.dead:
             self._aim_and_fire(me, target, tick, controls)
             return
-        controls.scope(False)
-        if target is not None:
-            # Cooling down: keep watching, and finish stepping aside if it was.
-            controls.look_at(me.pos, chest(target))
-            if self.route is None or not self.route.steer(me.pos, tick, controls):
-                self.route = None
-                controls.stop()
-            return
         self.in_sight = None
-        self._go_to_lookout(state, me, controls)
+        controls.scope(False)
+        self._walk_to_lookout(me, tick, controls)
 
     def _first_in_sight(self, state: WorldState, me: Player) -> Player | None:
         """The nearest quarry with a clear line from the eye, the one it's aiming at first."""
@@ -269,10 +256,9 @@ class Sniper:
         controls.stop()
         controls.scope(True)
         controls.look_at(me.pos, chest(target))
-        self.route = self.lookout = self.waiting_since = None
         if target.id != self.in_sight:
             self.in_sight = target.id
-            self.fire_at = tick + self.rng.randint(*GRACE_TICKS)
+            self.fire_at = max(tick, self.ready_at) + self.rng.randint(*GRACE_TICKS)
             log_message(
                 self.name, "target in sight", target=target.name, distance=round(_distance(me.pos, target.pos), 1)
             )
@@ -284,79 +270,46 @@ class Sniper:
         controls.fire_once()
         self.shots += 1
         self.ready_at = tick + round(COOLDOWN_SECONDS * TICK_RATE)
-        self.in_sight = None  # the next shot waits out a new grace delay
+        self.fire_at = self.ready_at + self.rng.randint(*GRACE_TICKS)
         log_message(self.name, "fired", target=target.name, aim=zone, distance=round(_distance(me.pos, target.pos), 1))
-        self._step_aside(me, tick)
 
-    def _step_aside(self, me: Player, tick: int) -> None:
-        """Set off for a spot a few walking steps away, whichever way the map allows."""
-        start = self.world.node_at(_feet(me))
-        if start is None:
-            return
-        # Every walk of up to STEP_ASIDE[1] steps out from here, by where it ends.
-        paths = {start: [start]}
-        frontier = [start]
-        for _ in range(STEP_ASIDE[1]):
-            reached = []
-            for i in frontier:
-                for j in self.world.edges[i]:
-                    if j not in paths:
-                        paths[j] = [*paths[i], j]
-                        reached.append(j)
-            frontier = reached
-        options = [path for path in paths.values() if len(path) > STEP_ASIDE[0]]
-        if options:
-            self.route = Route(self.world, self.rng.choice(options), tick)
-
-    def _go_to_lookout(self, state: WorldState, me: Player, controls: Controls) -> None:
-        tick = state.tick
-        route = self.route
-        if route is None or route.stuck(tick) or (route.done and self.lookout is None):
-            self._plan(me, tick, keep=route is not None and route.stuck(tick))
-            route = self.route
-        if route is None:
+    def _walk_to_lookout(self, me: Player, tick: int, controls: Controls) -> None:
+        """Head for its lookout (picking one the first time), or stand there once arrived."""
+        if (self.route is None and tick >= self._plan_at) or (self.route is not None and self.route.stuck(tick)):
+            self._plan(me, tick)
+        if self.route is None or self.route.done:
             controls.stop()
             return
-        if route.done:
-            controls.stop()
-            if self.waiting_since is None:
-                self.waiting_since = tick
-                log_message(self.name, "at lookout", node=route.goal)
-            elif tick - self.waiting_since > LOOKOUT_PATIENCE_SECONDS * TICK_RATE:
-                self._plan(me, tick, keep=False)
-            return
-        ahead = self.world.nodes[route.path[route.next]]
-        controls.look_at(me.pos, Vec3(ahead.x, ahead.y + EYE_HEIGHT, ahead.z))
-        route.steer(me.pos, tick, controls)
-        self._weave(route, tick, controls)
+        controls.look_at(me.pos, self.route.ahead(me.pos))
+        self.route.steer(me.pos, tick, controls)
 
-    def _plan(self, me: Player, tick: int, *, keep: bool) -> None:
-        """A route to the current lookout again (``keep``), or to a new one."""
-        self.route = self.waiting_since = None
+    def move_floors(self) -> int:
+        """Pick a lookout on a random floor other than the one it's on (any floor the first time),
+        and set off for it on the next snapshot with nobody in sight. Returns the lookout."""
+        floor = self._floor(self.lookout) if self.lookout is not None else None
+        floors = sorted({self._floor(i) for i in self.world.lookouts})
+        new = self.rng.choice([f for f in floors if f != floor] or floors)
+        self.lookout = self.rng.choice([i for i in self.world.lookouts if self._floor(i) == new])
+        self.route = None
+        log_message(self.name, "heading to lookout", floor=new, node=self.lookout)
+        return self.lookout
+
+    def _floor(self, node: int) -> int:
+        return round(self.world.nodes[node].y / FLOOR) * FLOOR
+
+    def _plan(self, me: Player, tick: int) -> None:
+        """A route from here to its lookout, choosing one if it has none yet. With no way there,
+        it tries again in a second."""
+        self.route = None
+        self._plan_at = tick + TICK_RATE
         start = self.world.node_at(_feet(me))
         if start is None or not self.world.lookouts:
             return
-        if not keep or self.lookout is None:
-            here = self.world.nodes[start]
-            nearest = sorted(self.world.lookouts, key=lambda i: _distance(here, self.world.nodes[i]))
-            others = [i for i in nearest[: LOOKOUT_CHOICES + 1] if i != self.lookout]
-            self.lookout = self.rng.choice(others)
-            log_message(self.name, "heading to lookout", node=self.lookout)
-        path = self.world.path(start, self.lookout)
+        lookout = self.lookout if self.lookout is not None else self.move_floors()
+        path = self.world.path(start, lookout)
         if path is not None:
             self.route = Route(self.world, path, tick)
             self.wants_speedy = len(path) > SPEEDY_TRIP
-
-    def _weave(self, route: Route, tick: int, controls: Controls) -> None:
-        """Turn some of the walk sideways, a random way for a random while, where the next spot is
-        open floor (it walks to all eight neighbours), never on the stair or along a wall."""
-        if route.done or len(self.world.edges[route.path[route.next]]) < 8:
-            return
-        if tick >= self.weave_until:
-            self.weave = self.rng.choice((-WEAVE, 0, WEAVE))
-            self.weave_until = tick + round(self.rng.uniform(*WEAVE_SECONDS) * TICK_RATE)
-        forward, right = controls.forward, controls.right
-        controls.move(forward=forward - right * self.weave, right=right + forward * self.weave)
 
 
 def _feet(p: Player) -> Vec3:
