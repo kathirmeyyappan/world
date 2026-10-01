@@ -4,9 +4,10 @@
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode } from '@babylonjs/core';
 import type { Engine } from './Engine';
 
-const COUNT = 16;
+const COUNT = 16; // blocks in a jet of BASE_LENGTH or shorter; longer ones get more
 const FLIGHT_SECONDS = 0.35;
 const SPREAD = Math.tan(Math.PI / 8); // matches the cone's half angle
+const BASE_LENGTH = 10; // metres a jet's blocks are sized for; longer jets grow them to fill the cone
 
 interface Particle {
   mesh: Mesh;
@@ -19,6 +20,7 @@ interface Particle {
 
 export class FlameJet {
   private readonly particles: Particle[] = [];
+  private readonly growth: number; // how much a block grows on its way out, in metres
   private on = false;
 
   constructor(
@@ -28,7 +30,10 @@ export class FlameJet {
     private readonly length: number,
   ) {
     const scene = engine.scene;
-    for (let i = 0; i < COUNT; i++) {
+    const stretch = Math.max(1, length / BASE_LENGTH);
+    this.growth = 0.55 * stretch;
+    const count = Math.round(COUNT * stretch);
+    for (let i = 0; i < count; i++) {
       const mesh = MeshBuilder.CreateBox(`${name}-flame-${i}`, { size: 1 }, scene);
       const mat = new StandardMaterial(`${name}-flame-${i}-mat`, scene);
       mat.disableLighting = true;
@@ -39,7 +44,7 @@ export class FlameJet {
       mesh.applyFog = false;
       mesh.setEnabled(false);
       engine.glowLayer.addIncludedOnlyMesh(mesh);
-      this.particles.push({ mesh, mat, t: i / COUNT, ox: 0, oy: 0, spin: 0 });
+      this.particles.push({ mesh, mat, t: i / count, ox: 0, oy: 0, spin: 0 });
       this.scatter(this.particles[i]);
     }
   }
@@ -60,7 +65,7 @@ export class FlameJet {
       }
       const d = p.t * this.length;
       p.mesh.position.set(p.ox * d * SPREAD, p.oy * d * SPREAD, d);
-      const size = 0.12 + p.t * 0.55;
+      const size = 0.12 + p.t * this.growth;
       p.mesh.scaling.setAll(size);
       p.mesh.rotation.set(p.spin * p.t * 6, p.spin * p.t * 4, p.t * 3);
       // yellow at the nozzle, orange in the middle, dark red and fading at the end

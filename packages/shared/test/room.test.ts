@@ -384,7 +384,7 @@ test('headshots do 2.5x: a gun takes 5 hearts, a scoped sniper to the head is a 
   assert.equal(alice.hearts, 0);
 });
 
-test('flamethrower: hold to spray a 10 m cone at 1 heart/s, on a 7.5 s tank that takes 25 s to refill', () => {
+test('flamethrower: hold to spray a 20 m cone, 0.5 hearts every 8 ticks, on a 7.5 s tank that takes 25 s to refill', () => {
   const room = new Room('flame', { seed: 9 });
   const a = link();
   const ida = room.join('alice', a)!;
@@ -393,13 +393,13 @@ test('flamethrower: hold to spray a 10 m cone at 1 heart/s, on a 7.5 s tank that
   const idd = room.join('dave', link())!;
   const [alice, bob, carol, dave] = [ida, idb, idc, idd].map((id) => room.players.find((p) => p.id === id)!);
   bob.pos = { x: alice.pos.x + 1.5, y: alice.pos.y, z: alice.pos.z + 6 }; // 14 degrees off axis: in the cone
-  carol.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 12 }; // straight ahead but past 10 m
+  carol.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 22 }; // straight ahead but past 20 m
   dave.pos = { x: alice.pos.x + 5, y: alice.pos.y, z: alice.pos.z + 6 }; // 40 degrees off: outside
 
   room.receive(ida, { t: 'chat', text: '/flamethrower' });
   assert.deepEqual(alice.item, { id: 'flamethrower', left: 45, permanent: false, fuel: 7.5 });
   hold(room, ida, 30);
-  assert.equal(bob.hearts, MAX_HEARTS - 1, 'two 0.5 ticks in a second');
+  assert.equal(bob.hearts, MAX_HEARTS - 2, 'four 0.5 ticks in a second (ticks 0, 8, 16, 24)');
   assert.equal(carol.hearts, MAX_HEARTS, 'out of reach');
   assert.equal(dave.hearts, MAX_HEARTS, 'outside the cone');
   assert.ok(!a.inbox.some((m) => m.t === 'shot'), 'no muzzle event for a hold weapon');
