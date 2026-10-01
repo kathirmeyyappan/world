@@ -71,7 +71,7 @@ export class CommandsMenu {
 
 function buildGroups(): Group[] {
   // Skins: the default look last, so the ones you'd actually try come first.
-  const skins = AVATAR_IDS.filter((id) => AVATARS[id].wearable).sort(
+  const skins = AVATAR_IDS.filter((id) => AVATARS[id].command).sort(
     (a, b) => Number(a === 'standard') - Number(b === 'standard'),
   );
   return [
@@ -86,7 +86,7 @@ function buildGroups(): Group[] {
         ['/kill-bots', 'every bot in the room drops dead'],
       ],
     },
-    { title: 'wear skin', rows: skins.map((id) => [`/${id}`, AVATARS[id].blurb]) },
+    { title: 'wear skin', rows: skins.map((id) => [`/${AVATARS[id].command}`, AVATARS[id].blurb]) },
     {
       title: 'other',
       rows: [

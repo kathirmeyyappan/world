@@ -171,8 +171,8 @@ with concurrent receive and input loops.
 - A bot may choose where it spawns and how it looks: pass `spawn` (a feet position, `Vec3`) and
   `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,
   clamping the spot inside the world and standing the bot on the surface under it; the avatar is
-  fixed for the run. Any avatar id works, including ones people can't wear (`AVATARS[id].wearable`
-  is false for `sahur`, so no chat command or menu row reaches it).
+  fixed for the run. Any avatar id works, including one with no chat command
+  (`AVATARS[id].command` null) that people can't switch to.
 - A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
   so a bot that spawns after everyone left never starts a room nothing would close. Local tests
   seat a person first with `connect(..., bot=False)`.

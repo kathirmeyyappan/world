@@ -357,7 +357,9 @@ test('avatars: /elizabeth is for good; ELIZABETH in the name locks the look', ()
   assert.equal(bob.avatar, 'standard', 'and back by choice');
 
   room.receive(idb, { t: 'chat', text: '/sahur' });
-  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /sahur' }, 'a bot-only look');
+  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /sahur' }, 'a look goes by its command');
+  room.receive(idb, { t: 'chat', text: '/tung' });
+  assert.equal(bob.avatar, 'sahur');
   room.receive(ida, { t: 'chat', text: '/standard' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
   assert.equal(ann.avatar, 'elizabeth');
