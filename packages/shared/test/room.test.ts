@@ -222,7 +222,7 @@ test('weapon command shortcuts equip the matching item', () => {
     room.receive(playerId, { t: 'chat', text: command });
     assert.equal(player.item?.id, item);
   }
-  room.receive(playerId, { t: 'chat', text: '/jp' });
+  room.receive(playerId, { t: 'chat', text: '/j' });
   assert.equal(player.gear?.id, 'jetpack', 'gear goes on beside the weapon');
   assert.equal(player.item?.id, 'flamethrower');
 });
