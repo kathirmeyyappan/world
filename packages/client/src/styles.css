@@ -1378,7 +1378,7 @@ body {
 #commands ul {
   list-style: none;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px 24px;
 }
 #commands li {
@@ -1393,6 +1393,7 @@ body {
 #commands .args {
   font-size: 16px;
   color: rgba(255, 255, 255, 0.45);
+  overflow-wrap: anywhere; /* inside a flag only when a column is narrower than one */
 }
 #commands .note {
   font: 15px var(--mono);
