@@ -3,10 +3,11 @@
 // no sim of their own, so the graph is worked out here with the real one: every walkable spot on a
 // 1 m grid is a node, and an edge joins two neighbouring nodes when stepPlayer, walking straight
 // from one, arrives at the other; where only a running jump gets there (over the tower stair's
-// rail onto a floor), that's a jump edge. With them come the lookouts (high spots with a view) and
-// each avatar's hitbox, for aiming. `npm run bot-map` writes it, gzipped, to
-// modal-bots/common/world_map.json.gz; it carries a fingerprint of everything it was built from,
-// and a test fails when that no longer matches, so a change to the world regenerates it.
+// rail onto a floor), that's a jump edge. With them come the lookouts (high spots with a view),
+// each avatar's hitbox, for aiming, and the tower's inside floors, where a sniper starts out.
+// `npm run bot-map` writes it, gzipped, to modal-bots/common/world_map.json.gz; it carries a
+// fingerprint of everything it was built from, and a test fails when that no longer matches, so a
+// change to the world regenerates it.
 import {
   EYE_HEIGHT,
   GRAVITY,
@@ -18,9 +19,11 @@ import {
   STEP_UP,
   TICK_DT,
 } from './constants';
+import { TOWER_INSIDE } from '../content/regions';
 import { AVATAR_IDS, AVATARS, type Hitbox } from './avatars';
 import { CAPSULE_TOP } from './health';
 import { createPlayer, isGrounded, stepPlayer } from './player';
+import type { Region } from './regions';
 import { createRng, hashSeed } from './rng';
 import { surfaceOf, type Structure } from './structures';
 import type { Vec3 } from './types';
@@ -47,13 +50,14 @@ export interface BotMap {
   jumps: number[][]; // per node, the ones only a running jump toward them reaches
   lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
+  towerInside: Region[]; // the tower's four floors inside its wall (content/regions.ts TOWER_INSIDE)
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
   // Python side's line of sight is checked against these.
   sightChecks: number[][];
 }
 
 // A fingerprint of what the map depends on: the world's outline and structures, the body and
-// movement constants, this file's own settings, and the avatars' hitboxes.
+// movement constants, this file's own settings, the avatars' hitboxes, and the tower's floors.
 export function botMapSource(): number {
   const physics = [
     EYE_HEIGHT,
@@ -77,7 +81,7 @@ export function botMapSource(): number {
     LOOKOUT_OPEN,
     LOOKOUT_FLOOR,
   ];
-  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes()]));
+  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), TOWER_INSIDE]));
 }
 
 function hitboxes(): Record<string, Hitbox> {
@@ -120,6 +124,7 @@ export function buildBotMap(): BotMap {
     jumps,
     lookouts: lookouts(nodes, edges, jumps),
     hitboxes: hitboxes(),
+    towerInside: TOWER_INSIDE,
     sightChecks: sightChecks(nodes),
   };
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import itertools
 import math
 import os
@@ -22,7 +23,7 @@ from bots.sniper_bot import run_sniper_bot
 from bots.stalker_bot import run_stalker_bot
 from common import Connection, Controls, Event, RoomConnectionError, Snapshot, Vec3, WorldState, connect, run_input_loop
 from common.navigation import Route
-from common.world import load_world_map
+from common.world import Region, load_world_map
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -286,12 +287,12 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
     async def scenario() -> tuple[list[int], dict[str, Any]]:
         person = await seat_person(room_server, "python-sniper")
         me = next(p for p in person.welcome.players if p.id == person.id)
-        # On the open main disc, 20 m nearer its middle: nothing in the way.
+        # It starts on a tower floor; here the only "floor" is a spot on the open main disc, 20 m
+        # nearer its middle than the person, with nothing in the way.
         away = 20 / max(1.0, math.hypot(me.pos.x, me.pos.z))
-        spot = Vec3(me.pos.x * (1 - away), 0, me.pos.z * (1 - away))
-        sniper = asyncio.create_task(
-            run_sniper_bot("python-sniper", seconds=6, world=load_world_map(), direct_ws_url=room_server, spawn=spot)
-        )
+        world = copy.copy(load_world_map())
+        world.tower_inside = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0),)
+        sniper = asyncio.create_task(run_sniper_bot("python-sniper", seconds=6, world=world, direct_ws_url=room_server))
         shot_ticks: list[int] = []
         tick = person.welcome.tick
         try:

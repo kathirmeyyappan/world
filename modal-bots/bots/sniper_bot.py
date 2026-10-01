@@ -18,17 +18,18 @@ already aiming at.
    once they've stayed in sight for a grace delay, a fresh random 5 to 25 ticks each time (counted
    from the end of its cooldown for a later shot), so it never shoots the instant someone appears.
    Each shot is aimed afresh at a random spot on their hitbox (the map's, for their avatar): the
-   chest 45% of the time, the head 25%, and 30% just past their side, a near miss (AIM_ZONES).
+   chest 40% of the time, the head 20%, and 40% just past their side, a near miss (AIM_ZONES).
    Aim is at the snapshot, so a target that moves in the meantime can still turn a hit into a
    miss or the other way round. After a shot it can't fire for COOLDOWN_SECONDS, and it holds
    still, scoped, while it waits.
 
-5. Moving. Wherever it spawns, it lives in the tower: with nobody in sight it walks to a lookout,
-   one of the map's high spots with a wide view (the tower's balconies, the terrace and the
-   bridge), on a floor picked at random and then a spot on it at random, along ``world.path``: up
-   the stair and over its rail where it has to. A long walk (over SPEEDY_TRIP, such as out to the
-   tower) starts with ``/s`` unless it's already fast. Once there it stays, until it makes a kill:
-   then it picks a lookout on another floor and moves there, so it never camps one spot for good.
+5. Moving. It lives in the tower: whatever ``spawn`` it's given, it starts out at a random spot
+   on one of the tower's four inside floors (``world.tower_inside``). With nobody in sight it walks
+   to a lookout, one of the map's high spots with a wide view (the tower's balconies, the terrace
+   and the bridge), on a floor picked at random and then a spot on it at random, along
+   ``world.path``: up the stair and over its rail where it has to. Once there it stays, until it
+   makes a kill: then it picks a lookout on another floor and moves there, so it never camps one
+   spot for good.
 
 6. Dying. Like every bot, a dead sniper stops sending input and lies there until the room drops
    its corpse, which ends the run.
@@ -72,12 +73,12 @@ SIGHT_EVERY = 3  # ticks between sight checks
 SIGHT_CHECKS = 6  # the nearest this many quarry are checked for a clear line
 CHEST_DROP = 0.5  # metres below the eye that it checks the line of sight to: the middle of the body
 # Where each shot is aimed, and how often: the chest, the head, or just past the body's side.
-AIM_ZONES = {"chest": 0.45, "head": 0.25, "miss": 0.3}
+AIM_ZONES = {"chest": 0.4, "head": 0.2, "miss": 0.4}
 AIM_SPREAD = 0.8  # how far off the axis a shot on the body goes, as a share of the hitbox radius
 MISS_BY = (0.1, 0.6)  # metres past the hitbox's side that a near miss goes
 FLOOR = 10  # metres: lookouts closer in height than this are one floor (the bridge's deck and rail)
+START_MARGIN = 1.5  # metres it starts in from the edge of a tower floor's open disc
 RIFLE_RETRY_TICKS = TICK_RATE  # how long it waits for a /sniper to land before asking again
-SPEEDY_TRIP = 30  # map nodes (about a metre each): a walk to a lookout longer than this runs on /s
 
 
 async def run_sniper_bot(
@@ -93,13 +94,16 @@ async def run_sniper_bot(
     avatar: str | None = None,
 ) -> dict[str, Any]:
     validate_duration(seconds)
+    rng = random.Random()
+    # Its home is the tower, so it starts inside it wherever it was called from (``spawn`` unused).
+    start = rng.choice(world.tower_inside).random_point(START_MARGIN, rng)
     connect_started = time.monotonic()
     connection = await connect(
         lobby_url,
         room,
         name,
         direct_url=direct_ws_url,
-        spawn=spawn,
+        spawn=start,
         avatar=avatar,
     )
     connected_at = time.monotonic()
@@ -107,7 +111,7 @@ async def run_sniper_bot(
     controls = Controls(connection)
     stop = asyncio.Event()
     inputs = asyncio.create_task(run_input_loop(controls, stop))
-    sniper = Sniper(world, targets, name)
+    sniper = Sniper(world, targets, name, rng)
     completed = False
     rifle_asked = -RIFLE_RETRY_TICKS
     observed_until = connected_at
@@ -138,10 +142,6 @@ async def run_sniper_bot(
                     rifle_asked = state.tick
                     await controls.command("sniper")
                 sniper.decide(state, controls)
-                if sniper.wants_speedy:
-                    sniper.wants_speedy = False
-                    if me.boost <= 0:
-                        await controls.command("s")
     except TimeoutError:
         completed = True
     except RoomConnectionError:
@@ -226,7 +226,6 @@ class Sniper:
     ready_at: int = 0  # the tick its cooldown ends
     lookout: int | None = None  # the node it's walking to, or standing on
     route: Route | None = None
-    wants_speedy: bool = False  # set off on a long walk: the run loop sends /s
     _sighted: Player | None = None
     _next_sight_check: int = 0
     _plan_at: int = 0  # the tick it may look for a way again after finding none
@@ -309,7 +308,6 @@ class Sniper:
         path = self.world.path(start, lookout)
         if path is not None:
             self.route = Route(self.world, path, tick)
-            self.wants_speedy = len(path) > SPEEDY_TRIP
 
 
 def _feet(p: Player) -> Vec3:

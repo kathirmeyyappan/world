@@ -14,6 +14,7 @@ import gzip
 import heapq
 import json
 import math
+import random
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import cache
@@ -27,6 +28,29 @@ EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
 JUMP_COST = 2.0  # metres of walking a route would rather take than one jump
+
+
+@dataclass(frozen=True, slots=True)
+class Region:
+    """A floor area (Region in packages/shared/src/sim/regions.ts): a disc of radius ``r``, or a
+    ``w`` x ``d`` rectangle along the axes, centred on (x, z) at height ``y``."""
+
+    kind: str
+    x: float
+    z: float
+    y: float
+    r: float = 0
+    w: float = 0
+    d: float = 0
+
+    def random_point(self, margin: float, rng: random.Random) -> Vec3:
+        """A spot on it at least ``margin`` from its edge, uniform over its area."""
+        if self.kind == "disc":
+            radius = max(0.0, self.r - margin) * math.sqrt(rng.random())
+            angle = rng.uniform(0, 2 * math.pi)
+            return Vec3(self.x + radius * math.cos(angle), self.y, self.z + radius * math.sin(angle))
+        half_w, half_d = max(0.0, self.w / 2 - margin), max(0.0, self.d / 2 - margin)
+        return Vec3(self.x + rng.uniform(-half_w, half_w), self.y, self.z + rng.uniform(-half_d, half_d))
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +99,19 @@ class WorldMap:
             avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
             for avatar, h in data["hitboxes"].items()
         }
+        # The tower's four floors inside its wall, ground floor first.
+        self.tower_inside = tuple(
+            Region(
+                kind=str(r["kind"]),
+                x=float(r["x"]),
+                z=float(r["z"]),
+                y=float(r["y"]),
+                r=float(r.get("r", 0)),
+                w=float(r.get("w", 0)),
+                d=float(r.get("d", 0)),
+            )
+            for r in data["towerInside"]
+        )
         self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):
