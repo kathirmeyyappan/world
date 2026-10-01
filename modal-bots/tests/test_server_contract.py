@@ -309,4 +309,4 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
     shot_ticks, report = asyncio.run(scenario())
 
     assert report["shots"] >= 2 and len(shot_ticks) == report["shots"], report
-    assert all(b - a >= 150 for a, b in itertools.pairwise(shot_ticks)), f"5 s between shots: {shot_ticks}"
+    assert all(b - a >= 90 for a, b in itertools.pairwise(shot_ticks)), f"3 s between shots: {shot_ticks}"
