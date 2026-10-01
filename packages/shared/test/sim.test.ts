@@ -126,9 +126,9 @@ test('pickups drift about their own areas, never leaving them, at their height',
   const rng = createRng(5);
   const field = createPickups(PICKUP_AREAS, rng);
   for (let t = 0; t < TICK_RATE * 60 * 5; t++) {
-    stepPickups(field, PICKUP_AREAS, TICK_DT, rng);
+    stepPickups(field, TICK_DT, rng);
     for (const p of field.items) {
-      const { region } = PICKUP_AREAS[p.area];
+      const { region } = p.area;
       const inside =
         region.kind === 'disc'
           ? Math.hypot(p.pos.x - region.x, p.pos.z - region.z) <= region.r

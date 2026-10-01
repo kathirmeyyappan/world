@@ -321,15 +321,10 @@ wire: server and client both build the world from that file.
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Named places to put things are regions in `content/regions.ts`: a disc or rectangle on a floor at
-  a height, which landmarks export (the tower's five levels, the terrace). Spawns land in the main
-  disc only (`SPAWN_AREA`), standing on the ground (or anything within a step
-  of it) with headroom, so a building's ground floor there can be a spawn point and roofs, decks and
-  wall tops never are. Info cubes wander the main disc
-  at about 3 m and pass through structures, so tall pieces there will have cubes floating through them.
-- Hearts are pickups (`sim/pickups.ts`) floating 1.4 m over the regions listed in
-  `content/pickups.ts`, with a count per region and a 30 s respawn; they pass through structures like
-  cubes, so keep a region clear of stairs and walls at that height.
+- Spawns land in the main disc only (`SPAWN_AREA`, a region; see below), standing on the ground
+  (or anything within a step of it) with headroom, so a building's ground floor there can be a spawn
+  point and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
+  pass through structures, so tall pieces there will have cubes floating through them.
 - Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
   hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:
   the hole has to cover the stretch where the stair is within about 2.7 m of the floor above.
@@ -345,6 +340,22 @@ wire: server and client both build the world from that file.
   so draw calls stay in the tens however many pieces there are. The tower's 1,444 pieces render as 19
   meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a
   landmark adds a lot.
+
+### Regions and pickups
+
+- A region (`sim/regions.ts`) is a disc or an axis-aligned rectangle on a floor at height `y`.
+  Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS` and `TUNG_TUNG_TERRACE`) and
+  `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`,
+  `SPAWN_AREA`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
+  reshape a place where it's defined, never at the spawner.
+- Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
+  kind, how many, and how often one comes back. What's where is that list alone.
+- A new kind is a row in `PICKUPS` (float height, reach, and `use(player)`, which applies its effect
+  and returns false when it's no use to them, so it stays) plus a shape in `render/Pickups.ts`; the
+  `Record<PickupKind, …>` there makes the compiler ask. The Room, the wire and the Python mirror
+  already carry every kind.
+- Pickups pass through structures like cubes, so keep a region clear of stairs and walls at the
+  pickup's height. Test a new kind's effect once in `room.test.ts`; content changes need no test.
 
 ### Checking a change
 

@@ -36,20 +36,12 @@ import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { randomPointInRegion } from './sim/regions';
-import {
-  PICKUPS,
-  createPickups,
-  removePickup,
-  stepPickups,
-  touching,
-  type PickupArea,
-  type PickupField,
-} from './sim/pickups';
+import { createPickups, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import type { Structures } from './sim/collision';
-import { CAPSULE_TOP, MAX_HEARTS } from './sim/health';
+import { CAPSULE_TOP } from './sim/health';
 import {
   WORLD_SHAPE,
   WORLD_STRUCTURES,
@@ -113,7 +105,6 @@ export class Room {
   private readonly seats = new Map<string, Seat>();
   private readonly history = new PositionHistory(); // where everyone was, for lag compensation
   private readonly cubes: CubeState[];
-  private readonly pickupAreas: PickupArea[];
   private readonly pickups: PickupField;
   private readonly rng: Rng;
   private readonly onEmpty?: () => void;
@@ -129,8 +120,7 @@ export class Room {
     this.structures = opts.structures ?? WORLD_STRUCTURES;
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
-    this.pickupAreas = opts.pickupAreas ?? PICKUP_AREAS;
-    this.pickups = createPickups(this.pickupAreas, this.rng);
+    this.pickups = createPickups(opts.pickupAreas ?? PICKUP_AREAS, this.rng);
     this.onEmpty = opts.onEmpty;
     this.log = opts.log ?? (() => {});
     this.spawnBot = opts.spawnBot;
@@ -334,8 +324,8 @@ export class Room {
       seat.queue.splice(0, n);
     }
     stepCubes(this.cubes, TICK_DT, this.worldShape, this.rng);
-    stepPickups(this.pickups, this.pickupAreas, TICK_DT, this.rng);
-    this.takePickups();
+    stepPickups(this.pickups, TICK_DT, this.rng);
+    for (const p of this.players) takePickups(this.pickups, p, EYE_HEIGHT);
     this.tick++;
     const players = this.players;
     this.broadcast({ t: 'snap', tick: this.tick, players, cubes: this.cubeSnapshot(), pickups: this.pickupSnapshot() });
@@ -348,18 +338,6 @@ export class Room {
     }
   }
 
-  // Living players take what they walk into, if they can use it: a heart only below full health.
-  private takePickups(): void {
-    for (const p of this.players) {
-      for (const pickup of touching(this.pickups, p.pos, EYE_HEIGHT)) {
-        if (p.dead || p.hearts >= MAX_HEARTS) break;
-        p.hearts = Math.min(MAX_HEARTS, p.hearts + PICKUPS[pickup.kind].heal);
-        removePickup(this.pickups, pickup);
-      }
-    }
-  }
-
-  // To the centimetre and hundredth of a radian: plenty to draw, and a third the bytes of full floats.
   private pickupSnapshot(): PickupSnapshot[] {
     const r = (v: number) => Math.round(v * 100) / 100;
     return this.pickups.items.map((p) => ({

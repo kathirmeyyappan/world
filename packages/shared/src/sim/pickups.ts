@@ -1,12 +1,14 @@
 // Pickups: things floating about a region of the world that a player takes by walking into them.
 // Each pickup area keeps up to `count` of one kind, all there from the start, and brings one back
 // every `respawnSeconds` while it's short. Simulated on the server only, like the cubes, with the
-// same drift, bob and spin; clients draw the broadcast positions. Adding a kind means a row in
-// PICKUPS, what taking it does in Room.takePickups, and a shape in the client's render/Pickups.ts.
-import type { Region } from './regions';
-import { randomPointInRegion } from './regions';
+// same drift, bob and spin; clients draw the broadcast positions.
+//
+// A new kind is a row in PICKUPS (how high it floats, how close you must be, what taking it does)
+// and a shape in the client's render/Pickups.ts; where it appears is content/pickups.ts.
+import { MAX_HEARTS } from './health';
+import { randomPointInRegion, type Region } from './regions';
 import type { Rng } from './rng';
-import type { Vec3 } from './types';
+import type { PlayerState, Vec3 } from './types';
 
 export type PickupKind = 'heart';
 
@@ -14,11 +16,11 @@ export interface PickupSpec {
   kind: PickupKind;
   height: number; // metres above its region's floor that it floats at
   reach: number; // metres across the floor from a player's eye line at which they take it
-  heal: number; // hearts it gives back, up to MAX_HEARTS
+  use: (p: PlayerState) => boolean; // what taking it does; false if it's no use to them, and it stays
 }
 
 export const PICKUPS: Record<PickupKind, PickupSpec> = {
-  heart: { kind: 'heart', height: 1.4, reach: 1, heal: 3 }, // just under eye level, half a cube's height
+  heart: { kind: 'heart', height: 1.4, reach: 1, use: heal(3) }, // just under eye level, half a cube's height
 };
 
 export interface PickupArea {
@@ -31,7 +33,7 @@ export interface PickupArea {
 export interface PickupState {
   id: string;
   kind: PickupKind;
-  area: number; // index into the areas it was made from
+  area: PickupArea; // the area it belongs to, and stays inside
   pos: Vec3;
   ry: number; // spin about the vertical, radians
   target: { x: number; z: number };
@@ -39,10 +41,11 @@ export interface PickupState {
   speed: number; // metres per second at full drift
 }
 
-// Every pickup in a room, and each area's countdown to its next one.
+// Every pickup in a room, its areas, and each area's countdown to its next one.
 export interface PickupField {
+  areas: readonly PickupArea[];
   items: PickupState[];
-  cooldowns: number[];
+  cooldowns: Map<PickupArea, number>;
   nextId: number;
 }
 
@@ -52,61 +55,79 @@ const BOB_HZ = 1.5;
 const SPIN = 1.4; // radians per second
 
 export function createPickups(areas: readonly PickupArea[], rng: Rng): PickupField {
-  const field: PickupField = { items: [], cooldowns: areas.map((a) => a.respawnSeconds), nextId: 1 };
-  areas.forEach((area, i) => {
-    for (let k = 0; k < area.count; k++) spawn(field, areas, i, rng);
-  });
+  const field: PickupField = {
+    areas,
+    items: [],
+    cooldowns: new Map(areas.map((a) => [a, a.respawnSeconds])),
+    nextId: 1,
+  };
+  for (const area of areas) for (let k = 0; k < area.count; k++) spawn(field, area, rng);
   return field;
 }
 
 // Drifts, bobs and spins every pickup, and brings one back to each area that's been short for its
 // respawn time (the countdown restarts whenever an area is full, so it runs from the first taking).
-export function stepPickups(field: PickupField, areas: readonly PickupArea[], dt: number, rng: Rng): void {
+export function stepPickups(field: PickupField, dt: number, rng: Rng): void {
   for (const p of field.items) {
-    const area = areas[p.area];
+    const { region } = p.area;
     p.time += dt;
     p.ry += SPIN * dt;
-    p.pos.y = area.region.y + PICKUPS[p.kind].height + Math.sin(p.time * BOB_HZ * 2 * Math.PI) * BOB;
+    p.pos.y = region.y + PICKUPS[p.kind].height + Math.sin(p.time * BOB_HZ * 2 * Math.PI) * BOB;
     const dx = p.target.x - p.pos.x;
     const dz = p.target.z - p.pos.z;
     const dist = Math.hypot(dx, dz);
-    if (dist < 0.3) p.target = randomPointInRegion(area.region, MARGIN, rng);
+    if (dist < 0.3) p.target = randomPointInRegion(region, MARGIN, rng);
     else {
       const step = p.speed * Math.min(dist / 3, 1) * dt;
       p.pos.x += (dx / dist) * step;
       p.pos.z += (dz / dist) * step;
     }
   }
-  areas.forEach((area, i) => {
-    if (field.items.filter((p) => p.area === i).length >= area.count) {
-      field.cooldowns[i] = area.respawnSeconds;
-      return;
+  for (const area of field.areas) {
+    if (field.items.filter((p) => p.area === area).length >= area.count) {
+      field.cooldowns.set(area, area.respawnSeconds);
+      continue;
     }
-    field.cooldowns[i] -= dt;
-    if (field.cooldowns[i] <= 0) {
-      spawn(field, areas, i, rng);
-      field.cooldowns[i] = area.respawnSeconds;
+    const wait = (field.cooldowns.get(area) ?? area.respawnSeconds) - dt;
+    if (wait > 0) {
+      field.cooldowns.set(area, wait);
+      continue;
     }
-  });
+    spawn(field, area, rng);
+    field.cooldowns.set(area, area.respawnSeconds);
+  }
 }
 
-// The pickups a player with eyes at `eye` is touching: within reach across the floor, and between
-// their feet and a little over their head.
-export function touching(field: PickupField, eye: Vec3, eyeHeight: number): PickupState[] {
-  return field.items.filter(
-    (p) =>
-      Math.hypot(p.pos.x - eye.x, p.pos.z - eye.z) <= PICKUPS[p.kind].reach &&
-      p.pos.y >= eye.y - eyeHeight - 0.3 &&
-      p.pos.y <= eye.y + 0.6,
+// Lets a living player take whatever they're touching and can use; what they take is gone.
+export function takePickups(field: PickupField, p: PlayerState, eyeHeight: number): void {
+  if (p.dead) return;
+  const taken = new Set<PickupState>();
+  for (const pickup of field.items)
+    if (touches(pickup, p.pos, eyeHeight) && PICKUPS[pickup.kind].use(p)) taken.add(pickup);
+  if (taken.size > 0) field.items = field.items.filter((pickup) => !taken.has(pickup));
+}
+
+// Within reach across the floor of a player whose eyes are at `eye`, and between their feet and a
+// little over their head.
+function touches(pickup: PickupState, eye: Vec3, eyeHeight: number): boolean {
+  return (
+    Math.hypot(pickup.pos.x - eye.x, pickup.pos.z - eye.z) <= PICKUPS[pickup.kind].reach &&
+    pickup.pos.y >= eye.y - eyeHeight - 0.3 &&
+    pickup.pos.y <= eye.y + 0.6
   );
 }
 
-export function removePickup(field: PickupField, pickup: PickupState): void {
-  field.items = field.items.filter((p) => p !== pickup);
+// Gives back `hearts`, up to MAX_HEARTS; no use to someone already at full health.
+function heal(hearts: number): (p: PlayerState) => boolean {
+  return (p) => {
+    if (p.hearts >= MAX_HEARTS) return false;
+    p.hearts = Math.min(MAX_HEARTS, p.hearts + hearts);
+    return true;
+  };
 }
 
-function spawn(field: PickupField, areas: readonly PickupArea[], area: number, rng: Rng): void {
-  const { region, kind } = areas[area];
+function spawn(field: PickupField, area: PickupArea, rng: Rng): void {
+  const { region, kind } = area;
   const at = randomPointInRegion(region, MARGIN, rng);
   field.items.push({
     id: `${kind}-${field.nextId++}`,
