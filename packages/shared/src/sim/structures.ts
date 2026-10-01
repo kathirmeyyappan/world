@@ -284,14 +284,15 @@ export function spiralStairs(opts: {
       color,
     };
     if (rail <= 0) return [step];
+    // Stands on the step rather than beside it, so the two share no face.
     const post: Box = {
       kind: 'box',
       ...at(inner + RAIL_WIDTH / 2),
-      y: base,
+      y: top,
       yaw,
       w: RAIL_WIDTH,
       d: turn * inner + 0.02,
-      h: top - base + rail,
+      h: rail,
       material,
       color,
     };

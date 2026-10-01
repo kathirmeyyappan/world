@@ -10,8 +10,9 @@ export const TEXELS = 32; // texels per repeat along each side
 export interface MaterialSpec {
   paint(px: (x: number, y: number, color: string) => void, rng: Rng): void;
   tile: number; // metres covered by one repeat of the texture
-  // Floors and decks tile in world x/z, so neighbouring pieces line up; anything else is mapped
-  // in its own frame (a stair's planks run along each step).
+  // Tops tile in world x/z, so neighbours line up and overlapping tops (wall joints, floor rings)
+  // paint the same texels; false maps them in each piece's own frame (a stair's planks run along
+  // each step), so only use it where pieces of the look never overlap at one height.
   worldTop: boolean;
 }
 
@@ -21,7 +22,7 @@ const pick = (rng: Rng, colors: string[]) => colors[Math.floor(rng() * colors.le
 // top edge and a shaded bottom edge on every block, kept gentle so distant walls don't shimmer.
 const brick: MaterialSpec = {
   tile: 6,
-  worldTop: false,
+  worldTop: true,
   paint(px, rng) {
     const shades = ['#77767e', '#6e6d76', '#817f86', '#6a6972', '#7d787a', '#726f79', '#86838a'];
     for (let row = 0; row < TEXELS / 4; row++) {
