@@ -104,6 +104,19 @@ wire: server and client both build the world from that file.
   meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a
   landmark adds a lot.
 
+### Wall frames
+
+Pictures hung inside a round room (the tower's floors) are listed in
+`packages/shared/src/content/towerFrames.ts`: a room from `TUNG_TUNG_TOWER_ROOMS`, an `angle` in
+degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
+metres, and what it `show`s (an image's path, its aspect, and the `line` typed out while you look at
+it). The width is height times aspect, and every frame is centred at `HANG` above its floor.
+`layoutWallFrame` (`sim/wallFrames.ts`) lays one out as a flat panel per wall segment it crosses, a
+few centimetres off the brick, and throws if it covers a doorway or sits behind a stair's low steps;
+a test hangs every listed frame, so a bad one fails CI. Only the client draws them
+(`render/WallFrames.ts`, picture on a wood border); nothing collides with them and they're not
+structures, so the bot map doesn't change.
+
 ### Regions and pickups
 
 - A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a

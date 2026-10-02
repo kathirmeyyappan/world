@@ -8,6 +8,7 @@ import {
   LANDMARKS,
   SKY_OBJECTS,
   TICK_DT,
+  TUNG_TUNG_TOWER_FRAMES,
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   actionForKey,
@@ -41,6 +42,7 @@ import { Environment } from '../render/Environment';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
 import { poof } from '../render/Poof';
+import { WallFrames, type HungFrame } from '../render/WallFrames';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
 import { AreaTitle } from '../ui/AreaTitle';
@@ -66,6 +68,7 @@ const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
+const FRAME_RANGE = 15; // metres from a frame you can read its line
 const DEFAULT_FOV = 1.2;
 const SCOPED_FOV = 0.3;
 const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can see across the world
@@ -94,6 +97,8 @@ export class Game {
   private readonly avatars = new Map<string, Avatar>();
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
+  private readonly frameBubble = new Bubble('plain'); // a frame's line, floating between you and it
+  private readonly wallFrames: WallFrames;
   private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS);
   private readonly death = new Death();
   private readonly hearts = new Hearts();
@@ -118,6 +123,7 @@ export class Game {
   private kick = 0; // camera recoil, radians of upward pitch that decays back
   private stepEase = 0; // metres the camera trails the predicted eye height after a step
   private hoveredSky: SkyObject | null = null;
+  private hoveredFrame: HungFrame | null = null;
   private readonly sfx = new Sfx();
   private readonly footsteps = new Footsteps(this.sfx);
   // Other players' tap shots this tick, heard before the tick's snapshot says where they stood and
@@ -141,6 +147,7 @@ export class Game {
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
+    this.wallFrames = new WallFrames(this.engine, TUNG_TUNG_TOWER_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = DEFAULT_FOV;
@@ -539,6 +546,7 @@ export class Game {
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
+    this.frameBubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.areaTitle.update(p.x, p.z);
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
@@ -599,18 +607,17 @@ export class Game {
   private updateHover(): void {
     let nextCube: CubeMesh | null = null;
     let nextSky: SkyObject | null = null;
+    let nextFrame: HungFrame | null = null;
     if (!this.isBlocked()) {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
-      const hit = this.engine.scene.pickWithRay(
-        ray,
-        (mesh) => mesh.name.startsWith('cube-') || mesh.name.startsWith('sky-'),
-      );
-      // Structures aren't pickable; a cube or sky object behind one is hidden by it.
+      const hit = this.engine.scene.pickWithRay(ray, (mesh) => /^(cube|sky|frame)-/.test(mesh.name));
+      // Structures aren't pickable; anything behind one is hidden by it.
       const blocked =
         !!hit?.pickedMesh && WORLD_STRUCTURES.raycast(ray.origin, ray.direction, hit.distance) < hit.distance;
       if (hit?.pickedMesh && !blocked) {
         if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
         nextSky = this.skyByMesh.get(hit.pickedMesh.name) ?? null;
+        if (hit.distance <= FRAME_RANGE) nextFrame = this.wallFrames.at(hit.pickedMesh.name);
       }
     }
     if (nextCube !== this.hovered) {
@@ -625,7 +632,13 @@ export class Game {
       if (nextSky) this.bubble.hover(nextSky.content.line, nextSky.anchor());
       else this.bubble.release();
     }
-    this.hud.setCrosshairHot(!!nextCube || !!nextSky);
+    // A frame's line floats a third of the way from you to it, so it moves as you do.
+    if (nextFrame) {
+      const at = Vector3.Lerp(this.camera.position, nextFrame.centre, 1 / 3);
+      this.frameBubble.hover(nextFrame.frame.show.line, at);
+    } else if (this.hoveredFrame) this.frameBubble.release();
+    this.hoveredFrame = nextFrame;
+    this.hud.setCrosshairHot(!!nextCube || !!nextSky || !!nextFrame);
   }
 
   // Exposed for the end-to-end test.
