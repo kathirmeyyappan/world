@@ -35,7 +35,7 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
       kind: 'image',
       src: '/assets/frames/nepal_libration_force.jpg',
       aspect: 1920 / 1084,
-      line: 'I went to UChicago. This is the Nepal Liberation Force. Together we are strong.',
+      line: 'I went to UChicago with some interesting fellas. This is the Nepal Liberation Force.',
     },
   },
 ];
