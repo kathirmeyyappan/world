@@ -24,7 +24,7 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
       kind: 'image',
       src: '/assets/logos/modal.jpeg',
       aspect: 1,
-      line: 'Fun fact: The multiplayer backend for Kathir World runs completely on Modal, via Modal functions, Modal servers, and importantly, Sticky Sessions (I helped build this 😎).',
+      line: 'Fun fact: The multiplayer backend for Kathir World runs completely on Modal, via Modal Functions, Modal Servers, and importantly, Sticky Sessions (I helped build this 😎).',
     },
   },
   {
