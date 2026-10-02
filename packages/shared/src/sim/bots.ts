@@ -46,7 +46,7 @@ export const BOTS: Record<BotId, BotSpec> = {
 // The flags a bot command takes, in any order, each at most once. commands.ts parses them and the
 // usage lines and the commands menu's bot rows are written from here, so a new flag is a row here and its case in
 // the parser. Each has a short form where one's free, a long form, and the bots it works for.
-export type BotFlag = 'time' | 'name' | 'skin' | 'targets';
+export type BotFlag = 'time' | 'name' | 'skin' | 'target';
 
 export interface BotFlagSpec {
   short: string | null; // '-t'; null when only the long form exists
@@ -74,9 +74,9 @@ export const BOT_FLAGS: Record<BotFlag, BotFlagSpec> = {
     value: 'skin',
     workers: ['dumb', 'combat'],
   },
-  targets: {
+  target: {
     short: null,
-    long: '--targets',
+    long: '--target',
     value: 'name substrings',
     workers: ['combat'],
   },

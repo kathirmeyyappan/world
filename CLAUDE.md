@@ -402,9 +402,9 @@ but `/sniper` is the rifle). Flags go in any order, each at most once, and each 
 | `-t [seconds]` | all | how long it stays: 300 unless given, up to 3500 |
 | `-n [name]` | all | what it plays as, instead of `<bot>-bot` |
 | `-s [skin]` | all | how it looks: any skin's chat command (`elizabeth`, `tung`) |
-| `--targets [name substrings]` | combat | who it goes after: the words up to the next flag, each any part of a name |
+| `--target [name substrings]` | combat | who it goes after: the words up to the next flag, each any part of a name |
 
-So `/sniper-bot -t 120 -n hunter -s tung --targets kat bob`. A bare word, an unknown or repeated
+So `/sniper-bot -t 120 -n hunter -s tung --target kat bob`. A bare word, an unknown or repeated
 flag, or a missing or bad value gets the usage line instead. The flags are one table, `BOT_FLAGS` in
 `packages/shared/src/sim/bots.ts`: `commands.ts` parses it and the usage lines and commands menu are
 written from it, so a new flag is a row there and a case in the parser. Names are taken as given,
@@ -436,7 +436,7 @@ The Room spawns them once, with `caller: 'room'`.
   `WORLD_LOBBY_URL`.
 - Run a bot with
   `modal run modal-bots/app.py --bot <registry-key> --room <room> --seconds <n>`, which picks the
-  bot's worker (`--name` renames it, and `--targets kat,bob` aims a combat bot).
+  bot's worker (`--name` renames it, and `--target kat,bob` aims a combat bot).
 - Both workers share the same image, CPU allocation, Secret, and timeout, and run many bots to a
   container: they're async, so up to `MAX_BOTS_PER_CONTAINER` bots share one
   event loop, the autoscaler adds a container past `TARGET_BOTS_PER_CONTAINER`, and

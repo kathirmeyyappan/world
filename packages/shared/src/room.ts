@@ -406,7 +406,7 @@ export class Room {
     }
   }
 
-  // "/circle-bot -t 60 -n bob" or "/sniper-bot -s tung --targets kat": ask the host to start a bot
+  // "/circle-bot -t 60 -n bob" or "/sniper-bot -s tung --target kat": ask the host to start a bot
   // in this room, under its own name and look or the ones given, hunting `targets` if it's a combat
   // bot.
   // People only, and only where the host can reach Modal. There is no bot cap beyond the room's
