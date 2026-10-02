@@ -4,7 +4,8 @@
 // spiral: ground, 20, 40, then the top floor at 60. Every floor above the ground has six doors out
 // to a balcony ringing the tower behind a low parapet (a sniper's perch), and the top balcony's west
 // side opens onto a sky bridge. The bridge runs back over the floor bridge (inside the outline's
-// corridor, so players can't be clamped off it) to a floating terrace above the main disc. A roof
+// corridor, so players can't be clamped off it) to a terrace floating over the middle of the main
+// disc: a ring of deck round an open, walled middle. A roof
 // closes the top, with the wall standing on past it as a parapet and merlons along that.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
@@ -45,7 +46,7 @@ const PARAPET = 0.8; // under half a body, so it's cover you can shoot over
 const SILL = 0.02;
 const DECK = 0.4; // thickness of the bridge and terrace decks
 
-const TERRACE = { x: 30, z: 0, w: 16, d: 16 }; // over the east side of the main disc
+const TERRACE = { x: 0, z: 0, r: 20, inner: 8 }; // round the middle of the main disc, open within `inner`
 const BRIDGE_WIDTH = 4;
 const RAIL = 1.1;
 
@@ -146,8 +147,9 @@ const rail = (a: { x: number; z: number }, b: { x: number; z: number }, y = TOP)
 
 const BRIDGE_TOP = TOP - SILL; // just under the balcony it tucks beneath
 const bridgeStart = X - OUTER - BALCONY + 0.2; // under the top balcony's outer edge, so no sliver between
-const bridgeEnd = TERRACE.x + TERRACE.w / 2;
 const halfW = BRIDGE_WIDTH / 2;
+const bridgeEnd = TERRACE.x + TERRACE.r - 1; // a metre under the terrace's edge, so no sliver between
+const railEnd = TERRACE.x + Math.sqrt((TERRACE.r - 0.1) ** 2 - halfW ** 2); // where the rails meet its parapet
 const skyway: Structure[] = [
   {
     kind: 'box',
@@ -159,24 +161,35 @@ const skyway: Structure[] = [
     h: DECK,
     material: 'flagstone',
   },
-  rail({ x: bridgeEnd, z: Z - halfW }, { x: bridgeStart, z: Z - halfW }, BRIDGE_TOP),
-  rail({ x: bridgeEnd, z: Z + halfW }, { x: bridgeStart, z: Z + halfW }, BRIDGE_TOP),
+  rail({ x: railEnd, z: Z - halfW }, { x: bridgeStart, z: Z - halfW }, BRIDGE_TOP),
+  rail({ x: railEnd, z: Z + halfW }, { x: bridgeStart, z: Z + halfW }, BRIDGE_TOP),
 ];
 
-const t = {
-  x0: TERRACE.x - TERRACE.w / 2,
-  x1: bridgeEnd,
-  z0: TERRACE.z - TERRACE.d / 2,
-  z1: TERRACE.z + TERRACE.d / 2,
-};
+// A ring of deck round the middle of the main disc, open in the middle, with a parapet round both
+// edges. The outer one opens only where the bridge comes in from the east.
 const terrace: Structure[] = [
-  { kind: 'box', ...TERRACE, y: TOP - DECK, h: DECK, material: 'flagstone' },
-  rail({ x: t.x0, z: t.z0 }, { x: t.x1, z: t.z0 }),
-  rail({ x: t.x0, z: t.z1 }, { x: t.x1, z: t.z1 }),
-  rail({ x: t.x0, z: t.z0 }, { x: t.x0, z: t.z1 }),
-  // The east rail leaves a gap where the bridge meets the terrace.
-  rail({ x: t.x1, z: t.z0 }, { x: t.x1, z: Z - halfW }),
-  rail({ x: t.x1, z: Z + halfW }, { x: t.x1, z: t.z1 }),
+  ...roundFloor({ ...TERRACE, y: TOP, thickness: DECK, material: 'flagstone' }),
+  ...roundWall({
+    x: TERRACE.x,
+    z: TERRACE.z,
+    r: TERRACE.r - 0.1,
+    y: TOP,
+    h: RAIL,
+    thickness: 0.2,
+    segments: 64,
+    gaps: [{ angle: 0, width: 2 * Math.asin(halfW / (TERRACE.r - 0.1)), bottom: TOP, top: TOP + RAIL }],
+    material: 'brick',
+  }),
+  ...roundWall({
+    x: TERRACE.x,
+    z: TERRACE.z,
+    r: TERRACE.inner + 0.1,
+    y: TOP,
+    h: RAIL,
+    thickness: 0.2,
+    segments: 32,
+    material: 'brick',
+  }),
 ];
 
 export const TUNG_TUNG_TOWER: Structure[] = [...shell, ...inside, ...balconies, ...skyway, ...terrace];
@@ -204,5 +217,12 @@ export const TUNG_TUNG_TOWER_LEVELS: Region[] = [
   { kind: 'disc', x: X, z: Z, r: INNER, y: HEIGHT },
 ];
 
-// The terrace's deck, inside its rails.
-export const TUNG_TUNG_TERRACE: Region = { kind: 'rect', ...TERRACE, y: TOP };
+// The terrace's deck, between its parapets.
+export const TUNG_TUNG_TERRACE: Region = {
+  kind: 'ring',
+  x: TERRACE.x,
+  z: TERRACE.z,
+  r: TERRACE.r - 0.2,
+  inner: TERRACE.inner + 0.2,
+  y: TOP,
+};

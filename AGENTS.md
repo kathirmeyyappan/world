@@ -404,7 +404,8 @@ wire: server and client both build the world from that file.
 
 ### Regions and pickups
 
-- A region (`sim/regions.ts`) is a disc or an axis-aligned rectangle on a floor at height `y`.
+- A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a
+  floor at height `y`.
   Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS` and `TUNG_TUNG_TERRACE`) and
   `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`,
   `SPAWN_AREA`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so

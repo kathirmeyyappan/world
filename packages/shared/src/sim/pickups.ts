@@ -6,7 +6,7 @@
 // A new kind is a row in PICKUPS (how high it floats, how close you must be, what taking it does)
 // and a shape in the client's render/Pickups.ts; where it appears is content/pickups.ts.
 import { MAX_HEARTS } from './health';
-import { randomPointInRegion, type Region } from './regions';
+import { nextPointInRegion, randomPointInRegion, type Region } from './regions';
 import type { Rng } from './rng';
 import type { PlayerState, Vec3 } from './types';
 
@@ -76,7 +76,7 @@ export function stepPickups(field: PickupField, dt: number, rng: Rng): void {
     const dx = p.target.x - p.pos.x;
     const dz = p.target.z - p.pos.z;
     const dist = Math.hypot(dx, dz);
-    if (dist < 0.3) p.target = randomPointInRegion(region, MARGIN, rng);
+    if (dist < 0.3) p.target = nextPointInRegion(region, MARGIN, p.pos, rng);
     else {
       const step = p.speed * Math.min(dist / 3, 1) * dt;
       p.pos.x += (dx / dist) * step;
