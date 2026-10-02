@@ -46,13 +46,13 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'whiz-3': { file: 'whiz-3.mp3', half: 4, reach: 20, volume: 0.3 },
   flame: { file: 'flame.wav', intro: 'flame-start.wav', half: 4, reach: 25, volume: 0.12, loop: true },
   jet: { file: 'jet.wav', half: 4, reach: 25, volume: 0.06, loop: true, swell: 0.8 },
-  'step-1': { file: 'step-1.mp3', half: 2, reach: 12, volume: 0.08 },
-  'step-2': { file: 'step-2.mp3', half: 2, reach: 12, volume: 0.08 },
-  'step-3': { file: 'step-3.mp3', half: 2, reach: 12, volume: 0.08 },
-  'step-4': { file: 'step-4.mp3', half: 2, reach: 12, volume: 0.08 },
-  jump: { file: 'jump.mp3', half: 2, reach: 12, volume: 0.05 },
-  land: { file: 'land.mp3', half: 3, reach: 18, volume: 0.1 },
-  'land-hard': { file: 'land-hard.mp3', half: 3, reach: 18, volume: 0.14 },
+  'step-1': { file: 'step-1.mp3', half: 6, reach: 30, volume: 0.08 },
+  'step-2': { file: 'step-2.mp3', half: 6, reach: 30, volume: 0.08 },
+  'step-3': { file: 'step-3.mp3', half: 6, reach: 30, volume: 0.08 },
+  'step-4': { file: 'step-4.mp3', half: 6, reach: 30, volume: 0.08 },
+  jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
+  land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
+  'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   hurt: { file: 'hurt.mp3', half: 2, reach: 12, volume: 0.3 }, // only ever your own, flat
 };
 
@@ -146,13 +146,14 @@ export class Sfx {
   }
 
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
-  // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays.
-  play(id: SoundId, at: Vec3 | null = null, o: { delay?: number; along?: Vec3 } = {}): void {
+  // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
+  // scales its volume.
+  play(id: SoundId, at: Vec3 | null = null, o: { delay?: number; along?: Vec3; level?: number } = {}): void {
     const buffer = this.buffers.get(SOUNDS[id].file);
     if (!this.ctx || !buffer) return;
     if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return;
     const t = this.ctx.currentTime + (o.delay ?? 0);
-    const voice = this.voice(id, at, 1);
+    const voice = this.voice(id, at, o.level ?? 1);
     const src = new AudioBufferSourceNode(this.ctx, { buffer });
     src.connect(voice.gain);
     src.start(t);
