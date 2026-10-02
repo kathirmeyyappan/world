@@ -351,7 +351,10 @@ export class Game {
       case 'leave': {
         const avatar = this.avatars.get(m.id);
         const corpse = avatar?.corpse();
-        if (corpse) poof(this.engine, corpse);
+        if (corpse) {
+          poof(this.engine, corpse);
+          this.sfx.play('hurt', corpse);
+        }
         avatar?.dispose();
         this.avatars.delete(m.id);
         this.hud.removePlayer(m.id, m.name);

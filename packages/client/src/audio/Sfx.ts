@@ -40,7 +40,7 @@ interface SoundSpec {
 // needs the lower volume to come out quieter.
 const SOUNDS: Record<SoundId, SoundSpec> = {
   gun: { file: 'gun.mp3', half: 10, volume: 0.35 },
-  sniper: { file: 'sniper.mp3', half: 10, volume: 0.45 },
+  sniper: { file: 'sniper.mp3', half: 10, volume: 0.32 },
   'whiz-1': { file: 'whiz-1.mp3', half: 4, reach: 20, volume: 0.3 },
   'whiz-2': { file: 'whiz-2.mp3', half: 4, reach: 20, volume: 0.3 },
   'whiz-3': { file: 'whiz-3.mp3', half: 4, reach: 20, volume: 0.3 },
@@ -53,7 +53,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
-  hurt: { file: 'hurt.mp3', half: 2, reach: 12, volume: 0.3 }, // only ever your own, flat
+  hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
