@@ -10,10 +10,9 @@ const STRIDE = 2.6; // metres between steps: about three a second at the 8 m/s w
 const JUMPED = 3; // metres moved in one frame that can only be a respawn or a correction
 const RISE = 0.05; // metres up since leaving the ground that make it a jump, not a step off a ledge
 // The landing for the fastest the player fell while airborne, in m/s, slowest first. A jump from
-// flat ground lands at 8; a 3 m drop at 11, a 10 m one at 20; falls hurt from about 24.5.
+// flat ground lands at 8, a 10 m drop at 20; falls hurt from about 24.5.
 const LANDINGS: { from: number; sound: SoundId }[] = [
-  { from: 4, sound: 'land-soft' },
-  { from: 11, sound: 'land-medium' },
+  { from: 4, sound: 'land' },
   { from: 20, sound: 'land-hard' },
 ];
 
