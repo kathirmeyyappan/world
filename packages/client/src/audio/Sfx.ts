@@ -61,6 +61,10 @@ export function loopsOf(p: {
 }
 
 const FADE = 0.04; // seconds a loop takes to come in or go out, so it doesn't click
+// Seconds a loop keeps going once it's no longer wanted. Another player's firing and thrusting
+// drop out for a tick whenever their input arrives late, which would otherwise cut the loop and
+// restart it (and the flamethrower's ignition) every time.
+const LINGER = 0.25;
 const SILENT = 0.002; // a one-shot falling off below this share of its volume isn't played
 const SWEEP = 8; // metres either side of its nearest point that a whiz travels while it plays
 
@@ -69,6 +73,7 @@ interface Voice {
   near: GainNode; // how close it is (falloff)
   panner: PannerNode | null;
   stop: () => void;
+  wanted: number; // when it was last asked for, in the audio clock
 }
 
 export class Sfx {
@@ -135,16 +140,15 @@ export class Sfx {
   }
 
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
-  // for the local player's own). Loops not listed fade out.
+  // for the local player's own). A loop that hasn't been listed for LINGER fades out.
   setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null }[]): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    const keep = new Set<string>();
     for (const w of wanted) {
       const key = `${w.key}:${w.id}`;
-      keep.add(key);
       const voice = this.loops.get(key);
       if (voice) {
+        voice.wanted = t;
         if (voice.panner && w.at) {
           place(voice.panner, w.at, t);
           voice.near.gain.setTargetAtTime(falloff(distance(w.at, this.heard), SOUNDS[w.id].half), t, 0.05);
@@ -155,7 +159,7 @@ export class Sfx {
       if (started) this.loops.set(key, started);
     }
     for (const [key, voice] of this.loops) {
-      if (keep.has(key)) continue;
+      if (t - voice.wanted < LINGER) continue;
       voice.gain.gain.setValueAtTime(voice.gain.gain.value, t);
       voice.gain.gain.linearRampToValueAtTime(0, t + FADE);
       setTimeout(voice.stop, FADE * 2000);
@@ -199,7 +203,7 @@ export class Sfx {
     } else {
       near.connect(this.out!);
     }
-    return { gain, near, panner, stop: () => {} };
+    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime };
   }
 
   // Every file, fetched and decoded in the background.
