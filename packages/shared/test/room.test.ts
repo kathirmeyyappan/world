@@ -259,6 +259,31 @@ test('hearts: walking into one heals 3 up to full, a full player leaves it, and 
   assert.equal(hearts().length, 1, 'another 30 s later');
 });
 
+test("a dead player's body leaves a big heart that stays where it lay, heals 10, and goes for good", () => {
+  const room = new Room('corpse', { seed: 4, structures: new Structures([]), pickupAreas: [] });
+  const a = link();
+  const ida = room.join('alice', a)!;
+  const idb = room.join('bob', link())!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  bob.dead = true;
+  room.leave(idb);
+  for (let i = 0; i < TICK_RATE * 5; i++) room.step(); // it bobs and spins, but stays put
+  const pickups = () => {
+    const snap = [...a.inbox].reverse().find((m) => m.t === 'snap');
+    return snap?.t === 'snap' ? snap.pickups : [];
+  };
+  const [drop] = pickups();
+  assert.equal(drop?.kind, 'big-heart');
+  assert.ok(Math.hypot(drop.x - bob.pos.x, drop.z - bob.pos.z) < 0.01, 'where the body was');
+  alice.hearts = 1;
+  Object.assign(alice.pos, { x: drop.x, z: drop.z });
+  room.step();
+  assert.equal(alice.hearts, MAX_HEARTS, 'back to full');
+  for (let i = 0; i < TICK_RATE * 60; i++) room.step();
+  assert.equal(pickups().length, 0, 'and it never comes back');
+});
+
 test('a hard landing hurts like a shot with no shooter, and a fatal one is announced as a fall', () => {
   const room = new Room('falls', { seed: 3, structures: new Structures([]) });
   const a = link();

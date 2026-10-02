@@ -1,6 +1,7 @@
-// Floating pickups (sim/pickups.ts), drawn where the server says. Each kind is one mesh drawn as
-// instances, so any number of them cost one draw call: a heart is the HUD's pixel heart, two voxels
-// deep, red and shaded by face like the structures.
+// Floating pickups (sim/pickups.ts), drawn where the server says. Each kind is a shape at a size,
+// drawn as instances, so any number of them cost one draw call per shape: a heart is the HUD's
+// pixel heart, two voxels deep, red and shaded by face like the structures, and a big heart (what a
+// dead player leaves) is the same heart at twice the size.
 import { Color3, Color4, Mesh, MeshBuilder, StandardMaterial, type InstancedMesh } from '@babylonjs/core';
 import type { PickupKind, PickupSnapshot } from '@world/shared';
 import { HEART } from '../ui/pixelIcons';
@@ -14,11 +15,12 @@ const HIGHLIGHT = new Color3(1, 0.72, 0.76);
 const FACE_SHADE = [1, 1, 0.72, 0.72, 0.86, 0.55];
 
 export class Pickups {
-  private readonly shapes: Record<PickupKind, Mesh>;
+  private readonly shapes: Record<PickupKind, { mesh: Mesh; scale: number }>;
   private readonly drawn = new Map<string, InstancedMesh>();
 
   constructor(engine: Engine) {
-    this.shapes = { heart: buildHeart(engine) };
+    const heart = buildHeart(engine);
+    this.shapes = { heart: { mesh: heart, scale: 1 }, 'big-heart': { mesh: heart, scale: 2 } };
   }
 
   update(pickups: PickupSnapshot[]): void {
@@ -27,7 +29,9 @@ export class Pickups {
       seen.add(p.id);
       let d = this.drawn.get(p.id);
       if (!d) {
-        d = this.shapes[p.kind].createInstance(`pickup-${p.id}`);
+        const shape = this.shapes[p.kind];
+        d = shape.mesh.createInstance(`pickup-${p.id}`);
+        d.scaling.setAll(shape.scale);
         d.isPickable = false;
         this.drawn.set(p.id, d);
       }

@@ -47,7 +47,7 @@ import { AreaTitle } from '../ui/AreaTitle';
 import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
-import { DamageFlash } from '../ui/DamageFlash';
+import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { Fuel } from '../ui/Fuel';
 import { GearHud } from '../ui/GearHud';
@@ -102,7 +102,8 @@ export class Game {
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
-  private readonly damageFlash = new DamageFlash();
+  private readonly damageFlash = new EdgeFlash(document.getElementById('damage-flash')!, 160);
+  private readonly healFlash = new EdgeFlash(document.getElementById('heal-flash')!, 900);
   private readonly hitNotice = new HitNotice();
   private readonly viewmodel: Viewmodel;
   private readonly pickups: Pickups;
@@ -335,7 +336,10 @@ export class Game {
       case 'snap': {
         this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
-        if (me) this.hearts.set(me.hearts);
+        if (me) {
+          if (me.hearts > this.hearts.count && !this.dead) this.healFlash.flash();
+          this.hearts.set(me.hearts);
+        }
         this.hud.updateStats(m.players);
         this.hearShots(m.players);
         if (me && this.prediction) {

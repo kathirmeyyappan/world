@@ -553,19 +553,48 @@ body {
   }
 }
 
-/* Red vignette when you're hit. */
-#damage-flash {
+/* A heart coming back: a gold pop that settles. */
+.heart.filling {
+  animation: heart-fill 0.3s steps(5) both;
+}
+@keyframes heart-fill {
+  0% {
+    transform: scale(1.6);
+    filter: brightness(2.2) drop-shadow(0 0 6px rgba(255, 214, 90, 0.9));
+  }
+  60% {
+    transform: scale(1.15);
+    filter: brightness(1.4) drop-shadow(0 0 4px rgba(255, 214, 90, 0.6));
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* A glow round the edge of the view (ui/EdgeFlash.ts): on at once, then fading. */
+.edge-flash {
   position: fixed;
   inset: 0;
   z-index: 95;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.4s;
-  background: radial-gradient(ellipse at center, rgba(255, 40, 60, 0.12) 30%, rgba(255, 40, 60, 0.7) 100%);
 }
-#damage-flash.on {
+.edge-flash.on {
   opacity: 1;
   transition: none;
+}
+/* Sharp red when you're hit. */
+#damage-flash {
+  background: radial-gradient(ellipse at center, rgba(255, 40, 60, 0.12) 30%, rgba(255, 40, 60, 0.7) 100%);
+}
+/* A soft gold halo when you heal, clear in the middle, that swells in and fades slowly. */
+#heal-flash {
+  transition: opacity 1.2s ease-in;
+  background: radial-gradient(ellipse at center, rgba(255, 224, 120, 0) 45%, rgba(255, 214, 90, 0.55) 100%);
+}
+#heal-flash.on {
+  transition: opacity 0.35s ease-out;
 }
 
 /* "hit bob -2" under the crosshair. */
