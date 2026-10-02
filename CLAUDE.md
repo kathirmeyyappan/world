@@ -106,13 +106,15 @@ wire: server and client both build the world from that file.
 
 ### Wall frames
 
-Pictures hung inside a round room (the tower's floors) are listed in
+Murals hung inside a round room (the tower's floors) are listed in
 `packages/shared/src/content/towerFrames.ts`: a room from `TUNG_TUNG_TOWER_ROOMS`, an `angle` in
 degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
 metres, and what it `show`s (an image's path, its aspect, and the `line` typed out while you look at
-it). The width is height times aspect, and every frame is centred at `HANG` above its floor.
+it). The width is height times aspect, and every frame is centred halfway up its storey (the
+room's `middle`: 10 m up on the ground floor).
 `layoutWallFrame` (`sim/wallFrames.ts`) lays one out as a flat panel per wall segment it crosses, a
-few centimetres off the brick, and throws if it covers a doorway or sits behind a stair's low steps;
+few centimetres off the brick, and throws if it doesn't fit between floor and ceiling, comes down
+over a doorway, or crosses the stair (whose steps must pass well under it or over it);
 a test hangs every listed frame, so a bad one fails CI. Only the client draws them
 (`render/WallFrames.ts`, picture on a wood border); nothing collides with them and they're not
 structures, so the bot map doesn't change.

@@ -35,7 +35,6 @@ import {
   stepPlayer,
   worldDistance,
   type InputFrame,
-  HANG,
   OFF_WALL,
   TUNG_TUNG_TOWER_FRAMES,
   layoutWallFrame,
@@ -278,12 +277,12 @@ test('the Python bots’ map of the world is up to date (else run npm run bot-ma
   assert.equal(map.source, botMapSource());
 });
 
-test('a wall frame is as wide as its picture, centred at eye height, hugging the wall, and kept off doors', () => {
+test('a wall frame is as wide as its picture, centred mid-storey, hugging the wall, and kept off doors and the stair', () => {
   const room = TUNG_TUNG_TOWER_ROOMS[0];
   const show = { kind: 'image', src: 'x.png', aspect: 2.5, line: '' } as const;
   const frame = layoutWallFrame({ room, angle: 225, height: 2, show });
   assert.ok(Math.abs(frame.width - 5) < 0.01, 'height times aspect');
-  assert.ok(Math.abs((frame.bottom + frame.top) / 2 - room.floor - HANG) < 1e-9);
+  assert.ok(Math.abs((frame.bottom + frame.top) / 2 - room.middle) < 1e-9);
   assert.ok(frame.panels.length >= 2, 'wide enough to cross a segment edge');
   // Every corner is OFF_WALL in from its segment's face, measured along that segment's middle.
   const step = (2 * Math.PI) / room.wall.segments;
@@ -296,7 +295,9 @@ test('a wall frame is as wide as its picture, centred at eye height, hugging the
       assert.ok(Math.abs(out - (face - OFF_WALL)) < 1e-9, 'on its segment');
     }
   }
-  assert.throws(() => layoutWallFrame({ room, angle: 0, height: 2, show }), /doorway/);
-  assert.throws(() => layoutWallFrame({ room, angle: 110, height: 2, show }), /stair/);
+  layoutWallFrame({ room, angle: 0, height: 2, show }); // well above the main door
+  assert.throws(() => layoutWallFrame({ room, angle: 0, height: 16, show }), /doorway/);
+  assert.throws(() => layoutWallFrame({ room, angle: 60, height: 2, show }), /stair/);
+  assert.throws(() => layoutWallFrame({ room, angle: 225, height: 20, show }), /too tall/);
   for (const f of TUNG_TUNG_TOWER_FRAMES) layoutWallFrame(f); // the tower's own all hang cleanly
 });

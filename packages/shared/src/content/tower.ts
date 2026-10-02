@@ -29,6 +29,8 @@ const FLOOR_R = INNER + WALL / 2; // floors run into the wall, so there's no gap
 const STOREY = 20;
 const TOP = 3 * STOREY; // the top floor, where the sky bridge leaves
 const GROUND_FLOOR = 0.05; // the ground floor's tiles sit this far above the annex floor
+const SLAB = 0.4; // thickness of the upper floors
+const ROOF_SLAB = 0.6;
 const deg = (d: number) => (d * Math.PI) / 180; // angles run from +x toward +z
 const STAIR_START = deg(45); // the first step; clear of all four entrances
 const HOLE = deg(30); // each floor is open over the last 30° of the flight arriving through it
@@ -76,7 +78,7 @@ const shell: Structure[] = [
     ],
     material: 'brick',
   }),
-  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: HEIGHT, thickness: 0.6, material: 'flagstone' }), // the roof
+  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: HEIGHT, thickness: ROOF_SLAB, material: 'flagstone' }), // the roof
   // Battlements: a merlon on every other segment of the parapet.
   ...Array.from({ length: 24 }, (_, k): Box => {
     const a = (k * 2 * Math.PI) / 24;
@@ -118,6 +120,7 @@ const inside: Structure[] = [
       z: Z,
       r: FLOOR_R,
       y: floor * STOREY,
+      thickness: SLAB,
       hole: { inner: STAIR_INNER, from: flightEnd(floor - 1) - HOLE, to: flightEnd(floor - 1) },
       material: 'red-tile',
     }),
@@ -220,19 +223,22 @@ export const TUNG_TUNG_TOWER_LEVELS: Region[] = [
 ];
 
 // The four floors inside the wall as rooms to hang frames in (sim/wallFrames.ts), ground floor
-// first. A frame's angle 0 is the main entrance's bearing on every floor; each floor below the top
-// has the flight that leaves it, which starts where the one arriving through its hole ended.
+// first. Frames centre halfway up each storey, and a frame's angle 0 is the main entrance's bearing
+// on every floor; each floor below the top has the flight that leaves it, which starts where the
+// one arriving through its hole ended.
 const DOOR = (2 * Math.PI) / SEGMENTS; // an ordinary door is one wall segment wide
 export const TUNG_TUNG_TOWER_ROOMS: RoundRoom[] = [GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((floor, s) => ({
   x: X,
   z: Z,
   floor,
+  ceiling: floor === TOP ? HEIGHT - ROOF_SLAB : (s + 1) * STOREY - SLAB,
+  middle: s * STOREY + STOREY / 2,
   wall: { r: OUTER - WALL / 2, thickness: WALL, segments: SEGMENTS },
   entrance: MAIN_DOOR.angle,
-  doors: (s === 0 ? ENTRANCES : BALCONY_DOORS).map((angle) => ({
-    angle,
-    width: angle === MAIN_DOOR.angle && (s === 0 || floor === TOP) ? MAIN_DOOR.width : DOOR,
-  })),
+  doors: (s === 0 ? ENTRANCES : BALCONY_DOORS).map((angle) => {
+    const main = angle === MAIN_DOOR.angle && (s === 0 || floor === TOP);
+    return { angle, width: main ? MAIN_DOOR.width : DOOR, top: main ? MAIN_DOOR.height : DOOR_HEIGHT };
+  }),
   stair: floor === TOP ? undefined : { from: STAIR_START + s * Math.PI, climb: STOREY / Math.PI },
 }));
 
