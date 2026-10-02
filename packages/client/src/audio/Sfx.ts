@@ -15,6 +15,7 @@ interface SoundSpec {
   volume: number; // within NEAR of the listener
   loop?: boolean;
   intro?: string; // played once first, ending on the sample the loop starts on
+  swell?: number; // seconds a loop takes to rise from silence to its volume (FADE if not given)
 }
 
 // Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
@@ -26,7 +27,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'whiz-2': { file: 'whiz-2.mp3', faint: 20, volume: 0.3 },
   'whiz-3': { file: 'whiz-3.mp3', faint: 20, volume: 0.3 },
   flame: { file: 'flame.wav', intro: 'flame-start.wav', faint: 40, volume: 0.12, loop: true },
-  jet: { file: 'jet.wav', faint: 60, volume: 0.18, loop: true },
+  jet: { file: 'jet.wav', faint: 60, volume: 0.11, loop: true, swell: 0.8 },
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
@@ -167,7 +168,7 @@ export class Sfx {
     if (!buffer) return null;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
-    voice.gain.gain.linearRampToValueAtTime(spec.volume, t + FADE);
+    voice.gain.gain.linearRampToValueAtTime(spec.volume, t + (spec.swell ?? FADE));
     const intro = spec.intro ? this.buffers.get(spec.intro) : undefined;
     const sources = [new AudioBufferSourceNode(ctx, { buffer, loop: true })];
     if (intro) sources.unshift(new AudioBufferSourceNode(ctx, { buffer: intro }));
