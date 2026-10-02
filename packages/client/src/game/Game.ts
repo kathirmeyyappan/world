@@ -22,6 +22,7 @@ import {
   type ItemId,
   type PlayerState,
   type ServerMessage,
+  type Vec3,
 } from '@world/shared';
 import { ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
@@ -70,7 +71,7 @@ const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;
 const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
-const NEAR_MISS = 3; // metres from your eye a shot can pass and still whiz by you
+const NEAR_MISS_DELAY = 0.1; // seconds after the shot that a near miss whizzes by (about 4 frames)
 
 export class Game {
   private readonly engine: Engine;
@@ -415,23 +416,29 @@ export class Game {
     }
   }
 
-  // This tick's tap shots, each played where its shooter stands; one that passed within NEAR_MISS
-  // of the local player without hitting them also whizzes by, from the nearest point of its path.
+  // This tick's tap shots, each played where its shooter stands. One that passed close to the
+  // local player without hitting them also whizzes by a moment later, sweeping past from the
+  // nearest point of its path (so the farther it passed, the quieter).
   private hearShots(players: PlayerState[]): void {
     for (const s of this.pendingShots) {
       const p = players.find((q) => q.id === s.shooter);
       const sounds = p?.item && ITEM_SOUNDS[p.item.id];
       if (!p || !sounds) continue;
       if (sounds.shot) this.sfx.play(sounds.shot, p.pos);
-      const by = sounds.nearMiss && !s.hitMe && this.nearMiss(p);
-      if (sounds.nearMiss && by) this.sfx.play(sounds.nearMiss, by);
+      const whiz = s.hitMe ? undefined : sounds.nearMiss;
+      const miss = whiz && this.closestPass(p);
+      if (whiz && miss && miss.distance <= whiz.within) {
+        const sound = whiz.sounds[Math.floor(Math.random() * whiz.sounds.length)];
+        this.sfx.play(sound, miss.at, { delay: NEAR_MISS_DELAY, along: miss.along });
+      }
     }
     this.pendingShots = [];
   }
 
   // Where a shot from `p` (along their look, stopped by walls and its range) came closest to the
-  // local player's eye, if within NEAR_MISS of it.
-  private nearMiss(p: PlayerState): Vector3 | null {
+  // local player's eye, how far from it, and which way it was going; null if it never came level
+  // with them.
+  private closestPass(p: PlayerState): { at: Vec3; distance: number; along: Vec3 } | null {
     const me = this.prediction?.state;
     if (!me || this.dead || !p.item) return null;
     const dir = lookDirection(p.yaw, p.pitch);
@@ -439,8 +446,8 @@ export class Game {
     const reach = Math.min(range, WORLD_STRUCTURES.raycast(p.pos, dir, range));
     const along = (me.pos.x - p.pos.x) * dir.x + (me.pos.y - p.pos.y) * dir.y + (me.pos.z - p.pos.z) * dir.z;
     if (along <= 0 || along > reach) return null;
-    const by = new Vector3(p.pos.x + dir.x * along, p.pos.y + dir.y * along, p.pos.z + dir.z * along);
-    return Vector3.Distance(by, new Vector3(me.pos.x, me.pos.y, me.pos.z)) <= NEAR_MISS ? by : null;
+    const at = { x: p.pos.x + dir.x * along, y: p.pos.y + dir.y * along, z: p.pos.z + dir.z * along };
+    return { at, distance: Math.hypot(at.x - me.pos.x, at.y - me.pos.y, at.z - me.pos.z), along: dir };
   }
 
   private addAvatar(p: PlayerState): void {

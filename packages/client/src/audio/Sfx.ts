@@ -1,26 +1,43 @@
-// Sound effects, synthesized with Web Audio (no files): short noise bursts and low thumps, in
-// keeping with the pixel look. Each sound is a row in SOUNDS, and ITEM_SOUNDS and GEAR_SOUNDS
-// say which one an item or gear makes, so a new weapon is a row in each (the Records make the
-// compiler ask). Other players' sounds are placed where they are and fade out by `range`; the
-// local player's own play flat. Browsers only start audio after a click or key, so nothing
-// plays until then.
+// Sound effects: short recordings in public/assets/sounds, fetched in the background once the
+// browser lets the page make sound (after the first click or key); one that hasn't arrived yet
+// doesn't play. SOUNDS says what each one is, and ITEM_SOUNDS and GEAR_SOUNDS which item or gear
+// makes which, so a new weapon is a row in each (the Records make the compiler ask). Other
+// players' sounds are placed where they are and fade with distance, down to barely audible by
+// `faint`; the local player's own play flat. Everything goes through one limiter, so a pile of
+// shots at once gets squashed rather than clipping.
 import type { GearId, ItemId, Vec3 } from '@world/shared';
 
-export type SoundId = 'gun' | 'sniper' | 'whiz' | 'flame' | 'jet';
+export type SoundId = 'gun' | 'sniper' | 'whiz-1' | 'whiz-2' | 'whiz-3' | 'flame' | 'jet';
 
 interface SoundSpec {
-  range: number; // metres from the listener where it has faded to silence
-  volume: number;
-  // Builds the sound into `out` from now. One-shots end on their own; loops run until the
-  // returned stop is called.
-  start(ctx: AudioContext, out: AudioNode): () => void;
+  file: string; // in public/assets/sounds
+  faint: number; // metres from the listener where it's down to FAINT of its volume
+  volume: number; // within NEAR of the listener
+  loop?: boolean;
+  intro?: string; // played once first, ending on the sample the loop starts on
 }
 
-// What each item sounds like: a tap weapon's shot (and the whiz of one that just misses you),
-// or a hold weapon's loop while it sprays.
-export const ITEM_SOUNDS: Record<ItemId, { shot?: SoundId; nearMiss?: SoundId; firing?: SoundId }> = {
+// Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
+// Loudest to quietest up close: sniper, gun, the whizzes, jetpack, flamethrower.
+const SOUNDS: Record<SoundId, SoundSpec> = {
+  gun: { file: 'gun.mp3', faint: 200, volume: 0.35 },
+  sniper: { file: 'sniper.mp3', faint: 200, volume: 0.45 },
+  'whiz-1': { file: 'whiz-1.mp3', faint: 20, volume: 0.3 },
+  'whiz-2': { file: 'whiz-2.mp3', faint: 20, volume: 0.3 },
+  'whiz-3': { file: 'whiz-3.mp3', faint: 20, volume: 0.3 },
+  flame: { file: 'flame.wav', intro: 'flame-start.wav', faint: 40, volume: 0.12, loop: true },
+  jet: { file: 'jet.wav', faint: 60, volume: 0.18, loop: true },
+};
+
+// What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
+// passes within `within` metres of you without hitting (placed where it passed, so a far one is
+// quieter), or a hold weapon's loop while it sprays.
+export const ITEM_SOUNDS: Record<
+  ItemId,
+  { shot?: SoundId; nearMiss?: { within: number; sounds: SoundId[] }; firing?: SoundId }
+> = {
   gun: { shot: 'gun' },
-  sniper: { shot: 'sniper', nearMiss: 'whiz' },
+  sniper: { shot: 'sniper', nearMiss: { within: 20, sounds: ['whiz-1', 'whiz-2', 'whiz-3'] } },
   flamethrower: { firing: 'flame' },
 };
 
@@ -42,83 +59,10 @@ export function loopsOf(p: {
   return [firing, thrusting].filter((s): s is SoundId => s !== undefined);
 }
 
-const SOUNDS: Record<SoundId, SoundSpec> = {
-  // A dry crack over a short thump.
-  gun: {
-    range: 70,
-    volume: 0.5,
-    start(ctx, out) {
-      burst(ctx, out, { type: 'lowpass', from: 3500, to: 1200, decay: 0.12 });
-      thump(ctx, out, { from: 160, to: 45, decay: 0.1, level: 0.8 });
-      return () => {};
-    },
-  },
-  // Louder and longer: a bright crack that darkens, and a deep boom under it.
-  sniper: {
-    range: 300,
-    volume: 0.5,
-    start(ctx, out) {
-      burst(ctx, out, { type: 'lowpass', from: 6000, to: 600, decay: 0.45 });
-      thump(ctx, out, { from: 95, to: 28, decay: 0.4, level: 0.7 });
-      return () => {};
-    },
-  },
-  // A round going past your head: a narrow hiss that drops in pitch as it passes.
-  whiz: {
-    range: 20,
-    volume: 0.7,
-    start(ctx, out) {
-      const t = ctx.currentTime;
-      const filter = new BiquadFilterNode(ctx, { type: 'bandpass', Q: 6, frequency: 5000 });
-      filter.frequency.exponentialRampToValueAtTime(900, t + 0.3);
-      const gain = new GainNode(ctx, { gain: 0 });
-      gain.gain.linearRampToValueAtTime(3, t + 0.1); // the narrow band lets little through
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-      noiseSource(ctx, false).connect(filter).connect(gain).connect(out);
-      return () => {};
-    },
-  },
-  // A soft roar that flickers.
-  flame: {
-    range: 40,
-    volume: 0.35,
-    start(ctx, out) {
-      const filter = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 900 });
-      const flicker = new GainNode(ctx, { gain: 0.8 });
-      const lfo = new OscillatorNode(ctx, { frequency: 9 });
-      const depth = new GainNode(ctx, { gain: 0.2 });
-      lfo.connect(depth).connect(flicker.gain);
-      const src = noiseSource(ctx, true);
-      src.connect(filter).connect(flicker).connect(out);
-      lfo.start();
-      return () => {
-        src.stop();
-        lfo.stop();
-      };
-    },
-  },
-  // A low rumble: dark noise over a buzzing drone.
-  jet: {
-    range: 50,
-    volume: 0.4,
-    start(ctx, out) {
-      const filter = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 450 });
-      const src = noiseSource(ctx, true);
-      src.connect(filter).connect(out);
-      const drone = new OscillatorNode(ctx, { type: 'sawtooth', frequency: 48 });
-      const droneTone = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 220 });
-      const droneLevel = new GainNode(ctx, { gain: 0.3 });
-      drone.connect(droneTone).connect(droneLevel).connect(out);
-      drone.start();
-      return () => {
-        src.stop();
-        drone.stop();
-      };
-    },
-  },
-};
-
 const FADE = 0.04; // seconds a loop takes to come in or go out, so it doesn't click
+const NEAR = 2; // metres within which a sound plays at its full volume
+const FAINT = 0.03; // the share of its volume a sound has left at its `faint` distance
+const SWEEP = 8; // metres either side of its nearest point that a whiz travels while it plays
 
 interface Voice {
   gain: GainNode;
@@ -128,11 +72,25 @@ interface Voice {
 
 export class Sfx {
   private ctx: AudioContext | null = null;
+  private out: AudioNode | null = null; // the limiter in front of the speakers
+  private heard: Vec3 = { x: 0, y: 0, z: 0 }; // the listener
+  private readonly buffers = new Map<string, AudioBuffer>();
   private readonly loops = new Map<string, Voice>();
 
   constructor() {
     const unlock = () => {
-      this.ctx ??= new AudioContext();
+      if (!this.ctx) {
+        this.ctx = new AudioContext();
+        this.out = new DynamicsCompressorNode(this.ctx, {
+          threshold: -12,
+          knee: 6,
+          ratio: 12,
+          attack: 0.002,
+          release: 0.15,
+        });
+        this.out.connect(this.ctx.destination);
+        this.load(this.ctx);
+      }
       void this.ctx.resume();
     };
     window.addEventListener('pointerdown', unlock);
@@ -142,6 +100,7 @@ export class Sfx {
   // Where the listener is and which way they face (yaw 0 faces +z, like everything else).
   listen(pos: Vec3, yaw: number): void {
     if (!this.ctx) return;
+    this.heard = pos;
     const l = this.ctx.listener;
     const t = this.ctx.currentTime;
     const [x, y, z] = audioSpace(pos);
@@ -154,10 +113,24 @@ export class Sfx {
     l.forwardZ.setValueAtTime(fz, t);
   }
 
-  // A one-shot, at a spot in the world, or with no spot, the local player's own.
-  play(id: SoundId, at: Vec3 | null = null): void {
-    if (!this.ctx) return;
-    this.voice(id, at, 1);
+  // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
+  // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays.
+  play(id: SoundId, at: Vec3 | null = null, o: { delay?: number; along?: Vec3 } = {}): void {
+    const buffer = this.buffers.get(SOUNDS[id].file);
+    if (!this.ctx || !buffer) return;
+    if (at && distance(at, this.heard) > 2 * SOUNDS[id].faint) return; // not worth the nodes
+    const t = this.ctx.currentTime + (o.delay ?? 0);
+    const voice = this.voice(id, at, 1);
+    const src = new AudioBufferSourceNode(this.ctx, { buffer });
+    src.connect(voice.gain);
+    src.start(t);
+    if (voice.panner && at && o.along) {
+      const d = o.along;
+      const from = { x: at.x - d.x * SWEEP, y: at.y - d.y * SWEEP, z: at.z - d.z * SWEEP };
+      const to = { x: at.x + d.x * SWEEP, y: at.y + d.y * SWEEP, z: at.z + d.z * SWEEP };
+      place(voice.panner, from, t);
+      glide(voice.panner, to, t + buffer.duration);
+    }
   }
 
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
@@ -169,12 +142,13 @@ export class Sfx {
     for (const w of wanted) {
       const key = `${w.key}:${w.id}`;
       keep.add(key);
-      let voice = this.loops.get(key);
-      if (!voice) {
-        voice = this.voice(w.id, w.at, 0);
-        voice.gain.gain.linearRampToValueAtTime(SOUNDS[w.id].volume, t + FADE);
-        this.loops.set(key, voice);
-      } else if (voice.panner && w.at) place(voice.panner, w.at, t);
+      const voice = this.loops.get(key);
+      if (voice) {
+        if (voice.panner && w.at) place(voice.panner, w.at, t);
+        continue;
+      }
+      const started = this.startLoop(w.id, w.at);
+      if (started) this.loops.set(key, started);
     }
     for (const [key, voice] of this.loops) {
       if (keep.has(key)) continue;
@@ -185,27 +159,59 @@ export class Sfx {
     }
   }
 
-  // A sound's graph: its source into a gain (its volume, times `level`), into a panner when it
-  // has a place, into the speakers.
+  // A loop fading in, after its intro if it has one; null until its file has arrived.
+  private startLoop(id: SoundId, at: Vec3 | null): Voice | null {
+    const ctx = this.ctx!;
+    const spec = SOUNDS[id];
+    const buffer = this.buffers.get(spec.file);
+    if (!buffer) return null;
+    const t = ctx.currentTime;
+    const voice = this.voice(id, at, 0);
+    voice.gain.gain.linearRampToValueAtTime(spec.volume, t + FADE);
+    const intro = spec.intro ? this.buffers.get(spec.intro) : undefined;
+    const sources = [new AudioBufferSourceNode(ctx, { buffer, loop: true })];
+    if (intro) sources.unshift(new AudioBufferSourceNode(ctx, { buffer: intro }));
+    for (const src of sources) src.connect(voice.gain);
+    sources[0].start(t);
+    if (intro) sources[1].start(t + intro.duration);
+    voice.stop = () => sources.forEach((src) => src.stop());
+    return voice;
+  }
+
+  // A sound's gain (its volume, times `level`), into a panner when it has a place, into the
+  // speakers. Its sources connect to the gain.
   private voice(id: SoundId, at: Vec3 | null, level: number): Voice {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
     const gain = new GainNode(ctx, { gain: spec.volume * level });
     let panner: PannerNode | null = null;
     if (at) {
+      // Inverse falloff, NEAR / (NEAR + rolloff * (d - NEAR)), with the rolloff that leaves FAINT
+      // of the volume at `faint`.
       panner = new PannerNode(ctx, {
         panningModel: 'equalpower',
-        distanceModel: 'linear',
-        refDistance: 2,
-        maxDistance: spec.range,
-        rolloffFactor: 1,
+        distanceModel: 'inverse',
+        refDistance: NEAR,
+        maxDistance: 10000,
+        rolloffFactor: (NEAR * (1 / FAINT - 1)) / (spec.faint - NEAR),
       });
       place(panner, at, ctx.currentTime);
-      gain.connect(panner).connect(ctx.destination);
+      gain.connect(panner).connect(this.out!);
     } else {
-      gain.connect(ctx.destination);
+      gain.connect(this.out!);
     }
-    return { gain, panner, stop: spec.start(ctx, gain) };
+    return { gain, panner, stop: () => {} };
+  }
+
+  // Every file, fetched and decoded in the background.
+  private load(ctx: AudioContext): void {
+    const files = new Set(Object.values(SOUNDS).flatMap((s) => (s.intro ? [s.file, s.intro] : [s.file])));
+    for (const file of files)
+      void fetch(`/assets/sounds/${file}`)
+        .then((r) => r.arrayBuffer())
+        .then((data) => ctx.decodeAudioData(data))
+        .then((buffer) => this.buffers.set(file, buffer))
+        .catch(() => {});
   }
 }
 
@@ -215,6 +221,10 @@ function audioSpace(p: Vec3): [number, number, number] {
   return [p.x, p.y, -p.z];
 }
 
+function distance(a: Vec3, b: Vec3): number {
+  return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
 function place(panner: PannerNode, at: Vec3, t: number): void {
   const [x, y, z] = audioSpace(at);
   panner.positionX.setValueAtTime(x, t);
@@ -222,45 +232,9 @@ function place(panner: PannerNode, at: Vec3, t: number): void {
   panner.positionZ.setValueAtTime(z, t);
 }
 
-// One second of white noise per context, shared by every sound that hisses.
-const noiseBuffers = new WeakMap<AudioContext, AudioBuffer>();
-function noiseSource(ctx: AudioContext, loop: boolean): AudioBufferSourceNode {
-  let buffer = noiseBuffers.get(ctx);
-  if (!buffer) {
-    buffer = new AudioBuffer({ length: ctx.sampleRate, sampleRate: ctx.sampleRate });
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    noiseBuffers.set(ctx, buffer);
-  }
-  const src = new AudioBufferSourceNode(ctx, { buffer, loop });
-  src.start();
-  return src;
-}
-
-// Noise through a filter that sweeps from `from` to `to` Hz while it dies away over `decay` s.
-function burst(
-  ctx: AudioContext,
-  out: AudioNode,
-  o: { type: BiquadFilterType; from: number; to: number; decay: number },
-): void {
-  const t = ctx.currentTime;
-  const filter = new BiquadFilterNode(ctx, { type: o.type, frequency: o.from });
-  filter.frequency.exponentialRampToValueAtTime(o.to, t + o.decay);
-  const gain = new GainNode(ctx, { gain: 1 });
-  gain.gain.exponentialRampToValueAtTime(0.001, t + o.decay);
-  const src = noiseSource(ctx, false);
-  src.connect(filter).connect(gain).connect(out);
-  src.stop(t + o.decay);
-}
-
-// A sine that drops from `from` to `to` Hz as it dies away: the body under a crack.
-function thump(ctx: AudioContext, out: AudioNode, o: { from: number; to: number; decay: number; level: number }): void {
-  const t = ctx.currentTime;
-  const osc = new OscillatorNode(ctx, { frequency: o.from });
-  osc.frequency.exponentialRampToValueAtTime(o.to, t + o.decay);
-  const gain = new GainNode(ctx, { gain: o.level });
-  gain.gain.exponentialRampToValueAtTime(0.001, t + o.decay);
-  osc.connect(gain).connect(out);
-  osc.start(t);
-  osc.stop(t + o.decay);
+function glide(panner: PannerNode, to: Vec3, t: number): void {
+  const [x, y, z] = audioSpace(to);
+  panner.positionX.linearRampToValueAtTime(x, t);
+  panner.positionY.linearRampToValueAtTime(y, t);
+  panner.positionZ.linearRampToValueAtTime(z, t);
 }
