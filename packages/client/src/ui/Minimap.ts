@@ -32,7 +32,7 @@ export class Minimap {
   private readonly coords = document.getElementById('minimap-coords')!;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly floors = new Map<number, Floor>(); // keyed by metres per pixel
-  private view: MinimapView = 'near';
+  private view: MinimapView = 'world';
   private readonly bounds;
 
   constructor(
@@ -43,7 +43,7 @@ export class Minimap {
     this.canvas.height = SIZE;
     this.ctx = this.canvas.getContext('2d')!;
     this.bounds = worldBounds(shape);
-    this.setView('near');
+    this.setView('world');
   }
 
   toggle(): void {
