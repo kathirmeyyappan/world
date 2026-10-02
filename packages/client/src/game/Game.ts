@@ -397,8 +397,9 @@ export class Game {
     this.death.show(how);
   }
 
-  // A shot landed, or with no shooter, a fall hurt. The victim's client flashes red and drops
-  // hearts, the shooter's says who they hit, and everyone else sees the victim blink.
+  // A shot landed, or with no shooter, a fall hurt. The victim's client flashes red, plays the
+  // hurt sound and drops hearts, the shooter's says who they hit, and everyone else sees the
+  // victim blink.
   private onHit(m: {
     shooter: string | null;
     victim: string;
@@ -408,6 +409,7 @@ export class Game {
   }): void {
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
+      this.sfx.play('hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {

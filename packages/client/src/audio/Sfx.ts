@@ -21,7 +21,8 @@ export type SoundId =
   | 'step-4'
   | 'jump'
   | 'land'
-  | 'land-hard';
+  | 'land-hard'
+  | 'hurt';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -52,6 +53,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   jump: { file: 'jump.mp3', half: 2, reach: 12, volume: 0.05 },
   land: { file: 'land.mp3', half: 3, reach: 18, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 3, reach: 18, volume: 0.14 },
+  hurt: { file: 'hurt.mp3', half: 2, reach: 12, volume: 0.3 }, // only ever your own, flat
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
