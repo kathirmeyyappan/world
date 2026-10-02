@@ -5,7 +5,7 @@ import { Color3, Mesh, StandardMaterial, Texture, Vector3, VertexData } from '@b
 import { layoutWallFrame, OFF_WALL, type FramePanel, type WallFrame } from '@world/shared';
 import type { Engine } from './Engine';
 
-const BORDER = 0.08; // metres of wood showing round a picture
+const BORDER = 0.03; // wood showing round a picture, as a share of its height: 24 cm on an 8 m mural
 const BORDER_BACK = 0.015; // metres the border sits behind the picture, so the two never share a plane
 const WOOD = new Color3(0.42, 0.27, 0.15);
 
@@ -36,7 +36,7 @@ export class WallFrames {
       const border = panelsMesh(
         engine,
         `frame-${n}-border`,
-        layoutWallFrame(frame, OFF_WALL - BORDER_BACK, BORDER).panels,
+        layoutWallFrame(frame, OFF_WALL - BORDER_BACK, BORDER * frame.height).panels,
       );
       border.material = wood;
       border.isPickable = false;
