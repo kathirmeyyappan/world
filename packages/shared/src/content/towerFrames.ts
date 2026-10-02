@@ -29,7 +29,7 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
   {
     room: GROUND,
     angle: 225,
-    height: 8.32,
+    height: 10.8,
     show: {
       kind: 'image',
       src: '/assets/frames/nepal_libration_force.jpg',
