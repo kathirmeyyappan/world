@@ -15,6 +15,7 @@ import {
   hashSeed,
   itemHelp,
   itemStats,
+  lookDirection,
   parseCommand,
   resolveFire,
   type ItemAction,
@@ -22,6 +23,7 @@ import {
   type PlayerState,
   type ServerMessage,
 } from '@world/shared';
+import { ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -68,6 +70,7 @@ const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;
 const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
+const NEAR_MISS = 3; // metres from your eye a shot can pass and still whiz by you
 
 export class Game {
   private readonly engine: Engine;
@@ -109,6 +112,10 @@ export class Game {
   private kick = 0; // camera recoil, radians of upward pitch that decays back
   private stepEase = 0; // metres the camera trails the predicted eye height after a step
   private hoveredSky: SkyObject | null = null;
+  private readonly sfx = new Sfx();
+  // Other players' tap shots this tick, heard before the tick's snapshot says where they stood and
+  // looked; `hitMe` once a hit on the local player from them comes in.
+  private pendingShots: { shooter: string; hitMe: boolean }[] = [];
 
   private prediction: Prediction | null = null;
   private myId = '';
@@ -264,6 +271,8 @@ export class Game {
     if (spec.actions.shoot?.mode !== 'tap' || performance.now() < this.localCooldownUntil) return;
     this.localCooldownUntil = performance.now() + spec.cooldownTicks * TICK_DT * 1000;
     this.viewmodel.fire();
+    const shot = ITEM_SOUNDS[this.held.id].shot;
+    if (shot) this.sfx.play(shot);
     // Recoil the camera up and let it settle. Bigger for the sniper, whose viewmodel is hidden
     // behind the scope, and flash the scope so the shot is unmistakable.
     this.kick = this.scoped ? SCOPED_KICK : HIP_KICK;
@@ -322,6 +331,7 @@ export class Game {
         const me = m.players.find((p) => p.id === this.myId);
         if (me) this.hearts.set(me.hearts);
         this.hud.updateStats(m.players);
+        this.hearShots(m.players);
         if (me && this.prediction) {
           const d = this.prediction.reconcile(me);
           const dist = Math.hypot(d.dx, d.dy, d.dz);
@@ -350,6 +360,7 @@ export class Game {
         this.hud.system(m.text);
         return;
       case 'shot':
+        if (m.id !== this.myId) this.pendingShots.push({ shooter: m.id, hitMe: false });
         return;
       case 'hit':
         this.onHit(m);
@@ -392,6 +403,7 @@ export class Game {
     hearts: number;
   }): void {
     if (m.victim === this.myId) {
+      for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
@@ -401,6 +413,34 @@ export class Game {
       this.hud.hitMarker();
       this.hitNotice.show(this.hud.playerName(m.victim), m.damage, m.headshot);
     }
+  }
+
+  // This tick's tap shots, each played where its shooter stands; one that passed within NEAR_MISS
+  // of the local player without hitting them also whizzes by, from the nearest point of its path.
+  private hearShots(players: PlayerState[]): void {
+    for (const s of this.pendingShots) {
+      const p = players.find((q) => q.id === s.shooter);
+      const sounds = p?.item && ITEM_SOUNDS[p.item.id];
+      if (!p || !sounds) continue;
+      if (sounds.shot) this.sfx.play(sounds.shot, p.pos);
+      const by = sounds.nearMiss && !s.hitMe && this.nearMiss(p);
+      if (sounds.nearMiss && by) this.sfx.play(sounds.nearMiss, by);
+    }
+    this.pendingShots = [];
+  }
+
+  // Where a shot from `p` (along their look, stopped by walls and its range) came closest to the
+  // local player's eye, if within NEAR_MISS of it.
+  private nearMiss(p: PlayerState): Vector3 | null {
+    const me = this.prediction?.state;
+    if (!me || this.dead || !p.item) return null;
+    const dir = lookDirection(p.yaw, p.pitch);
+    const range = ITEMS[p.item.id].range;
+    const reach = Math.min(range, WORLD_STRUCTURES.raycast(p.pos, dir, range));
+    const along = (me.pos.x - p.pos.x) * dir.x + (me.pos.y - p.pos.y) * dir.y + (me.pos.z - p.pos.z) * dir.z;
+    if (along <= 0 || along > reach) return null;
+    const by = new Vector3(p.pos.x + dir.x * along, p.pos.y + dir.y * along, p.pos.z + dir.z * along);
+    return Vector3.Distance(by, new Vector3(me.pos.x, me.pos.y, me.pos.z)) <= NEAR_MISS ? by : null;
   }
 
   private addAvatar(p: PlayerState): void {
@@ -508,6 +548,15 @@ export class Game {
       this.canHit = hit;
       this.hud.setCrosshairTarget(this.canHit);
     }
+    this.sfx.listen(this.camera.position, this.input.yaw);
+    this.sfx.setLoops([
+      ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
+        key: this.myId,
+        id,
+        at: null,
+      })),
+      ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
+    ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
       const cube = this.cubes.get(cs.id);
