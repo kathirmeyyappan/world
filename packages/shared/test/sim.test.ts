@@ -125,18 +125,21 @@ test('cubes all live in the main disc and cover it evenly', () => {
   assert.equal(quadrants.size, 8, 'over ten minutes the cubes visit every quadrant, inner and outer');
 });
 
-test('pickups drift about their own areas, never leaving them, at their height', () => {
+test("pickups drift about their own areas, never leaving them or crossing a ring's hole, at their height", () => {
   const rng = createRng(5);
   const field = createPickups(PICKUP_AREAS, rng);
   for (let t = 0; t < TICK_RATE * 60 * 5; t++) {
     stepPickups(field, TICK_DT, rng);
     for (const p of field.items) {
       const { region } = p.area;
+      const out = Math.hypot(p.pos.x - region.x, p.pos.z - region.z);
       const inside =
         region.kind === 'disc'
-          ? Math.hypot(p.pos.x - region.x, p.pos.z - region.z) <= region.r
-          : Math.abs(p.pos.x - region.x) <= region.w / 2 && Math.abs(p.pos.z - region.z) <= region.d / 2;
-      assert.ok(inside, `${p.id} in its area`);
+          ? out <= region.r
+          : region.kind === 'ring'
+            ? out >= region.inner && out <= region.r
+            : Math.abs(p.pos.x - region.x) <= region.w / 2 && Math.abs(p.pos.z - region.z) <= region.d / 2;
+      assert.ok(inside, `${p.id} in its area (never over a ring's hole)`);
       assert.ok(Math.abs(p.pos.y - region.y - PICKUPS[p.kind].height) < 0.2, `${p.id} at its height`);
     }
   }
