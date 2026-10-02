@@ -13,11 +13,27 @@ import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 const [GROUND] = TUNG_TUNG_TOWER_ROOMS;
 
 export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
-  // Ground floor.
+  // Ground floor: a pair either side of 225°, straight across from the way in.
   {
     room: GROUND,
-    angle: 225,
-    height: 8,
-    show: { kind: 'image', src: '/assets/logos/modal.jpeg', aspect: 1, line: 'this world runs on Modal.' },
+    angle: 195,
+    height: 6.4,
+    show: {
+      kind: 'image',
+      src: '/assets/logos/modal.jpeg',
+      aspect: 1,
+      line: 'Fun fact: The multiplayer backend for Kathir World runs completely on Modal, via Modal functions, Modal servers, and importantly, Sticky Sessions (I helped build this 😎).',
+    },
+  },
+  {
+    room: GROUND,
+    angle: 255,
+    height: 6.4,
+    show: {
+      kind: 'image',
+      src: '/assets/frames/nepal_libration_force.jpg',
+      aspect: 1920 / 1084,
+      line: 'I went to UChicago. This is the Nepal Liberation Force. Together we are strong.',
+    },
   },
 ];
