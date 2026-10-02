@@ -175,6 +175,7 @@ export class Game {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
       else if (e.code === 'KeyC') this.commandsMenu.set(true);
+      else if (e.code === 'KeyO') toggleFullscreen();
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
     window.addEventListener(
@@ -584,4 +585,10 @@ function itemHint(id: ItemId, left: number | null, withKeys: boolean, scoped: bo
 
 function targets(players: RemotePlayer[]) {
   return players.map((p) => ({ id: p.id, pos: { x: p.x, y: p.y, z: p.z }, dead: p.dead, avatar: p.avatar }));
+}
+
+// The whole page, HUD included, so the browser's own Esc (or O again) comes back out.
+function toggleFullscreen(): void {
+  if (document.fullscreenElement) void document.exitFullscreen();
+  else void document.documentElement.requestFullscreen?.().catch(() => {});
 }

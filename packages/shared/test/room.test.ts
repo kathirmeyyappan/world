@@ -606,9 +606,9 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   room.receive(ida, { t: 'chat', text: '/circle --time 9999' });
   await Promise.resolve();
   assert.equal(spawned[2].seconds, 3500, 'capped');
-  // Flags in any order, short or long; a combat bot also takes --targets. Plain /sniper is the rifle.
-  room.receive(ida, { t: 'chat', text: '/sniper-bot -t 60 --targets Kat bob' });
-  room.receive(ida, { t: 'chat', text: '/sniper-bot --targets kat --skin tung -n hunter' });
+  // Flags in any order, short or long; a combat bot also takes --target. Plain /sniper is the rifle.
+  room.receive(ida, { t: 'chat', text: '/sniper-bot -t 60 --target Kat bob' });
+  room.receive(ida, { t: 'chat', text: '/sniper-bot --target kat --skin tung -n hunter' });
   await Promise.resolve();
   assert.deepEqual(
     spawned.slice(3).map((r) => r.worker === 'combat' && [r.seconds, r.name, r.avatar, r.targets]),
@@ -626,7 +626,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
     '/circle-bot -t soon',
     '/circle-bot -n',
     '/circle-bot -s nobody',
-    '/circle-bot --targets kat',
+    '/circle-bot --target kat',
     '/circle-bot -t 5 --time 6',
   ])
     room.receive(ida, { t: 'chat', text });

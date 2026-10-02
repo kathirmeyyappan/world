@@ -3,7 +3,7 @@
 Both share the image, Secret, timeout and packing: bots are async and cheap, so a container runs
 many on one event loop. The room's sidecar spawns them by name (``infra/config.py``); by hand,
 ``modal run modal-bots/app.py --bot circle --room <room> --seconds 60`` picks the bot's worker
-(``--name`` renames it, and ``--targets kat,bob`` aims a combat bot).
+(``--name`` renames it, and ``--target kat,bob`` aims a combat bot).
 """
 
 import os
@@ -84,12 +84,12 @@ def _vec(spawn: dict[str, float] | None) -> Vec3 | None:
 
 
 @app.local_entrypoint()
-def main(bot: str, room: str, seconds: float = 30, name: str = "", targets: str = "") -> None:
-    """Run one bot by hand on its worker, as ``name`` if given, with ``targets`` as comma-separated
+def main(bot: str, room: str, seconds: float = 30, name: str = "", target: str = "") -> None:
+    """Run one bot by hand on its worker, as ``name`` if given, with ``target`` as comma-separated
     name substrings. The workers take placement as a dict, which ``modal run`` can't parse, so this
     is the command line."""
     if bot in COMBAT_BOTS:
-        wanted = [target for target in targets.split(",") if target]
+        wanted = [part for part in target.split(",") if part]
         report = run_combat_bot.remote(bot=bot, room=room, seconds=seconds, name=name or None, targets=wanted)
     else:
         report = run_dumb_bot.remote(bot=bot, room=room, seconds=seconds, name=name or None)

@@ -58,7 +58,7 @@ export interface BotCallArgs {
   targets: string[];
 }
 
-// "/sniper-bot -t 60 -n hunter -s tung --targets kat bob": the flags in BOT_FLAGS (short or long
+// "/sniper-bot -t 60 -n hunter -s tung --target kat bob": the flags in BOT_FLAGS (short or long
 // form), in any order, each at most once, and only those the bot's worker takes. Anything else (a
 // bare word, an unknown or repeated flag, a flag with no value or a bad one) makes it null, and the
 // room answers with the usage line.
@@ -86,7 +86,7 @@ function botCommand(bot: BotId, args: string[]): Command {
         call.avatar = avatarForCommand(value() ?? '');
         if (call.avatar === null) return bad;
         break;
-      case 'targets':
+      case 'target':
         for (let word = value(); word !== null; word = value()) call.targets.push(word);
         if (call.targets.length === 0) return bad;
         break;

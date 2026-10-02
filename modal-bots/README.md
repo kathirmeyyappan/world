@@ -9,11 +9,11 @@ same WebSocket protocol; there is no spectator mode, so a bot is a visible playe
 modal secret create kathir-world-bots-config WORLD_LOBBY_URL=https://your-lobby.modal.run   # once
 modal run modal-bots/app.py --bot observer --room global --seconds 30
 modal run modal-bots/app.py --bot circle --room global --seconds 30
-modal run modal-bots/app.py --bot sniper --room global --seconds 60 --name hunter --targets kat,bob
+modal run modal-bots/app.py --bot sniper --room global --seconds 60 --name hunter --target kat,bob
 ```
 
 Or from the game's chat, with flags in any order: `/circle-bot -t 60`, `/stalker-bot -s tung`,
-`/sniper-bot -t 60 -n hunter --targets kat bob` (300 s by default, 3500 max; the flags are in
+`/sniper-bot -t 60 -n hunter --target kat bob` (300 s by default, 3500 max; the flags are in
 `CLAUDE.md`). The room server spawns the bot's worker, `run_dumb_bot` or `run_combat_bot`;
 see `CLAUDE.md`.
 
