@@ -131,6 +131,7 @@ test('pickups drift about their own areas, never leaving them, at their height',
   for (let t = 0; t < TICK_RATE * 60 * 5; t++) {
     stepPickups(field, TICK_DT, rng);
     for (const p of field.items) {
+      assert.ok(p.area, `${p.id} belongs to an area`);
       const { region } = p.area;
       const inside =
         region.kind === 'disc'

@@ -2,7 +2,7 @@
 // Transport-agnostic so the Node server (WebSockets) and the browser's offline mode (a loopback)
 // can both host one. Ticks on a fixed timestep and broadcasts a snapshot after every tick.
 import { CUBE_IDS } from './content/cubes';
-import { PICKUP_AREAS } from './content/pickups';
+import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
 import { SPAWN_AREA } from './content/regions';
 import {
   isClientMessage,
@@ -36,7 +36,7 @@ import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { randomPointInRegion } from './sim/regions';
-import { createPickups, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
+import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
@@ -211,10 +211,17 @@ export class Room {
     }
   }
 
+  // A player goes. A dead one's body poofs away on every client and leaves CORPSE_DROP on whatever
+  // it was lying on.
   leave(id: string): void {
     const seat = this.seats.get(id);
     if (!seat) return;
     this.seats.delete(id);
+    const { dead, pos } = seat.state;
+    if (dead) {
+      const feet = { x: pos.x, y: this.structures.groundAt(pos.x, pos.z, pos.y - EYE_HEIGHT + 0.01), z: pos.z };
+      dropPickup(this.pickups, CORPSE_DROP, feet, this.rng);
+    }
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
     if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open

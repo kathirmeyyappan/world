@@ -112,7 +112,10 @@ wire: server and client both build the world from that file.
   `SPAWN_AREA`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
   reshape a place where it's defined, never at the spawner.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
-  kind, how many, and how often one comes back. What's where is that list alone.
+  kind, how many, and how often one comes back. What's where is that list alone, plus drops:
+  `dropPickup` leaves one at a spot, in no area, where it stays until taken and never comes back. A
+  dead player's body leaves `CORPSE_DROP` (a big heart, twice the size, back to full health) on
+  whatever it was lying on when its seat is dropped.
 - A new kind is a row in `PICKUPS` (float height, reach, and `use(player)`, which applies its effect
   and returns false when it's no use to them, so it stays) plus a shape in `render/Pickups.ts`; the
   `Record<PickupKind, …>` there makes the compiler ask. The Room, the wire and the Python mirror
@@ -323,7 +326,7 @@ protocol.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
 - Snapshots carry the floating pickups (`state.pickups`); walking into a heart below full health
-  gives back 3 hearts, up to 10.
+  gives back 3 hearts, up to 10, and a `big-heart` (left where someone died) all 10.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`

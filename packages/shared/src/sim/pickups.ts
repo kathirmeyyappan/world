@@ -1,7 +1,8 @@
-// Pickups: things floating about a region of the world that a player takes by walking into them.
-// Each pickup area keeps up to `count` of one kind, all there from the start, and brings one back
-// every `respawnSeconds` while it's short. Simulated on the server only, like the cubes, with the
-// same drift, bob and spin; clients draw the broadcast positions.
+// Pickups: things floating in the world that a player takes by walking into them. Each pickup
+// area keeps up to `count` of one kind drifting about its region, all there from the start, and
+// brings one back every `respawnSeconds` while it's short. A drop (dropPickup) is one left at a
+// spot, belonging to no area: it bobs and spins where it was left and never comes back once taken.
+// Simulated on the server only, like the cubes; clients draw the broadcast positions.
 //
 // A new kind is a row in PICKUPS (how high it floats, how close you must be, what taking it does)
 // and a shape in the client's render/Pickups.ts; where it appears is content/pickups.ts.
@@ -10,7 +11,7 @@ import { randomPointInRegion, type Region } from './regions';
 import type { Rng } from './rng';
 import type { PlayerState, Vec3 } from './types';
 
-export type PickupKind = 'heart';
+export type PickupKind = 'heart' | 'big-heart';
 
 export interface PickupSpec {
   kind: PickupKind;
@@ -21,6 +22,7 @@ export interface PickupSpec {
 
 export const PICKUPS: Record<PickupKind, PickupSpec> = {
   heart: { kind: 'heart', height: 1.4, reach: 1, use: heal(3) }, // just under eye level, half a cube's height
+  'big-heart': { kind: 'big-heart', height: 1.4, reach: 1.5, use: heal(MAX_HEARTS) }, // drawn twice the size
 };
 
 export interface PickupArea {
@@ -33,7 +35,8 @@ export interface PickupArea {
 export interface PickupState {
   id: string;
   kind: PickupKind;
-  area: PickupArea; // the area it belongs to, and stays inside
+  area: PickupArea | null; // the area it belongs to and drifts inside; null for a drop
+  floor: number; // height of the floor it floats over
   pos: Vec3;
   ry: number; // spin about the vertical, radians
   target: { x: number; z: number };
@@ -69,10 +72,11 @@ export function createPickups(areas: readonly PickupArea[], rng: Rng): PickupFie
 // respawn time (the countdown restarts whenever an area is full, so it runs from the first taking).
 export function stepPickups(field: PickupField, dt: number, rng: Rng): void {
   for (const p of field.items) {
-    const { region } = p.area;
     p.time += dt;
     p.ry += SPIN * dt;
-    p.pos.y = region.y + PICKUPS[p.kind].height + Math.sin(p.time * BOB_HZ * 2 * Math.PI) * BOB;
+    p.pos.y = p.floor + PICKUPS[p.kind].height + Math.sin(p.time * BOB_HZ * 2 * Math.PI) * BOB;
+    if (!p.area) continue; // a drop stays where it was left
+    const { region } = p.area;
     const dx = p.target.x - p.pos.x;
     const dz = p.target.z - p.pos.z;
     const dist = Math.hypot(dx, dz);
@@ -126,17 +130,27 @@ function heal(hearts: number): (p: PlayerState) => boolean {
   };
 }
 
+// A pickup of `kind` left floating over `feet` (where a player died, say) until someone takes it.
+export function dropPickup(field: PickupField, kind: PickupKind, feet: Vec3, rng: Rng): void {
+  add(field, kind, null, feet, rng);
+}
+
 function spawn(field: PickupField, area: PickupArea, rng: Rng): void {
-  const { region, kind } = area;
-  const at = randomPointInRegion(region, MARGIN, rng);
+  const at = randomPointInRegion(area.region, MARGIN, rng);
+  add(field, area.kind, area, { x: at.x, y: area.region.y, z: at.z }, rng);
+}
+
+// A new pickup over the floor point `at`, drifting about `area`'s region, or with none, staying put.
+function add(field: PickupField, kind: PickupKind, area: PickupArea | null, at: Vec3, rng: Rng): void {
   field.items.push({
     id: `${kind}-${field.nextId++}`,
     kind,
     area,
-    pos: { x: at.x, y: region.y + PICKUPS[kind].height, z: at.z },
+    floor: at.y,
+    pos: { x: at.x, y: at.y + PICKUPS[kind].height, z: at.z },
     ry: rng() * Math.PI * 2,
-    target: randomPointInRegion(region, MARGIN, rng),
+    target: area ? randomPointInRegion(area.region, MARGIN, rng) : { x: at.x, z: at.z },
     time: rng() * 10,
-    speed: 0.4 + rng() * 0.4,
+    speed: area ? 0.4 + rng() * 0.4 : 0,
   });
 }
