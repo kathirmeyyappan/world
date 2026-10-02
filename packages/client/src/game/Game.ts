@@ -73,6 +73,8 @@ const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;
 const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
+// Your own shots play at this share of their volume: right at your ear, they'd drown out the rest.
+const OWN_SHOT = 0.7;
 const NEAR_MISS_DELAY = 0.1; // seconds after the shot that a near miss whizzes by (about 4 frames)
 
 export class Game {
@@ -276,7 +278,7 @@ export class Game {
     this.localCooldownUntil = performance.now() + spec.cooldownTicks * TICK_DT * 1000;
     this.viewmodel.fire();
     const shot = ITEM_SOUNDS[this.held.id].shot;
-    if (shot) this.sfx.play(shot);
+    if (shot) this.sfx.play(shot, null, { level: OWN_SHOT });
     // Recoil the camera up and let it settle. Bigger for the sniper, whose viewmodel is hidden
     // behind the scope, and flash the scope so the shot is unmistakable.
     this.kick = this.scoped ? SCOPED_KICK : HIP_KICK;
