@@ -13,10 +13,11 @@ import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 const [GROUND] = TUNG_TUNG_TOWER_ROOMS;
 
 export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
-  // Ground floor: a pair either side of 225°, straight across from the way in.
+  // Ground floor, clear of the doors at 180° and 270°: one between the stair's foot and 180°, one
+  // centred in the bay from 180° to 270°.
   {
     room: GROUND,
-    angle: 195,
+    angle: 157.5,
     height: 6.4,
     show: {
       kind: 'image',
@@ -27,8 +28,8 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
   },
   {
     room: GROUND,
-    angle: 255,
-    height: 6.4,
+    angle: 225,
+    height: 8.32,
     show: {
       kind: 'image',
       src: '/assets/frames/nepal_libration_force.jpg',
