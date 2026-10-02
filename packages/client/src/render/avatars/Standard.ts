@@ -5,7 +5,7 @@ import { Color3, Mesh, StandardMaterial, TransformNode, Vector3 } from '@babylon
 import { EYE_HEIGHT } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, placeShadow, type Avatar } from './common';
+import { box, centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
@@ -22,9 +22,7 @@ export class StandardAvatar implements Avatar {
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
   private dead = false;
-  private phase = 0;
-  private lastX = 0;
-  private lastZ = 0;
+  private readonly gait = new Gait(4.5);
 
   constructor(
     engine: Engine,
@@ -96,22 +94,20 @@ export class StandardAvatar implements Avatar {
 
   update(p: RemotePlayer): void {
     this.hitFlash.update();
-    const moved = Math.hypot(p.x - this.lastX, p.z - this.lastZ);
-    this.lastX = p.x;
-    this.lastZ = p.z;
     const feetY = p.y - EYE_HEIGHT;
     const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.y = p.yaw;
     this.head.rotation.x = p.pitch * 0.6;
 
-    if (moved > 0.002 && !airborne) this.phase += moved * 4.5;
-    const swing = airborne ? 0.35 : Math.sin(this.phase) * Math.min(1, moved * 60) * 0.7;
+    this.gait.update(p.x, p.z, airborne);
+    const { phase, effort } = this.gait;
+    const swing = airborne ? 0.35 : Math.sin(phase) * effort * 0.7;
     this.legL.rotation.x = swing;
     this.legR.rotation.x = -swing;
     this.armL.rotation.x = -swing * 0.8;
     this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : swing * 0.8;
-    this.body.position.y = airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.04;
+    this.body.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * 0.04 * effort;
     this.items.update(p);
     if (p.dead !== this.dead) {
       this.dead = p.dead;

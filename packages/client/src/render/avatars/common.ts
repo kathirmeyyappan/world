@@ -1,5 +1,5 @@
-// Pieces every avatar type shares: the ground shadow, a box helper, and the interface the Game
-// drives them through. Names are drawn over avatars by the HUD (ui/NameTags.ts), not in the scene.
+// Pieces every avatar type shares: the ground shadow, a box helper, the walk cycle, and the
+// interface the Game drives them through. Names are drawn over avatars by the HUD (ui/NameTags.ts), not in the scene.
 import {
   Color3,
   DynamicTexture,
@@ -10,7 +10,7 @@ import {
   TransformNode,
   type Vector3,
 } from '@babylonjs/core';
-import { WORLD_STRUCTURES, type AvatarId } from '@world/shared';
+import { MOVE_SPEED, WORLD_STRUCTURES, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 
@@ -22,6 +22,33 @@ export interface Avatar {
   hide(): void;
   dispose(): void;
   corpse(): Vector3 | null; // where the body lies, while dead and drawn; null otherwise
+}
+
+const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
+
+// A walk cycle from where a player is, frame to frame. `phase` (radians) advances with the distance
+// covered on the ground, `perMetre` a metre, so a slow walk steps slowly; `effort` (0 to 1) is how
+// big the steps are, following speed against a full-speed walk (its square root, so a slow walk
+// still visibly steps), eased so a jittery frame doesn't twitch the legs. 0 in the air.
+export class Gait {
+  phase = 0;
+  effort = 0;
+  private last: { x: number; z: number; time: number } | null = null;
+
+  constructor(private readonly perMetre: number) {}
+
+  update(x: number, z: number, airborne: boolean): void {
+    const time = performance.now() / 1000;
+    const last = this.last;
+    this.last = { x, z, time };
+    if (!last) return;
+    const moved = Math.hypot(x - last.x, z - last.z);
+    const dt = time - last.time;
+    if (moved > 0.002 && !airborne) this.phase += moved * this.perMetre;
+    const speed = dt > 0 ? moved / dt : 0;
+    const target = airborne ? 0 : Math.sqrt(Math.min(1, speed / MOVE_SPEED));
+    this.effort += (target - this.effort) * Math.min(1, dt / GAIT_EASE);
+  }
 }
 
 // The middle of a node and everything under it, in world space: a fallen body's centre.
