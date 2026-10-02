@@ -8,10 +8,11 @@ import type { Engine } from './Engine';
 const BORDER = 0.48; // metres of wood showing round every picture
 const BORDER_BACK = 0.015; // metres the border sits behind the picture, so the two never share a plane
 const WOOD = new Color3(0.42, 0.27, 0.15);
+const LINE_GAP = 0.3; // metres between the top of a frame's border and the bottom of its line
 
 export interface HungFrame {
   frame: WallFrame;
-  centre: Vector3; // the middle of the picture's face
+  above: Vector3; // where its line sits: just over the middle of its top edge, on the wall
 }
 
 export class WallFrames {
@@ -40,8 +41,8 @@ export class WallFrames {
       );
       border.material = wood;
       border.isPickable = false;
-      const { x, y, z } = picture.centre;
-      this.byMesh.set(mesh.name, { frame, centre: new Vector3(x, y, z) });
+      const { x, z } = picture.centre;
+      this.byMesh.set(mesh.name, { frame, above: new Vector3(x, picture.top + BORDER + LINE_GAP, z) });
     });
   }
 

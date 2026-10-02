@@ -97,7 +97,7 @@ export class Game {
   private readonly avatars = new Map<string, Avatar>();
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
-  private readonly frameBubble = new Bubble('plain'); // a frame's line, floating between you and it
+  private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
   private readonly wallFrames: WallFrames;
   private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS);
   private readonly death = new Death();
@@ -632,11 +632,8 @@ export class Game {
       if (nextSky) this.bubble.hover(nextSky.content.line, nextSky.anchor());
       else this.bubble.release();
     }
-    // A frame's line floats a third of the way from you to it, so it moves as you do.
-    if (nextFrame) {
-      const at = Vector3.Lerp(this.camera.position, nextFrame.centre, 1 / 3);
-      this.frameBubble.hover(nextFrame.frame.show.line, at);
-    } else if (this.hoveredFrame) this.frameBubble.release();
+    if (nextFrame) this.frameBubble.hover(nextFrame.frame.show.line, nextFrame.above);
+    else if (this.hoveredFrame) this.frameBubble.release();
     this.hoveredFrame = nextFrame;
     this.hud.setCrosshairHot(!!nextCube || !!nextSky || !!nextFrame);
   }
