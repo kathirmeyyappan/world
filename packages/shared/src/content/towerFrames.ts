@@ -51,7 +51,7 @@ export const TUNG_TUNG_TOWER_CEILING_FRAMES: CeilingFrame[] = [
       src: 'https://widgets.kathirm.com/spotify/',
       aspect: 16 / 9,
       width: 800,
-      line: 'This is a live Spotify widget. I wonder what it saying I last listened to / am listening to rn...',
+      line: "This is what I am listening to on Spotify right now (or last listened to). I wonder what it's showing...",
     },
   },
 ];
