@@ -568,7 +568,7 @@ export class Game {
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
     ]);
     this.footsteps.update([
-      { id: this.myId, pos: self.pos, grounded: !this.dead && isGrounded(self), self: true },
+      { id: this.myId, pos: self.pos, grounded: !this.dead && isGrounded(self), falling: -self.vy, self: true },
       ...sampled.players.map((rp) => ({
         id: rp.id,
         pos: { x: rp.x, y: rp.y, z: rp.z },

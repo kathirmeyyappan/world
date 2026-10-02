@@ -8,11 +8,26 @@
 import type { GearId, ItemId, Vec3 } from '@world/shared';
 
 export type SoundId =
-  'gun' | 'sniper' | 'whiz-1' | 'whiz-2' | 'whiz-3' | 'flame' | 'jet' | 'step-1' | 'step-2' | 'step-3' | 'step-4';
+  | 'gun'
+  | 'sniper'
+  | 'whiz-1'
+  | 'whiz-2'
+  | 'whiz-3'
+  | 'flame'
+  | 'jet'
+  | 'step-1'
+  | 'step-2'
+  | 'step-3'
+  | 'step-4'
+  | 'jump'
+  | 'land-soft'
+  | 'land-medium'
+  | 'land-hard';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
   half: number; // metres from the listener where it's half as loud as up close (see falloff)
+  reach?: number; // metres past which it's silent; only gunshots carry across the map
   volume: number; // up close
   loop?: boolean;
   intro?: string; // played once first, ending on the sample the loop starts on
@@ -20,20 +35,25 @@ interface SoundSpec {
 }
 
 // Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
-// Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, jetpack, footsteps. (The jet recording is
-// denser than the flame's, so it needs the lower volume to come out quieter.)
+// Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, jetpack, then the body's own
+// sounds (landings, footsteps, the jump swoosh). The jet recording is denser than the flame's, so it
+// needs the lower volume to come out quieter.
 const SOUNDS: Record<SoundId, SoundSpec> = {
   gun: { file: 'gun.mp3', half: 10, volume: 0.35 },
   sniper: { file: 'sniper.mp3', half: 10, volume: 0.45 },
-  'whiz-1': { file: 'whiz-1.mp3', half: 4, volume: 0.3 },
-  'whiz-2': { file: 'whiz-2.mp3', half: 4, volume: 0.3 },
-  'whiz-3': { file: 'whiz-3.mp3', half: 4, volume: 0.3 },
-  flame: { file: 'flame.wav', intro: 'flame-start.wav', half: 6, volume: 0.12, loop: true },
-  jet: { file: 'jet.wav', half: 8, volume: 0.06, loop: true, swell: 0.8 },
-  'step-1': { file: 'step-1.mp3', half: 3, volume: 0.08 },
-  'step-2': { file: 'step-2.mp3', half: 3, volume: 0.08 },
-  'step-3': { file: 'step-3.mp3', half: 3, volume: 0.08 },
-  'step-4': { file: 'step-4.mp3', half: 3, volume: 0.08 },
+  'whiz-1': { file: 'whiz-1.mp3', half: 4, reach: 20, volume: 0.3 },
+  'whiz-2': { file: 'whiz-2.mp3', half: 4, reach: 20, volume: 0.3 },
+  'whiz-3': { file: 'whiz-3.mp3', half: 4, reach: 20, volume: 0.3 },
+  flame: { file: 'flame.wav', intro: 'flame-start.wav', half: 4, reach: 25, volume: 0.12, loop: true },
+  jet: { file: 'jet.wav', half: 4, reach: 25, volume: 0.06, loop: true, swell: 0.8 },
+  'step-1': { file: 'step-1.mp3', half: 2, reach: 12, volume: 0.08 },
+  'step-2': { file: 'step-2.mp3', half: 2, reach: 12, volume: 0.08 },
+  'step-3': { file: 'step-3.mp3', half: 2, reach: 12, volume: 0.08 },
+  'step-4': { file: 'step-4.mp3', half: 2, reach: 12, volume: 0.08 },
+  jump: { file: 'jump.mp3', half: 2, reach: 12, volume: 0.05 },
+  'land-soft': { file: 'land-soft.mp3', half: 2, reach: 12, volume: 0.07 },
+  'land-medium': { file: 'land-medium.mp3', half: 3, reach: 18, volume: 0.1 },
+  'land-hard': { file: 'land-hard.mp3', half: 3, reach: 18, volume: 0.14 },
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
@@ -130,7 +150,7 @@ export class Sfx {
   play(id: SoundId, at: Vec3 | null = null, o: { delay?: number; along?: Vec3 } = {}): void {
     const buffer = this.buffers.get(SOUNDS[id].file);
     if (!this.ctx || !buffer) return;
-    if (at && falloff(distance(at, this.heard), SOUNDS[id].half) < SILENT) return;
+    if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return;
     const t = this.ctx.currentTime + (o.delay ?? 0);
     const voice = this.voice(id, at, 1);
     const src = new AudioBufferSourceNode(this.ctx, { buffer });
@@ -157,7 +177,7 @@ export class Sfx {
         voice.wanted = t;
         if (voice.panner && w.at) {
           place(voice.panner, w.at, t);
-          voice.near.gain.setTargetAtTime(falloff(distance(w.at, this.heard), SOUNDS[w.id].half), t, 0.05);
+          voice.near.gain.setTargetAtTime(falloff(distance(w.at, this.heard), SOUNDS[w.id]), t, 0.05);
         }
         continue;
       }
@@ -199,7 +219,7 @@ export class Sfx {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
     const gain = new GainNode(ctx, { gain: spec.volume * level });
-    const near = new GainNode(ctx, { gain: at ? falloff(distance(at, this.heard), spec.half) : 1 });
+    const near = new GainNode(ctx, { gain: at ? falloff(distance(at, this.heard), spec) : 1 });
     gain.connect(near);
     let panner: PannerNode | null = null;
     if (at) {
@@ -232,9 +252,10 @@ function audioSpace(p: Vec3): [number, number, number] {
 
 // The share of a sound's volume left `d` metres away: nearly all of it close by, half at `half`,
 // then falling with the square of the distance (a quarter as loud at twice as far), so a fight
-// nearby is loud and one across the map is faint.
-function falloff(d: number, half: number): number {
-  return 1 / (1 + (d / half) ** 2);
+// nearby is loud and one across the map is faint; and with a `reach`, tapering to nothing there.
+function falloff(d: number, spec: SoundSpec): number {
+  const taper = spec.reach === undefined ? 1 : Math.max(0, 1 - d / spec.reach);
+  return taper / (1 + (d / spec.half) ** 2);
 }
 
 function distance(a: Vec3, b: Vec3): number {
