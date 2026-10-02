@@ -51,7 +51,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'step-3': { file: 'step-3.mp3', half: 2, reach: 12, volume: 0.08 },
   'step-4': { file: 'step-4.mp3', half: 2, reach: 12, volume: 0.08 },
   jump: { file: 'jump.mp3', half: 2, reach: 12, volume: 0.05 },
-  'land-soft': { file: 'land-soft.mp3', half: 2, reach: 12, volume: 0.07 },
+  'land-soft': { file: 'land-soft.mp3', half: 2, reach: 12, volume: 0.05 },
   'land-medium': { file: 'land-medium.mp3', half: 3, reach: 18, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 3, reach: 18, volume: 0.14 },
 };
