@@ -7,7 +7,8 @@
 // shots at once gets squashed rather than clipping.
 import type { GearId, ItemId, Vec3 } from '@world/shared';
 
-export type SoundId = 'gun' | 'sniper' | 'whiz-1' | 'whiz-2' | 'whiz-3' | 'flame' | 'jet';
+export type SoundId =
+  'gun' | 'sniper' | 'whiz-1' | 'whiz-2' | 'whiz-3' | 'flame' | 'jet' | 'step-1' | 'step-2' | 'step-3' | 'step-4';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -19,7 +20,7 @@ interface SoundSpec {
 }
 
 // Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
-// Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, jetpack. (The jet recording is
+// Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, jetpack, footsteps. (The jet recording is
 // denser than the flame's, so it needs the lower volume to come out quieter.)
 const SOUNDS: Record<SoundId, SoundSpec> = {
   gun: { file: 'gun.mp3', half: 10, volume: 0.35 },
@@ -29,6 +30,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'whiz-3': { file: 'whiz-3.mp3', half: 4, volume: 0.3 },
   flame: { file: 'flame.wav', intro: 'flame-start.wav', half: 6, volume: 0.12, loop: true },
   jet: { file: 'jet.wav', half: 8, volume: 0.06, loop: true, swell: 0.8 },
+  'step-1': { file: 'step-1.mp3', half: 3, volume: 0.08 },
+  'step-2': { file: 'step-2.mp3', half: 3, volume: 0.08 },
+  'step-3': { file: 'step-3.mp3', half: 3, volume: 0.08 },
+  'step-4': { file: 'step-4.mp3', half: 3, volume: 0.08 },
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that

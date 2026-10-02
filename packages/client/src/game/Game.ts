@@ -13,6 +13,7 @@ import {
   actionForKey,
   createRng,
   hashSeed,
+  isGrounded,
   itemHelp,
   itemStats,
   lookDirection,
@@ -24,6 +25,7 @@ import {
   type ServerMessage,
   type Vec3,
 } from '@world/shared';
+import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
@@ -114,6 +116,7 @@ export class Game {
   private stepEase = 0; // metres the camera trails the predicted eye height after a step
   private hoveredSky: SkyObject | null = null;
   private readonly sfx = new Sfx();
+  private readonly footsteps = new Footsteps(this.sfx);
   // Other players' tap shots this tick, heard before the tick's snapshot says where they stood and
   // looked; `hitMe` once a hit on the local player from them comes in.
   private pendingShots: { shooter: string; hitMe: boolean }[] = [];
@@ -563,6 +566,15 @@ export class Game {
         at: null,
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
+    ]);
+    this.footsteps.update([
+      { id: this.myId, pos: self.pos, grounded: !this.dead && isGrounded(self), self: true },
+      ...sampled.players.map((rp) => ({
+        id: rp.id,
+        pos: { x: rp.x, y: rp.y, z: rp.z },
+        grounded: rp.grounded && !rp.dead,
+        self: false,
+      })),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
