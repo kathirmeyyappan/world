@@ -9,7 +9,7 @@
 import { Color3, Mesh, MeshBuilder, TransformNode, Vector3, VertexData, type StandardMaterial } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { centreOf, createShadowBlob, flat, placeShadow, type Avatar } from './common';
+import { centreOf, createShadowBlob, flat, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 import { SAHUR_MODEL } from './sahurModel';
@@ -45,9 +45,7 @@ export class SahurAvatar implements Avatar {
   private readonly hitFlash: HitFlash;
   private readonly twitchOffset: number;
   private dead = false;
-  private phase = 0;
-  private lastX = 0;
-  private lastZ = 0;
+  private readonly gait = new Gait(3.6);
 
   constructor(
     engine: Engine,
@@ -118,9 +116,6 @@ export class SahurAvatar implements Avatar {
 
   update(p: RemotePlayer): void {
     this.hitFlash.update();
-    const moved = Math.hypot(p.x - this.lastX, p.z - this.lastZ);
-    this.lastX = p.x;
-    this.lastZ = p.z;
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
     const hip = SAHUR_MODEL.parts.body.pivot[1];
@@ -128,12 +123,12 @@ export class SahurAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
 
     // Stilted walk: stiff legs swing from the hip and the log bobs; the arms keep hanging.
-    if (moved > 0.002 && !airborne) this.phase += moved * 3.6;
-    const effort = airborne ? 0 : Math.min(1, moved * 60);
-    const swing = airborne ? 0.15 : Math.sin(this.phase) * 0.32 * effort;
+    this.gait.update(p.x, p.z, airborne);
+    const { phase, effort } = this.gait;
+    const swing = airborne ? 0.15 : Math.sin(phase) * 0.32 * effort;
     this.legL.rotation.x = swing;
     this.legR.rotation.x = -swing;
-    this.log.position.y = hip + (airborne ? 0 : Math.abs(Math.sin(this.phase)) * 0.05 * effort);
+    this.log.position.y = hip + (airborne ? 0 : Math.abs(Math.sin(phase)) * 0.05 * effort);
 
     // The log leans a little with the look and sways slowly; every few seconds, a short jerk sideways.
     const now = performance.now();

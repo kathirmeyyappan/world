@@ -6,7 +6,7 @@
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, flat, placeShadow, type Avatar } from './common';
+import { box, centreOf, createShadowBlob, flat, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 
@@ -28,9 +28,7 @@ export class ElizabethAvatar implements Avatar {
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
   private dead = false;
-  private phase = 0;
-  private lastX = 0;
-  private lastZ = 0;
+  private readonly gait = new Gait(5);
 
   constructor(
     engine: Engine,
@@ -121,24 +119,21 @@ export class ElizabethAvatar implements Avatar {
 
   update(p: RemotePlayer): void {
     this.hitFlash.update();
-    const moved = Math.hypot(p.x - this.lastX, p.z - this.lastZ);
-    this.lastX = p.x;
-    this.lastZ = p.z;
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.y = p.yaw;
 
     // Waddle: rock side to side and lift alternate feet, scaled by how fast they're going.
-    if (moved > 0.002 && !airborne) this.phase += moved * 5;
-    const effort = airborne ? 0 : Math.min(1, moved * 60);
-    const sway = Math.sin(this.phase) * 0.09 * effort;
+    this.gait.update(p.x, p.z, airborne);
+    const { phase, effort } = this.gait;
+    const sway = Math.sin(phase) * 0.09 * effort;
     this.body.rotation.z = sway;
     this.body.rotation.x = p.pitch * 0.25;
-    this.footL.position.y = 0.03 + Math.max(0, Math.sin(this.phase)) * 0.09 * effort;
-    this.footR.position.y = 0.03 + Math.max(0, -Math.sin(this.phase)) * 0.09 * effort;
-    this.flipperL.rotation.x = -Math.sin(this.phase) * 0.3 * effort;
-    this.flipperR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : Math.sin(this.phase) * 0.3 * effort;
+    this.footL.position.y = 0.03 + Math.max(0, Math.sin(phase)) * 0.09 * effort;
+    this.footR.position.y = 0.03 + Math.max(0, -Math.sin(phase)) * 0.09 * effort;
+    this.flipperL.rotation.x = -Math.sin(phase) * 0.3 * effort;
+    this.flipperR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : Math.sin(phase) * 0.3 * effort;
     this.flipperR.rotation.z = p.item ? 0 : 0.3;
 
     this.items.update(p);
