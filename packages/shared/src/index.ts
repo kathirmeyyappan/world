@@ -14,6 +14,7 @@ export * from './sim/gear';
 export * from './sim/regions';
 export * from './sim/pickups';
 export * from './sim/wallFrames';
+export * from './sim/ceilingFrames';
 export * from './sim/avatars';
 export * from './sim/bots';
 export * from './sim/defaultBots';

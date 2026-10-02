@@ -1,5 +1,5 @@
-// A line of text sitting just above a world position: a speech bubble with a tail pointing down at
-// it, or a plain box. While you look at the object the line types in; look away and it
+// A line of text sitting just above a world position (or, for a plain box, hanging just below
+// one): a speech bubble with a tail pointing down at it, or a plain box. While you look at the object the line types in; look away and it
 // backspaces out from wherever it got to. Look back and it resumes.
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 
@@ -10,6 +10,7 @@ export class Bubble {
   private readonly el: HTMLDivElement;
   private readonly text: HTMLSpanElement;
   private anchor: Vector3 | null = null;
+  private below = false;
   private line = '';
   private shown = 0; // characters currently on screen
   private dir: 1 | -1 = -1; // typing while hovered, deleting otherwise
@@ -27,13 +28,14 @@ export class Bubble {
   }
 
   // Start (or resume) typing this line. A different line replaces whatever was showing.
-  hover(line: string, anchor: Vector3): void {
+  hover(line: string, anchor: Vector3, below = false): void {
     if (line !== this.line) {
       this.line = line;
       this.shown = 0;
       this.text.textContent = '';
     }
     this.anchor = anchor;
+    this.below = below;
     this.dir = 1;
     this.el.classList.remove('hidden');
     this.run();
@@ -86,7 +88,9 @@ export class Bubble {
     const visible = !behind && s.x > -100 && s.x < w + 100 && s.y > -50 && s.y < h + 50;
     this.el.style.visibility = visible ? 'visible' : 'hidden';
     const x = Math.min(w - 20, Math.max(20, s.x));
-    const y = Math.min(h - 20, Math.max(60, s.y));
-    this.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+    const y = this.below
+      ? Math.min(h - 20 - this.el.offsetHeight, Math.max(20, s.y))
+      : Math.min(h - 20, Math.max(60, s.y));
+    this.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, ${this.below ? 0 : -100}%)`;
   }
 }

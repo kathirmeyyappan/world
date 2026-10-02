@@ -119,6 +119,14 @@ a test hangs every listed frame, so a bad one fails CI. Only the client draws th
 (`render/WallFrames.ts`, picture on a wood border); nothing collides with them and they're not
 structures, so the bot map doesn't change.
 
+Projections (`TUNG_TUNG_TOWER_CEILING_FRAMES`, same file) hang face down 1 m under the middle of a
+room's ceiling, bob, and turn about their centre to line up with whoever's looking: a room, a
+`width` in metres, and what they show, which is an image or a live `page` (a URL, its aspect, and
+the CSS `width` it lays out across, so a wider page shows smaller). `layoutCeilingFrame`
+(`sim/ceilingFrames.ts`) throws if one's corners, turning, would reach the stair. The client
+(`render/CeilingFrames.ts`) draws a page as an iframe under the canvas, seen through a hole its
+mesh cuts in the depth buffer, so walls and players still cover it; the iframe never takes the mouse.
+
 ### Regions and pickups
 
 - A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a

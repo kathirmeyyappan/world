@@ -7,6 +7,7 @@
 //
 // The ground floor's stair climbs the wall from 135° round to -45° (315°), 20 m over that half
 // turn, so murals there hang on the other half, from 135° on round through 180°, 270° to 315°.
+import type { CeilingFrame } from '../sim/ceilingFrames';
 import type { WallFrame } from '../sim/wallFrames';
 import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 
@@ -35,6 +36,22 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
       src: '/assets/frames/nepal_libration_force.jpg',
       aspect: 1920 / 1084,
       line: 'I went to UChicago. This is the Nepal Liberation Force. Together we are strong.',
+    },
+  },
+];
+
+// Projected under the middle of a floor's ceiling (sim/ceilingFrames.ts), turning to line up with
+// whoever looks up at it.
+export const TUNG_TUNG_TOWER_CEILING_FRAMES: CeilingFrame[] = [
+  {
+    room: GROUND,
+    width: 19,
+    show: {
+      kind: 'page',
+      src: 'https://widgets.kathirm.com/spotify/',
+      aspect: 16 / 9,
+      width: 800,
+      line: 'This is a live Spotify widget. I wonder what it saying I last listened to / am listening to rn...',
     },
   },
 ];
