@@ -295,6 +295,10 @@ body {
   font: 21px/1.15 var(--mono);
   will-change: transform;
 }
+.bubble.plain {
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: none;
+}
 .bubble.speech::after {
   content: '';
   position: absolute;
