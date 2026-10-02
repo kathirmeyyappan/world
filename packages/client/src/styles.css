@@ -297,6 +297,7 @@ body {
   will-change: transform;
 }
 .bubble.plain {
+  max-width: min(640px, calc(100vw - 40px)); /* frames' lines run long */
   background: rgba(0, 0, 0, 0.5);
   box-shadow: none;
 }
