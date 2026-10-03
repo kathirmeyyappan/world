@@ -22,8 +22,7 @@ export const STAIR_INNER = INNER - STAIR_WIDTH;
 const FLOOR_R = INNER + WALL / 2; // floors run into the wall, so there's no gap at its foot
 export const STOREY = 20;
 const GROUND_FLOOR = 0.05; // the ground floor's tiles sit this far above the ground
-const SLAB = 0.4; // thickness of the upper floors
-const ROOF_SLAB = 0.6;
+const SLAB = 0.4; // thickness of the upper floors and the roof
 const ROOF_WALL = 1; // the wall stands this far above the roof all the way round (cover to shoot over)
 const MERLON = 1.5; // and every other segment stands this far above that
 export const OPENING = 8; // the roof is open within this radius
@@ -62,11 +61,11 @@ export function keep({ x, z, entrance, floors }: { x: number; z: number; entranc
   // Floor i is open (i above 0, or the roof at floors.length) where the flight from below arrives,
   // i half turns on from the lowest flight's start.
   const hole = (i: number) => ({ inner: STAIR_INNER, from: stair + i * Math.PI - HOLE, to: stair + i * Math.PI });
-  // Floor i's doorways. The main door on the bottom and top floors (the tower's way in from the main
-  // disc and onto its sky bridge) is twice the others' width and height.
+  // Floor i's doorways. The main door (a building's way in, the tower's onto its sky bridge) is
+  // twice the others' width and height on every floor, so a floor is the same room in a building.
   const doors = (i: number) =>
     (floors[i] === 0 ? ENTRANCES : UPPER_DOORS).map((angle) => {
-      const main = angle === MAIN && (i === 0 || i === floors.length - 1);
+      const main = angle === MAIN;
       return { angle: angle + turn, width: main ? 2 * DOOR : DOOR, top: main ? 2 * DOOR_HEIGHT : DOOR_HEIGHT };
     });
   const onWall = (angle: number) => ({ x: x + r * Math.cos(angle), z: z + r * Math.sin(angle) });
@@ -111,7 +110,7 @@ export function keep({ x, z, entrance, floors }: { x: number; z: number; entranc
       z,
       r: FLOOR_R,
       y: roof,
-      thickness: ROOF_SLAB,
+      thickness: SLAB,
       inner: OPENING,
       hole: hole(floors.length),
       material: 'flagstone',
@@ -131,7 +130,7 @@ export function keep({ x, z, entrance, floors }: { x: number; z: number; entranc
     x,
     z,
     floor: level(i),
-    ceiling: (i + 1) * STOREY - (i === floors.length - 1 ? ROOF_SLAB : SLAB),
+    ceiling: (i + 1) * STOREY - SLAB,
     middle: i * STOREY + STOREY / 2,
     wall: { r, thickness: WALL, segments: SEGMENTS },
     entrance,

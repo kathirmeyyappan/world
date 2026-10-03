@@ -84,10 +84,10 @@ wire: server and client both build the world from that file.
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area, its side facing
-  the tower and the tower's ground floor), each area as likely as its weight, standing
-  on the ground (or anything within a step of it) with headroom, so a building's ground floor can be
-  a spawn point and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
+- Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area and its side facing
+  the tower), each area as likely as its weight, standing on the ground (or anything within a step
+  of it) with headroom, so a building's ground floor can be a spawn point and roofs, decks and wall
+  tops never are. Info cubes wander the main disc at about 3 m and
   pass through structures, so tall pieces there will have cubes floating through them.
 - Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
   hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:

@@ -548,7 +548,7 @@ export class Game {
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.frameBubble.update(this.engine.scene, this.camera, this.canvasEl);
-    this.areaTitle.update(p.x, p.z);
+    this.areaTitle.update(p);
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,
