@@ -43,6 +43,7 @@ export interface WallFrame {
   angle: number; // degrees round from the entrance, to your right as you stand in the middle facing it
   height: number; // metres
   show: FrameShow;
+  crt?: boolean; // played like an old screen: faint bands rolling down it, and a little static
 }
 
 // One flat piece of a frame: corners bottom-left, bottom-right, top-right, top-left as seen from

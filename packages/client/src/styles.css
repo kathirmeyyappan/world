@@ -1480,10 +1480,64 @@ body {
   overflow: hidden;
   pointer-events: none;
 }
-#crisp-panels canvas {
+.crisp-panel {
   position: absolute;
   left: 50%;
   top: 50%;
   transform-origin: 0 0;
   will-change: transform;
+  overflow: hidden;
+}
+.crisp-panel canvas {
+  display: block;
+}
+/* An old screen's look over a crisp picture: a few soft light and dark bands rolling down, and
+   faint static jumping about. Both loop by moving a layer, so they never repaint the picture. */
+.crt-roll,
+.crt-static {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  will-change: transform;
+}
+.crt-roll {
+  top: -100%;
+  height: 200%;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 6%,
+    transparent 12%,
+    transparent 20%,
+    rgba(0, 0, 0, 0.07) 28%,
+    transparent 36%,
+    transparent 50%
+  );
+  animation: crt-roll 9s linear infinite;
+}
+@keyframes crt-roll {
+  to {
+    transform: translateY(50%);
+  }
+}
+.crt-static {
+  top: -64px;
+  left: -64px;
+  width: calc(100% + 128px);
+  height: calc(100% + 128px);
+  animation: crt-static 0.5s steps(1) infinite;
+}
+@keyframes crt-static {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-37px, 51px);
+  }
+  50% {
+    transform: translate(59px, -23px);
+  }
+  75% {
+    transform: translate(-61px, -47px);
+  }
 }
