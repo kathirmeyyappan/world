@@ -45,7 +45,7 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
     show: {
       kind: 'widget',
       widget: 'spotify',
-      aspect: 16 / 9,
+      aspect: 2,
       line: "This is what I am listening to on Spotify right now (or last listened to). I wonder what it's showing...",
     },
   },

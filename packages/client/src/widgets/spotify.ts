@@ -7,7 +7,9 @@ import type { Widget, WidgetFactory } from './index';
 const WORKER_URL = 'https://spotify-widget.kathirmey.workers.dev';
 const POLL_MS = 7000; // as often as the web widget polls
 const TICK_MS = 125; // while playing: the progress bar and the equaliser bars move this often
-const VIEW_W = 800; // CSS pixels across the window it's laid out in, as if it were the web page
+// CSS pixels across the window it's laid out in, as if it were the web page: just past the card's
+// 480 px and widget.css's 24 px padding, so the card fills the frame's width.
+const VIEW_W = 540;
 const SCALE = 1.5; // canvas pixels per CSS pixel
 const FONT = "'Inter', system-ui, -apple-system, sans-serif";
 const GREEN = '#1db954';

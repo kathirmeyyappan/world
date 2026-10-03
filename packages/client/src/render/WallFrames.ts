@@ -81,7 +81,9 @@ function pictureOf(show: FrameShow, name: string, scene: Scene): Texture {
 
 function widgetTexture(name: WidgetName, aspect: number, mesh: string, scene: Scene): Texture {
   const widget = WIDGETS[name](aspect);
-  const tex = new DynamicTexture(`${mesh}-widget`, widget.canvas, scene, true);
+  // No mipmaps: a widget is mostly text, which they blur; sampled straight it stays legible at a
+  // distance, at the cost of a little shimmer.
+  const tex = new DynamicTexture(`${mesh}-widget`, widget.canvas, scene, false, Texture.BILINEAR_SAMPLINGMODE);
   widget.onPaint = () => tex.update();
   tex.update();
   return tex;
