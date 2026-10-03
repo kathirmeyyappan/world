@@ -415,15 +415,16 @@ few centimetres off the brick, and throws if it doesn't fit between floor and ce
 over a doorway, or crosses the stair (whose steps must pass well under it or over it);
 a test hangs every listed frame, so a bad one fails CI. Only the client draws them
 (`render/WallFrames.ts`, picture on a wood border); nothing collides with them and they're not
-structures, so the bot map doesn't change.
+structures, so the bot map doesn't change. The browser draws each frame's picture at full
+resolution (and without the scene's tone mapping) in a layer under the 3D view, one slice per wall
+panel, seen through a hole the frame's mesh cuts in the depth buffer (`render/CrispPanels.ts`), so
+it stays sharp while walls and players still cover it.
 
 A widget is a copy of one at widgets.kathirm.com that the client draws itself
 (`packages/client/src/widgets/`): it fetches the same data the web widget does and paints the same
-layout onto a canvas. The browser draws that canvas at full resolution in a layer under the 3D
-view, one slice per wall panel, seen through a hole the frame's mesh cuts in the depth buffer
-(`render/CrispPanels.ts`), so its text stays sharp while walls and players still cover it. A
-new one is a name in `WidgetName` (`sim/wallFrames.ts`) and a factory in `WIDGETS`; its data source
-has to allow the game's origin (CORS).
+layout onto a canvas, fetching and animating only while its frame is in view. A new one is a name
+in `WidgetName` (`sim/wallFrames.ts`) and a factory in `WIDGETS`; its data source has to allow the
+game's origin (CORS).
 
 ### Regions and pickups
 

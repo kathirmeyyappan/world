@@ -1,13 +1,14 @@
 // Pictures the browser draws itself, at full screen resolution, in a layer under the 3D canvas,
 // each lined up with a flat panel in the scene. The 3D view renders at a fraction of the screen's
 // resolution (Engine's PIXEL_SCALE), which is the look everywhere else but turns small text to
-// mush; this is for what has to stay sharp, like a widget's text.
+// mush; this is for what has to stay sharp, like the pictures on the tower's walls.
 //
 // A panel's mesh writes depth but no colour and is drawn before everything else, and the scene
 // clears to transparent (the sky covers the rest), so the canvas stays see-through exactly where
 // the panel is and nothing nearer covers it: walls and players hide a panel like any surface. The
 // pictures are plain canvases the page has already drawn, so moving them each frame is only the
-// browser placing a texture; they're repainted only when their source changes.
+// browser placing a texture; they're repainted only when their source changes, and hidden (and
+// whoever drew them told) while their mesh is out of the camera's view.
 import { Color4, Frustum, Matrix, StandardMaterial, Vector3, type AbstractMesh, type Camera } from '@babylonjs/core';
 import type { FramePanel } from '@world/shared';
 import type { Engine } from './Engine';
@@ -20,10 +21,17 @@ interface Panel {
   u: [number, number]; // the stretch of the source it shows, as fractions of its width
 }
 
+interface Shown {
+  mask: AbstractMesh;
+  panels: Panel[];
+  visible: boolean;
+  onShown?: (visible: boolean) => void;
+}
+
 export class CrispPanels {
   private readonly layer = document.createElement('div');
   private readonly masks = new Set<AbstractMesh>();
-  private readonly shown: { mask: AbstractMesh; panels: Panel[]; visible: boolean }[] = [];
+  private readonly shown: Shown[] = [];
 
   constructor(engine: Engine) {
     const scene = engine.scene;
@@ -36,49 +44,61 @@ export class CrispPanels {
   }
 
   // Show `source` across a frame's `panels` (its picture's layout, `u` running 0 to 1 across it),
-  // cutting the hole with `mask`, the mesh of those panels. Returns what to call when `source` has
-  // been drawn again.
-  add(mask: AbstractMesh, panels: FramePanel[], source: HTMLCanvasElement): () => void {
+  // cutting the hole with `mask`, the mesh of those panels; an image still loading shows once it
+  // has. `onShown` hears when the frame comes into and goes out of view. Returns what to call when
+  // `source` has been drawn again.
+  add(
+    mask: AbstractMesh,
+    panels: FramePanel[],
+    source: HTMLCanvasElement | HTMLImageElement,
+    onShown?: (visible: boolean) => void,
+  ): () => void {
     const mat = new StandardMaterial(`${mask.name}-hole`, mask.getScene());
     mat.disableColorWrite = true;
     mat.backFaceCulling = false;
     mask.material = mat;
     this.masks.add(mask);
-    const slices = panels.map(({ corners: [bl, , tr, tl], u }) => {
-      const el = document.createElement('canvas');
-      el.width = Math.max(1, Math.round(source.width * (u[1] - u[0])));
-      el.height = source.height;
-      el.style.width = `${el.width}px`;
-      el.style.height = `${el.height}px`;
-      this.layer.append(el);
-      // Across the element runs from tl to tr, and down it from tl to bl.
-      const ax = (tr.x - tl.x) / el.width;
-      const ay = (tr.y - tl.y) / el.width;
-      const az = (tr.z - tl.z) / el.width;
-      const dx = (bl.x - tl.x) / el.height;
-      const dy = (bl.y - tl.y) / el.height;
-      const dz = (bl.z - tl.z) / el.height;
-      // Out of the element: any direction off its plane keeps the matrix invertible, which CSS needs.
-      const n = Vector3.Cross(new Vector3(ax, ay, az), new Vector3(dx, dy, dz)).normalize();
-      // prettier-ignore
-      const toWorld = Matrix.FromValues(
-        ax, ay, az, 0,
-        dx, dy, dz, 0,
-        n.x, n.y, n.z, 0,
-        tl.x, tl.y, tl.z, 1,
-      );
-      const slice: Panel = { el, toWorld, u };
-      return slice;
-    });
-    this.shown.push({ mask, panels: slices, visible: true });
+    const frame: Shown = { mask, panels: [], visible: false, onShown };
+    this.shown.push(frame);
     const repaint = () => {
-      for (const { el, u } of slices) {
+      for (const { el, u } of frame.panels) {
         const ctx = el.getContext('2d')!;
         ctx.clearRect(0, 0, el.width, el.height);
         ctx.drawImage(source, source.width * u[0], 0, el.width, el.height, 0, 0, el.width, el.height);
       }
     };
-    repaint();
+    const build = () => {
+      frame.panels = panels.map(({ corners: [bl, , tr, tl], u }) => {
+        const el = document.createElement('canvas');
+        el.width = Math.max(1, Math.round(source.width * (u[1] - u[0])));
+        el.height = source.height;
+        el.style.width = `${el.width}px`;
+        el.style.height = `${el.height}px`;
+        el.style.visibility = frame.visible ? '' : 'hidden';
+        this.layer.append(el);
+        // Across the element runs from tl to tr, and down it from tl to bl.
+        const ax = (tr.x - tl.x) / el.width;
+        const ay = (tr.y - tl.y) / el.width;
+        const az = (tr.z - tl.z) / el.width;
+        const dx = (bl.x - tl.x) / el.height;
+        const dy = (bl.y - tl.y) / el.height;
+        const dz = (bl.z - tl.z) / el.height;
+        // Out of the element: any direction off its plane keeps the matrix invertible, which CSS needs.
+        const n = Vector3.Cross(new Vector3(ax, ay, az), new Vector3(dx, dy, dz)).normalize();
+        // prettier-ignore
+        const toWorld = Matrix.FromValues(
+          ax, ay, az, 0,
+          dx, dy, dz, 0,
+          n.x, n.y, n.z, 0,
+          tl.x, tl.y, tl.z, 1,
+        );
+        const slice: Panel = { el, toWorld, u };
+        return slice;
+      });
+      repaint();
+    };
+    if (source instanceof HTMLImageElement && !source.complete) source.addEventListener('load', build, { once: true });
+    else build();
     return repaint;
   }
 
@@ -96,6 +116,7 @@ export class CrispPanels {
       if (visible !== frame.visible) {
         frame.visible = visible;
         for (const { el } of frame.panels) el.style.visibility = visible ? '' : 'hidden';
+        frame.onShown?.(visible);
       }
       if (!visible) continue;
       for (const { el, toWorld } of frame.panels)

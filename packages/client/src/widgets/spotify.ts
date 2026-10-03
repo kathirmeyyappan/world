@@ -53,7 +53,7 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
   wash.width = canvas.width;
   wash.height = canvas.height;
 
-  const widget: Widget = { canvas, onPaint: () => {} };
+  const widget: Widget = { canvas, onPaint: () => {}, setShown: () => {} };
   let track: Track = {};
   let status: Status = 'offline';
   let art: HTMLImageElement | null = null;
@@ -202,16 +202,12 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
       }
     }
     paintWash();
-    if (status === 'playing' && ticker === null) ticker = window.setInterval(paint, TICK_MS);
-    if (status !== 'playing' && ticker !== null) {
-      clearInterval(ticker);
-      ticker = null;
-    }
+    sync();
     paint();
   };
 
-  // Poll like the web widget: every POLL_MS while the tab is showing, and at once when it shows
-  // again. A failed poll keeps what's there.
+  // Poll like the web widget, every POLL_MS, but only while the frame is in view and the tab is
+  // showing; at once when both come back. A failed poll keeps what's there.
   const poll = async () => {
     try {
       const res = await fetch(WORKER_URL);
@@ -220,20 +216,34 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
       // keep the last state
     }
   };
+  let inView = false;
   let polling: number | null = null;
-  const start = () => {
-    if (polling !== null) return;
-    void poll();
-    polling = window.setInterval(() => void poll(), POLL_MS);
+  // Start or stop polling, and the ticker that moves the progress and equaliser while playing, to
+  // match whether anyone can see it.
+  const sync = () => {
+    const live = inView && !document.hidden;
+    if (live && polling === null) {
+      void poll();
+      polling = window.setInterval(() => void poll(), POLL_MS);
+    }
+    if (!live && polling !== null) {
+      clearInterval(polling);
+      polling = null;
+    }
+    const tick = live && status === 'playing';
+    if (tick && ticker === null) ticker = window.setInterval(paint, TICK_MS);
+    if (!tick && ticker !== null) {
+      clearInterval(ticker);
+      ticker = null;
+    }
   };
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) return start();
-    if (polling !== null) clearInterval(polling);
-    polling = null;
-  });
+  document.addEventListener('visibilitychange', sync);
+  widget.setShown = (shown) => {
+    inView = shown;
+    sync();
+  };
 
   paint();
-  start();
   return widget;
 };
 
