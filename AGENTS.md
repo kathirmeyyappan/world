@@ -376,9 +376,9 @@ wire: server and client both build the world from that file.
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Spawns land in the main disc only (`SPAWN_AREA`, a region; see below), standing on the ground
-  (or anything within a step of it) with headroom, so a building's ground floor there can be a spawn
-  point and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
+- Spawns land anywhere on the world's floor, at random (`Room.spawnPoint`), standing on the ground
+  (or anything within a step of it) with headroom, so a building's ground floor can be a spawn point
+  and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
   pass through structures, so tall pieces there will have cubes floating through them.
 - Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
   hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:
@@ -432,9 +432,9 @@ game's origin (CORS).
 - A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a
   floor at height `y`.
   Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS` and `TUNG_TUNG_TERRACE`) and
-  `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`,
-  `SPAWN_AREA`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
-  reshape a place where it's defined, never at the spawner.
+  `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`). A
+  pickup picks its spot with `randomPointInRegion`, so reshape a place where it's defined, never at
+  the spawner.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
   kind, how many, and how often one comes back. What's where is that list alone, plus drops:
   `dropPickup` leaves one at a spot, in no area, where it stays until taken and never comes back. A

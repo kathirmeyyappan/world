@@ -10,6 +10,7 @@ import {
   MAX_REWIND_TICKS,
   MOVE_SPEED,
   Room,
+  STEP_UP,
   Structures,
   TICK_DT,
   TICK_RATE,
@@ -19,6 +20,7 @@ import {
   type InputFrame,
   type ItemAction,
   type ServerMessage,
+  type Vec3,
 } from '@world/shared';
 
 function link() {
@@ -90,19 +92,24 @@ test('room calls onEmpty when the last player leaves', () => {
   assert.equal(empty, 1);
 });
 
-test('players spawn at random spots across the main area only, clear of its wall', () => {
+test('players spawn at random spots on the ground anywhere in the world, clear of its edge', () => {
   const room = new Room('spawn', { seed: 3 });
-  const spots: { x: number; z: number }[] = [];
-  for (let i = 0; i < 30; i++) {
+  const spots: Vec3[] = [];
+  for (let i = 0; i < 40; i++) {
     const l = link();
     const id = room.join(`p${i}`, l)!;
     const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
     assert.ok(me);
-    spots.push({ x: me.pos.x, z: me.pos.z });
-    assert.ok(Math.hypot(me.pos.x, me.pos.z) <= 50 - 3 + 1e-9, 'in the main disc, clear of its wall');
+    spots.push(me.pos);
+    assert.ok(worldDistance(me.pos.x, me.pos.z) <= -3 + 1e-9, 'clear of the edge');
+    assert.ok(me.pos.y <= EYE_HEIGHT + STEP_UP + 1e-9, 'on the ground, or a step up from it');
     room.leave(id);
   }
   assert.ok(new Set(spots.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`)).size === spots.length, 'all different');
+  assert.ok(
+    spots.some((p) => Math.hypot(p.x, p.z) > 50),
+    'some outside the main area',
+  );
 });
 
 test('/speedy and /s boost the sender and tell everyone in grey', () => {
