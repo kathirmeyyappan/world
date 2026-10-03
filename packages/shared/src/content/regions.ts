@@ -1,5 +1,5 @@
-// The world's named regions (sim/regions.ts): where pickups float about (content/pickups.ts) and
-// where bots start out. Reshape a place here, or in the landmark that owns it, and everything
+// The world's named regions (sim/regions.ts): where people spawn, and where pickups float about
+// (content/pickups.ts). Reshape a place here, or in the landmark that owns it, and everything
 // placed in it follows.
 import { MAIN_DISC } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -11,3 +11,12 @@ export const TERRACE: Region = TUNG_TUNG_TERRACE;
 export const TOWER_LEVELS: Region[] = TUNG_TUNG_TOWER_LEVELS;
 // The ground floor and the three above it, inside the wall: where the sniper bot starts out.
 export const TOWER_INSIDE: Region[] = TUNG_TUNG_TOWER_INSIDE;
+
+// Where people spawn, each area as likely as its weight: the middle of the main area, its side
+// facing the tower, the bridge over to the tower's grounds, and the tower's ground floor.
+export const SPAWN_AREAS: { region: Region; weight: number }[] = [
+  { region: { kind: 'disc', x: 0, z: 0, r: 15, y: 0 }, weight: 3 },
+  { region: { kind: 'rect', x: 31.5, z: 0, w: 25, d: 30, y: 0 }, weight: 3 },
+  { region: { kind: 'rect', x: 66, z: 0, w: 28, d: 6, y: 0 }, weight: 1 },
+  { region: TUNG_TUNG_TOWER_INSIDE[0], weight: 3 },
+];

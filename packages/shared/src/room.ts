@@ -3,6 +3,7 @@
 // can both host one. Ticks on a fixed timestep and broadcasts a snapshot after every tick.
 import { CUBE_IDS } from './content/cubes';
 import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
+import { SPAWN_AREAS } from './content/regions';
 import {
   isClientMessage,
   type ClientMessage,
@@ -34,6 +35,7 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
+import { randomPointInRegion, type Region } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
@@ -45,8 +47,6 @@ import {
   WORLD_STRUCTURES,
   clampToWorld,
   randomPointInDisc,
-  worldBounds,
-  worldDiscs,
   worldDistance,
   type WorldPart,
 } from './sim/world';
@@ -56,6 +56,7 @@ declare function setInterval(cb: () => void, ms: number): unknown;
 declare function clearInterval(handle: unknown): void;
 
 const SPAWN_WALL_MARGIN = 3;
+const SPAWN_MARGIN = 1; // metres a spawn keeps inside its area: more than a body's radius
 // Browsers leave whenever the player rejoins during the death screen, with a little extra time
 // as a fallback. Bots cannot rejoin themselves, so approximate that window's midpoint.
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
@@ -499,34 +500,39 @@ export class Room {
     return { x: p.x, y: this.structures.groundAt(p.x, p.z, feet.y + STEP_UP) + EYE_HEIGHT, z: p.z };
   }
 
-  // Anywhere on the world's floor (or, given `near`, within CALLED_BOT_RANGE of it), clear of its
-  // edge and not on top of a cube, standing on the ground (or anything within a step of it) with
-  // room for a body above: inside a building's ground floor, never on a roof, and never inside a
-  // wall. Returns the eye position.
+  // Somewhere in SPAWN_AREAS, picked by weight (or, given `near`, within CALLED_BOT_RANGE of it
+  // across the floor), clear of the walls and not on top of a cube, standing on the ground (or
+  // anything within a step of it) with room for a body above: inside a building's ground floor,
+  // never on a roof, and never inside a wall. Returns the eye position.
   private spawnPoint(near?: Vec3) {
     const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, STEP_UP);
     const roomy = (p: { x: number; z: number }) =>
       this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
-    let p = this.pointInWorld(near);
+    const area = this.spawnArea(); // one area for every try, so each gets its weight's share
+    const pick = () => (near ? this.pointNear(near) : randomPointInRegion(area, SPAWN_MARGIN, this.rng));
+    let p = pick();
     for (let i = 0; i < 20; i++) {
       if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN) && roomy(p)) break;
-      p = this.pointInWorld(near);
+      p = pick();
     }
     return { x: p.x, y: ground(p) + EYE_HEIGHT, z: p.z };
   }
 
-  // A random point SPAWN_WALL_MARGIN inside the world: anywhere in it, or within CALLED_BOT_RANGE of
-  // `near`. Twenty tries can all land outside (at the world's edge, over half of `near`'s circle
-  // can), and then it's `near` itself, or the middle of the world's first disc.
-  private pointInWorld(near?: Vec3): { x: number; z: number } {
-    const b = worldBounds(this.worldShape);
+  // One of SPAWN_AREAS, each as likely as its weight.
+  private spawnArea(): Region {
+    let roll = this.rng() * SPAWN_AREAS.reduce((sum, a) => sum + a.weight, 0);
+    return (SPAWN_AREAS.find((a) => (roll -= a.weight) < 0) ?? SPAWN_AREAS[0]).region;
+  }
+
+  // A random point within CALLED_BOT_RANGE of `near` and SPAWN_WALL_MARGIN inside the world; `near`
+  // itself if twenty tries all land outside (at the world's edge, over half the circle can).
+  private pointNear(near: Vec3): { x: number; z: number } {
+    const around = { kind: 'disc' as const, x: near.x, z: near.z, r: CALLED_BOT_RANGE };
     for (let i = 0; i < 20; i++) {
-      const p = near
-        ? randomPointInDisc({ kind: 'disc', x: near.x, z: near.z, r: CALLED_BOT_RANGE }, 0, this.rng)
-        : { x: b.minX + this.rng() * (b.maxX - b.minX), z: b.minZ + this.rng() * (b.maxZ - b.minZ) };
+      const p = randomPointInDisc(around, 0, this.rng);
       if (worldDistance(p.x, p.z, this.worldShape) <= -SPAWN_WALL_MARGIN) return p;
     }
-    return near ?? worldDiscs(this.worldShape)[0];
+    return { x: near.x, z: near.z };
   }
 }
 
