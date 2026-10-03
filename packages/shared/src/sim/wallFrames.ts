@@ -29,12 +29,14 @@ export interface RoundRoom {
   stair?: { from: number; climb: number };
 }
 
-export type FrameShow = {
-  kind: 'image';
-  src: string; // a path the client serves, like the sky's images
-  aspect: number; // width over height
-  line: string; // typed out while you look at it
-};
+// What a frame shows: a picture, or a live widget the client draws itself (client/src/widgets),
+// and the line typed out while you look at it. `aspect` is width over height.
+export type FrameShow =
+  | { kind: 'image'; src: string; aspect: number; line: string } // src: a path the client serves
+  | { kind: 'widget'; widget: WidgetName; aspect: number; line: string };
+
+// The live widgets a frame can show, after the ones at widgets.kathirm.com.
+export type WidgetName = 'spotify';
 
 export interface WallFrame {
   room: RoundRoom;
@@ -121,7 +123,7 @@ function check(
   bottom: number,
   top: number,
 ): void {
-  const where = `frame at ${f.angle}° (${f.show.src})`;
+  const where = `frame at ${f.angle}° (${f.show.kind === 'image' ? f.show.src : f.show.widget})`;
   if (bottom < room.floor + CLEAR || top > room.ceiling - CLEAR) throw new Error(`${where} is too tall for its room`);
   const span = (left - right) / 2;
   const middle = (left + right) / 2;

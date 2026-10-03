@@ -6,7 +6,8 @@
 // main one 6 m), or crosses the stair.
 //
 // The ground floor's stair climbs the wall from 135° round to -45° (315°), 20 m over that half
-// turn, so murals there hang on the other half, from 135° on round through 180°, 270° to 315°.
+// turn, so murals there hang on the other half, from 135° on round through 180° and 270°, or
+// under the top of the flight past 270°, where its steps run well over them.
 import type { WallFrame } from '../sim/wallFrames';
 import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 
@@ -14,7 +15,7 @@ const [GROUND] = TUNG_TUNG_TOWER_ROOMS;
 
 export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
   // Ground floor, clear of the doors at 180° and 270°: one between the stair's foot and 180°, one
-  // centred in the bay from 180° to 270°.
+  // centred in the bay from 180° to 270°, and one under the top of the flight.
   {
     room: GROUND,
     angle: 157.5,
@@ -35,6 +36,17 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
       src: '/assets/frames/nepal_libration_force.jpg',
       aspect: 1920 / 1084,
       line: 'I went to UChicago with some interesting fellas. This is the Nepal Liberation Force.',
+    },
+  },
+  {
+    room: GROUND,
+    angle: 313,
+    height: 8,
+    show: {
+      kind: 'widget',
+      widget: 'spotify',
+      aspect: 16 / 9,
+      line: "This is what I am listening to on Spotify right now (or last listened to). I wonder what it's showing...",
     },
   },
 ];
