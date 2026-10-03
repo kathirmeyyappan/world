@@ -363,15 +363,21 @@ wire: server and client both build the world from that file.
   walls, a doorway and a roof, and `terrain({ height })` samples a function. The round pieces:
   `roundWall` (straight segments at any base height, with gaps for doors and windows), `spiralStairs`
   (with an optional inner rail so players can't step off the inside) and `roundFloor` (gap-free rings,
-  with an optional hole for a stair coming up from below, or only an outer ring for a balcony). Write raw `{ kind: 'box', ... }` only for simple platforms
+  with an optional hole for a stair coming up from below, ending exactly where the stair does, and
+  with `inner` only the ring outside it, for a balcony or a roof open in the middle). Write raw `{ kind: 'box', ... }` only for simple platforms
   and pillars.
 - A landmark gets its own content file exporting its list (Tung Tung Tower is `content/tower.ts`,
   `TUNG_TUNG_TOWER`), with its dimensions as named constants at the top and a comment per group of
-  pieces; `content/structures.ts` just spreads the landmarks together. A piece you'll reuse (a
+  pieces; `content/structures.ts` just spreads the landmarks together. Tung Tung Tower and Buildings
+  1 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
+  floors (each one's doors and where its flight starts), stacked from the ground and turned to face
+  the way in. The tower stacks all four and each building stands one of them alone, so a floor is
+  the same room in both; change a floor there and both follow. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
-  `sim/world.ts`: the main disc (r 50 at the origin), the annex (r 30 at x 112) and the bridge between
-  them. Players are clamped 1 m inside it no matter what, so keep structures inside too.
+  `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
+  (r 30 at x 112) and the bridge between them, and the four buildings' grounds (r 25, 100 m out at
+  90°, 150°, 210° and 270°), each on a path from the main disc. Players are clamped 1 m inside it no matter what, so keep structures inside too.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
@@ -399,15 +405,16 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The tower's 1,444 pieces render as 19
-  meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a
+  so draw calls stay in the tens however many pieces there are. The world's 3,660 pieces render as
+  83 meshes (about 15 in view at once), and a world-spanning raycast costs about 50 µs. Check both numbers in the PR when a
   landmark adds a lot.
 
 ### Wall frames
 
-Murals hung inside a round room (the tower's floors) are listed in
-`packages/shared/src/content/towerFrames.ts`: a room from `TUNG_TUNG_TOWER_ROOMS`, an `angle` in
-degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
+Murals hung inside a round room (the tower's floors) are listed per floor in
+`packages/shared/src/content/towerFrames.ts`, and each floor's hang in both the tower's room
+(`TUNG_TUNG_TOWER_ROOMS`) and the building that is that floor alone (`BUILDING_ROOMS`). Each is an
+`angle` in degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
 metres, and what it `show`s (an image's path, or a live `widget` by name; its aspect; and the
 `line` typed out while you look at it), with `crt: true` to play it like an old screen (faint bands
 rolling down it and a little static, animated by CSS alone). The width is height times aspect, and every frame is centred halfway up its storey (the
@@ -458,7 +465,7 @@ the client's `build` (the compiler asks for both), a check in `validateStructure
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
 Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`, about ten seconds): the structures, the walkable graph, the lookouts,
+the real sim (`sim/botMap.ts`, about a minute): the structures, the walkable graph, the lookouts,
 and every avatar's hitbox. Rebuild it and commit the new map with the change whenever any of those
 inputs move: a structure or landmark added or changed, the world's outline, the player's body or
 movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until

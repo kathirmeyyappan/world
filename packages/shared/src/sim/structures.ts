@@ -319,10 +319,12 @@ export function spiralStairs(opts: {
 
 // A round floor of radius r whose top is at y, with no gaps: a square in the middle and rings of
 // sector-shaped boxes around it, each overlapping its neighbours. An optional hole (for a stair
-// coming up from below) removes every sector of the outer ring, from `inner` out to r, that touches
-// the angles `from`..`to`; the hole is never smaller than asked. With `inner`, only the ring from
-// there out to r is built (a balcony round a tower). Sectors are at most `chord` metres along the
-// circle.
+// coming up from below) removes every sector of the outer ring, from the hole's `inner` out to r,
+// that touches the angles `from`..`to`; the hole is never smaller than asked, and the ring's sectors
+// start at `to`, so it ends exactly there (where a stair arriving through it ends, with nothing open
+// past its top step) and only runs over at `from`. With `inner`, only the ring from there out to r
+// is built (a balcony round a tower, a roof open in the middle). Sectors are at most `chord` metres
+// along the circle.
 export function roundFloor(opts: {
   x: number;
   z: number;
@@ -337,7 +339,7 @@ export function roundFloor(opts: {
 }): Box[] {
   const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color } = opts;
   const slab = { y: y - thickness, h: thickness, material, color };
-  const edge = inner ?? (hole ? hole.inner : r / 2); // where the outer ring (the one a hole is cut from) begins
+  const edge = hole?.inner ?? inner ?? r / 2; // where the outer ring (the one a hole is cut from) begins
   const core = edge / 2; // the middle square's half side: its corners stay inside `edge`
   const pieces: Box[] =
     inner === undefined ? [{ kind: 'box', x, z, w: 2 * core + 0.1, d: 2 * core + 0.1, ...slab }] : [];
@@ -345,12 +347,13 @@ export function roundFloor(opts: {
     const count = Math.max(8, Math.ceil((2 * Math.PI * b) / chord));
     const span = (2 * Math.PI) / count;
     const inset = a * (1 - Math.cos(span / 2)) + 0.05; // reach far enough in to meet the ring inside
+    const phase = holed && hole ? hole.to : 0;
     for (let k = 0; k < count; k++) {
-      const angle = (k + 0.5) * span;
+      const angle = phase + (k + 0.5) * span;
       if (holed && hole) {
         const middle = (hole.from + hole.to) / 2;
         const off = Math.abs(((((angle - middle) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
-        if (off < span / 2 + (hole.to - hole.from) / 2) continue;
+        if (off < span / 2 + (hole.to - hole.from) / 2 - 1e-9) continue; // the sector just past `to` only touches it
       }
       const c = onCircle(x, z, (a - inset + b) / 2, angle);
       pieces.push({
@@ -364,7 +367,8 @@ export function roundFloor(opts: {
       });
     }
   };
-  if (inner === undefined) ring(core, edge, false);
+  const start = inner ?? core;
+  if (edge > start) ring(start, edge, false);
   ring(edge, r, true);
   return pieces;
 }

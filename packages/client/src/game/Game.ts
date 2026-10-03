@@ -8,7 +8,7 @@ import {
   LANDMARKS,
   SKY_OBJECTS,
   TICK_DT,
-  TUNG_TUNG_TOWER_FRAMES,
+  WALL_FRAMES,
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   actionForKey,
@@ -147,7 +147,7 @@ export class Game {
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
-    this.wallFrames = new WallFrames(this.engine, TUNG_TUNG_TOWER_FRAMES);
+    this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = DEFAULT_FOV;

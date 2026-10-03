@@ -36,7 +36,7 @@ import {
   worldDistance,
   type InputFrame,
   OFF_WALL,
-  TUNG_TUNG_TOWER_FRAMES,
+  WALL_FRAMES,
   layoutWallFrame,
 } from '@world/shared';
 import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
@@ -299,5 +299,5 @@ test('a wall frame is as wide as its picture, centred mid-storey, hugging the wa
   assert.throws(() => layoutWallFrame({ room, angle: 0, height: 16, show }), /doorway/);
   assert.throws(() => layoutWallFrame({ room, angle: 60, height: 2, show }), /stair/);
   assert.throws(() => layoutWallFrame({ room, angle: 225, height: 20, show }), /too tall/);
-  for (const f of TUNG_TUNG_TOWER_FRAMES) layoutWallFrame(f); // the tower's own all hang cleanly
+  for (const f of WALL_FRAMES) layoutWallFrame(f); // the listed ones all hang cleanly
 });
