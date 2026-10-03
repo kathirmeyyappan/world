@@ -377,7 +377,7 @@ wire: server and client both build the world from that file.
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
 - Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area, its side facing
-  the tower, the bridge and the tower's ground floor), each area as likely as its weight, standing
+  the tower and the tower's ground floor), each area as likely as its weight, standing
   on the ground (or anything within a step of it) with headroom, so a building's ground floor can be
   a spawn point and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
   pass through structures, so tall pieces there will have cubes floating through them.
