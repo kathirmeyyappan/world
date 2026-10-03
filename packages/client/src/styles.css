@@ -1486,6 +1486,9 @@ body {
   left: 50%;
   top: 50%;
   transform-origin: 0 0;
+  /* Its transform changes every frame: move and scale the page as painted, and repaint only when
+     its content changes, not to stay sharp at each new size. */
+  will-change: transform;
   border: 0;
   pointer-events: none;
   animation: projection-flicker 0.15s steps(2) infinite;

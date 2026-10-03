@@ -1,6 +1,6 @@
 // Projections under the tower's ceilings (sim/ceilingFrames.ts): a picture or a live page, face
 // down, bobbing a little and turning about its centre to line up with the camera's heading, under
-// faint scrolling scanlines like an old screen. Each is pickable as `projection-<n>`, for the
+// faint CRT scanlines with a slow rolling band. Each is pickable as `projection-<n>`, for the
 // hover line.
 //
 // A page is an iframe in a layer under the canvas, transformed with CSS to sit exactly where its
@@ -9,6 +9,7 @@
 // hole, hidden by walls and players like any other surface.
 import {
   Color4,
+  Frustum,
   Constants,
   Matrix,
   Mesh,
@@ -30,8 +31,9 @@ const BOB = 0.15; // metres up and down from where it hangs
 const BOB_PERIOD = 4; // seconds
 const TURN_RATE = 4; // 1/s: how quickly it comes round to a new heading
 const SCAN_BELOW = 0.03; // metres between a projection and its scanlines, so they never share a plane
-const SCAN_ROWS = 90; // dark lines down its height
+const SCAN_ROWS = 45; // dark lines down its height: a few of the 3D view's (half-resolution) pixels apart overhead
 const SCAN_SPEED = 0.6; // lines a second the pattern drifts by
+const ROLL_PERIOD = 7; // seconds for the rolling band to cross it
 const LINE_GAP = 0.3; // metres past its far edge that its line hangs from
 const CSS_PX_PER_M = 100; // the scale view space is put into before CSS's perspective divide
 
@@ -39,6 +41,7 @@ interface Projection {
   root: TransformNode;
   layout: CeilingLayout;
   scan: Texture;
+  roll: Texture;
   hung: HungFrame;
 }
 
@@ -82,7 +85,7 @@ export class CeilingFrames {
       screen.parent = root;
       screen.isPickable = true;
 
-      const scan = scanlines(engine, n);
+      const { scan, roll } = scanlines(engine, n);
       const lines = MeshBuilder.CreatePlane(
         `projection-${n}-scan`,
         { width: layout.width, height: layout.height, sideOrientation: Mesh.DOUBLESIDE },
@@ -92,7 +95,7 @@ export class CeilingFrames {
       mat.disableLighting = true;
       mat.diffuseTexture = scan;
       mat.useAlphaFromDiffuseTexture = true;
-      scan.hasAlpha = true;
+      mat.opacityTexture = roll;
       lines.material = mat;
       lines.rotation.x = -Math.PI / 2;
       lines.position.y = -SCAN_BELOW;
@@ -101,7 +104,7 @@ export class CeilingFrames {
 
       const hung = { line: frame.show.line, anchor: new Vector3(), below: true };
       this.byMesh.set(screen.name, hung);
-      this.projections.push({ root, layout, scan, hung });
+      this.projections.push({ root, layout, scan, roll, hung });
     });
   }
 
@@ -141,10 +144,11 @@ export class CeilingFrames {
     this.yaw += behind * Math.min(1, dt * TURN_RATE);
     const bob = BOB * Math.sin((2 * Math.PI * this.time) / BOB_PERIOD);
     const ahead = new Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-    for (const { root, layout, scan, hung } of this.projections) {
+    for (const { root, layout, scan, roll, hung } of this.projections) {
       root.position.y = layout.centre.y + bob;
       root.rotation.y = this.yaw;
       scan.vOffset = (this.time * SCAN_SPEED) / SCAN_ROWS;
+      roll.vOffset = this.time / ROLL_PERIOD;
       hung.anchor.copyFrom(root.position).addInPlace(ahead.scale(layout.height / 2 + LINE_GAP));
     }
     if (this.pages.length === 0) return;
@@ -154,8 +158,14 @@ export class CeilingFrames {
     // View space (x right, y up, z ahead) to CSS's (y down, z toward the eye), the eye at `eye`.
     const toCss = Matrix.Scaling(CSS_PX_PER_M, -CSS_PX_PER_M, -CSS_PX_PER_M).multiply(Matrix.Translation(0, 0, eye));
     const view = camera.getViewMatrix();
+    const frustum = Frustum.GetPlanes(camera.getTransformationMatrix());
     for (const { mask, iframe, toMesh } of this.pages) {
-      const m = toMesh.multiply(mask.computeWorldMatrix(true)).multiply(view).multiply(toCss);
+      const world = mask.computeWorldMatrix(true);
+      // Out of view, the page keeps running (and polling) but the browser stops compositing it.
+      const shown = mask.isInFrustum(frustum);
+      iframe.style.visibility = shown ? '' : 'hidden';
+      if (!shown) continue;
+      const m = toMesh.multiply(world).multiply(view).multiply(toCss);
       iframe.style.transform = `matrix3d(${m.m.join(',')})`;
     }
   }
@@ -182,20 +192,31 @@ function imageScreen(engine: Engine, name: string, src: string, layout: CeilingL
   return mesh;
 }
 
-// One dark row in every three, repeated SCAN_ROWS times down the projection.
-function scanlines(engine: Engine, n: number): Texture {
-  const rows = new Uint8Array([0, 0, 0, 70, 0, 0, 0, 0, 0, 0, 0, 0]);
-  const tex = RawTexture.CreateRGBATexture(
-    rows,
-    1,
-    3,
-    engine.scene,
-    false,
-    false,
-    Constants.TEXTURE_NEAREST_SAMPLINGMODE,
-  );
-  tex.name = `projection-${n}-scan-tex`;
-  tex.wrapV = Texture.WRAP_ADDRESSMODE;
-  tex.vScale = SCAN_ROWS;
-  return tex;
+// The scanlines: soft dark lines, SCAN_ROWS of them down the projection, mipmapped so they fade
+// to an even dimming far off rather than shimmering; and the rolling band, where the lines thin out
+// so the picture looks a touch brighter, once down its height.
+function scanlines(engine: Engine, n: number): { scan: Texture; roll: Texture } {
+  const column = (name: string, alpha: (t: number) => number, rows: number, repeat: number): Texture => {
+    const data = new Uint8Array(rows * 4);
+    for (let i = 0; i < rows; i++) data[i * 4 + 3] = Math.round(255 * alpha((i + 0.5) / rows));
+    const tex = RawTexture.CreateRGBATexture(
+      data,
+      1,
+      rows,
+      engine.scene,
+      true,
+      false,
+      Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
+    );
+    tex.name = `projection-${n}-${name}`;
+    tex.hasAlpha = true;
+    tex.wrapV = Texture.WRAP_ADDRESSMODE;
+    tex.vScale = repeat;
+    return tex;
+  };
+  // Darkest (about 28%) between lines, clear across each line's middle.
+  const scan = column('scan', (t) => 0.28 * Math.pow(0.5 + 0.5 * Math.cos(2 * Math.PI * t), 2), 8, SCAN_ROWS);
+  // Full strength except a soft dip a tenth of the height wide.
+  const roll = column('roll', (t) => 1 - 0.6 * Math.exp(-Math.pow((t - 0.5) / 0.05, 2)), 64, 1);
+  return { scan, roll };
 }
