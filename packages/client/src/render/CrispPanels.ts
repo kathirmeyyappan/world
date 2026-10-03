@@ -7,13 +7,31 @@
 // clears to transparent (the sky covers the rest), so the canvas stays see-through exactly where
 // the panel is and nothing nearer covers it: walls and players hide a panel like any surface. The
 // pictures are plain canvases the page has already drawn, so moving them each frame is only the
-// browser placing a texture; they're repainted only when their source changes, and hidden (and
-// whoever drew them told) while their mesh is out of the camera's view.
-import { Color4, Frustum, Matrix, StandardMaterial, Vector3, type AbstractMesh, type Camera } from '@babylonjs/core';
+// browser placing a texture; they're repainted only when their source changes.
+//
+// Only a panel in view and within CRISP_RANGE is shown this way (and whoever drew it told it's
+// seen). Further off, a picture is a few dozen pixels across, and every shown panel is layers the
+// browser composites on every frame (an old screen's several, however small), seen through a wall
+// or not; there its mesh draws the picture as an ordinary texture in the scene, as still as the
+// source was when it went.
+import {
+  Color3,
+  Color4,
+  DynamicTexture,
+  Frustum,
+  Matrix,
+  StandardMaterial,
+  Texture,
+  Vector3,
+  type AbstractMesh,
+  type Camera,
+  type Material,
+} from '@babylonjs/core';
 import type { FramePanel } from '@world/shared';
 import type { Engine } from './Engine';
 
 const CSS_PX_PER_M = 100; // the scale view space is put into before CSS's perspective divide
+const CRISP_RANGE = 45; // metres: a round room's width, and a little past where a frame's line reads
 
 interface Panel {
   box: HTMLDivElement; // placed in the scene; holds the picture and, on an old screen, its static
@@ -24,8 +42,11 @@ interface Panel {
 
 interface Shown {
   mask: AbstractMesh;
+  hole: Material; // writes depth only, for the crisp picture to show through
+  still: Material; // the picture as a texture in the scene, for when it's far off
+  stillTexture: Texture;
   panels: Panel[];
-  visible: boolean;
+  visible: boolean; // shown crisp
   onShown?: (visible: boolean) => void;
 }
 
@@ -55,12 +76,21 @@ export class CrispPanels {
     source: HTMLCanvasElement | HTMLImageElement,
     { onShown, crt = false }: { onShown?: (visible: boolean) => void; crt?: boolean } = {},
   ): () => void {
-    const mat = new StandardMaterial(`${mask.name}-hole`, mask.getScene());
-    mat.disableColorWrite = true;
-    mat.backFaceCulling = false;
-    mask.material = mat;
+    const scene = mask.getScene();
+    const hole = new StandardMaterial(`${mask.name}-hole`, scene);
+    hole.disableColorWrite = true;
+    hole.backFaceCulling = false;
+    const stillTexture =
+      source instanceof HTMLImageElement
+        ? new Texture(source.src, scene)
+        : new DynamicTexture(`${mask.name}-still`, source, scene);
+    const still = new StandardMaterial(`${mask.name}-still`, scene);
+    still.disableLighting = true;
+    still.emissiveTexture = stillTexture;
+    still.diffuseColor = still.specularColor = Color3.Black();
+    mask.material = still;
     this.masks.add(mask);
-    const frame: Shown = { mask, panels: [], visible: false, onShown };
+    const frame: Shown = { mask, hole, still, stillTexture, panels: [], visible: false, onShown };
     this.shown.push(frame);
     const repaint = () => {
       for (const { el, u } of frame.panels) {
@@ -111,7 +141,7 @@ export class CrispPanels {
     return repaint;
   }
 
-  // Put every panel where `camera` sees its mesh, and hide the ones out of view.
+  // Put every panel where `camera` sees its mesh, and hide the ones out of view or far off.
   update(camera: Camera): void {
     // CSS's perspective puts the eye this many pixels in front of the screen.
     const eye = this.layer.clientHeight / 2 / Math.tan(camera.fov / 2);
@@ -121,10 +151,14 @@ export class CrispPanels {
     const view = camera.getViewMatrix().multiply(toCss);
     const frustum = Frustum.GetPlanes(camera.getTransformationMatrix());
     for (const frame of this.shown) {
-      const visible = frame.mask.isInFrustum(frustum);
+      const near =
+        Vector3.Distance(camera.globalPosition, frame.mask.getBoundingInfo().boundingSphere.centerWorld) < CRISP_RANGE;
+      const visible = near && frame.mask.isInFrustum(frustum);
       if (visible !== frame.visible) {
         frame.visible = visible;
         for (const { box } of frame.panels) box.style.visibility = visible ? '' : 'hidden';
+        if (!visible && frame.stillTexture instanceof DynamicTexture) frame.stillTexture.update();
+        frame.mask.material = visible ? frame.hole : frame.still;
         frame.onShown?.(visible);
       }
       if (!visible) continue;

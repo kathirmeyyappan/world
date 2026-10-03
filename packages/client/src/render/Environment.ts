@@ -107,10 +107,10 @@ export class Environment {
         widths.push(part.halfWidth);
       }
     }
-    const discCount = Math.min(discs.length / 3, MAX_DISCS);
-    const bridgeCount = Math.min(widths.length, MAX_BRIDGES);
-    if (discs.length / 3 > MAX_DISCS || widths.length > MAX_BRIDGES)
-      console.warn('world shape exceeds shader limits; floor will be wrong');
+    const discCount = discs.length / 3;
+    const bridgeCount = widths.length;
+    if (discCount > MAX_DISCS || bridgeCount > MAX_BRIDGES)
+      throw new Error(`the world has more discs or bridges than the floor shader's ${MAX_DISCS} and ${MAX_BRIDGES}`);
     while (discs.length < MAX_DISCS * 3) discs.push(0, 0, 0);
     while (bridges.length < MAX_BRIDGES * 4) bridges.push(0, 0, 0, 0);
     while (widths.length < MAX_BRIDGES) widths.push(0);

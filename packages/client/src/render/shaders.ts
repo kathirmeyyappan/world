@@ -40,8 +40,8 @@ void main() {
 
 // Signed distance to the world's edge, mirroring worldDistance() in shared: discs are (x, z, r),
 // bridges are (ax, az, bx, bz) with a half width. Counts are capped so the loops stay constant.
-export const MAX_DISCS = 4;
-export const MAX_BRIDGES = 4;
+export const MAX_DISCS = 8;
+export const MAX_BRIDGES = 8;
 export const WORLD_SDF = `
 uniform vec3 discs[${MAX_DISCS}];
 uniform vec4 bridges[${MAX_BRIDGES}];
