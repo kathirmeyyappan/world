@@ -31,6 +31,7 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
     room: GROUND,
     angle: 225,
     height: 10.8,
+    crt: true,
     show: {
       kind: 'image',
       src: '/assets/frames/nepal_libration_force.jpg',
@@ -42,6 +43,7 @@ export const TUNG_TUNG_TOWER_FRAMES: WallFrame[] = [
     room: GROUND,
     angle: 313,
     height: 8,
+    crt: true,
     show: {
       kind: 'widget',
       widget: 'spotify',

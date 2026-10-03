@@ -35,10 +35,13 @@ export class WallFrames {
       if (show.kind === 'image') {
         const img = new Image();
         img.src = show.src;
-        this.crisp.add(mesh, picture.panels, img);
+        this.crisp.add(mesh, picture.panels, img, { crt: frame.crt });
       } else {
         const widget = WIDGETS[show.widget](show.aspect);
-        widget.onPaint = this.crisp.add(mesh, picture.panels, widget.canvas, widget.setShown);
+        widget.onPaint = this.crisp.add(mesh, picture.panels, widget.canvas, {
+          onShown: widget.setShown,
+          crt: frame.crt,
+        });
       }
       mesh.isPickable = true;
       const border = panelsMesh(

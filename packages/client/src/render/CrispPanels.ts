@@ -14,6 +14,7 @@ import type { FramePanel } from '@world/shared';
 import type { Engine } from './Engine';
 
 const CSS_PX_PER_M = 100; // the scale view space is put into before CSS's perspective divide
+const SCANLINE = 0.05; // metres between an old screen's scanlines, wherever it hangs
 
 interface Panel {
   el: HTMLCanvasElement;
@@ -45,13 +46,13 @@ export class CrispPanels {
 
   // Show `source` across a frame's `panels` (its picture's layout, `u` running 0 to 1 across it),
   // cutting the hole with `mask`, the mesh of those panels; an image still loading shows once it
-  // has. `onShown` hears when the frame comes into and goes out of view. Returns what to call when
-  // `source` has been drawn again.
+  // has. `onShown` hears when the frame comes into and goes out of view, and `crt` draws it like an
+  // old screen, with scanlines. Returns what to call when `source` has been drawn again.
   add(
     mask: AbstractMesh,
     panels: FramePanel[],
     source: HTMLCanvasElement | HTMLImageElement,
-    onShown?: (visible: boolean) => void,
+    { onShown, crt = false }: { onShown?: (visible: boolean) => void; crt?: boolean } = {},
   ): () => void {
     const mat = new StandardMaterial(`${mask.name}-hole`, mask.getScene());
     mat.disableColorWrite = true;
@@ -60,11 +61,16 @@ export class CrispPanels {
     this.masks.add(mask);
     const frame: Shown = { mask, panels: [], visible: false, onShown };
     this.shown.push(frame);
+    // Scanlines are fixed in metres, so every screen has the same pitch, whatever its resolution.
+    const [first] = panels;
+    const tall = first ? Vector3.Distance(toVector(first.corners[3]), toVector(first.corners[0])) : 1;
+    const rows = Math.max(1, Math.round(tall / SCANLINE));
     const repaint = () => {
       for (const { el, u } of frame.panels) {
         const ctx = el.getContext('2d')!;
         ctx.clearRect(0, 0, el.width, el.height);
         ctx.drawImage(source, source.width * u[0], 0, el.width, el.height, 0, 0, el.width, el.height);
+        if (crt) scanlines(ctx, el.width, el.height, rows);
       }
     };
     const build = () => {
@@ -124,3 +130,17 @@ export class CrispPanels {
     }
   }
 }
+
+// Soft dark bands, `rows` of them down a `w` × `h` canvas: a darker core with a fainter edge.
+function scanlines(ctx: CanvasRenderingContext2D, w: number, h: number, rows: number): void {
+  const pitch = h / rows;
+  for (let i = 0; i < rows; i++) {
+    const y = i * pitch;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, y + pitch * 0.35, w, pitch * 0.6);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+    ctx.fillRect(0, y + pitch * 0.5, w, pitch * 0.3);
+  }
+}
+
+const toVector = ({ x, y, z }: { x: number; y: number; z: number }) => new Vector3(x, y, z);

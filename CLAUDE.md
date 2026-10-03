@@ -110,7 +110,8 @@ Murals hung inside a round room (the tower's floors) are listed in
 `packages/shared/src/content/towerFrames.ts`: a room from `TUNG_TUNG_TOWER_ROOMS`, an `angle` in
 degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
 metres, and what it `show`s (an image's path, or a live `widget` by name; its aspect; and the
-`line` typed out while you look at it). The width is height times aspect, and every frame is centred halfway up its storey (the
+`line` typed out while you look at it), with `crt: true` to draw it like an old screen, scanlines
+and all. The width is height times aspect, and every frame is centred halfway up its storey (the
 room's `middle`: 10 m up on the ground floor).
 `layoutWallFrame` (`sim/wallFrames.ts`) lays one out as a flat panel per wall segment it crosses, a
 few centimetres off the brick, and throws if it doesn't fit between floor and ceiling, comes down
