@@ -1,5 +1,6 @@
-// A speech bubble anchored to a world position. While you look at the object the line types in;
-// look away and it backspaces out from wherever it got to. Look back and it resumes.
+// A line of text sitting just above a world position: a speech bubble with a tail pointing down at
+// it, or a plain box. While you look at the object the line types in; look away and it
+// backspaces out from wherever it got to. Look back and it resumes.
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 
 const TYPE_MS = 32;
@@ -14,10 +15,9 @@ export class Bubble {
   private dir: 1 | -1 = -1; // typing while hovered, deleting otherwise
   private timer: number | null = null;
 
-  constructor() {
+  constructor(look: 'speech' | 'plain' = 'speech') {
     this.el = document.createElement('div');
-    this.el.id = 'bubble';
-    this.el.classList.add('hidden');
+    this.el.className = `bubble ${look} hidden`;
     this.text = document.createElement('span');
     this.el.append(
       this.text,

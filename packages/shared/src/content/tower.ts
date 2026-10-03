@@ -10,6 +10,7 @@
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
 import type { Region } from '../sim/regions';
+import type { RoundRoom } from '../sim/wallFrames';
 import type { Vec3 } from '../sim/types';
 import type { Disc } from '../sim/world';
 
@@ -20,6 +21,7 @@ const ROOF_WALL = 1; // the wall stands this far above the roof all the way roun
 const MERLON = 1.5; // and every other segment stands this far above that
 const OUTER = 20; // outside face of the wall
 const WALL = 1;
+const SEGMENTS = 48; // straight pieces the wall is built from, 7.5° each
 const INNER = OUTER - WALL; // inside face of the wall
 const STAIR_WIDTH = 3.75;
 const STAIR_INNER = INNER - STAIR_WIDTH;
@@ -27,6 +29,8 @@ const FLOOR_R = INNER + WALL / 2; // floors run into the wall, so there's no gap
 const STOREY = 20;
 const TOP = 3 * STOREY; // the top floor, where the sky bridge leaves
 const GROUND_FLOOR = 0.05; // the ground floor's tiles sit this far above the annex floor
+const SLAB = 0.4; // thickness of the upper floors
+const ROOF_SLAB = 0.6;
 const deg = (d: number) => (d * Math.PI) / 180; // angles run from +x toward +z
 const STAIR_START = deg(45); // the first step; clear of all four entrances
 const HOLE = deg(30); // each floor is open over the last 30° of the flight arriving through it
@@ -57,7 +61,7 @@ const shell: Structure[] = [
     r: OUTER - WALL / 2,
     h: HEIGHT + ROOF_WALL, // past the roof, whose edge then ends inside the wall rather than level with its top
     thickness: WALL,
-    segments: 48,
+    segments: SEGMENTS,
     gaps: [
       ...ENTRANCES.map((angle) =>
         angle === MAIN_DOOR.angle
@@ -74,7 +78,7 @@ const shell: Structure[] = [
     ],
     material: 'brick',
   }),
-  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: HEIGHT, thickness: 0.6, material: 'flagstone' }), // the roof
+  ...roundFloor({ x: X, z: Z, r: FLOOR_R, y: HEIGHT, thickness: ROOF_SLAB, material: 'flagstone' }), // the roof
   // Battlements: a merlon on every other segment of the parapet.
   ...Array.from({ length: 24 }, (_, k): Box => {
     const a = (k * 2 * Math.PI) / 24;
@@ -116,6 +120,7 @@ const inside: Structure[] = [
       z: Z,
       r: FLOOR_R,
       y: floor * STOREY,
+      thickness: SLAB,
       hole: { inner: STAIR_INNER, from: flightEnd(floor - 1) - HOLE, to: flightEnd(floor - 1) },
       material: 'red-tile',
     }),
@@ -216,6 +221,26 @@ export const TUNG_TUNG_TOWER_LEVELS: Region[] = [
   ...TUNG_TUNG_TOWER_INSIDE,
   { kind: 'disc', x: X, z: Z, r: INNER, y: HEIGHT },
 ];
+
+// The four floors inside the wall as rooms to hang frames in (sim/wallFrames.ts), ground floor
+// first. Frames centre halfway up each storey, and a frame's angle 0 is the main entrance's bearing
+// on every floor; each floor below the top has the flight that leaves it, which starts where the
+// one arriving through its hole ended.
+const DOOR = (2 * Math.PI) / SEGMENTS; // an ordinary door is one wall segment wide
+export const TUNG_TUNG_TOWER_ROOMS: RoundRoom[] = [GROUND_FLOOR, STOREY, 2 * STOREY, TOP].map((floor, s) => ({
+  x: X,
+  z: Z,
+  floor,
+  ceiling: floor === TOP ? HEIGHT - ROOF_SLAB : (s + 1) * STOREY - SLAB,
+  middle: s * STOREY + STOREY / 2,
+  wall: { r: OUTER - WALL / 2, thickness: WALL, segments: SEGMENTS },
+  entrance: MAIN_DOOR.angle,
+  doors: (s === 0 ? ENTRANCES : BALCONY_DOORS).map((angle) => {
+    const main = angle === MAIN_DOOR.angle && (s === 0 || floor === TOP);
+    return { angle, width: main ? MAIN_DOOR.width : DOOR, top: main ? MAIN_DOOR.height : DOOR_HEIGHT };
+  }),
+  stair: floor === TOP ? undefined : { from: STAIR_START + s * Math.PI, climb: STOREY / Math.PI },
+}));
 
 // The terrace's deck, between its parapets.
 export const TUNG_TUNG_TERRACE: Region = {

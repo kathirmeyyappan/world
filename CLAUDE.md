@@ -104,6 +104,29 @@ wire: server and client both build the world from that file.
   meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a
   landmark adds a lot.
 
+### Wall frames
+
+Murals hung inside a round room (the tower's floors) are listed in
+`packages/shared/src/content/towerFrames.ts`: a room from `TUNG_TUNG_TOWER_ROOMS`, an `angle` in
+degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
+metres, and what it `show`s (an image's path, or a live `widget` by name; its aspect; and the
+`line` typed out while you look at it). The width is height times aspect, and every frame is centred halfway up its storey (the
+room's `middle`: 10 m up on the ground floor).
+`layoutWallFrame` (`sim/wallFrames.ts`) lays one out as a flat panel per wall segment it crosses, a
+few centimetres off the brick, and throws if it doesn't fit between floor and ceiling, comes down
+over a doorway, or crosses the stair (whose steps must pass well under it or over it);
+a test hangs every listed frame, so a bad one fails CI. Only the client draws them
+(`render/WallFrames.ts`, picture on a wood border); nothing collides with them and they're not
+structures, so the bot map doesn't change.
+
+A widget is a copy of one at widgets.kathirm.com that the client draws itself
+(`packages/client/src/widgets/`): it fetches the same data the web widget does and paints the same
+layout onto a canvas. The browser draws that canvas at full resolution in a layer under the 3D
+view, one slice per wall panel, seen through a hole the frame's mesh cuts in the depth buffer
+(`render/CrispPanels.ts`), so its text stays sharp while walls and players still cover it. A
+new one is a name in `WidgetName` (`sim/wallFrames.ts`) and a factory in `WIDGETS`; its data source
+has to allow the game's origin (CORS).
+
 ### Regions and pickups
 
 - A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a

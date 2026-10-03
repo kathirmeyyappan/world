@@ -28,6 +28,7 @@ body {
   width: 100%;
   height: 100%;
   position: relative;
+  isolation: isolate; /* so #crisp-panels sits just under the canvas, above the page's background */
 }
 #renderCanvas {
   width: 100%;
@@ -281,7 +282,7 @@ body {
 .pin-label {
   line-height: 10px;
 }
-#bubble {
+.bubble {
   position: absolute;
   left: 0;
   top: 0;
@@ -295,7 +296,12 @@ body {
   font: 21px/1.15 var(--mono);
   will-change: transform;
 }
-#bubble::after {
+.bubble.plain {
+  max-width: min(640px, calc(100vw - 40px)); /* frames' lines run long */
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: none;
+}
+.bubble.speech::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -308,7 +314,7 @@ body {
   border-bottom: 2px solid #fff;
   transform: rotate(45deg);
 }
-#bubble .bubble-cursor {
+.bubble .bubble-cursor {
   color: var(--accent);
   animation: blink 1s steps(1) infinite;
   margin-left: 2px;
@@ -1464,4 +1470,20 @@ body {
   #commands .guide {
     font-size: 13px;
   }
+}
+/* Pictures the browser draws at full resolution under the 3D canvas (render/CrispPanels.ts), each
+   placed from the screen's middle by its transform; never takes the mouse. */
+#crisp-panels {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+#crisp-panels canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 0 0;
+  will-change: transform;
 }

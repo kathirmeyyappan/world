@@ -35,7 +35,11 @@ import {
   stepPlayer,
   worldDistance,
   type InputFrame,
+  OFF_WALL,
+  TUNG_TUNG_TOWER_FRAMES,
+  layoutWallFrame,
 } from '@world/shared';
+import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
 
 const frame = (seq: number, over: Partial<InputFrame> = {}): InputFrame => ({
   seq,
@@ -271,4 +275,29 @@ test('the Python bots’ map of the world is up to date (else run npm run bot-ma
   const file = new URL('../../../modal-bots/common/world_map.json.gz', import.meta.url);
   const map = JSON.parse(gunzipSync(readFileSync(file)).toString()) as BotMap;
   assert.equal(map.source, botMapSource());
+});
+
+test('a wall frame is as wide as its picture, centred mid-storey, hugging the wall, and kept off doors and the stair', () => {
+  const room = TUNG_TUNG_TOWER_ROOMS[0];
+  const show = { kind: 'image', src: 'x.png', aspect: 2.5, line: '' } as const;
+  const frame = layoutWallFrame({ room, angle: 225, height: 2, show });
+  assert.ok(Math.abs(frame.width - 5) < 0.01, 'height times aspect');
+  assert.ok(Math.abs((frame.bottom + frame.top) / 2 - room.middle) < 1e-9);
+  assert.ok(frame.panels.length >= 2, 'wide enough to cross a segment edge');
+  // Every corner is OFF_WALL in from its segment's face, measured along that segment's middle.
+  const step = (2 * Math.PI) / room.wall.segments;
+  const face = room.wall.r * Math.cos(step * 0.52) - room.wall.thickness / 2;
+  for (const { corners } of frame.panels) {
+    const mid = { x: (corners[0].x + corners[1].x) / 2 - room.x, z: (corners[0].z + corners[1].z) / 2 - room.z };
+    const middle = Math.round(Math.atan2(mid.z, mid.x) / step) * step;
+    for (const c of corners) {
+      const out = (c.x - room.x) * Math.cos(middle) + (c.z - room.z) * Math.sin(middle);
+      assert.ok(Math.abs(out - (face - OFF_WALL)) < 1e-9, 'on its segment');
+    }
+  }
+  layoutWallFrame({ room, angle: 0, height: 2, show }); // well above the main door
+  assert.throws(() => layoutWallFrame({ room, angle: 0, height: 16, show }), /doorway/);
+  assert.throws(() => layoutWallFrame({ room, angle: 60, height: 2, show }), /stair/);
+  assert.throws(() => layoutWallFrame({ room, angle: 225, height: 20, show }), /too tall/);
+  for (const f of TUNG_TUNG_TOWER_FRAMES) layoutWallFrame(f); // the tower's own all hang cleanly
 });
