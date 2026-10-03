@@ -38,6 +38,10 @@ const LOOK: Record<Status, { label: string; accent: string; fill: string; times:
   offline: { label: 'NOT PLAYING', accent: '#444', fill: '#333', times: '#444' },
 };
 
+// Font sizes in CSS pixels. The title is widget.css's; the smaller text is a third larger than it
+// there, since on a wall seen from across the tower those would be only a few rendered pixels tall.
+const TYPE = { label: 13, title: 22, artist: 19, album: 16, times: 13 };
+const STATUS_ROW = 16; // the mark and label's row, sized to the label
 // Text lines are `line-height: normal`: about 1.21 times the font size.
 const lineHeight = (px: number) => px * 1.21;
 
@@ -109,37 +113,49 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
 
     const tx = x + 140;
     const textW = rowW - 140;
-    // Heights down the text: the status row (13), 10, title, 4, artist, 2, album, 14, times.
-    const textH = 13 + 10 + lineHeight(22) + 4 + lineHeight(14) + 2 + lineHeight(12) + 14 + lineHeight(10);
+    // Heights down the text: the status row, 10, title, 4, artist, 2, album, 14, times.
+    const textH =
+      STATUS_ROW +
+      10 +
+      lineHeight(TYPE.title) +
+      4 +
+      lineHeight(TYPE.artist) +
+      2 +
+      lineHeight(TYPE.album) +
+      14 +
+      lineHeight(TYPE.times);
     let ty = y + (120 - textH) / 2;
     ctx.textBaseline = 'middle';
 
     // Status row: the mark, the label, and while playing three bouncing bars.
+    const k = TYPE.label / 10; // the row scaled up with its label, from widget.css's 10 px
     ctx.save();
-    ctx.translate(tx, ty);
-    ctx.scale(13 / 24, 13 / 24);
+    ctx.translate(tx, ty + (STATUS_ROW - 13 * k) / 2);
+    ctx.scale((13 * k) / 24, (13 * k) / 24);
     ctx.fillStyle = look.accent;
     ctx.fill(MARK);
     ctx.restore();
-    ctx.font = `700 10px ${FONT}`;
-    ctx.letterSpacing = '1px';
+    ctx.font = `700 ${TYPE.label}px ${FONT}`;
+    ctx.letterSpacing = `${0.1 * TYPE.label}px`;
     ctx.fillStyle = look.accent;
-    ctx.fillText(look.label, tx + 18, ty + 6.5);
-    const labelEnd = tx + 18 + ctx.measureText(look.label).width;
+    const labelX = tx + (13 + 5) * k;
+    ctx.fillText(look.label, labelX, ty + STATUS_ROW / 2);
+    const labelEnd = labelX + ctx.measureText(look.label).width;
     ctx.letterSpacing = '0px';
     if (status === 'playing') {
       const t = performance.now() / 1000;
+      const floor = ty + STATUS_ROW / 2 + 5 * k;
       [5, 9, 6].forEach((barH, i) => {
         // eq-bounce: scaleY 0.35 → 1, eased, 0.7 s each way, 0.15 s apart.
         const p = ((((t - i * 0.15) / 0.7) % 2) + 2) % 2;
         const s = 0.35 + 0.65 * (0.5 - 0.5 * Math.cos(Math.PI * (p < 1 ? p : 2 - p)));
         ctx.fillStyle = GREEN;
         ctx.beginPath();
-        ctx.roundRect(labelEnd + 7 + i * 4, ty + 11.5 - barH * s, 2, barH * s, 1);
+        ctx.roundRect(labelEnd + 7 * k + i * 4 * k, floor - barH * k * s, 2 * k, barH * k * s, k);
         ctx.fill();
       });
     }
-    ty += 13 + 10;
+    ty += STATUS_ROW + 10;
 
     const text = (str: string, px: number, weight: number, color: string) => {
       ctx.font = `${weight} ${px}px ${FONT}`;
@@ -147,11 +163,11 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
       ctx.fillText(ellipsis(ctx, str, textW), tx, ty + lineHeight(px) / 2);
       ty += lineHeight(px);
     };
-    text(track.title ?? '—', 22, 700, '#ffffff');
+    text(track.title ?? '—', TYPE.title, 700, '#ffffff');
     ty += 4;
-    text(track.artist ?? '—', 14, 400, '#b3b3b3');
+    text(track.artist ?? '—', TYPE.artist, 400, '#b3b3b3');
     ty += 2;
-    text(track.album ?? '', 12, 400, '#777');
+    text(track.album ?? '', TYPE.album, 400, '#777');
     ty += 14;
 
     // Progress row: elapsed, the bar, and the length.
@@ -159,8 +175,8 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
     const elapsed = status === 'playing' ? Math.min(anchor.ms + (Date.now() - anchor.at), duration) : 0;
     const left = status === 'playing' ? clock(elapsed) : status === 'idle' ? '-:--' : '00:00';
     const right = status === 'offline' ? '00:00' : clock(duration);
-    const mid = ty + lineHeight(10) / 2;
-    ctx.font = `400 10px ${FONT}`;
+    const mid = ty + lineHeight(TYPE.times) / 2;
+    ctx.font = `400 ${TYPE.times}px ${FONT}`;
     ctx.fillStyle = look.times;
     ctx.fillText(left, tx, mid);
     const rightW = ctx.measureText(right).width;
@@ -169,12 +185,12 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
     const barW = tx + textW - rightW - 7 - barX;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.beginPath();
-    ctx.roundRect(barX, mid - 1.5, barW, 3, 2);
+    ctx.roundRect(barX, mid - 2, barW, 4, 2);
     ctx.fill();
     if (duration > 0 && elapsed > 0) {
       ctx.fillStyle = look.fill;
       ctx.beginPath();
-      ctx.roundRect(barX, mid - 1.5, (barW * elapsed) / duration, 3, 2);
+      ctx.roundRect(barX, mid - 2, (barW * elapsed) / duration, 4, 2);
       ctx.fill();
     }
     widget.onPaint();
