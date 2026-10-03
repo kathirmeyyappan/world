@@ -10,6 +10,8 @@ import {
   MAX_REWIND_TICKS,
   MOVE_SPEED,
   Room,
+  SPAWN_AREAS,
+  STEP_UP,
   Structures,
   TICK_DT,
   TICK_RATE,
@@ -18,7 +20,9 @@ import {
   type BotRequest,
   type InputFrame,
   type ItemAction,
+  type Region,
   type ServerMessage,
+  type Vec3,
 } from '@world/shared';
 
 function link() {
@@ -90,19 +94,28 @@ test('room calls onEmpty when the last player leaves', () => {
   assert.equal(empty, 1);
 });
 
-test('players spawn at random spots across the main area only, clear of its wall', () => {
+test('players spawn at random spots in every spawn area, on the ground', () => {
   const room = new Room('spawn', { seed: 3 });
-  const spots: { x: number; z: number }[] = [];
-  for (let i = 0; i < 30; i++) {
+  const inside = (r: Region, p: Vec3) =>
+    r.kind === 'disc'
+      ? Math.hypot(p.x - r.x, p.z - r.z) <= r.r
+      : r.kind === 'rect' && Math.abs(p.x - r.x) <= r.w / 2 && Math.abs(p.z - r.z) <= r.d / 2;
+  const used = new Set<number>();
+  const spots = new Set<string>();
+  for (let i = 0; i < 40; i++) {
     const l = link();
     const id = room.join(`p${i}`, l)!;
     const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
     assert.ok(me);
-    spots.push({ x: me.pos.x, z: me.pos.z });
-    assert.ok(Math.hypot(me.pos.x, me.pos.z) <= 50 - 3 + 1e-9, 'in the main disc, clear of its wall');
+    const area = SPAWN_AREAS.findIndex((a) => inside(a.region, me.pos));
+    assert.ok(area >= 0, 'in a spawn area');
+    used.add(area);
+    spots.add(`${me.pos.x.toFixed(1)},${me.pos.z.toFixed(1)}`);
+    assert.ok(me.pos.y <= EYE_HEIGHT + STEP_UP + 1e-9, 'on the ground, or a step up from it');
     room.leave(id);
   }
-  assert.ok(new Set(spots.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`)).size === spots.length, 'all different');
+  assert.equal(used.size, SPAWN_AREAS.length, 'every area gets some');
+  assert.equal(spots.size, 40, 'all different');
 });
 
 test('/speedy and /s boost the sender and tell everyone in grey', () => {
