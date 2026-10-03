@@ -1,25 +1,10 @@
 // Frames on the tower's walls (sim/wallFrames.ts): each a picture or a live widget, unlit like the
 // structures, on a wood border set a little further back, both following the wall round segment
 // by segment. The picture is pickable as `frame-<n>`, for the hover line; the border isn't.
-import {
-  Color3,
-  DynamicTexture,
-  Mesh,
-  StandardMaterial,
-  Texture,
-  Vector3,
-  VertexData,
-  type Scene,
-} from '@babylonjs/core';
-import {
-  layoutWallFrame,
-  OFF_WALL,
-  type FramePanel,
-  type FrameShow,
-  type WallFrame,
-  type WidgetName,
-} from '@world/shared';
+import { Color3, Mesh, StandardMaterial, Texture, Vector3, VertexData, type Camera, type Scene } from '@babylonjs/core';
+import { layoutWallFrame, OFF_WALL, type FramePanel, type WallFrame } from '@world/shared';
 import { WIDGETS } from '../widgets';
+import { CrispPanels } from './CrispPanels';
 import type { Engine } from './Engine';
 
 const BORDER = 0.48; // metres of wood showing round every picture
@@ -34,6 +19,7 @@ export interface HungFrame {
 
 export class WallFrames {
   private readonly byMesh = new Map<string, HungFrame>();
+  private crisp: CrispPanels | null = null; // made for the first widget
 
   constructor(engine: Engine, frames: readonly WallFrame[]) {
     const scene = engine.scene;
@@ -43,13 +29,14 @@ export class WallFrames {
     frames.forEach((frame, n) => {
       const picture = layoutWallFrame(frame);
       const mesh = panelsMesh(engine, `frame-${n}`, picture.panels);
-      const mat = new StandardMaterial(`frame-${n}-mat`, scene);
-      const tex = pictureOf(frame.show, `frame-${n}`, scene);
-      mat.diffuseTexture = tex;
-      mat.emissiveTexture = tex;
-      mat.disableLighting = true;
-      mat.backFaceCulling = false;
-      mesh.material = mat;
+      const { show } = frame;
+      if (show.kind === 'image') mesh.material = imageMaterial(show.src, `frame-${n}`, scene);
+      else {
+        // A widget is mostly text, so the browser draws it, sharp, through a hole in the scene.
+        const widget = WIDGETS[show.widget](show.aspect);
+        this.crisp ??= new CrispPanels(engine);
+        widget.onPaint = this.crisp.add(mesh, picture.panels, widget.canvas);
+      }
       mesh.isPickable = true;
       const border = panelsMesh(
         engine,
@@ -63,30 +50,28 @@ export class WallFrames {
     });
   }
 
+  // Line the widgets' sharp pictures up with where `camera` sees their frames.
+  update(camera: Camera): void {
+    this.crisp?.update(camera);
+  }
+
   // The frame a picked mesh is, if it's one of these.
   at(meshName: string): HungFrame | null {
     return this.byMesh.get(meshName) ?? null;
   }
 }
 
-// What a frame shows, as a texture: an image, or a widget's canvas, taken up again each time the
-// widget repaints.
-function pictureOf(show: FrameShow, name: string, scene: Scene): Texture {
-  const tex =
-    show.kind === 'image' ? new Texture(show.src, scene) : widgetTexture(show.widget, show.aspect, name, scene);
-  // Frames are mostly seen at an angle round the curved wall, where plain mipmapping blurs most.
+// An image on a frame: unlit, and filtered for the angles round the curved wall it's mostly seen
+// at, where plain mipmapping blurs most.
+function imageMaterial(src: string, name: string, scene: Scene): StandardMaterial {
+  const mat = new StandardMaterial(`${name}-mat`, scene);
+  const tex = new Texture(src, scene);
   tex.anisotropicFilteringLevel = 16;
-  return tex;
-}
-
-function widgetTexture(name: WidgetName, aspect: number, mesh: string, scene: Scene): Texture {
-  const widget = WIDGETS[name](aspect);
-  // No mipmaps: a widget is mostly text, which they blur; sampled straight it stays legible at a
-  // distance, at the cost of a little shimmer.
-  const tex = new DynamicTexture(`${mesh}-widget`, widget.canvas, scene, false, Texture.BILINEAR_SAMPLINGMODE);
-  widget.onPaint = () => tex.update();
-  tex.update();
-  return tex;
+  mat.diffuseTexture = tex;
+  mat.emissiveTexture = tex;
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+  return mat;
 }
 
 // One mesh from a frame's flat panels, the picture mapped across them by their `u`.

@@ -121,7 +121,9 @@ structures, so the bot map doesn't change.
 
 A widget is a copy of one at widgets.kathirm.com that the client draws itself
 (`packages/client/src/widgets/`): it fetches the same data the web widget does and paints the same
-layout onto a canvas, which the frame shows as a texture repainted only when the widget changes. A
+layout onto a canvas. The browser draws that canvas at full resolution in a layer under the 3D
+view, one slice per wall panel, seen through a hole the frame's mesh cuts in the depth buffer
+(`render/CrispPanels.ts`), so its text stays sharp while walls and players still cover it. A
 new one is a name in `WidgetName` (`sim/wallFrames.ts`) and a factory in `WIDGETS`; its data source
 has to allow the game's origin (CORS).
 

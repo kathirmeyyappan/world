@@ -507,6 +507,7 @@ export class Game {
 
     this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
     this.environment.update(dt, this.camera.position);
+    this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
