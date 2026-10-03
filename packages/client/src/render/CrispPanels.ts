@@ -13,25 +13,29 @@
 // seen). Further off, a picture is a few dozen pixels across, and every shown panel is layers the
 // browser composites on every frame (an old screen's several, however small), seen through a wall
 // or not; there its mesh draws the picture as an ordinary texture in the scene, as still as the
-// source was when it went.
+// source was when it went. Over the last FADE metres in, that texture fades out over the crisp
+// picture rather than swapping in a frame: drawn first like a hole, it writes its opacity into the
+// canvas's alpha, and the page blends the canvas over the layer beneath.
 import {
   Color3,
   Color4,
+  Constants,
   DynamicTexture,
   Frustum,
+  Material,
   Matrix,
   StandardMaterial,
   Texture,
   Vector3,
   type AbstractMesh,
   type Camera,
-  type Material,
 } from '@babylonjs/core';
 import type { FramePanel } from '@world/shared';
 import type { Engine } from './Engine';
 
 const CSS_PX_PER_M = 100; // the scale view space is put into before CSS's perspective divide
 const CRISP_RANGE = 45; // metres: a round room's width, and a little past where a frame's line reads
+const FADE = 10; // metres inside CRISP_RANGE over which the still picture gives way to the crisp one
 
 interface Panel {
   box: HTMLDivElement; // placed in the scene; holds the picture and, on an old screen, its static
@@ -43,7 +47,7 @@ interface Panel {
 interface Shown {
   mask: AbstractMesh;
   hole: Material; // writes depth only, for the crisp picture to show through
-  still: Material; // the picture as a texture in the scene, for when it's far off
+  still: StandardMaterial; // the picture as a texture in the scene, for when it's far off
   stillTexture: Texture;
   panels: Panel[];
   visible: boolean; // shown crisp
@@ -88,6 +92,9 @@ export class CrispPanels {
     still.disableLighting = true;
     still.emissiveTexture = stillTexture;
     still.diffuseColor = still.specularColor = Color3.Black();
+    // Drawn with the opaque meshes (so first, with the holes) but writing its `alpha`, premultiplied.
+    still.transparencyMode = Material.MATERIAL_OPAQUE;
+    still.alphaMode = Constants.ALPHA_PREMULTIPLIED;
     mask.material = still;
     this.masks.add(mask);
     const frame: Shown = { mask, hole, still, stillTexture, panels: [], visible: false, onShown };
@@ -98,6 +105,7 @@ export class CrispPanels {
         ctx.clearRect(0, 0, el.width, el.height);
         ctx.drawImage(source, source.width * u[0], 0, el.width, el.height, 0, 0, el.width, el.height);
       }
+      if (frame.mask.material === still && stillTexture instanceof DynamicTexture) stillTexture.update();
     };
     const build = () => {
       frame.panels = panels.map(({ corners: [bl, , tr, tl], u }) => {
@@ -151,16 +159,24 @@ export class CrispPanels {
     const view = camera.getViewMatrix().multiply(toCss);
     const frustum = Frustum.GetPlanes(camera.getTransformationMatrix());
     for (const frame of this.shown) {
-      const near =
-        Vector3.Distance(camera.globalPosition, frame.mask.getBoundingInfo().boundingSphere.centerWorld) < CRISP_RANGE;
-      const visible = near && frame.mask.isInFrustum(frustum);
+      const far = Vector3.Distance(camera.globalPosition, frame.mask.getBoundingInfo().boundingSphere.centerWorld);
+      const visible = far < CRISP_RANGE && frame.mask.isInFrustum(frustum);
       if (visible !== frame.visible) {
         frame.visible = visible;
         for (const { box } of frame.panels) box.style.visibility = visible ? '' : 'hidden';
-        if (!visible && frame.stillTexture instanceof DynamicTexture) frame.stillTexture.update();
-        frame.mask.material = visible ? frame.hole : frame.still;
         frame.onShown?.(visible);
       }
+      // How much of the still picture shows over the crisp one: all of it when the crisp one isn't.
+      const still = visible ? Math.min(1, Math.max(0, (far - (CRISP_RANGE - FADE)) / FADE)) : 1;
+      const material = still > 0 ? frame.still : frame.hole;
+      if (
+        material === frame.still &&
+        frame.mask.material !== frame.still &&
+        frame.stillTexture instanceof DynamicTexture
+      )
+        frame.stillTexture.update();
+      frame.mask.material = material;
+      frame.still.alpha = still;
       if (!visible) continue;
       for (const { box, toWorld } of frame.panels)
         box.style.transform = `matrix3d(${toWorld.multiply(view).m.join(',')})`;
