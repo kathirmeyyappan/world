@@ -10,12 +10,9 @@ const BORDER_BACK = 0.015; // metres the border sits behind the picture, so the 
 const WOOD = new Color3(0.42, 0.27, 0.15);
 const LINE_GAP = 0.3; // metres between the top of a frame's border and the bottom of its line
 
-// A frame you can look at: its line, and the point the line sits on (or hangs from, `below`),
-// kept up to date if the frame moves.
 export interface HungFrame {
-  line: string;
-  anchor: Vector3;
-  below: boolean;
+  frame: WallFrame;
+  above: Vector3; // where its line sits: just over the middle of its top edge, on the wall
 }
 
 export class WallFrames {
@@ -45,11 +42,7 @@ export class WallFrames {
       border.material = wood;
       border.isPickable = false;
       const { x, z } = picture.centre;
-      this.byMesh.set(mesh.name, {
-        line: frame.show.line,
-        anchor: new Vector3(x, picture.top + BORDER + LINE_GAP, z),
-        below: false,
-      });
+      this.byMesh.set(mesh.name, { frame, above: new Vector3(x, picture.top + BORDER + LINE_GAP, z) });
     });
   }
 

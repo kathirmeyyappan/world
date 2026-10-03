@@ -25,27 +25,22 @@ export interface RoundRoom {
   // Openings in the wall: bearings and widths (radians), and how high above the floor they reach.
   doors: { angle: number; width: number; top: number }[];
   // A flight up along the wall, leaving the floor at bearing `from` and climbing `climb` metres a
-  // radian as bearings grow, for half a turn, between radius `inner` and the wall.
-  stair?: { from: number; climb: number; inner: number };
+  // radian as bearings grow, for half a turn.
+  stair?: { from: number; climb: number };
 }
 
-// What a frame shows, and the line typed out while you look at it.
-export type ImageShow = {
+export type FrameShow = {
   kind: 'image';
   src: string; // a path the client serves, like the sky's images
   aspect: number; // width over height
-  line: string;
+  line: string; // typed out while you look at it
 };
-// A live web page, framed in an iframe. It lays out `width` CSS pixels across (so a larger width
-// shrinks its content on the frame) and `width / aspect` down.
-export type PageShow = { kind: 'page'; src: string; aspect: number; width: number; line: string };
-export type FrameShow = ImageShow | PageShow;
 
 export interface WallFrame {
   room: RoundRoom;
   angle: number; // degrees round from the entrance, to your right as you stand in the middle facing it
   height: number; // metres
-  show: ImageShow;
+  show: FrameShow;
 }
 
 // One flat piece of a frame: corners bottom-left, bottom-right, top-right, top-left as seen from

@@ -239,7 +239,7 @@ export const TUNG_TUNG_TOWER_ROOMS: RoundRoom[] = [GROUND_FLOOR, STOREY, 2 * STO
     const main = angle === MAIN_DOOR.angle && (s === 0 || floor === TOP);
     return { angle, width: main ? MAIN_DOOR.width : DOOR, top: main ? MAIN_DOOR.height : DOOR_HEIGHT };
   }),
-  stair: floor === TOP ? undefined : { from: STAIR_START + s * Math.PI, climb: STOREY / Math.PI, inner: STAIR_INNER },
+  stair: floor === TOP ? undefined : { from: STAIR_START + s * Math.PI, climb: STOREY / Math.PI },
 }));
 
 // The terrace's deck, between its parapets.

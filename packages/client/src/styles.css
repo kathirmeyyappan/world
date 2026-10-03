@@ -28,7 +28,6 @@ body {
   width: 100%;
   height: 100%;
   position: relative;
-  isolation: isolate; /* so #pages sits just under the canvas, above the page's background */
 }
 #renderCanvas {
   width: 100%;
@@ -1469,32 +1468,5 @@ body {
   #commands .close-hint,
   #commands .guide {
     font-size: 13px;
-  }
-}
-/* Live pages projected under a ceiling (render/CeilingFrames.ts), seen through the canvas: each
-   is placed from the screen's centre by its transform, never takes the mouse, and flickers faintly
-   like an old screen. */
-#pages {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
-.projection-page {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform-origin: 0 0;
-  border: 0;
-  pointer-events: none;
-  animation: projection-flicker 0.15s steps(2) infinite;
-}
-@keyframes projection-flicker {
-  0% {
-    filter: brightness(1.05) saturate(1.2);
-  }
-  50% {
-    filter: brightness(0.95) saturate(1.2);
   }
 }

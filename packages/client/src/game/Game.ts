@@ -8,7 +8,6 @@ import {
   LANDMARKS,
   SKY_OBJECTS,
   TICK_DT,
-  TUNG_TUNG_TOWER_CEILING_FRAMES,
   TUNG_TUNG_TOWER_FRAMES,
   WORLD_SHAPE,
   WORLD_STRUCTURES,
@@ -43,7 +42,6 @@ import { Environment } from '../render/Environment';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
 import { poof } from '../render/Poof';
-import { CeilingFrames } from '../render/CeilingFrames';
 import { WallFrames, type HungFrame } from '../render/WallFrames';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
@@ -101,7 +99,6 @@ export class Game {
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
   private readonly wallFrames: WallFrames;
-  private readonly ceilingFrames: CeilingFrames;
   private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS);
   private readonly death = new Death();
   private readonly hearts = new Hearts();
@@ -151,7 +148,6 @@ export class Game {
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
     this.wallFrames = new WallFrames(this.engine, TUNG_TUNG_TOWER_FRAMES);
-    this.ceilingFrames = new CeilingFrames(this.engine, TUNG_TUNG_TOWER_CEILING_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = DEFAULT_FOV;
@@ -511,7 +507,6 @@ export class Game {
 
     this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
     this.environment.update(dt, this.camera.position);
-    this.ceilingFrames.update(dt, this.input.yaw, this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
@@ -615,18 +610,14 @@ export class Game {
     let nextFrame: HungFrame | null = null;
     if (!this.isBlocked()) {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
-      const hit = this.engine.scene.pickWithRay(
-        ray,
-        (mesh) => mesh.isPickable && /^(cube|sky|frame|projection)-/.test(mesh.name),
-      );
+      const hit = this.engine.scene.pickWithRay(ray, (mesh) => /^(cube|sky|frame)-/.test(mesh.name));
       // Structures aren't pickable; anything behind one is hidden by it.
       const blocked =
         !!hit?.pickedMesh && WORLD_STRUCTURES.raycast(ray.origin, ray.direction, hit.distance) < hit.distance;
       if (hit?.pickedMesh && !blocked) {
         if (hit.distance <= CUBE_SELECT_RANGE) nextCube = this.cubeByMesh.get(hit.pickedMesh.name) ?? null;
         nextSky = this.skyByMesh.get(hit.pickedMesh.name) ?? null;
-        if (hit.distance <= FRAME_RANGE)
-          nextFrame = this.wallFrames.at(hit.pickedMesh.name) ?? this.ceilingFrames.at(hit.pickedMesh.name);
+        if (hit.distance <= FRAME_RANGE) nextFrame = this.wallFrames.at(hit.pickedMesh.name);
       }
     }
     if (nextCube !== this.hovered) {
@@ -641,7 +632,7 @@ export class Game {
       if (nextSky) this.bubble.hover(nextSky.content.line, nextSky.anchor());
       else this.bubble.release();
     }
-    if (nextFrame) this.frameBubble.hover(nextFrame.line, nextFrame.anchor, nextFrame.below);
+    if (nextFrame) this.frameBubble.hover(nextFrame.frame.show.line, nextFrame.above);
     else if (this.hoveredFrame) this.frameBubble.release();
     this.hoveredFrame = nextFrame;
     this.hud.setCrosshairHot(!!nextCube || !!nextSky || !!nextFrame);

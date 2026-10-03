@@ -36,10 +36,7 @@ import {
   worldDistance,
   type InputFrame,
   OFF_WALL,
-  TUNG_TUNG_TOWER_CEILING_FRAMES,
   TUNG_TUNG_TOWER_FRAMES,
-  UNDER_CEILING,
-  layoutCeilingFrame,
   layoutWallFrame,
 } from '@world/shared';
 import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
@@ -280,7 +277,7 @@ test('the Python bots’ map of the world is up to date (else run npm run bot-ma
   assert.equal(map.source, botMapSource());
 });
 
-test('wall frames are as wide as their pictures, centred mid-storey, hugging the wall, kept off doors and the stair; projections clear it turning', () => {
+test('a wall frame is as wide as its picture, centred mid-storey, hugging the wall, and kept off doors and the stair', () => {
   const room = TUNG_TUNG_TOWER_ROOMS[0];
   const show = { kind: 'image', src: 'x.png', aspect: 2.5, line: '' } as const;
   const frame = layoutWallFrame({ room, angle: 225, height: 2, show });
@@ -303,11 +300,4 @@ test('wall frames are as wide as their pictures, centred mid-storey, hugging the
   assert.throws(() => layoutWallFrame({ room, angle: 60, height: 2, show }), /stair/);
   assert.throws(() => layoutWallFrame({ room, angle: 225, height: 20, show }), /too tall/);
   for (const f of TUNG_TUNG_TOWER_FRAMES) layoutWallFrame(f); // the tower's own all hang cleanly
-
-  const projection = layoutCeilingFrame({ room, width: 20, show });
-  assert.equal(projection.centre.y, room.ceiling - UNDER_CEILING);
-  assert.equal(projection.height, 8);
-  // Turning, a 28 m wide one's corners swing out 15.1 m from the middle, onto the stair (15.25 m).
-  assert.throws(() => layoutCeilingFrame({ room, width: 28, show }), /stair/);
-  for (const f of TUNG_TUNG_TOWER_CEILING_FRAMES) layoutCeilingFrame(f);
 });
