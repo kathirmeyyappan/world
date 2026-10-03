@@ -14,9 +14,9 @@ import type { FramePanel } from '@world/shared';
 import type { Engine } from './Engine';
 
 const CSS_PX_PER_M = 100; // the scale view space is put into before CSS's perspective divide
-const SCANLINE = 0.05; // metres between an old screen's scanlines, wherever it hangs
 
 interface Panel {
+  box: HTMLDivElement; // placed in the scene; holds the picture and, on an old screen, its static
   el: HTMLCanvasElement;
   toWorld: Matrix; // the element's CSS pixels (from its top-left, y down) to world metres
   u: [number, number]; // the stretch of the source it shows, as fractions of its width
@@ -46,8 +46,9 @@ export class CrispPanels {
 
   // Show `source` across a frame's `panels` (its picture's layout, `u` running 0 to 1 across it),
   // cutting the hole with `mask`, the mesh of those panels; an image still loading shows once it
-  // has. `onShown` hears when the frame comes into and goes out of view, and `crt` draws it like an
-  // old screen, with scanlines. Returns what to call when `source` has been drawn again.
+  // has. `onShown` hears when the frame comes into and goes out of view, and `crt` plays it like an
+  // old screen, with faint bands rolling down it and a little static. Returns what to call when
+  // `source` has been drawn again.
   add(
     mask: AbstractMesh,
     panels: FramePanel[],
@@ -61,27 +62,29 @@ export class CrispPanels {
     this.masks.add(mask);
     const frame: Shown = { mask, panels: [], visible: false, onShown };
     this.shown.push(frame);
-    // Scanlines are fixed in metres, so every screen has the same pitch, whatever its resolution.
-    const [first] = panels;
-    const tall = first ? Vector3.Distance(toVector(first.corners[3]), toVector(first.corners[0])) : 1;
-    const rows = Math.max(1, Math.round(tall / SCANLINE));
     const repaint = () => {
       for (const { el, u } of frame.panels) {
         const ctx = el.getContext('2d')!;
         ctx.clearRect(0, 0, el.width, el.height);
         ctx.drawImage(source, source.width * u[0], 0, el.width, el.height, 0, 0, el.width, el.height);
-        if (crt) scanlines(ctx, el.width, el.height, rows);
       }
     };
     const build = () => {
       frame.panels = panels.map(({ corners: [bl, , tr, tl], u }) => {
+        const box = document.createElement('div');
         const el = document.createElement('canvas');
         el.width = Math.max(1, Math.round(source.width * (u[1] - u[0])));
         el.height = source.height;
-        el.style.width = `${el.width}px`;
-        el.style.height = `${el.height}px`;
-        el.style.visibility = frame.visible ? '' : 'hidden';
-        this.layer.append(el);
+        box.className = 'crisp-panel';
+        box.style.width = `${el.width}px`;
+        box.style.height = `${el.height}px`;
+        box.style.visibility = frame.visible ? '' : 'hidden';
+        box.append(el);
+        // The bands and the static move by CSS animation alone, which the browser runs on the
+        // GPU without painting anything again.
+        if (crt)
+          box.append(div('crt-roll'), Object.assign(div('crt-static'), { style: `background-image: ${noise()}` }));
+        this.layer.append(box);
         // Across the element runs from tl to tr, and down it from tl to bl.
         const ax = (tr.x - tl.x) / el.width;
         const ay = (tr.y - tl.y) / el.width;
@@ -98,7 +101,7 @@ export class CrispPanels {
           n.x, n.y, n.z, 0,
           tl.x, tl.y, tl.z, 1,
         );
-        const slice: Panel = { el, toWorld, u };
+        const slice: Panel = { box, el, toWorld, u };
         return slice;
       });
       repaint();
@@ -121,26 +124,34 @@ export class CrispPanels {
       const visible = frame.mask.isInFrustum(frustum);
       if (visible !== frame.visible) {
         frame.visible = visible;
-        for (const { el } of frame.panels) el.style.visibility = visible ? '' : 'hidden';
+        for (const { box } of frame.panels) box.style.visibility = visible ? '' : 'hidden';
         frame.onShown?.(visible);
       }
       if (!visible) continue;
-      for (const { el, toWorld } of frame.panels)
-        el.style.transform = `matrix3d(${toWorld.multiply(view).m.join(',')})`;
+      for (const { box, toWorld } of frame.panels)
+        box.style.transform = `matrix3d(${toWorld.multiply(view).m.join(',')})`;
     }
   }
 }
 
-// Soft dark bands, `rows` of them down a `w` × `h` canvas: a darker core with a fainter edge.
-function scanlines(ctx: CanvasRenderingContext2D, w: number, h: number, rows: number): void {
-  const pitch = h / rows;
-  for (let i = 0; i < rows; i++) {
-    const y = i * pitch;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.fillRect(0, y + pitch * 0.35, w, pitch * 0.6);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-    ctx.fillRect(0, y + pitch * 0.5, w, pitch * 0.3);
-  }
+function div(className: string): HTMLDivElement {
+  return Object.assign(document.createElement('div'), { className });
 }
 
-const toVector = ({ x, y, z }: { x: number; y: number; z: number }) => new Vector3(x, y, z);
+// A tile of faint light and dark specks for the static, made once: a CSS image value.
+let noiseTile = '';
+function noise(): string {
+  if (noiseTile) return noiseTile;
+  const size = 128;
+  const c = Object.assign(document.createElement('canvas'), { width: size, height: size });
+  const ctx = c.getContext('2d')!;
+  const img = ctx.createImageData(size, size);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const light = Math.random() < 0.5;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = light ? 255 : 0;
+    img.data[i + 3] = Math.random() * 40;
+  }
+  ctx.putImageData(img, 0, 0);
+  noiseTile = `url(${c.toDataURL()})`;
+  return noiseTile;
+}
