@@ -41,15 +41,20 @@ void main() {
 `;
 
 // Signed distance to the world's edge, mirroring worldDistance() in shared: discs are (x, z, r),
-// bridges are (ax, az, bx, bz) with a half width. Counts are capped so the loops stay constant.
+// bridges are (ax, az, bx, bz) with a half width, and arcs are (x, z, r, half width) with the
+// bearings they run between. Counts are capped so the loops stay constant.
 export const MAX_DISCS = 8;
 export const MAX_BRIDGES = 8;
+export const MAX_ARCS = 2;
 export const WORLD_SDF = `
 uniform vec3 discs[${MAX_DISCS}];
 uniform vec4 bridges[${MAX_BRIDGES}];
 uniform float bridgeWidths[${MAX_BRIDGES}];
+uniform vec4 arcs[${MAX_ARCS}];
+uniform vec2 arcSpans[${MAX_ARCS}];
 uniform int discCount;
 uniform int bridgeCount;
+uniform int arcCount;
 
 float worldDistance(vec2 p) {
   float d = 1.0e9;
@@ -63,6 +68,21 @@ float worldDistance(vec2 p) {
     vec2 v = bridges[i].zw - a;
     float t = clamp(dot(p - a, v) / max(dot(v, v), 1.0e-6), 0.0, 1.0);
     d = min(d, length(p - (a + v * t)) - bridgeWidths[i]);
+  }
+  for (int i = 0; i < ${MAX_ARCS}; i++) {
+    if (i >= arcCount) break;
+    vec2 c = arcs[i].xy;
+    float r = arcs[i].z;
+    vec2 span = arcSpans[i];
+    vec2 q = p - c;
+    vec2 spine;
+    if (mod(atan(q.y, q.x) - span.x, 6.2831853) <= span.y - span.x) spine = c + q / max(length(q), 1.0e-6) * r;
+    else {
+      vec2 from = c + r * vec2(cos(span.x), sin(span.x));
+      vec2 to = c + r * vec2(cos(span.y), sin(span.y));
+      spine = length(p - from) < length(p - to) ? from : to;
+    }
+    d = min(d, length(p - spine) - arcs[i].w);
   }
   return d;
 }

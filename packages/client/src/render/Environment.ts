@@ -8,6 +8,7 @@ import {
   GROUND_FOG,
   GROUND_FRAGMENT,
   GROUND_VERTEX,
+  MAX_ARCS,
   MAX_BRIDGES,
   MAX_DISCS,
   SKY_FRAGMENT,
@@ -79,8 +80,11 @@ export class Environment {
         'discs',
         'bridges',
         'bridgeWidths',
+        'arcs',
+        'arcSpans',
         'discCount',
         'bridgeCount',
+        'arcCount',
       ],
     });
     mat.setColor3('lineColor', new Color3(0.2, 0.9, 0.5));
@@ -102,25 +106,38 @@ export class Environment {
     const discs: number[] = [];
     const bridges: number[] = [];
     const widths: number[] = [];
+    const arcs: number[] = [];
+    const spans: number[] = [];
     for (const part of this.shape) {
       if (part.kind === 'disc') discs.push(part.x, part.z, part.r);
-      else {
+      else if (part.kind === 'bridge') {
         bridges.push(part.ax, part.az, part.bx, part.bz);
         widths.push(part.halfWidth);
+      } else {
+        arcs.push(part.x, part.z, part.r, part.halfWidth);
+        spans.push(part.from, part.to);
       }
     }
     const discCount = discs.length / 3;
     const bridgeCount = widths.length;
-    if (discCount > MAX_DISCS || bridgeCount > MAX_BRIDGES)
-      throw new Error(`the world has more discs or bridges than the floor shader's ${MAX_DISCS} and ${MAX_BRIDGES}`);
+    const arcCount = arcs.length / 4;
+    if (discCount > MAX_DISCS || bridgeCount > MAX_BRIDGES || arcCount > MAX_ARCS)
+      throw new Error(
+        `the world has more discs, bridges or arcs than the floor shader's ${MAX_DISCS}, ${MAX_BRIDGES} and ${MAX_ARCS}`,
+      );
     while (discs.length < MAX_DISCS * 3) discs.push(0, 0, 0);
     while (bridges.length < MAX_BRIDGES * 4) bridges.push(0, 0, 0, 0);
     while (widths.length < MAX_BRIDGES) widths.push(0);
+    while (arcs.length < MAX_ARCS * 4) arcs.push(0, 0, 0, 0);
+    while (spans.length < MAX_ARCS * 2) spans.push(0, 0);
     mat.setArray3('discs', discs);
     mat.setArray4('bridges', bridges);
     mat.setFloats('bridgeWidths', widths);
+    mat.setArray4('arcs', arcs);
+    mat.setArray2('arcSpans', spans);
     mat.setInt('discCount', discCount);
     mat.setInt('bridgeCount', bridgeCount);
+    mat.setInt('arcCount', arcCount);
   }
 
   private createSky(): void {
@@ -218,7 +235,7 @@ export class Environment {
     this.materials.push(mat);
   }
 
-  // Points along one part's own edge, in order: a closed loop for discs, two sides for bridges
+  // Points along one part's own edge, in order: a closed loop for discs, two sides for bridges and arcs
   // with a null between them so they're never stitched together.
   private *outline(part: WorldPart): Iterable<Point | null> {
     if (part.kind === 'disc') {
@@ -226,6 +243,17 @@ export class Environment {
       for (let i = 0; i <= steps; i++) {
         const a = (i / steps) * Math.PI * 2;
         yield { x: part.x + Math.cos(a) * part.r, z: part.z + Math.sin(a) * part.r };
+      }
+      return;
+    }
+    if (part.kind === 'arc') {
+      const steps = Math.max(2, Math.ceil(((part.to - part.from) * (part.r + part.halfWidth)) / WALL_STEP));
+      for (const r of [part.r + part.halfWidth, part.r - part.halfWidth]) {
+        for (let i = 0; i <= steps; i++) {
+          const a = part.from + ((part.to - part.from) * i) / steps;
+          yield { x: part.x + Math.cos(a) * r, z: part.z + Math.sin(a) * r };
+        }
+        yield null;
       }
       return;
     }

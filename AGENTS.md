@@ -380,8 +380,9 @@ wire: server and client both build the world from that file.
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
-  (r 30 at x 112) and the bridge between them, and the four buildings' grounds and paths: the annex
-  and that bridge turned round the main disc to 90°, 150°, 210° and 270°. Players are clamped 1 m inside it no matter what, so keep structures inside too.
+  (r 30 at x 112) and the bridge between them, the four buildings' grounds and paths (the annex
+  and that bridge turned round the main disc to 90°, 150°, 210° and 270°), and an arc through all
+  four grounds, twice a path's width. A part is a disc, a straight `bridge` or a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;

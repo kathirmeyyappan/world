@@ -70,6 +70,10 @@ test('movement is yaw-relative and clamped to the world edge', () => {
   assert.ok(p.pos.x > 7.9 && Math.abs(p.pos.z) < 1e-9, 'yaw of pi/2 walks along +x');
   for (let i = 2; i < 200; i++) stepPlayer(p, frame(i, { my: 1, yaw: Math.PI / 2 }), 1, WORLD_SHAPE);
   assert.ok(worldDistance(p.pos.x, p.pos.z, WORLD_SHAPE) <= -1 + 1e-9);
+  // Walking straight out from the middle of the arc round the buildings (r 112, 8 m either side).
+  const q = createPlayer('b', 'b', '#fff', { x: -112, y: EYE_HEIGHT, z: 0 });
+  for (let i = 1; i < 100; i++) stepPlayer(q, frame(i, { my: 1, yaw: -Math.PI / 2 }), 1, WORLD_SHAPE);
+  assert.ok(Math.abs(q.pos.x + 119) < 1e-6 && Math.abs(q.pos.z) < 1e-6, `held a metre inside the arc: ${q.pos.x}`);
 });
 
 test('jump only from the ground, and gravity brings you back', () => {
