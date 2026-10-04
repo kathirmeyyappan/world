@@ -99,7 +99,8 @@ Use:
   its rail where only a jump gets there. `Route(world, path, tick)` (`common/navigation.py`) walks
   it: `route.steer(me.pos, tick, controls)` on every snapshot after `look`, and plan again when
   `route.stuck(tick)`. `controls.walk_toward(origin, target)` moves toward a point whatever the look.
-  `world.lookouts` are the high spots with a wide view (balconies, decks); `world.hitbox(avatar)` is
+  `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the same
+  by where they are (`tower`, `building` or `elsewhere`); `world.hitbox(avatar)` is
   what a shot at that avatar has to land in (head band included). All of it comes from the generated
   map, so after a change to structures, the outline, movement or an avatar, run `npm run bot-map`.
 

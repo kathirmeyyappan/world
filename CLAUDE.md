@@ -275,7 +275,8 @@ Bots must use the modules under `modal-bots/common/`:
   `Route(world, path, tick)` (`common/navigation.py`) walks it: call `route.steer(me.pos, tick,
   controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
   `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
-  `world.lookouts` are the high spots with a wide view (balconies, decks), and
+  `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the
+  same by where they are (`tower`, `building` or `elsewhere`), and
   `world.hitbox(avatar)` is what a shot at that avatar has to land in (head band included).
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
