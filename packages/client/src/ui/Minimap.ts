@@ -3,11 +3,19 @@
 // world's signed distance, so any shape made of discs and bridges draws correctly with no path maths.
 // That is too slow to redo every frame, so each view's floor is drawn once, north-up, into an
 // offscreen canvas at that view's scale, and each frame just places (and for NEAR, rotates) it.
-// Landmarks (content/landmarks.ts) are grey on the floor. Markers (cubes, players, you) go on top with plain canvas calls; a player on another level (a
+// Landmarks (content/landmarks.ts) are grey on the floor, and up past HIGH_UP so are the walkways up there. Markers (cubes, players, you) go on top with plain canvas calls; a player on another level (a
 // floor above, a bridge below) is a triangle pointing their way instead of a square. Your x, y, z sits
 // in the map's corner: the sim's coordinates, with y the height of your feet rather than your eyes.
 // Desktop only; see styles.css.
-import { EYE_HEIGHT, partDistance, worldBounds, worldDistance, type Landmark, type WorldPart } from '@world/shared';
+import {
+  EYE_HEIGHT,
+  HIGH_UP,
+  onLandmark,
+  worldBounds,
+  worldDistance,
+  type Landmark,
+  type WorldPart,
+} from '@world/shared';
 
 export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
@@ -32,13 +40,14 @@ export class Minimap {
   private readonly toggleBar = document.getElementById('minimap-toggle')!;
   private readonly coords = document.getElementById('minimap-coords')!;
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly floors = new Map<number, Floor>(); // keyed by metres per pixel
+  private readonly floors = new Map<string, Floor>(); // keyed by metres per pixel, and whether up high
   private view: MinimapView = 'world';
   private readonly bounds;
 
   constructor(
     private readonly shape: WorldPart[],
     private readonly landmarks: Landmark[] = [],
+    private readonly high: Landmark[] = [], // shown too while your feet are above HIGH_UP
   ) {
     this.canvas.width = SIZE;
     this.canvas.height = SIZE;
@@ -68,7 +77,7 @@ export class Minimap {
     const n = (v: number) => Math.round(v) || 0; // `|| 0` so a hair below zero reads 0, not -0
     this.coords.textContent = `${n(x)}, ${n(y - EYE_HEIGHT)}, ${n(z)}`;
     const t = this.transform(frame.me);
-    this.drawFloor(t);
+    this.drawFloor(t, y - EYE_HEIGHT > HIGH_UP);
 
     for (const c of frame.cubes) this.marker(t, c.x, c.z, 2, 'rgba(255,255,255,0.35)'); // faint specks; players should stand out
     for (const p of frame.players) this.player(t, p, p.y - frame.me.y);
@@ -103,9 +112,14 @@ export class Minimap {
   }
 
   // The cached floor for this view's scale, drawn so its world points land where `t` puts them.
-  private drawFloor(t: Transform): void {
-    let floor = this.floors.get(t.scale);
-    if (!floor) this.floors.set(t.scale, (floor = this.renderFloor(t.scale)));
+  private drawFloor(t: Transform, high: boolean): void {
+    const key = `${t.scale}:${high}`;
+    let floor = this.floors.get(key);
+    if (!floor)
+      this.floors.set(
+        key,
+        (floor = this.renderFloor(t.scale, high ? [...this.landmarks, ...this.high] : this.landmarks)),
+      );
     const ctx = this.ctx;
     const [e, f] = this.toPixel(t, floor.x, floor.z);
     ctx.clearRect(0, 0, SIZE, SIZE);
@@ -115,9 +129,9 @@ export class Minimap {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  // The whole world's floor, north-up, at `scale` metres per pixel, with a pixel of margin for the
-  // outline. `x`, `z` is the world point at the canvas's top-left corner.
-  private renderFloor(scale: number): Floor {
+  // The whole world's floor, north-up, at `scale` metres per pixel, with `landmarks` greyed in and a
+  // pixel of margin for the outline. `x`, `z` is the world point at the canvas's top-left corner.
+  private renderFloor(scale: number, landmarks: Landmark[]): Floor {
     const b = this.bounds;
     const x = b.minX - 2 * scale;
     const z = b.maxZ + 2 * scale;
@@ -138,8 +152,8 @@ export class Minimap {
         let color: readonly number[] = ACCENT;
         let a = 0;
         if (Math.abs(d) < scale * EDGE_PIXELS) a = 230;
-        else if (d < 0 && this.landmarks.some((l) => partDistance(wx, wz, l) <= 0)) {
-          color = this.landmarks.some((l) => onRing(l, wx, wz, scale)) ? RING : LANDMARK;
+        else if (d < 0 && landmarks.some((l) => onLandmark(l, wx, wz))) {
+          color = landmarks.some((l) => onRing(l, wx, wz, scale)) ? RING : LANDMARK;
           a = 200;
         } else if (d < 0) {
           const gx = Math.abs((((wx % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);

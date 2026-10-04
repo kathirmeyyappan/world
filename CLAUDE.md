@@ -61,7 +61,8 @@ wire: server and client both build the world from that file.
 
 - Use the helpers rather than hand-computing yaw and centres: `wall(a, b, h)` runs between two floor
   points, `ramp(low, high, h, w)` rises from `low` to `high`, `stairs(bottom, top, h, w)` is solid
-  steps players walk up without jumping (the camera eases over each), `building({...})` is four
+  steps players walk up without jumping (the camera eases over each; with `thickness` and `rail`,
+  a railed flight in the air, like the staircases up to the terrace), `building({...})` is four
   walls, a doorway and a roof, and `terrain({ height })` samples a function. The round pieces:
   `roundWall` (straight segments at any base height, with gaps for doors and windows), `spiralStairs`
   (with an optional inner rail so players can't step off the inside) and `roundFloor` (gap-free rings,
@@ -74,7 +75,8 @@ wire: server and client both build the world from that file.
   1 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
   floors (each one's doors and where its flight starts), stacked from the ground and turned to face
   the way in. The tower stacks all four and each building stands one of them alone, so a floor is
-  the same room in both; change a floor there and both follow. A piece you'll reuse (a
+  the same room in both; change a floor there and both follow. The terrace (`content/terrace.ts`)
+  is reached from all of them: the tower's sky bridge, and a staircase from each building's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
@@ -107,8 +109,8 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 3,660 pieces render as
-  83 meshes (about 15 in view at once), and a world-spanning raycast costs about 50 µs. Check both numbers in the PR when a
+  so draw calls stay in the tens however many pieces there are. The world's 5,747 pieces render as
+  86 meshes (about 15 in view at once), and a world-spanning raycast costs about 90 µs. Check both numbers in the PR when a
   landmark adds a lot.
 
 ### Wall frames
@@ -141,7 +143,7 @@ game's origin (CORS).
 
 - A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a
   floor at height `y`.
-  Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS` and `TUNG_TUNG_TERRACE`) and
+  Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS`, the terrace's `TERRACE_DECK`) and
   `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`,
   `SPAWN_AREAS`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
   reshape a place where it's defined, never at the spawner.
@@ -175,7 +177,8 @@ you do (the map carries a fingerprint of all of them).
 
 Cubes don't know about structures, and the minimap shows only the footprints in
 `content/landmarks.ts` (grey on the floor, a disc's `rings` drawn inside it: Tung Tung Tower has one
-per floor above the ground): list a landmark's there when it's worth navigating by.
+per floor above the ground), and with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the
+terrace, the sky bridge and the staircases. List a landmark's there when it's worth navigating by.
 
 ## Adding a Modal bot
 

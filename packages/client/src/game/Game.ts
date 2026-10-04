@@ -5,6 +5,7 @@ import {
   CUBES,
   GEAR,
   ITEMS,
+  HIGH_LANDMARKS,
   LANDMARKS,
   SKY_OBJECTS,
   TICK_DT,
@@ -99,7 +100,7 @@ export class Game {
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
   private readonly wallFrames: WallFrames;
-  private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS);
+  private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS, HIGH_LANDMARKS);
   private readonly death = new Death();
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();

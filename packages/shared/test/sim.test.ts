@@ -268,7 +268,7 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
   const q = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   walk(q, 0, 17, tall);
   assert.ok(q.pos.y === EYE_HEIGHT && q.pos.z < 1, 'blocked at its edge');
-  assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, 2), /over/);
+  assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, { steps: 2 }), /over/);
 });
 
 test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {

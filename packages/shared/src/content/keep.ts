@@ -51,8 +51,21 @@ export interface Keep {
 }
 
 // A keep centred on (x, z) holding `floors` of the layout (consecutive, lowest first), its main door
-// at bearing `entrance`.
-export function keep({ x, z, entrance, floors }: { x: number; z: number; entrance: number; floors: number[] }): Keep {
+// at bearing `entrance`. With `roofExit`, the parapet round the roof opens over the main door, where
+// something leaves the roof (a building's staircase up to the terrace).
+export function keep({
+  x,
+  z,
+  entrance,
+  floors,
+  roofExit = false,
+}: {
+  x: number;
+  z: number;
+  entrance: number;
+  floors: number[];
+  roofExit?: boolean;
+}): Keep {
   const turn = entrance - MAIN; // added to every bearing in the layout
   const roof = floors.length * STOREY;
   const r = OUTER - WALL / 2; // the wall's centreline
@@ -78,12 +91,15 @@ export function keep({ x, z, entrance, floors }: { x: number; z: number; entranc
       h: roof + ROOF_WALL, // past the roof, whose edge then ends inside the wall rather than level with its top
       thickness: WALL,
       segments: SEGMENTS,
-      gaps: floors.flatMap((_, i) =>
-        doors(i).map(({ angle, width, top }) => {
-          const bottom = i === 0 ? 0 : i * STOREY - SILL;
-          return { angle, width, bottom, top: bottom + top };
-        }),
-      ),
+      gaps: [
+        ...floors.flatMap((_, i) =>
+          doors(i).map(({ angle, width, top }) => {
+            const bottom = i === 0 ? 0 : i * STOREY - SILL;
+            return { angle, width, bottom, top: bottom + top };
+          }),
+        ),
+        ...(roofExit ? [{ angle: entrance, width: 2 * DOOR, bottom: roof - SILL, top: roof + ROOF_WALL }] : []),
+      ],
       material: 'brick',
     }),
     ...spiralStairs({
@@ -116,12 +132,13 @@ export function keep({ x, z, entrance, floors }: { x: number; z: number; entranc
       material: 'flagstone',
     }),
     ...roundWall({ x, z, r: OPENING + 0.1, y: roof, h: RAIL, thickness: 0.2, segments: 32, material: 'brick' }),
-    // Battlements: a merlon on every other segment of the wall above the roof.
-    ...Array.from({ length: SEGMENTS / 2 }, (_, k): Box => {
-      const a = turn + 2 * k * DOOR;
-      const along = 0.045; // half the merlon's arc, in radians
-      return { ...wall(onWall(a - along), onWall(a + along), MERLON, WALL, roof + ROOF_WALL), material: 'brick' };
-    }),
+    // Battlements: a merlon on every other segment of the wall above the roof, but over the exit.
+    ...Array.from({ length: SEGMENTS / 2 }, (_, k) => turn + 2 * k * DOOR)
+      .filter((a) => !roofExit || Math.cos(a - entrance) < Math.cos(DOOR))
+      .map((a): Box => {
+        const along = 0.045; // half the merlon's arc, in radians
+        return { ...wall(onWall(a - along), onWall(a + along), MERLON, WALL, roof + ROOF_WALL), material: 'brick' };
+      }),
   ];
 
   // Frames centre halfway up each storey, and a frame's angle 0 is the main door's bearing on every
