@@ -24,7 +24,7 @@ export const CUBES: CubeContent[] = [
     id: 'modal',
     h1: 'Modal',
     h2: 'Member of Technical Staff',
-    h3: '2024',
+    h3: '2026 — Present',
     description: [
       'Working on interesting infra problems with some very cool people',
       'Fun fact: The kathir world serving infra is built on Modal, meaning rooms and bots scale massively :)',
@@ -47,7 +47,7 @@ export const CUBES: CubeContent[] = [
     id: 'uchicago-cs',
     h1: 'UChicago Department of Computer Science',
     h2: 'Undergraduate Researcher + Teaching Assistant',
-    h3: '2024 - 2026',
+    h3: '2024 — 2026',
     description: [
       'Got interested in databases and did infra work under Prof. Aaron Elmore',
       'TAed a couple times for CMSC 23500 / 33550 undergrad + grad database systems',
