@@ -35,7 +35,7 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
-import { randomPointInRegion, type Region } from './sim/regions';
+import { randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
@@ -433,8 +433,7 @@ export class Room {
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';
     this.broadcast({ t: 'system', text: `${me.name} called ${who} for ${seconds}s${after}` });
-    const near = this.spawnPoint(me.pos);
-    const spawn = { x: near.x, y: near.y - EYE_HEIGHT, z: near.z };
+    const spawn = this.standingSpot(() => this.pointNear(me.pos), me.pos.y - EYE_HEIGHT);
     const named = name === undefined ? {} : { name };
     const dressed = call.avatar === null ? {} : { avatar: call.avatar };
     const req = botRequest(
@@ -492,36 +491,40 @@ export class Room {
     );
   }
 
-  // A bot's chosen spot (feet at `feet`), kept inside the world and stood on the highest surface
-  // within a step of those feet, so a spot asked for on a floor lands on it and one in the air falls.
+  // A bot's chosen spot (feet at `feet`), kept inside the world, on whatever is within a step of
+  // those feet: a spot asked for on a floor lands on it, and one in the air falls from there.
   private placedSpawn(feet: Vec3): Vec3 {
     const p = { ...feet };
     clampToWorld(p, PLAYER_PADDING, this.worldShape);
-    return { x: p.x, y: this.structures.groundAt(p.x, p.z, feet.y + STEP_UP) + EYE_HEIGHT, z: p.z };
+    return { x: p.x, y: this.standAt(p.x, p.z, feet.y) + EYE_HEIGHT, z: p.z };
   }
 
-  // Somewhere in SPAWN_AREAS, picked by weight (or, given `near`, within CALLED_BOT_RANGE of it
-  // across the floor), clear of the walls and not on top of a cube, standing on the ground (or
-  // anything within a step of it) with room for a body above: inside a building's ground floor,
-  // never on a roof, and never inside a wall. Returns the eye position.
-  private spawnPoint(near?: Vec3) {
-    const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, STEP_UP);
-    const roomy = (p: { x: number; z: number }) =>
-      this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
-    const area = this.spawnArea(); // one area for every try, so each gets its weight's share
-    const pick = () => (near ? this.pointNear(near) : randomPointInRegion(area, SPAWN_MARGIN, this.rng));
-    let p = pick();
+  // Somewhere in one of SPAWN_AREAS, on the ground (or anything within a step of it): inside a
+  // building's ground floor, never on a roof. Returns the eye position.
+  private spawnPoint(): Vec3 {
+    const area = SPAWN_AREAS[Math.floor(this.rng() * SPAWN_AREAS.length)]; // one for every try, so each gets its share
+    const feet = this.standingSpot(() => randomPointInRegion(area, SPAWN_MARGIN, this.rng), 0);
+    return { ...feet, y: feet.y + EYE_HEIGHT };
+  }
+
+  // The first of twenty spots from `pick` where a body fits with its feet at `height` (on whatever
+  // is within a step of it there, or in the air), never inside a wall and not on top of a cube;
+  // the last one tried if none does. Returns the feet.
+  private standingSpot(pick: () => { x: number; z: number }, height: number): Vec3 {
+    let spot: Vec3 = { x: 0, y: height, z: 0 };
     for (let i = 0; i < 20; i++) {
-      if (this.cubes.every((c) => Math.hypot(c.pos.x - p.x, c.pos.z - p.z) >= SPAWN_CUBE_MARGIN) && roomy(p)) break;
-      p = pick();
+      const { x, z } = pick();
+      spot = { x, y: this.standAt(x, z, height), z };
+      const offCubes = this.cubes.every((c) => Math.hypot(c.pos.x - x, c.pos.z - z) >= SPAWN_CUBE_MARGIN);
+      if (offCubes && this.structures.fits(x, z, spot.y, EYE_HEIGHT + CAPSULE_TOP)) break;
     }
-    return { x: p.x, y: ground(p) + EYE_HEIGHT, z: p.z };
+    return spot;
   }
 
-  // One of SPAWN_AREAS, each as likely as its weight.
-  private spawnArea(): Region {
-    let roll = this.rng() * SPAWN_AREAS.reduce((sum, a) => sum + a.weight, 0);
-    return (SPAWN_AREAS.find((a) => (roll -= a.weight) < 0) ?? SPAWN_AREAS[0]).region;
+  // Where feet put down at `height` over (x, z) come to rest at first: on the highest surface within
+  // a step of them, or still at `height`, in the air, if there's none.
+  private standAt(x: number, z: number, height: number): number {
+    return Math.max(height, this.structures.groundAt(x, z, height + STEP_UP));
   }
 
   // A random point within CALLED_BOT_RANGE of `near` and SPAWN_WALL_MARGIN inside the world; `near`

@@ -88,6 +88,16 @@ export class Structures {
     return ceiling;
   }
 
+  // Whether a body at (x, z), feet at `feet` and `height` tall, is clear of every structure: anything
+  // there tops out at or below its feet (ground) or starts above its head.
+  fits(x: number, z: number, feet: number, height: number): boolean {
+    return this.near(x, z, x, z).every((p) => {
+      const [lx, lz] = local(p, x, z);
+      if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) return true;
+      return p.base >= feet + height || p.base + p.top(lx, lz) <= feet + 1e-6;
+    });
+  }
+
   // Moves a body's centre by (dx, dz), pushing it out of anything too tall to step onto and
   // stopping short of anything it would end up inside (steep terrain). Moves in substeps no
   // longer than the radius so a fast body can't pass through a thin wall.

@@ -121,33 +121,39 @@ export function ramp(low: { x: number; z: number }, high: { x: number; z: number
   };
 }
 
-// A flight of solid steps from `bottom` on the floor (or at y) up to `top`, rising by h in total,
-// width w. Each step rises h / steps; the default keeps that near 0.25 m. Throws if a step is
-// taller than a player can walk up (STEP_UP).
+// A flight of steps from `bottom` up to `top`, rising by h in total from height `y` (default 0, the
+// floor), width w. Each step rises h / steps; the default keeps that near 0.25 m. Steps are solid
+// down to y, unless each is a slab `thickness` deep (a flight in the air, with room beneath it);
+// with `rail`, each step also carries a post that high on both edges, so nobody steps off the
+// sides. Throws if a step is taller than a player can walk up (STEP_UP).
 export function stairs(
   bottom: { x: number; z: number },
   top: { x: number; z: number },
   h: number,
   w: number,
-  steps = Math.max(1, Math.ceil(h / 0.25)),
-  y = 0,
+  opts: { steps?: number; y?: number; thickness?: number; rail?: number; material?: StructureMaterial } = {},
 ): Box[] {
+  const { steps = Math.max(1, Math.ceil(h / 0.25)), y = 0, thickness = Infinity, rail = 0, material } = opts;
   if (h / steps > STEP_UP) throw new Error(`stairs: ${steps} steps rising ${h} m are over ${STEP_UP} m each`);
   const yaw = Math.atan2(top.x - bottom.x, top.z - bottom.z);
   const depth = Math.hypot(top.x - bottom.x, top.z - bottom.z) / steps;
-  return Array.from({ length: steps }, (_, i) => {
+  const RAIL_WIDTH = 0.2;
+  return Array.from({ length: steps }, (_, i): Box[] => {
     const t = (i + 0.5) / steps;
-    return {
-      kind: 'box',
-      x: bottom.x + (top.x - bottom.x) * t,
-      z: bottom.z + (top.z - bottom.z) * t,
-      y,
-      yaw,
-      w,
-      d: depth,
-      h: (h * (i + 1)) / steps,
+    const at = { x: bottom.x + (top.x - bottom.x) * t, z: bottom.z + (top.z - bottom.z) * t };
+    const stepTop = y + (h * (i + 1)) / steps;
+    const base = Math.max(y, stepTop - thickness);
+    const step: Box = { kind: 'box', ...at, y: base, yaw, w, d: depth, h: stepTop - base, material };
+    if (rail <= 0) return [step];
+    // Standing on the step rather than beside it, so the two share no face; local +x is (cos, -sin).
+    const post = (side: number): Box => {
+      const off = side * (w / 2 - RAIL_WIDTH / 2);
+      const x = at.x + off * Math.cos(yaw);
+      const z = at.z - off * Math.sin(yaw);
+      return { kind: 'box', x, z, y: stepTop, yaw, w: RAIL_WIDTH, d: depth + 0.02, h: rail, material };
     };
-  });
+    return [step, post(1), post(-1)];
+  }).flat();
 }
 
 // Four walls and a roof. The doorway is a gap of `door` metres in the middle of the local +z
@@ -319,10 +325,12 @@ export function spiralStairs(opts: {
 
 // A round floor of radius r whose top is at y, with no gaps: a square in the middle and rings of
 // sector-shaped boxes around it, each overlapping its neighbours. An optional hole (for a stair
-// coming up from below) removes every sector of the outer ring, from `inner` out to r, that touches
-// the angles `from`..`to`; the hole is never smaller than asked. With `inner`, only the ring from
-// there out to r is built (a balcony round a tower). Sectors are at most `chord` metres along the
-// circle.
+// coming up from below) removes every sector of the outer ring, from the hole's `inner` out to r,
+// that touches the angles `from`..`to`; the hole is never smaller than asked, and the ring's sectors
+// start at `to`, so it ends exactly there (where a stair arriving through it ends, with nothing open
+// past its top step) and only runs over at `from`. With `inner`, only the ring from there out to r
+// is built (a balcony round a tower, a roof open in the middle). Sectors are at most `chord` metres
+// along the circle.
 export function roundFloor(opts: {
   x: number;
   z: number;
@@ -337,7 +345,7 @@ export function roundFloor(opts: {
 }): Box[] {
   const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color } = opts;
   const slab = { y: y - thickness, h: thickness, material, color };
-  const edge = inner ?? (hole ? hole.inner : r / 2); // where the outer ring (the one a hole is cut from) begins
+  const edge = hole?.inner ?? inner ?? r / 2; // where the outer ring (the one a hole is cut from) begins
   const core = edge / 2; // the middle square's half side: its corners stay inside `edge`
   const pieces: Box[] =
     inner === undefined ? [{ kind: 'box', x, z, w: 2 * core + 0.1, d: 2 * core + 0.1, ...slab }] : [];
@@ -345,12 +353,13 @@ export function roundFloor(opts: {
     const count = Math.max(8, Math.ceil((2 * Math.PI * b) / chord));
     const span = (2 * Math.PI) / count;
     const inset = a * (1 - Math.cos(span / 2)) + 0.05; // reach far enough in to meet the ring inside
+    const phase = holed && hole ? hole.to : 0;
     for (let k = 0; k < count; k++) {
-      const angle = (k + 0.5) * span;
+      const angle = phase + (k + 0.5) * span;
       if (holed && hole) {
         const middle = (hole.from + hole.to) / 2;
         const off = Math.abs(((((angle - middle) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
-        if (off < span / 2 + (hole.to - hole.from) / 2) continue;
+        if (off < span / 2 + (hole.to - hole.from) / 2 - 1e-9) continue; // the sector just past `to` only touches it
       }
       const c = onCircle(x, z, (a - inset + b) / 2, angle);
       pieces.push({
@@ -364,7 +373,8 @@ export function roundFloor(opts: {
       });
     }
   };
-  if (inner === undefined) ring(core, edge, false);
+  const start = inner ?? core;
+  if (edge > start) ring(start, edge, false);
   ring(edge, r, true);
   return pieces;
 }

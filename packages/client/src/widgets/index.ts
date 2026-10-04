@@ -9,8 +9,9 @@ export interface Widget {
   readonly canvas: HTMLCanvasElement;
   // Called after every repaint, so whatever shows the canvas can take the new pixels.
   onPaint: () => void;
-  // Whether its frame is in view: a widget fetches and animates only while it is and the tab is
-  // showing, and catches up at once when it comes back.
+  // Whether its frame is shown, in view and near enough to see (render/CrispPanels.ts): a widget
+  // fetches and animates only while it is and the tab is showing, and catches up at once when it
+  // comes back.
   setShown: (shown: boolean) => void;
 }
 

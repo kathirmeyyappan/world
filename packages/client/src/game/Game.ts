@@ -5,10 +5,11 @@ import {
   CUBES,
   GEAR,
   ITEMS,
+  HIGH_LANDMARKS,
   LANDMARKS,
   SKY_OBJECTS,
   TICK_DT,
-  TUNG_TUNG_TOWER_FRAMES,
+  WALL_FRAMES,
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   actionForKey,
@@ -99,7 +100,7 @@ export class Game {
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
   private readonly wallFrames: WallFrames;
-  private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS);
+  private readonly minimap = new Minimap(WORLD_SHAPE, LANDMARKS, HIGH_LANDMARKS);
   private readonly death = new Death();
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();
@@ -147,7 +148,7 @@ export class Game {
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
-    this.wallFrames = new WallFrames(this.engine, TUNG_TUNG_TOWER_FRAMES);
+    this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
     this.camera.fov = DEFAULT_FOV;
@@ -548,7 +549,7 @@ export class Game {
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.frameBubble.update(this.engine.scene, this.camera, this.canvasEl);
-    this.areaTitle.update(p.x, p.z);
+    this.areaTitle.update(p);
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,

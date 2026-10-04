@@ -8,6 +8,7 @@ import {
   GROUND_FOG,
   GROUND_FRAGMENT,
   GROUND_VERTEX,
+  MAX_ARCS,
   MAX_BRIDGES,
   MAX_DISCS,
   SKY_FRAGMENT,
@@ -24,6 +25,8 @@ const FOG_HALF_LIFE = 0.12; // seconds, for the scope's fog change
 const ZENITH_COLOR = new Color3(0.01, 0.01, 0.04);
 const HORIZON_COLOR = new Color3(0.12, 0.03, 0.14);
 const FADED = Math.log(10); // the floor's fog exponent at 90% fogged: where the horizon sits
+
+type Point = { x: number; z: number };
 
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
@@ -77,8 +80,11 @@ export class Environment {
         'discs',
         'bridges',
         'bridgeWidths',
+        'arcs',
+        'arcSpans',
         'discCount',
         'bridgeCount',
+        'arcCount',
       ],
     });
     mat.setColor3('lineColor', new Color3(0.2, 0.9, 0.5));
@@ -100,25 +106,38 @@ export class Environment {
     const discs: number[] = [];
     const bridges: number[] = [];
     const widths: number[] = [];
+    const arcs: number[] = [];
+    const spans: number[] = [];
     for (const part of this.shape) {
       if (part.kind === 'disc') discs.push(part.x, part.z, part.r);
-      else {
+      else if (part.kind === 'bridge') {
         bridges.push(part.ax, part.az, part.bx, part.bz);
         widths.push(part.halfWidth);
+      } else {
+        arcs.push(part.x, part.z, part.r, part.halfWidth);
+        spans.push(part.from, part.to);
       }
     }
-    const discCount = Math.min(discs.length / 3, MAX_DISCS);
-    const bridgeCount = Math.min(widths.length, MAX_BRIDGES);
-    if (discs.length / 3 > MAX_DISCS || widths.length > MAX_BRIDGES)
-      console.warn('world shape exceeds shader limits; floor will be wrong');
+    const discCount = discs.length / 3;
+    const bridgeCount = widths.length;
+    const arcCount = arcs.length / 4;
+    if (discCount > MAX_DISCS || bridgeCount > MAX_BRIDGES || arcCount > MAX_ARCS)
+      throw new Error(
+        `the world has more discs, bridges or arcs than the floor shader's ${MAX_DISCS}, ${MAX_BRIDGES} and ${MAX_ARCS}`,
+      );
     while (discs.length < MAX_DISCS * 3) discs.push(0, 0, 0);
     while (bridges.length < MAX_BRIDGES * 4) bridges.push(0, 0, 0, 0);
     while (widths.length < MAX_BRIDGES) widths.push(0);
+    while (arcs.length < MAX_ARCS * 4) arcs.push(0, 0, 0, 0);
+    while (spans.length < MAX_ARCS * 2) spans.push(0, 0);
     mat.setArray3('discs', discs);
     mat.setArray4('bridges', bridges);
     mat.setFloats('bridgeWidths', widths);
+    mat.setArray4('arcs', arcs);
+    mat.setArray2('arcSpans', spans);
     mat.setInt('discCount', discCount);
     mat.setInt('bridgeCount', bridgeCount);
+    mat.setInt('arcCount', arcCount);
   }
 
   private createSky(): void {
@@ -147,7 +166,9 @@ export class Environment {
   }
 
   // A vertical ribbon along the union's outline. Each part's edge is sampled, samples that fall
-  // inside another part are dropped (that's where parts join), and the survivors become quads.
+  // inside another part are dropped (that's where parts join), and the survivors become quads,
+  // each run carried on to the exact point where its edge goes into the other part, so two parts'
+  // walls meet in the corner between them.
   private createWall(): void {
     const scene = this.engine.scene;
     const positions: number[] = [];
@@ -171,14 +192,25 @@ export class Environment {
     };
 
     for (const part of this.shape) {
-      let run: { x: number; z: number }[] = [];
+      const exposed = (p: Point) =>
+        this.shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
+      let run: Point[] = [];
+      let last: { p: Point; out: boolean } | null = null;
       for (const p of this.outline(part)) {
-        const exposed = p && this.shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
-        if (exposed) run.push(p);
+        if (!p) {
+          pushRun(run);
+          run = [];
+          last = null;
+          continue;
+        }
+        const out = exposed(p);
+        if (last && out !== last.out) run.push(crossing(last.p, p, exposed));
+        if (out) run.push(p);
         else {
           pushRun(run);
           run = [];
         }
+        last = { p, out };
       }
       pushRun(run);
     }
@@ -203,14 +235,25 @@ export class Environment {
     this.materials.push(mat);
   }
 
-  // Points along one part's own edge, in order: a closed loop for discs, two sides for bridges
+  // Points along one part's own edge, in order: a closed loop for discs, two sides for bridges and arcs
   // with a null between them so they're never stitched together.
-  private *outline(part: WorldPart): Iterable<{ x: number; z: number } | null> {
+  private *outline(part: WorldPart): Iterable<Point | null> {
     if (part.kind === 'disc') {
       const steps = Math.max(24, Math.ceil((2 * Math.PI * part.r) / WALL_STEP));
       for (let i = 0; i <= steps; i++) {
         const a = (i / steps) * Math.PI * 2;
         yield { x: part.x + Math.cos(a) * part.r, z: part.z + Math.sin(a) * part.r };
+      }
+      return;
+    }
+    if (part.kind === 'arc') {
+      const steps = Math.max(2, Math.ceil(((part.to - part.from) * (part.r + part.halfWidth)) / WALL_STEP));
+      for (const r of [part.r + part.halfWidth, part.r - part.halfWidth]) {
+        for (let i = 0; i <= steps; i++) {
+          const a = part.from + ((part.to - part.from) * i) / steps;
+          yield { x: part.x + Math.cos(a) * r, z: part.z + Math.sin(a) * r };
+        }
+        yield null;
       }
       return;
     }
@@ -257,4 +300,18 @@ export class Environment {
     this.sky.setFloat('horizon', horizon);
     this.ground.setFloat('horizon', horizon);
   }
+}
+
+// The point between `a` and `b` where `test` changes its answer, to well under a millimetre.
+function crossing(a: Point, b: Point, test: (p: Point) => boolean): Point {
+  const at = (t: number) => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+  const start = test(a);
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    if (test(at(mid)) === start) lo = mid;
+    else hi = mid;
+  }
+  return at((lo + hi) / 2);
 }

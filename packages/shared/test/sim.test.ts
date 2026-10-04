@@ -36,7 +36,7 @@ import {
   worldDistance,
   type InputFrame,
   OFF_WALL,
-  TUNG_TUNG_TOWER_FRAMES,
+  WALL_FRAMES,
   layoutWallFrame,
 } from '@world/shared';
 import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
@@ -70,6 +70,10 @@ test('movement is yaw-relative and clamped to the world edge', () => {
   assert.ok(p.pos.x > 7.9 && Math.abs(p.pos.z) < 1e-9, 'yaw of pi/2 walks along +x');
   for (let i = 2; i < 200; i++) stepPlayer(p, frame(i, { my: 1, yaw: Math.PI / 2 }), 1, WORLD_SHAPE);
   assert.ok(worldDistance(p.pos.x, p.pos.z, WORLD_SHAPE) <= -1 + 1e-9);
+  // Walking straight out from the middle of the arc round the buildings (r 112, 8 m either side).
+  const q = createPlayer('b', 'b', '#fff', { x: -112, y: EYE_HEIGHT, z: 0 });
+  for (let i = 1; i < 100; i++) stepPlayer(q, frame(i, { my: 1, yaw: -Math.PI / 2 }), 1, WORLD_SHAPE);
+  assert.ok(Math.abs(q.pos.x + 119) < 1e-6 && Math.abs(q.pos.z) < 1e-6, `held a metre inside the arc: ${q.pos.x}`);
 });
 
 test('jump only from the ground, and gravity brings you back', () => {
@@ -268,7 +272,7 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
   const q = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   walk(q, 0, 17, tall);
   assert.ok(q.pos.y === EYE_HEIGHT && q.pos.z < 1, 'blocked at its edge');
-  assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, 2), /over/);
+  assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, { steps: 2 }), /over/);
 });
 
 test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {
@@ -299,5 +303,5 @@ test('a wall frame is as wide as its picture, centred mid-storey, hugging the wa
   assert.throws(() => layoutWallFrame({ room, angle: 0, height: 16, show }), /doorway/);
   assert.throws(() => layoutWallFrame({ room, angle: 60, height: 2, show }), /stair/);
   assert.throws(() => layoutWallFrame({ room, angle: 225, height: 20, show }), /too tall/);
-  for (const f of TUNG_TUNG_TOWER_FRAMES) layoutWallFrame(f); // the tower's own all hang cleanly
+  for (const f of WALL_FRAMES) layoutWallFrame(f); // the listed ones all hang cleanly
 });

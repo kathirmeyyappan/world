@@ -206,7 +206,8 @@ with concurrent receive and input loops.
   `Player.bot` is true, the roster shows a robot icon, and a room with only bots left closes.
 - A bot may choose where it spawns and how it looks: pass `spawn` (a feet position, `Vec3`) and
   `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,
-  clamping the spot inside the world and standing the bot on the surface under it; the avatar is
+  clamping the spot inside the world and standing the bot on anything within a step of it, or
+  leaving it in the air there to fall (and take the fall's damage); the avatar is
   fixed for the run. Any avatar id works, including one with no chat command
   (`AVATARS[id].command` null) that people can't switch to.
 - A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
@@ -259,9 +260,10 @@ Never use `global` for automated testing.
 
 ### Calling bots from chat
 
-`/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, on the ground
-within 50 m of them (the `-bot` is optional where the bare word isn't already a command: `/circle`,
-but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
+`/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
+of them across the floor and at their height: on whatever is there within a step, or in the air to
+fall from, never inside a wall. The sniper ignores the spot and starts inside the tower. The `-bot` is optional where the bare word
+isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
 (`--time` for `-t`):
 
 | Flag | Bots | Meaning |
@@ -359,27 +361,36 @@ wire: server and client both build the world from that file.
 
 - Use the helpers rather than hand-computing yaw and centres: `wall(a, b, h)` runs between two floor
   points, `ramp(low, high, h, w)` rises from `low` to `high`, `stairs(bottom, top, h, w)` is solid
-  steps players walk up without jumping (the camera eases over each), `building({...})` is four
+  steps players walk up without jumping (the camera eases over each; with `thickness` and `rail`,
+  a railed flight in the air, like the staircases up to the terrace), `building({...})` is four
   walls, a doorway and a roof, and `terrain({ height })` samples a function. The round pieces:
   `roundWall` (straight segments at any base height, with gaps for doors and windows), `spiralStairs`
   (with an optional inner rail so players can't step off the inside) and `roundFloor` (gap-free rings,
-  with an optional hole for a stair coming up from below, or only an outer ring for a balcony). Write raw `{ kind: 'box', ... }` only for simple platforms
+  with an optional hole for a stair coming up from below, ending exactly where the stair does, and
+  with `inner` only the ring outside it, for a balcony or a roof open in the middle). Write raw `{ kind: 'box', ... }` only for simple platforms
   and pillars.
 - A landmark gets its own content file exporting its list (Tung Tung Tower is `content/tower.ts`,
   `TUNG_TUNG_TOWER`), with its dimensions as named constants at the top and a comment per group of
-  pieces; `content/structures.ts` just spreads the landmarks together. A piece you'll reuse (a
+  pieces; `content/structures.ts` just spreads the landmarks together. Tung Tung Tower and Buildings
+  1 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
+  floors (each one's doors and where its flight starts), stacked from the ground and turned to face
+  the way in. The tower stacks all four and each building stands one of them alone, so a floor is
+  the same room in both; change a floor there and both follow. The terrace (`content/terrace.ts`)
+  is reached from all of them: the tower's sky bridge, and a staircase from each building's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
-  `sim/world.ts`: the main disc (r 50 at the origin), the annex (r 30 at x 112) and the bridge between
-  them. Players are clamped 1 m inside it no matter what, so keep structures inside too.
+  `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
+  (r 30 at x 112) and the bridge between them, the four buildings' grounds and paths (the annex
+  and that bridge turned round the main disc to 90°, 150°, 210° and 270°), and an arc through all
+  four grounds, twice a path's width. A part is a disc, a straight `bridge` or a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
   2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area, its side facing
-  the tower and the tower's ground floor), each area as likely as its weight, standing
-  on the ground (or anything within a step of it) with headroom, so a building's ground floor can be
-  a spawn point and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
+- Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area and its side facing
+  the tower), each as likely, standing on the ground (or anything within a step
+  of it) with headroom, so a building's ground floor can be a spawn point and roofs, decks and wall
+  tops never are. Info cubes wander the main disc at about 3 m and
   pass through structures, so tall pieces there will have cubes floating through them.
 - Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
   hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:
@@ -399,15 +410,16 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The tower's 1,444 pieces render as 19
-  meshes, and a world-spanning raycast costs about 15 µs. Check both numbers in the PR when a
+  so draw calls stay in the tens however many pieces there are. The world's 5,747 pieces render as
+  86 meshes (about 15 in view at once), and a world-spanning raycast costs about 90 µs. Check both numbers in the PR when a
   landmark adds a lot.
 
 ### Wall frames
 
-Murals hung inside a round room (the tower's floors) are listed in
-`packages/shared/src/content/towerFrames.ts`: a room from `TUNG_TUNG_TOWER_ROOMS`, an `angle` in
-degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
+Murals hung inside a round room (the tower's floors) are listed per floor in
+`packages/shared/src/content/towerFrames.ts`, and each floor's hang in both the tower's room
+(`TUNG_TUNG_TOWER_ROOMS`) and the building that is that floor alone (`BUILDING_ROOMS`). Each is an
+`angle` in degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
 metres, and what it `show`s (an image's path, or a live `widget` by name; its aspect; and the
 `line` typed out while you look at it), with `crt: true` to play it like an old screen (faint bands
 rolling down it and a little static, animated by CSS alone). The width is height times aspect, and every frame is centred halfway up its storey (the
@@ -432,9 +444,10 @@ game's origin (CORS).
 
 - A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a
   floor at height `y`.
-  Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS` and `TUNG_TUNG_TERRACE`) and
-  `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`,
-  `SPAWN_AREAS`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
+  Landmarks export theirs (a keep's `levels`: each floor inside its stair and its roof, so the
+  tower's `TUNG_TUNG_TOWER_LEVELS` and the buildings' `BUILDING_LEVELS`; the terrace's
+  `TERRACE_DECK`) and `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`,
+  `TOWER_LEVELS`, `BUILDING_LEVELS`, `SPAWN_AREAS`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
   reshape a place where it's defined, never at the spawner.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
   kind, how many, and how often one comes back. What's where is that list alone, plus drops:
@@ -458,14 +471,16 @@ the client's `build` (the compiler asks for both), a check in `validateStructure
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
 Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`, about ten seconds): the structures, the walkable graph, the lookouts,
+the real sim (`sim/botMap.ts`, about a minute): the structures, the walkable graph, the lookouts,
 and every avatar's hitbox. Rebuild it and commit the new map with the change whenever any of those
 inputs move: a structure or landmark added or changed, the world's outline, the player's body or
 movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
 you do (the map carries a fingerprint of all of them).
 
 Cubes don't know about structures, and the minimap shows only the footprints in
-`content/landmarks.ts` (grey on the floor): list a landmark's there when it's worth navigating by.
+`content/landmarks.ts` (grey on the floor, a disc's `rings` drawn inside it: Tung Tung Tower has one
+per floor above the ground), and with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the
+terrace, the sky bridge and the staircases. List a landmark's there when it's worth navigating by.
 
 ## Pull requests
 

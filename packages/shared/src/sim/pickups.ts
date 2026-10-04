@@ -149,7 +149,7 @@ function add(field: PickupField, kind: PickupKind, area: PickupArea | null, at: 
     floor: at.y,
     pos: { x: at.x, y: at.y + PICKUPS[kind].height, z: at.z },
     ry: rng() * Math.PI * 2,
-    target: area ? randomPointInRegion(area.region, MARGIN, rng) : { x: at.x, z: at.z },
+    target: area ? nextPointInRegion(area.region, MARGIN, at, rng) : { x: at.x, z: at.z },
     time: rng() * 10,
     speed: area ? 0.4 + rng() * 0.4 : 0,
   });

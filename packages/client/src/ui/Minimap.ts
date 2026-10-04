@@ -1,28 +1,38 @@
 // Bottom-right minimap. Two views: NEAR keeps you centred and rotates so you always face up;
-// WORLD shows the whole outline north-up. The floor and outline are drawn per pixel from the
-// world's signed distance, so any shape made of discs and bridges draws correctly with no path maths.
-// That is too slow to redo every frame, so each view's floor is drawn once, north-up, into an
-// offscreen canvas at that view's scale, and each frame just places (and for NEAR, rotates) it.
-// Landmarks (content/landmarks.ts) are grey on the floor. Markers (cubes, players, you) go on top with plain canvas calls; a player on another level (a
-// floor above, a bridge below) is a triangle pointing their way instead of a square. Your x, y, z sits
-// in the map's corner: the sim's coordinates, with y the height of your feet rather than your eyes.
-// Desktop only; see styles.css.
-import { EYE_HEIGHT, partDistance, worldBounds, worldDistance, type WorldPart } from '@world/shared';
+// WORLD shows the whole outline north-up. Everything is drawn each frame as shapes in world metres
+// through the view's transform, at the screen's own pixel density (RES canvas pixels to the CSS
+// pixel), so edges stay smooth at any zoom and as the near view turns: the outline's parts
+// (discs, bridges and arcs), landmarks (content/landmarks.ts) grey on the floor, and up past
+// HIGH_UP the walkways up there too. Markers go on top: cubes as faint specks, people as smaller
+// copies of your arrow pointing their way, bots as squares, and anyone on another level (a floor
+// above, a bridge below) faded. Your x, y, z sits in the map's corner: the sim's coordinates, with
+// y the height of your feet rather than your eyes. Desktop only; see styles.css.
+import { EYE_HEIGHT, HIGH_UP, worldBounds, type Landmark, type WorldPart } from '@world/shared';
 
 export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
-  players: { x: number; y: number; z: number; color: string }[];
+  players: { x: number; y: number; z: number; yaw: number; color: string; bot: boolean }[];
   cubes: { x: number; z: number }[];
 }
 
 export type MinimapView = 'near' | 'world';
 
-const SIZE = 224; // internal pixels, one per CSS pixel of the canvas
+const SIZE = 224; // CSS pixels across the panel
+// Canvas pixels per CSS pixel: the screen's own density, and at least two, so a plain screen gets
+// the map drawn finer and smoothed down.
+const RES = Math.min(3, Math.max(2, Math.ceil(window.devicePixelRatio || 1)));
+const W = SIZE * RES; // canvas pixels across
 const NEAR_RANGE = 26; // metres from you to the panel's edge in the near view
 const GRID_SPACING = 10;
-const EDGE_PIXELS = 1.1; // half-width of the outline, in panel pixels, so it stays crisp at any zoom
-const ACCENT = [100, 181, 246] as const;
-const LANDMARK = [150, 150, 158] as const;
+const EDGE = 2.2; // CSS pixels of outline outside the world's edge
+const ACCENT = '100, 181, 246';
+const FLOOR = `rgba(${ACCENT}, 0.11)`;
+const GRID = `rgba(${ACCENT}, 0.27)`;
+const OUTLINE = `rgba(${ACCENT}, 0.9)`;
+const LANDMARK = 'rgba(150, 150, 158, 0.78)';
+const RING = 'rgb(70, 70, 78)'; // a landmark's inner circles
+const OTHERS = 0.6; // other people's arrows, as a fraction of yours
+const BOT = 3.5; // CSS pixels across a bot's square
 const LEVEL = 3; // metres of height difference at which another player reads as above or below you
 
 export class Minimap {
@@ -31,17 +41,23 @@ export class Minimap {
   private readonly toggleBar = document.getElementById('minimap-toggle')!;
   private readonly coords = document.getElementById('minimap-coords')!;
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly floors = new Map<number, Floor>(); // keyed by metres per pixel
+  // Offscreen layers, each masked to its shapes before it's laid under what's drawn.
+  private readonly gridLayer = layer();
+  private readonly floorLayer = layer();
+  private readonly landmarkLayer = layer();
+  private readonly parts: Path2D[];
   private view: MinimapView = 'world';
   private readonly bounds;
 
   constructor(
-    private readonly shape: WorldPart[],
-    private readonly landmarks: WorldPart[] = [],
+    shape: WorldPart[],
+    private readonly landmarks: Landmark[] = [],
+    private readonly high: Landmark[] = [], // shown too while your feet are above HIGH_UP
   ) {
-    this.canvas.width = SIZE;
-    this.canvas.height = SIZE;
+    this.canvas.width = W;
+    this.canvas.height = W;
     this.ctx = this.canvas.getContext('2d')!;
+    this.parts = shape.map(partPath);
     this.bounds = worldBounds(shape);
     this.setView('world');
   }
@@ -67,11 +83,21 @@ export class Minimap {
     const n = (v: number) => Math.round(v) || 0; // `|| 0` so a hair below zero reads 0, not -0
     this.coords.textContent = `${n(x)}, ${n(y - EYE_HEIGHT)}, ${n(z)}`;
     const t = this.transform(frame.me);
-    this.drawFloor(t);
+    this.drawFloor(t, y - EYE_HEIGHT > HIGH_UP ? [...this.landmarks, ...this.high] : this.landmarks);
 
-    for (const c of frame.cubes) this.marker(t, c.x, c.z, 2, 'rgba(255,255,255,0.35)'); // faint specks; players should stand out
-    for (const p of frame.players) this.player(t, p, p.y - frame.me.y);
-    this.drawMe(t, frame.me);
+    const ctx = this.ctx;
+    ctx.setTransform(RES, 0, 0, RES, 0, 0); // markers in CSS pixels
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; // faint specks; players should stand out
+    for (const c of frame.cubes) this.square(t, c.x, c.z, 2);
+    for (const p of frame.players) {
+      ctx.globalAlpha = Math.abs(p.y - y) < LEVEL ? 1 : 0.45;
+      ctx.fillStyle = p.color;
+      if (p.bot) this.square(t, p.x, p.z, BOT);
+      else this.arrow(t, p.x, p.z, p.yaw - (this.view === 'near' ? frame.me.yaw : 0), OTHERS);
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff';
+    this.arrow(t, x, z, this.view === 'near' ? 0 : frame.me.yaw, 1);
   }
 
   // Pixel <-> world mapping for the current view. `origin` is the world point at the panel
@@ -101,59 +127,87 @@ export class Minimap {
     };
   }
 
-  // The cached floor for this view's scale, drawn so its world points land where `t` puts them.
-  private drawFloor(t: Transform): void {
-    let floor = this.floors.get(t.scale);
-    if (!floor) this.floors.set(t.scale, (floor = this.renderFloor(t.scale)));
-    const ctx = this.ctx;
-    const [e, f] = this.toPixel(t, floor.x, floor.z);
-    ctx.clearRect(0, 0, SIZE, SIZE);
-    ctx.imageSmoothingEnabled = false;
-    ctx.setTransform(t.rx, -t.fx, -t.rz, t.fz, e, f); // floor pixels are the same size as the panel's
-    ctx.drawImage(floor.canvas, 0, 0);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-  }
+  // The floor, its grid, `landmarks` and the world's edge, as shapes in world metres through `t`.
+  // The edge is every part's outline with everything inside the world rubbed out again, leaving the
+  // outside half of the line round the whole; the rest goes under it, top first, each on a layer
+  // masked to its shapes so overlapping parts don't double up.
+  private drawFloor(t: Transform, landmarks: Landmark[]): void {
+    const k = RES / t.scale; // canvas pixels per metre
+    const place = (c: CanvasRenderingContext2D) => {
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.globalCompositeOperation = 'source-over';
+      c.clearRect(0, 0, W, W);
+      c.setTransform(
+        k * t.rx,
+        -k * t.fx,
+        k * t.rz,
+        -k * t.fz,
+        W / 2 - k * (t.rx * t.ox + t.rz * t.oz),
+        W / 2 + k * (t.fx * t.ox + t.fz * t.oz),
+      );
+    };
+    const px = (n: number) => (n * RES) / k; // n CSS pixels, in metres
+    // Covers `layer` wherever `shapes` do, solid, once however many overlap.
+    const cover = (layer: CanvasRenderingContext2D, shapes: Path2D[]) => {
+      layer.fillStyle = '#000';
+      for (const s of shapes) layer.fill(s, 'evenodd');
+      layer.setTransform(1, 0, 0, 1, 0, 0);
+    };
+    // Turns what's on `layer` to `fill`, keeping only where it is.
+    const tint = (layer: CanvasRenderingContext2D, fill: string) => {
+      layer.globalCompositeOperation = 'source-in';
+      layer.fillStyle = fill;
+      layer.fillRect(0, 0, W, W);
+    };
 
-  // The whole world's floor, north-up, at `scale` metres per pixel, with a pixel of margin for the
-  // outline. `x`, `z` is the world point at the canvas's top-left corner.
-  private renderFloor(scale: number): Floor {
-    const b = this.bounds;
-    const x = b.minX - 2 * scale;
-    const z = b.maxZ + 2 * scale;
-    const w = Math.ceil((b.maxX - b.minX) / scale) + 4;
-    const h = Math.ceil((b.maxZ - b.minZ) / scale) + 4;
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-    const image = ctx.createImageData(w, h);
-    const data = image.data;
-    let i = 0;
-    for (let py = 0; py < h; py++) {
-      const wz = z - (py + 0.5) * scale;
-      for (let px = 0; px < w; px++, i += 4) {
-        const wx = x + (px + 0.5) * scale;
-        const d = worldDistance(wx, wz, this.shape);
-        let color: readonly number[] = ACCENT;
-        let a = 0;
-        if (Math.abs(d) < scale * EDGE_PIXELS) a = 230;
-        else if (d < 0 && this.landmarks.some((l) => partDistance(wx, wz, l) <= 0)) {
-          color = LANDMARK;
-          a = 200;
-        } else if (d < 0) {
-          const gx = Math.abs((((wx % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
-          const gz = Math.abs((((wz % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
-          const onLine = gx > GRID_SPACING / 2 - scale * 0.6 || gz > GRID_SPACING / 2 - scale * 0.6;
-          a = onLine ? 70 : 28;
-        }
-        data[i] = color[0];
-        data[i + 1] = color[1];
-        data[i + 2] = color[2];
-        data[i + 3] = a;
+    const ctx = this.ctx;
+    place(ctx);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = px(2 * EDGE);
+    for (const p of this.parts) ctx.stroke(p);
+    ctx.globalCompositeOperation = 'destination-out';
+    for (const p of this.parts) ctx.fill(p);
+    ctx.globalCompositeOperation = 'destination-over';
+
+    ctx.strokeStyle = RING;
+    ctx.lineWidth = px(1);
+    for (const l of landmarks) {
+      if (l.kind !== 'disc' || !l.rings) continue;
+      for (let i = 1; i <= l.rings; i++) {
+        ctx.beginPath();
+        ctx.arc(l.x, l.z, (l.r * i) / (l.rings + 1), 0, 2 * Math.PI);
+        ctx.stroke();
       }
     }
-    ctx.putImageData(image, 0, 0);
-    return { canvas, x, z };
+    place(this.landmarkLayer);
+    cover(this.landmarkLayer, landmarks.map(partPath));
+    tint(this.landmarkLayer, LANDMARK);
+
+    place(this.floorLayer);
+    cover(this.floorLayer, this.parts); // the world's floor, as a mask for the grid first
+    const grid = this.gridLayer;
+    place(grid);
+    const b = this.bounds;
+    grid.beginPath();
+    for (let x = Math.ceil(b.minX / GRID_SPACING) * GRID_SPACING; x <= b.maxX; x += GRID_SPACING) {
+      grid.moveTo(x, b.minZ);
+      grid.lineTo(x, b.maxZ);
+    }
+    for (let z = Math.ceil(b.minZ / GRID_SPACING) * GRID_SPACING; z <= b.maxZ; z += GRID_SPACING) {
+      grid.moveTo(b.minX, z);
+      grid.lineTo(b.maxX, z);
+    }
+    grid.strokeStyle = GRID;
+    grid.lineWidth = px(1);
+    grid.stroke();
+    grid.setTransform(1, 0, 0, 1, 0, 0);
+    grid.globalCompositeOperation = 'destination-in';
+    grid.drawImage(this.floorLayer.canvas, 0, 0);
+    tint(this.floorLayer, FLOOR);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (const l of [this.landmarkLayer, grid, this.floorLayer]) ctx.drawImage(l.canvas, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   private toPixel(t: Transform, x: number, z: number): [number, number] {
@@ -164,40 +218,21 @@ export class Minimap {
     return [SIZE / 2 + lx / t.scale, SIZE / 2 - ly / t.scale];
   }
 
-  private marker(t: Transform, x: number, z: number, size: number, color: string): void {
+  // A square `size` CSS pixels across at (x, z), in the current fill.
+  private square(t: Transform, x: number, z: number, size: number): void {
     const [px, py] = this.toPixel(t, x, z);
-    if (px < -size || py < -size || px > SIZE + size || py > SIZE + size) return;
-    this.ctx.fillStyle = color;
-    this.ctx.fillRect(Math.round(px - size / 2), Math.round(py - size / 2), size, size);
+    this.ctx.fillRect(px - size / 2, py - size / 2, size, size);
   }
 
-  // A square on your level, or a triangle pointing up or down at someone above or below you.
-  private player(t: Transform, p: MinimapFrame['players'][number], dy: number): void {
-    if (Math.abs(dy) < LEVEL) return this.marker(t, p.x, p.z, 5, p.color);
-    const [px, py] = this.toPixel(t, p.x, p.z);
-    if (px < -6 || py < -6 || px > SIZE + 6 || py > SIZE + 6) return;
-    const x = Math.round(px);
-    const y = Math.round(py);
-    const tip = dy > 0 ? -4 : 4;
-    const ctx = this.ctx;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.moveTo(x, y + tip);
-    ctx.lineTo(x + 4, y - tip);
-    ctx.lineTo(x - 4, y - tip);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  private drawMe(t: Transform, me: MinimapFrame['me']): void {
-    const [px, py] = this.toPixel(t, me.x, me.z);
-    // Heading on screen: forward is straight up in the near view, rotated by yaw in the world view.
-    const angle = this.view === 'near' ? 0 : me.yaw;
+  // Your arrow at (x, z), turned `angle` clockwise from up and `scale` times your size, in the
+  // current fill.
+  private arrow(t: Transform, x: number, z: number, angle: number, scale: number): void {
+    const [px, py] = this.toPixel(t, x, z);
     const ctx = this.ctx;
     ctx.save();
-    ctx.translate(Math.round(px), Math.round(py));
+    ctx.translate(px, py);
     ctx.rotate(angle);
-    ctx.fillStyle = '#fff';
+    ctx.scale(scale, scale);
     ctx.beginPath();
     ctx.moveTo(0, -7);
     ctx.lineTo(6, 5);
@@ -209,12 +244,6 @@ export class Minimap {
   }
 }
 
-interface Floor {
-  canvas: HTMLCanvasElement;
-  x: number;
-  z: number;
-}
-
 interface Transform {
   ox: number;
   oz: number;
@@ -223,4 +252,37 @@ interface Transform {
   fz: number;
   rx: number;
   rz: number;
+}
+
+function layer(): CanvasRenderingContext2D {
+  return Object.assign(document.createElement('canvas'), { width: W, height: W }).getContext('2d')!;
+}
+
+// A part of the outline, or a landmark, as one closed path in world metres (a landmark open in the
+// middle as a second circle, which an even-odd fill leaves out). Bridges and arcs have round ends.
+function partPath(p: WorldPart | Landmark): Path2D {
+  const path = new Path2D();
+  if (p.kind === 'disc') {
+    path.arc(p.x, p.z, p.r, 0, 2 * Math.PI);
+    if ('inner' in p && p.inner) {
+      path.moveTo(p.x + p.inner, p.z);
+      path.arc(p.x, p.z, p.inner, 0, 2 * Math.PI);
+    }
+    return path;
+  }
+  const w = p.halfWidth;
+  if (p.kind === 'bridge') {
+    const side = Math.atan2(p.bz - p.az, p.bx - p.ax) + Math.PI / 2; // the bearing of one side from the middle line
+    path.arc(p.bx, p.bz, w, side, side - Math.PI, true);
+    path.arc(p.ax, p.az, w, side - Math.PI, side, true);
+    path.closePath();
+    return path;
+  }
+  const end = (a: number) => [p.x + p.r * Math.cos(a), p.z + p.r * Math.sin(a)] as const;
+  path.arc(p.x, p.z, p.r + w, p.from, p.to);
+  path.arc(...end(p.to), w, p.to, p.to + Math.PI);
+  path.arc(p.x, p.z, p.r - w, p.to, p.from, true);
+  path.arc(...end(p.from), w, p.from + Math.PI, p.from + 2 * Math.PI);
+  path.closePath();
+  return path;
 }
