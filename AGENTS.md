@@ -437,9 +437,12 @@ it stays sharp while walls and players still cover it.
 
 A widget is a copy of one at widgets.kathirm.com that the client draws itself
 (`packages/client/src/widgets/`): it fetches the same data the web widget does and paints the same
-layout onto a canvas, fetching and animating only while its frame is in view. A new one is a name
-in `WidgetName` (`sim/wallFrames.ts`) and a factory in `WIDGETS`; its data source has to allow the
-game's origin (CORS).
+layout onto a canvas, fetching and animating only while its frame is in view. One longer than its
+frame (the anime activity list, floor to ceiling on the tower's first floor and in Building 2)
+lays out as a page and scrolls with the mouse wheel while you look at it (`Widget.scroll`). A new
+one is a name in `WidgetName` (`sim/wallFrames.ts`) and a factory in `WIDGETS`; its data source has
+to allow the game's origin (CORS), and any image it paints has to come with CORS headers too, or
+the canvas can't become the frame's texture from afar.
 
 ### Regions and pickups
 

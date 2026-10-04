@@ -53,7 +53,20 @@ const FLOORS: Mural[][] = [
       },
     },
   ],
-  [],
+  // Between the doors at 52.5° and 105°, floor to ceiling but for about 1.5 m each end: the
+  // widest stretch of wall on this floor.
+  [
+    {
+      angle: 78.75,
+      height: 16.5,
+      show: {
+        kind: 'widget',
+        widget: 'anime',
+        aspect: 0.8,
+        line: "What I've been watching and reading lately, live from MyAnimeList. Scroll to see the rest.",
+      },
+    },
+  ],
   [],
   [],
 ];
