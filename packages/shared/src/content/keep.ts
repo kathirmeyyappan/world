@@ -9,6 +9,7 @@
 // ground (the tower all four, each building just its own), turned so its main door faces the way
 // in, so a floor is the same room, frames and all, wherever it stands.
 import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
+import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Disc } from '../sim/world';
 
@@ -47,7 +48,9 @@ export interface Keep {
   structures: Structure[];
   rooms: RoundRoom[]; // one per floor, lowest first
   footprint: Disc; // the wall on the ground, for the minimap (content/landmarks.ts)
-  roof: number; // height of the roof's top
+  // Where to place things (content/regions.ts): each floor's open middle inside the stair, lowest
+  // first, then the roof between the parapet round its opening and the stair's hole.
+  levels: Region[];
 }
 
 // A keep centred on (x, z) holding `floors` of the layout (consecutive, lowest first), its main door
@@ -155,5 +158,10 @@ export function keep({
     stair: { from: stair + i * Math.PI, climb: STOREY / Math.PI },
   }));
 
-  return { structures, rooms, footprint: { kind: 'disc', x, z, r: OUTER }, roof };
+  const levels: Region[] = [
+    ...rooms.map(({ floor }): Region => ({ kind: 'disc', x, z, r: STAIR_INNER, y: floor })),
+    { kind: 'ring', x, z, r: STAIR_INNER, inner: OPENING + 0.2, y: roof },
+  ];
+
+  return { structures, rooms, footprint: { kind: 'disc', x, z, r: OUTER }, levels };
 }

@@ -444,9 +444,10 @@ game's origin (CORS).
 
 - A region (`sim/regions.ts`) is a disc, a ring (a disc with a hole) or an axis-aligned rectangle on a
   floor at height `y`.
-  Landmarks export theirs (the tower's `TUNG_TUNG_TOWER_LEVELS`, the terrace's `TERRACE_DECK`) and
-  `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`, `TOWER_LEVELS`,
-  `SPAWN_AREAS`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
+  Landmarks export theirs (a keep's `levels`: each floor inside its stair and its roof, so the
+  tower's `TUNG_TUNG_TOWER_LEVELS` and the buildings' `BUILDING_LEVELS`; the terrace's
+  `TERRACE_DECK`) and `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`,
+  `TOWER_LEVELS`, `BUILDING_LEVELS`, `SPAWN_AREAS`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
   reshape a place where it's defined, never at the spawner.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
   kind, how many, and how often one comes back. What's where is that list alone, plus drops:

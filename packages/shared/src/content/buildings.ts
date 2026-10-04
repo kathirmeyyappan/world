@@ -6,6 +6,7 @@
 // (content/terrace.ts).
 import type { Structure } from '../sim/structures';
 import { BUILDING_GROUNDS } from '../sim/outline';
+import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Disc } from '../sim/world';
 import { keep } from './keep';
@@ -18,3 +19,5 @@ export const BUILDINGS: Structure[] = KEEPS.flatMap((k) => k.structures);
 export const BUILDING_FOOTPRINTS: Disc[] = KEEPS.map((k) => k.footprint);
 // Each building's one room, Building 1 first: the same room as the tower's floor of that index.
 export const BUILDING_ROOMS: RoundRoom[] = KEEPS.map((k) => k.rooms[0]);
+// Each building's floor inside the stair, then its roof, Building 1 first: for placing things.
+export const BUILDING_LEVELS: Region[] = KEEPS.flatMap((k) => k.levels);

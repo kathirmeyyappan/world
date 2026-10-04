@@ -12,6 +12,8 @@ export const TERRACE: Region = TERRACE_DECK;
 export const TOWER_LEVELS: Region[] = TUNG_TUNG_TOWER_LEVELS;
 // The ground floor and the three above it, inside the wall: where the sniper bot starts out.
 export const TOWER_INSIDE: Region[] = TUNG_TUNG_TOWER_INSIDE;
+// Each building's floor and roof, Building 1 first.
+export { BUILDING_LEVELS } from './buildings';
 
 // Where people spawn, each as likely, both on the ground of the main area: its middle and its side
 // facing the tower.

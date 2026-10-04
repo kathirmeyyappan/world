@@ -9,6 +9,7 @@ import {
   MAX_PLAYERS,
   MAX_REWIND_TICKS,
   MOVE_SPEED,
+  PICKUP_AREAS,
   Room,
   SPAWN_AREAS,
   STEP_UP,
@@ -243,7 +244,8 @@ test('weapon command shortcuts equip the matching item', () => {
 test('hearts: walking into one heals 3 up to full, a full player leaves it, and it comes back 30 s later', () => {
   const welcome = link();
   new Room('default-hearts', { seed: 1 }).join('a', welcome);
-  assert.equal(welcome.inbox[0].t === 'welcome' && welcome.inbox[0].pickups.length, 14, 'the world starts with 14');
+  const listed = PICKUP_AREAS.reduce((n, a) => n + a.count, 0);
+  assert.equal(welcome.inbox[0].t === 'welcome' && welcome.inbox[0].pickups.length, listed, 'every area starts full');
 
   const area = {
     region: { kind: 'disc', x: 0, z: 0, r: 4, y: 0 },

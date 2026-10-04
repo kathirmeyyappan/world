@@ -10,7 +10,7 @@ import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Vec3 } from '../sim/types';
 import type { Bridge, Disc } from '../sim/world';
-import { OPENING, OUTER, RAIL, SILL, STAIR_INNER, STOREY, deg, keep } from './keep';
+import { OUTER, RAIL, SILL, STOREY, deg, keep } from './keep';
 import { DECK, TERRACE_RING, WALKWAY } from './terrace';
 
 const X = ANNEX.x;
@@ -86,17 +86,7 @@ export const TUNG_TUNG_TOWER_FLOORS: Vec3[] = TOWER.rooms.map(({ floor }) => ({ 
 
 // The four floors inside the wall, ground floor first: each one's open disc inside the stair,
 // which runs round against the wall.
-export const TUNG_TUNG_TOWER_INSIDE: Region[] = TOWER.rooms.map(({ floor }): Region => ({
-  kind: 'disc',
-  x: X,
-  z: Z,
-  r: STAIR_INNER,
-  y: floor,
-}));
+export const TUNG_TUNG_TOWER_INSIDE: Region[] = TOWER.levels.slice(0, -1);
 
-// Each level's open floor, for placing things (content/regions.ts): the four inside, and the roof
-// between the parapet round its opening and the stair.
-export const TUNG_TUNG_TOWER_LEVELS: Region[] = [
-  ...TUNG_TUNG_TOWER_INSIDE,
-  { kind: 'ring', x: X, z: Z, r: STAIR_INNER, inner: OPENING + 0.2, y: TOWER.roof },
-];
+// Each level's open floor, for placing things (content/regions.ts): the four inside, and the roof.
+export const TUNG_TUNG_TOWER_LEVELS: Region[] = TOWER.levels;
