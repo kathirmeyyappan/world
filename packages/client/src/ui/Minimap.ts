@@ -32,7 +32,7 @@ const OUTLINE = `rgba(${ACCENT}, 0.9)`;
 const LANDMARK = 'rgba(150, 150, 158, 0.78)';
 const RING = 'rgb(70, 70, 78)'; // a landmark's inner circles
 const OTHERS = 0.6; // other people's arrows, as a fraction of yours
-const BOT = 3.5; // CSS pixels across a bot's square
+const BOT = 5; // CSS pixels across a bot's square, inside its light edge: still under a person's arrow
 const LEVEL = 3; // metres of height difference at which another player reads as above or below you
 
 export class Minimap {
@@ -92,7 +92,7 @@ export class Minimap {
     for (const p of frame.players) {
       ctx.globalAlpha = Math.abs(p.y - y) < LEVEL ? 1 : 0.45;
       ctx.fillStyle = p.color;
-      if (p.bot) this.square(t, p.x, p.z, BOT);
+      if (p.bot) this.bot(t, p.x, p.z);
       else this.arrow(t, p.x, p.z, p.yaw - (this.view === 'near' ? frame.me.yaw : 0), OTHERS);
     }
     ctx.globalAlpha = 1;
@@ -222,6 +222,16 @@ export class Minimap {
   private square(t: Transform, x: number, z: number, size: number): void {
     const [px, py] = this.toPixel(t, x, z);
     this.ctx.fillRect(px - size / 2, py - size / 2, size, size);
+  }
+
+  // A bot at (x, z): a square in the current fill, edged light so it reads against the floor.
+  private bot(t: Transform, x: number, z: number): void {
+    const [px, py] = this.toPixel(t, x, z);
+    const ctx = this.ctx;
+    ctx.fillRect(px - BOT / 2, py - BOT / 2, BOT, BOT);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px - BOT / 2 - 0.5, py - BOT / 2 - 0.5, BOT + 1, BOT + 1);
   }
 
   // Your arrow at (x, z), turned `angle` clockwise from up and `scale` times your size, in the
