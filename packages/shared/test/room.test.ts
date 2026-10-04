@@ -545,7 +545,7 @@ test("a bot stands where it asks, looking how it asks; a person can't choose", (
   const outside = room.join('circle-bot', link(), { bot: true, spawn: { x: 0, y: 30, z: 500 } })!;
   const lost = room.players.find((p) => p.id === outside)!;
   assert.ok(worldDistance(lost.pos.x, lost.pos.z) <= -1 + 1e-9, 'clamped inside the outline');
-  assert.equal(lost.pos.y, EYE_HEIGHT, 'and standing on what is under it');
+  assert.equal(lost.pos.y, 30 + EYE_HEIGHT, 'at the height it asked for, to fall from there');
 });
 
 test('/kill-bots drops every living bot where it stands, people only', () => {
@@ -628,7 +628,8 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   spawned.length = 0; // alice's arrival spawned the room's default bots; this test is about calls
 
   const alice = room.players.find((p) => p.id === ida)!;
-  Object.assign(alice.pos, { x: 112, z: 0 }); // the middle of the annex, 62 m from the main disc's edge
+  // The middle of the tower's top floor, 62 m from the main disc's edge and 60 m up.
+  Object.assign(alice.pos, { x: 112, y: 60 + EYE_HEIGHT, z: 0 });
   room.receive(ida, { t: 'chat', text: '/circle-bot -t 60' });
   await Promise.resolve();
   const { spawn: _, ...call } = spawned[0];
@@ -658,6 +659,7 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   assert.ok(b.inbox.some((m) => m.t === 'system' && m.text === 'alice called hunter (sniper-bot) for 300s after kat'));
   for (const { spawn } of spawned) {
     assert.ok(spawn && Math.hypot(spawn.x - 112, spawn.z) <= 50, `a called bot spawns near the caller: ${spawn?.x}`);
+    assert.ok(Math.abs(spawn.y - 60) <= STEP_UP, `at the caller's height, in the air or not: ${spawn.y}`);
   }
   for (const text of [
     '/circle-bot 60',

@@ -206,7 +206,8 @@ with concurrent receive and input loops.
   `Player.bot` is true, the roster shows a robot icon, and a room with only bots left closes.
 - A bot may choose where it spawns and how it looks: pass `spawn` (a feet position, `Vec3`) and
   `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,
-  clamping the spot inside the world and standing the bot on the surface under it; the avatar is
+  clamping the spot inside the world and standing the bot on anything within a step of it, or
+  leaving it in the air there to fall (and take the fall's damage); the avatar is
   fixed for the run. Any avatar id works, including one with no chat command
   (`AVATARS[id].command` null) that people can't switch to.
 - A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
@@ -259,9 +260,10 @@ Never use `global` for automated testing.
 
 ### Calling bots from chat
 
-`/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, on the ground
-within 50 m of them (the `-bot` is optional where the bare word isn't already a command: `/circle`,
-but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
+`/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
+of them across the floor and at their height: on whatever is there within a step, or in the air to
+fall from, never inside a wall. The sniper ignores the spot and starts inside the tower. The `-bot` is optional where the bare word
+isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
 (`--time` for `-t`):
 
 | Flag | Bots | Meaning |
