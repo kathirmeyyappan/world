@@ -42,7 +42,7 @@ const DOOR_HEIGHT = 3;
 // Every floor's stair hole ends at 45° or 225°, where that floor's flight also starts, so the doors
 // keep clear of both.
 const ENTRANCES = [0, 90, 180, 270].map(deg);
-const UPPER_DOORS = [0, 75, 150, 180, 255, 307.5].map(deg);
+const UPPER_DOORS = [0, 75, 165, 180, 255, 307.5].map(deg);
 
 export interface Keep {
   structures: Structure[];
