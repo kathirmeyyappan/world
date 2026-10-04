@@ -35,7 +35,7 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
-import { randomPointInRegion, type Region } from './sim/regions';
+import { randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
@@ -500,7 +500,7 @@ export class Room {
     return { x: p.x, y: this.structures.groundAt(p.x, p.z, feet.y + STEP_UP) + EYE_HEIGHT, z: p.z };
   }
 
-  // Somewhere in SPAWN_AREAS, picked by weight (or, given `near`, within CALLED_BOT_RANGE of it
+  // Somewhere in one of SPAWN_AREAS (or, given `near`, within CALLED_BOT_RANGE of it
   // across the floor), clear of the walls and not on top of a cube, standing on the ground (or
   // anything within a step of it) with room for a body above: inside a building's ground floor,
   // never on a roof, and never inside a wall. Returns the eye position.
@@ -508,7 +508,7 @@ export class Room {
     const ground = (p: { x: number; z: number }) => this.structures.groundAt(p.x, p.z, STEP_UP);
     const roomy = (p: { x: number; z: number }) =>
       this.structures.ceilingAt(p.x, p.z, ground(p)) - ground(p) >= EYE_HEIGHT + CAPSULE_TOP;
-    const area = this.spawnArea(); // one area for every try, so each gets its weight's share
+    const area = SPAWN_AREAS[Math.floor(this.rng() * SPAWN_AREAS.length)]; // one for every try, so each gets its share
     const pick = () => (near ? this.pointNear(near) : randomPointInRegion(area, SPAWN_MARGIN, this.rng));
     let p = pick();
     for (let i = 0; i < 20; i++) {
@@ -516,12 +516,6 @@ export class Room {
       p = pick();
     }
     return { x: p.x, y: ground(p) + EYE_HEIGHT, z: p.z };
-  }
-
-  // One of SPAWN_AREAS, each as likely as its weight.
-  private spawnArea(): Region {
-    let roll = this.rng() * SPAWN_AREAS.reduce((sum, a) => sum + a.weight, 0);
-    return (SPAWN_AREAS.find((a) => (roll -= a.weight) < 0) ?? SPAWN_AREAS[0]).region;
   }
 
   // A random point within CALLED_BOT_RANGE of `near` and SPAWN_WALL_MARGIN inside the world; `near`

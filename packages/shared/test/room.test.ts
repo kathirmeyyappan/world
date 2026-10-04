@@ -107,7 +107,7 @@ test('players spawn at random spots in every spawn area, on the ground', () => {
     const id = room.join(`p${i}`, l)!;
     const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
     assert.ok(me);
-    const area = SPAWN_AREAS.findIndex((a) => inside(a.region, me.pos));
+    const area = SPAWN_AREAS.findIndex((a) => inside(a, me.pos));
     assert.ok(area >= 0, 'in a spawn area');
     used.add(area);
     spots.add(`${me.pos.x.toFixed(1)},${me.pos.z.toFixed(1)}`);

@@ -1,8 +1,10 @@
 // GLSL for the environment. Kept in one place so the ground, sky and boundary share helpers.
 import { EYE_HEIGHT } from '@world/shared';
+import { BASE_FOG_DENSITY } from './Engine';
 
-// The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera.
-export const GROUND_FOG = 0.00035;
+// The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera, the scene's
+// own EXP2 fog, so the floor under anything far off fades exactly as much as it does.
+export const GROUND_FOG = BASE_FOG_DENSITY ** 2;
 
 // The sky's colour in a direction. Its horizon (`horizon`, the sine of its elevation) is where the
 // floor fades into the fog rather than eye level: 0 standing on the floor, below 0 up high, so

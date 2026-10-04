@@ -12,9 +12,9 @@ export const TOWER_LEVELS: Region[] = TUNG_TUNG_TOWER_LEVELS;
 // The ground floor and the three above it, inside the wall: where the sniper bot starts out.
 export const TOWER_INSIDE: Region[] = TUNG_TUNG_TOWER_INSIDE;
 
-// Where people spawn, each area as likely as its weight, all on the ground of the main area: its
-// middle and its side facing the tower.
-export const SPAWN_AREAS: { region: Region; weight: number }[] = [
-  { region: { kind: 'disc', x: 0, z: 0, r: 15, y: 0 }, weight: 3 },
-  { region: { kind: 'rect', x: 31.5, z: 0, w: 25, d: 30, y: 0 }, weight: 3 },
+// Where people spawn, each as likely, both on the ground of the main area: its middle and its side
+// facing the tower.
+export const SPAWN_AREAS: Region[] = [
+  { kind: 'disc', x: 0, z: 0, r: 15, y: 0 },
+  { kind: 'rect', x: 31.5, z: 0, w: 25, d: 30, y: 0 },
 ];

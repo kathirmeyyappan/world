@@ -25,6 +25,8 @@ const ZENITH_COLOR = new Color3(0.01, 0.01, 0.04);
 const HORIZON_COLOR = new Color3(0.12, 0.03, 0.14);
 const FADED = Math.log(10); // the floor's fog exponent at 90% fogged: where the horizon sits
 
+type Point = { x: number; z: number };
+
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
   private ground!: ShaderMaterial; // set in createGround
@@ -147,7 +149,9 @@ export class Environment {
   }
 
   // A vertical ribbon along the union's outline. Each part's edge is sampled, samples that fall
-  // inside another part are dropped (that's where parts join), and the survivors become quads.
+  // inside another part are dropped (that's where parts join), and the survivors become quads,
+  // each run carried on to the exact point where its edge goes into the other part, so two parts'
+  // walls meet in the corner between them.
   private createWall(): void {
     const scene = this.engine.scene;
     const positions: number[] = [];
@@ -171,14 +175,25 @@ export class Environment {
     };
 
     for (const part of this.shape) {
-      let run: { x: number; z: number }[] = [];
+      const exposed = (p: Point) =>
+        this.shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
+      let run: Point[] = [];
+      let last: { p: Point; out: boolean } | null = null;
       for (const p of this.outline(part)) {
-        const exposed = p && this.shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
-        if (exposed) run.push(p);
+        if (!p) {
+          pushRun(run);
+          run = [];
+          last = null;
+          continue;
+        }
+        const out = exposed(p);
+        if (last && out !== last.out) run.push(crossing(last.p, p, exposed));
+        if (out) run.push(p);
         else {
           pushRun(run);
           run = [];
         }
+        last = { p, out };
       }
       pushRun(run);
     }
@@ -205,7 +220,7 @@ export class Environment {
 
   // Points along one part's own edge, in order: a closed loop for discs, two sides for bridges
   // with a null between them so they're never stitched together.
-  private *outline(part: WorldPart): Iterable<{ x: number; z: number } | null> {
+  private *outline(part: WorldPart): Iterable<Point | null> {
     if (part.kind === 'disc') {
       const steps = Math.max(24, Math.ceil((2 * Math.PI * part.r) / WALL_STEP));
       for (let i = 0; i <= steps; i++) {
@@ -257,4 +272,18 @@ export class Environment {
     this.sky.setFloat('horizon', horizon);
     this.ground.setFloat('horizon', horizon);
   }
+}
+
+// The point between `a` and `b` where `test` changes its answer, to well under a millimetre.
+function crossing(a: Point, b: Point, test: (p: Point) => boolean): Point {
+  const at = (t: number) => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+  const start = test(a);
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    if (test(at(mid)) === start) lo = mid;
+    else hi = mid;
+  }
+  return at((lo + hi) / 2);
 }

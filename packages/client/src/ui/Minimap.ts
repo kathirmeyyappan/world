@@ -7,7 +7,7 @@
 // floor above, a bridge below) is a triangle pointing their way instead of a square. Your x, y, z sits
 // in the map's corner: the sim's coordinates, with y the height of your feet rather than your eyes.
 // Desktop only; see styles.css.
-import { EYE_HEIGHT, partDistance, worldBounds, worldDistance, type WorldPart } from '@world/shared';
+import { EYE_HEIGHT, partDistance, worldBounds, worldDistance, type Landmark, type WorldPart } from '@world/shared';
 
 export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
@@ -23,6 +23,7 @@ const GRID_SPACING = 10;
 const EDGE_PIXELS = 1.1; // half-width of the outline, in panel pixels, so it stays crisp at any zoom
 const ACCENT = [100, 181, 246] as const;
 const LANDMARK = [150, 150, 158] as const;
+const RING = [70, 70, 78] as const; // a landmark's inner circles
 const LEVEL = 3; // metres of height difference at which another player reads as above or below you
 
 export class Minimap {
@@ -37,7 +38,7 @@ export class Minimap {
 
   constructor(
     private readonly shape: WorldPart[],
-    private readonly landmarks: WorldPart[] = [],
+    private readonly landmarks: Landmark[] = [],
   ) {
     this.canvas.width = SIZE;
     this.canvas.height = SIZE;
@@ -138,7 +139,7 @@ export class Minimap {
         let a = 0;
         if (Math.abs(d) < scale * EDGE_PIXELS) a = 230;
         else if (d < 0 && this.landmarks.some((l) => partDistance(wx, wz, l) <= 0)) {
-          color = LANDMARK;
+          color = this.landmarks.some((l) => onRing(l, wx, wz, scale)) ? RING : LANDMARK;
           a = 200;
         } else if (d < 0) {
           const gx = Math.abs((((wx % GRID_SPACING) + GRID_SPACING) % GRID_SPACING) - GRID_SPACING / 2);
@@ -223,4 +224,13 @@ interface Transform {
   fz: number;
   rx: number;
   rz: number;
+}
+
+// Whether (x, z) is on one of a disc landmark's inner circles, `scale` metres to the pixel.
+function onRing(l: Landmark, x: number, z: number, scale: number): boolean {
+  if (l.kind !== 'disc' || !l.rings) return false;
+  const gap = l.r / (l.rings + 1);
+  const band = Math.hypot(x - l.x, z - l.z) / gap;
+  const k = Math.round(band);
+  return k >= 1 && k <= l.rings && Math.abs(band - k) * gap < scale * 0.6;
 }
