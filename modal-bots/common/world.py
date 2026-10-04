@@ -95,6 +95,11 @@ class WorldMap:
         self.jumps = tuple(frozenset(int(j) for j in out) for out in data["jumps"])
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
         self.lookouts = tuple(int(i) for i in data["lookouts"])
+        # The lookouts by where they are: "tower" (its balconies and roof), "building" (a building's
+        # roof and the foot of its staircase) or "elsewhere" (the terrace and the ways up to it).
+        self.places: dict[str, tuple[int, ...]] = {}
+        for i, place in zip(self.lookouts, data["lookoutPlaces"], strict=True):
+            self.places[str(place)] = (*self.places.get(str(place), ()), i)
         self.hitboxes = {
             avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
             for avatar, h in data["hitboxes"].items()

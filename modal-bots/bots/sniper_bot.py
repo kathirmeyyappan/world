@@ -29,8 +29,10 @@ aiming at.
 
 5. Moving. Whatever ``spawn`` it's given, it starts on one of the tower's four inside floors
    (``world.tower_inside``), and from there it always has one spot it's walking to or standing
-   at: the nearest of a sample of lookouts (balconies, the terrace, the bridge) that sees one of
-   its quarry, or a random lookout when none does. It follows ``world.path`` there (up the stair
+   at. It picks a place first, by PLACES: the tower most of the time, a building's roof often, the
+   terrace and the ways up to it now and then. There it takes the nearest of a sample of lookouts
+   that sees one of its quarry, or when none does (they're indoors, say) the one nearest the
+   nearest of them, so it waits over where they are. It follows ``world.path`` there (up the stair
    and over its rail where it has to) and stays. It moves to another floor, the same way, when it
    has gone PATIENCE_SECONDS at its spot with nobody in sight, or when something hurts it.
 
@@ -89,6 +91,9 @@ AIM_SPREAD = 0.8  # how far off the axis a shot on the body goes, as a share of 
 MISS_BY = (0.1, 0.6)  # metres past the hitbox's side that a near miss goes
 SPOT_CHOICES = 40  # spots it weighs when picking where to shoot from
 SPOT_TARGETS = 4  # the nearest this many quarry a spot is checked against
+# Where it looks for its next spot, and how often (world.places): the tower, a building, or
+# elsewhere (the terrace and the bridges and staircases up to it, which it crosses to go between).
+PLACES = {"tower": 0.55, "building": 0.30, "elsewhere": 0.15}
 PATIENCE_SECONDS = 6.0  # how long it stands at a spot with nobody in sight before changing floors
 FLOOR = 10  # metres: lookouts closer in height than this are one floor (the bridge's deck and rail)
 START_MARGIN = 1.5  # metres it starts in from the edge of a tower floor's open disc
@@ -382,15 +387,21 @@ class Sniper:
             self._route_to_spot(me, tick)
 
     def _pick_spot(self, me: Player, quarry: list[Player], tick: int) -> None:
-        """The nearest of a sample of lookouts that sees one of its quarry, or a random one, on a
-        floor other than its spot's (any floor the first time)."""
+        """In a place picked by PLACES, the nearest of a sample of lookouts that sees one of its
+        quarry, or with none that does the one nearest the nearest of them (a random one with nobody
+        to go after), on a floor other than its spot's (any floor the first time)."""
+        places = [p for p in PLACES if self.world.places.get(p)] or list(self.world.places)
+        place = self.rng.choices(places, weights=[PLACES.get(p, 1.0) for p in places])[0]
+        pool = list(self.world.places[place])
         floor = self._floor(self.spot) if self.spot is not None else None
-        options = [i for i in self.world.lookouts if self._floor(i) != floor] or list(self.world.lookouts)
+        options = [i for i in pool if self._floor(i) != floor] or pool
         sample = self.rng.sample(options, min(SPOT_CHOICES, len(options)))
         wanted = quarry[:SPOT_TARGETS]
         seeing = [i for i in sample if any(self.world.clear(_eye(self.world.nodes[i]), chest(p)) for p in wanted)]
         if seeing:
             self.spot = min(seeing, key=lambda i: _distance(me.pos, _eye(self.world.nodes[i])))
+        elif wanted:
+            self.spot = min(sample, key=lambda i: _distance(wanted[0].pos, _eye(self.world.nodes[i])))
         else:
             self.spot = self.rng.choice(sample)
         self.hurt = False

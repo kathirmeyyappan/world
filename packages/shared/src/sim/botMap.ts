@@ -3,8 +3,9 @@
 // no sim of their own, so the graph is worked out here with the real one: every walkable spot on a
 // 1 m grid is a node, and an edge joins two neighbouring nodes when stepPlayer, walking straight
 // from one, arrives at the other; where only a running jump gets there (over the tower stair's
-// rail onto a floor), that's a jump edge. With them come the lookouts (high spots with a view),
-// each avatar's hitbox, for aiming, and the tower's inside floors, where a sniper starts out.
+// rail onto a floor), that's a jump edge. With them come the lookouts (high spots with a view) and
+// the place each is in, each avatar's hitbox, for aiming, and the tower's inside floors, where a
+// sniper starts out.
 // `npm run bot-map` writes it, gzipped, to modal-bots/common/world_map.json.gz; it carries a
 // fingerprint of everything it was built from, and a test fails when that no longer matches, so a
 // change to the world regenerates it.
@@ -19,7 +20,9 @@ import {
   STEP_UP,
   TICK_DT,
 } from './constants';
+import { BUILDING_FOOTPRINTS } from '../content/buildings';
 import { TOWER_INSIDE } from '../content/regions';
+import { TUNG_TUNG_TOWER_FOOTPRINT } from '../content/tower';
 import { AVATAR_IDS, AVATARS, type Hitbox } from './avatars';
 import { CAPSULE_TOP } from './health';
 import { createPlayer, isGrounded, stepPlayer } from './player';
@@ -27,7 +30,7 @@ import type { Region } from './regions';
 import { createRng, hashSeed } from './rng';
 import { surfaceOf, type Structure } from './structures';
 import type { Vec3 } from './types';
-import { WORLD_SHAPE, WORLD_STRUCTURES, worldBounds, worldDistance } from './world';
+import { WORLD_SHAPE, WORLD_STRUCTURES, worldBounds, worldDistance, type Disc } from './world';
 
 const SPACING = 1; // metres between grid columns: under a doorway's clear width (1.2 m less a body)
 const WALL_CLEARANCE = 0.05; // metres a node's body may be pushed by a wall before it doesn't count
@@ -41,6 +44,12 @@ const LOOKOUT_RANGE = 30;
 const LOOKOUT_LINES = 16;
 const LOOKOUT_OPEN = 7;
 const LOOKOUT_FLOOR = 5;
+const KEEP_REACH = 4; // metres past a keep's wall that are still its place: the tower's balconies are 3 m
+
+// Where a lookout is, for a bot choosing where to perch: on the tower (its balconies and roof), on
+// a building (its roof and the foot of its staircase), or elsewhere (the terrace and the bridges
+// and staircases up to it).
+export type LookoutPlace = 'tower' | 'building' | 'elsewhere';
 
 export interface BotMap {
   source: number; // botMapSource() when it was built
@@ -49,6 +58,7 @@ export interface BotMap {
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
   jumps: number[][]; // per node, the ones only a running jump toward them reaches
   lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
+  lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
   towerInside: Region[]; // the tower's four floors inside its wall (content/regions.ts TOWER_INSIDE)
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
@@ -80,6 +90,7 @@ export function botMapSource(): number {
     LOOKOUT_LINES,
     LOOKOUT_OPEN,
     LOOKOUT_FLOOR,
+    KEEP_REACH,
   ];
   return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), TOWER_INSIDE]));
 }
@@ -116,13 +127,15 @@ export function buildBotMap(): BotMap {
     edges.push(walk);
     jumps.push(jump);
   }
+  const found = lookouts(nodes, edges, jumps);
   return {
     source: botMapSource(),
     structures: shapes(),
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
     edges,
     jumps,
-    lookouts: lookouts(nodes, edges, jumps),
+    lookouts: found,
+    lookoutPlaces: found.map((i) => placeOf(nodes[i])),
     hitboxes: hitboxes(),
     towerInside: TOWER_INSIDE,
     sightChecks: sightChecks(nodes),
@@ -223,6 +236,11 @@ function lookouts(nodes: Vec3[], edges: number[][], jumps: number[][]): number[]
     }
     return open >= LOOKOUT_OPEN ? [i] : [];
   });
+}
+
+function placeOf(n: Vec3): LookoutPlace {
+  const near = (keep: Disc) => Math.hypot(n.x - keep.x, n.z - keep.z) <= keep.r + KEEP_REACH;
+  return near(TUNG_TUNG_TOWER_FOOTPRINT) ? 'tower' : BUILDING_FOOTPRINTS.some(near) ? 'building' : 'elsewhere';
 }
 
 // Eye-to-eye segments between nodes on or around the structures, half of them blocked.
