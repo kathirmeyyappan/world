@@ -38,11 +38,16 @@ const STAIR_START = deg(45); // the ground floor's first step; clear of all four
 const HOLE = deg(30); // each floor is open over the last 30° of the flight arriving through it
 const DOOR = (2 * Math.PI) / SEGMENTS; // an ordinary door is one wall segment wide
 const DOOR_HEIGHT = 3;
-// The ground floor's four entrances, and six doors on each floor above (onto the tower's balconies).
-// Every floor's stair hole ends at 45° or 225°, where that floor's flight also starts, so the doors
-// keep clear of both.
-const ENTRANCES = [0, 90, 180, 270].map(deg);
-const UPPER_DOORS = [0, 75, 165, 180, 255, 307.5].map(deg);
+// Each floor's doors: the ground floor's four entrances, and six on each floor above (onto the
+// tower's balconies). Every floor's stair hole ends at 45° or 225°, where that floor's flight also
+// starts, so the doors keep clear of both. Floor 1's flight starts at 225°, which frees its 52.5° and
+// 150° doors to stand wide of the wall between them that holds its frame (content/towerFrames.ts).
+const DOORS = [
+  [0, 90, 180, 270],
+  [0, 52.5, 150, 180, 255, 307.5],
+  [0, 75, 127.5, 180, 255, 307.5],
+  [0, 75, 127.5, 180, 255, 307.5],
+].map((floor) => floor.map(deg));
 
 export interface Keep {
   structures: Structure[];
@@ -80,7 +85,7 @@ export function keep({
   // Floor i's doorways. The main door (a building's way in, the tower's onto its sky bridge) is
   // twice the others' width and height on every floor, so a floor is the same room in a building.
   const doors = (i: number) =>
-    (floors[i] === 0 ? ENTRANCES : UPPER_DOORS).map((angle) => {
+    DOORS[floors[i]].map((angle) => {
       const main = angle === MAIN;
       return { angle: angle + turn, width: main ? 2 * DOOR : DOOR, top: main ? 2 * DOOR_HEIGHT : DOOR_HEIGHT };
     });

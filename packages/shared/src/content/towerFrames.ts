@@ -53,11 +53,11 @@ const FLOORS: Mural[][] = [
       },
     },
   ],
-  // Midway between the doors at 15° and 105°, floor to ceiling but for about 1.5 m each end, with
-  // about 7 m of bare wall either side.
+  // Midway between the doors at 30° and 127.5°, floor to ceiling but for about 1.5 m each end, with
+  // about 8 m of bare wall either side.
   [
     {
-      angle: 60,
+      angle: 78.75,
       height: 16.5,
       show: {
         kind: 'widget',
