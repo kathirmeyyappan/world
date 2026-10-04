@@ -34,6 +34,7 @@ export interface RemotePlayer {
   thrusting: boolean;
   dead: boolean;
   avatar: AvatarId;
+  bot: boolean;
   // Standing on something (a floor, a stair, a deck): the sim zeroes vy whenever a player is on the
   // ground, so this is the server's own answer rather than a guess from the drawn height.
   grounded: boolean;
@@ -108,6 +109,7 @@ export class Interpolation {
         thrusting: b.thrusting,
         dead: b.dead,
         avatar: b.avatar,
+        bot: b.bot,
         grounded: b.vy === 0,
       });
     }

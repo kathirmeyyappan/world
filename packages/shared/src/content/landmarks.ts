@@ -5,7 +5,7 @@
 //
 // Up past HIGH_UP the map greys in HIGH_LANDMARKS as well: the walkways up there, which would only
 // clutter the map on the ground.
-import { partDistance, type Bridge, type Disc } from '../sim/world';
+import type { Bridge, Disc } from '../sim/world';
 import { BUILDING_FOOTPRINTS } from './buildings';
 import { STAIRCASE_FOOTPRINTS, TERRACE_RING } from './terrace';
 import { SKY_BRIDGE_FOOTPRINT, TUNG_TUNG_TOWER_FOOTPRINT, TUNG_TUNG_TOWER_ROOMS } from './tower';
@@ -23,9 +23,3 @@ export const HIGH_LANDMARKS: Landmark[] = [
   SKY_BRIDGE_FOOTPRINT,
   ...STAIRCASE_FOOTPRINTS,
 ];
-
-// Whether (x, z) is on a landmark's footprint.
-export function onLandmark(l: Landmark, x: number, z: number): boolean {
-  if (partDistance(x, z, l) > 0) return false;
-  return l.kind !== 'disc' || !l.inner || Math.hypot(x - l.x, z - l.z) >= l.inner;
-}
