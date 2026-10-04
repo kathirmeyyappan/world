@@ -3,7 +3,7 @@
 // same. Each is an angle in degrees round from the main entrance (to your right as you stand in the
 // middle facing it), a height in metres, and what it shows; the width follows from the picture, and
 // every one is centred halfway up its storey (10 m up). The layout throws if one doesn't fit, comes
-// down over a doorway (3 m tall, the main one 6 m), or crosses the stair.
+// down over a doorway (3 m tall, the main one 6 m but on floor 1), or crosses the stair.
 //
 // The ground floor's stair climbs the wall from 135° round to -45° (315°), 20 m over that half
 // turn, so murals there hang on the other half, from 135° on round through 180° and 270°, or

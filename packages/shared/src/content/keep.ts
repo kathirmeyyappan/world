@@ -49,6 +49,9 @@ const DOORS = [
   [0, 75, 127.5, 180, 255, 307.5],
   [0, 75, 127.5, 180, 255, 307.5],
 ].map((floor) => floor.map(deg));
+// Floors whose main door is twice the others' width and height; floor 1's is an ordinary door, so the
+// frames hung over it clear it by more than a sliver of wall.
+const WIDE_MAIN = [0, 2, 3];
 
 export interface Keep {
   structures: Structure[];
@@ -83,11 +86,10 @@ export function keep({
   // Floor i is open (i above 0, or the roof at floors.length) where the flight from below arrives,
   // i half turns on from the lowest flight's start.
   const hole = (i: number) => ({ inner: STAIR_INNER, from: stair + i * Math.PI - HOLE, to: stair + i * Math.PI });
-  // Floor i's doorways. The main door (a building's way in, the tower's onto its sky bridge) is
-  // twice the others' width and height on every floor, so a floor is the same room in a building.
+  // Floor i's doorways: the same in a building as in the tower, so a floor is the same room in both.
   const doors = (i: number) =>
     DOORS[floors[i]].map((angle) => {
-      const main = angle === MAIN;
+      const main = angle === MAIN && WIDE_MAIN.includes(floors[i]);
       return { angle: angle + turn, width: main ? 2 * DOOR : DOOR, top: main ? 2 * DOOR_HEIGHT : DOOR_HEIGHT };
     });
   const onWall = (angle: number) => ({ x: x + r * Math.cos(angle), z: z + r * Math.sin(angle) });
