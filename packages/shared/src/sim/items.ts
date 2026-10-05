@@ -55,7 +55,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   sniper: {
     id: 'sniper',
     seconds: 45,
-    range: 500,
+    range: 1000, // past the far side of the world: a shot stops only at a wall
     damage: 4,
     cooldownTicks: 30,
     actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } },
