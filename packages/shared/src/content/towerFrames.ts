@@ -61,7 +61,7 @@ const FLOORS: Mural[][] = [
       height: 16.5,
       show: {
         kind: 'widget',
-        widget: 'anime',
+        widget: 'anime-activity',
         aspect: 0.8,
         line: 'This frame tracks and emits my recent anime/manga activity.',
       },

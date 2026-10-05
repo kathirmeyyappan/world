@@ -3,7 +3,7 @@
 // as a texture (render/WallFrames.ts). Drawing it ourselves keeps it one cheap texture in the
 // scene, repainted only when its content changes.
 import type { WidgetName } from '@world/shared';
-import { animeWidget } from './anime';
+import { animeActivityWidget } from './anime-activity';
 import { spotifyWidget } from './spotify';
 
 export interface Widget {
@@ -23,5 +23,5 @@ export type WidgetFactory = (aspect: number) => Widget;
 
 export const WIDGETS: Record<WidgetName, WidgetFactory> = {
   spotify: spotifyWidget,
-  anime: animeWidget,
+  'anime-activity': animeActivityWidget,
 };

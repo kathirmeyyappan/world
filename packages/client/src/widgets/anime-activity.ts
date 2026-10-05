@@ -52,7 +52,7 @@ const MESSAGES: Record<Exclude<State, 'ready'>, string> = {
 
 const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
-export const animeWidget: WidgetFactory = (aspect) => {
+export const animeActivityWidget: WidgetFactory = (aspect) => {
   const w = VIEW_W;
   const h = Math.round(VIEW_W / aspect);
   const canvas = document.createElement('canvas');
