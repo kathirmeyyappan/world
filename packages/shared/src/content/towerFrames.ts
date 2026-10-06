@@ -18,8 +18,9 @@ type Mural = Omit<WallFrame, 'room'>;
 // Floor 1's covers (from MyAnimeList, cropped to the activity list's 0.7), a band of ten at the
 // height of the big frame's middle: six from where the stair has climbed past them round over the
 // main door to the big frame, and four from the door at 127.5° to where the stair comes back down to
-// them. Each hover names the show.
-const COVER_ANGLES = [288, 311.5, 335, 358.5, 22, 45.5, 112, 135, 158, 181];
+// them. Every gap between borders is the same 2.15 m, the two either side of the big frame too. Each
+// hover names the show.
+const COVER_ANGLES = [292.4, 314.5, 336.65, 358.75, 20.9, 43, 114.5, 136.6, 158.75, 180.85];
 const COVERS: Mural[] = [
   ['Gintama', 'gintama'],
   ['One Piece', 'one-piece'],
