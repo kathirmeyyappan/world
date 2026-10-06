@@ -15,6 +15,28 @@ import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 
 type Mural = Omit<WallFrame, 'room'>;
 
+// Floor 1's covers (from MyAnimeList, cropped to the activity list's 0.7), a band of ten at the
+// height of the big frame's middle: six from where the stair has climbed past them round over the
+// main door to the big frame, and four from the door at 127.5° to where the stair comes back down to
+// them. Each hover names the show.
+const COVER_ANGLES = [288, 311.5, 335, 358.5, 22, 45.5, 112, 135, 158, 181];
+const COVERS: Mural[] = [
+  ['Gintama', 'gintama'],
+  ['One Piece', 'one-piece'],
+  ['Steins;Gate', 'steins-gate'],
+  ['Monogatari Series', 'monogatari'],
+  ['March Comes in Like a Lion', 'march-comes-in-like-a-lion'],
+  ['Baccano!', 'baccano'],
+  ['Made in Abyss', 'made-in-abyss'],
+  ['The Tatami Galaxy', 'tatami-galaxy'],
+  ['Monster', 'monster'],
+  ['Violet Evergarden', 'violet-evergarden'],
+].map(([name, file], i) => ({
+  angle: COVER_ANGLES[i],
+  height: 6,
+  show: { kind: 'image', src: `/assets/frames/anime/${file}.jpg`, aspect: 0.7, line: name },
+}));
+
 // Each floor's murals, ground floor (and Building 1) first.
 const FLOORS: Mural[][] = [
   // Clear of the doors at 180° and 270°: one between the stair's foot and 180°, one centred in the
@@ -66,6 +88,7 @@ const FLOORS: Mural[][] = [
         line: 'This frame tracks and emits my recent anime/manga activity.',
       },
     },
+    ...COVERS,
   ],
   [],
   [],
