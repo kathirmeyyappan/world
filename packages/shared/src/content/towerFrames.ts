@@ -3,7 +3,7 @@
 // same. Each is an angle in degrees round from the main entrance (to your right as you stand in the
 // middle facing it), a height in metres, and what it shows; the width follows from the picture, and
 // every one is centred halfway up its storey (10 m up). The layout throws if one doesn't fit, comes
-// down over a doorway (3 m tall, the main one 6 m), or crosses the stair.
+// down over a doorway (3 m tall, the main one 6 m on the ground and top floors), or crosses the stair.
 //
 // The ground floor's stair climbs the wall from 135° round to -45° (315°), 20 m over that half
 // turn, so murals there hang on the other half, from 135° on round through 180° and 270°, or
@@ -14,6 +14,29 @@ import { BUILDING_ROOMS } from './buildings';
 import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 
 type Mural = Omit<WallFrame, 'room'>;
+
+// Floor 1's covers (from MyAnimeList, cropped to the activity list's 0.7), a band of ten at the
+// height of the big frame's middle: six from where the stair has climbed past them round over the
+// main door to the big frame, and four from the door at 127.5° to where the stair comes back down to
+// them. Every gap between borders is the same 2.15 m, the two either side of the big frame too. Each
+// hover names the show.
+const COVER_ANGLES = [292.4, 314.5, 336.65, 358.75, 20.9, 43, 114.5, 136.6, 158.75, 180.85];
+const COVERS: Mural[] = [
+  ['Gintama', 'gintama'],
+  ['One Piece', 'one-piece'],
+  ['Steins;Gate', 'steins-gate'],
+  ['Monogatari Series', 'monogatari'],
+  ['March Comes in Like a Lion', 'march-comes-in-like-a-lion'],
+  ['Baccano!', 'baccano'],
+  ['Made in Abyss', 'made-in-abyss'],
+  ['The Tatami Galaxy', 'tatami-galaxy'],
+  ['Monster', 'monster'],
+  ['Violet Evergarden', 'violet-evergarden'],
+].map(([name, file], i) => ({
+  angle: COVER_ANGLES[i],
+  height: 6,
+  show: { kind: 'image', src: `/assets/frames/anime/${file}.jpg`, aspect: 0.7, line: name },
+}));
 
 // Each floor's murals, ground floor (and Building 1) first.
 const FLOORS: Mural[][] = [
@@ -53,7 +76,22 @@ const FLOORS: Mural[][] = [
       },
     },
   ],
-  [],
+  // On the bare wall between the main door and the door at 127.5°, floor to ceiling but for about
+  // 1.5 m each end, with about 8 m of wall between it and that door.
+  [
+    {
+      angle: 78.75,
+      height: 16.5,
+      crt: true,
+      show: {
+        kind: 'widget',
+        widget: 'anime-activity',
+        aspect: 0.8,
+        line: 'This frame tracks and emits my recent anime/manga activity.',
+      },
+    },
+    ...COVERS,
+  ],
   [],
   [],
 ];

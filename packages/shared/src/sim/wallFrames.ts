@@ -36,7 +36,7 @@ export type FrameShow =
   | { kind: 'widget'; widget: WidgetName; aspect: number; line: string };
 
 // The live widgets a frame can show, after the ones at widgets.kathirm.com.
-export type WidgetName = 'spotify';
+export type WidgetName = 'spotify' | 'anime-activity';
 
 export interface WallFrame {
   room: RoundRoom;

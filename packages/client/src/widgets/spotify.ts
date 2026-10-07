@@ -3,6 +3,7 @@
 // match its widget.css: a blurred, darkened wash of the album art behind the art itself, a status
 // row, the title, artist and album, and a progress bar.
 import type { Widget, WidgetFactory } from './index';
+import { ellipsis } from './text';
 
 const WORKER_URL = 'https://spotify-widget.kathirmey.workers.dev';
 const POLL_MS = 7000; // as often as the web widget polls
@@ -246,19 +247,6 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
   paint();
   return widget;
 };
-
-// `str`, cut short with an ellipsis to fit `max` pixels in the current font.
-function ellipsis(ctx: CanvasRenderingContext2D, str: string, max: number): string {
-  if (ctx.measureText(str).width <= max) return str;
-  let lo = 0;
-  let hi = str.length;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    if (ctx.measureText(str.slice(0, mid) + '…').width <= max) lo = mid;
-    else hi = mid - 1;
-  }
-  return str.slice(0, lo) + '…';
-}
 
 // Milliseconds as mm:ss.
 function clock(ms: number): string {

@@ -204,6 +204,7 @@ export class Game {
       'wheel',
       (e) => {
         if (this.commandsMenu.isOpen) this.commandsMenu.scroll(e.deltaY);
+        else this.hoveredFrame?.scroll?.(e.deltaY); // a long widget, under the crosshair
       },
       { passive: true },
     );

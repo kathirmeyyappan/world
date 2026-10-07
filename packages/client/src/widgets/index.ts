@@ -3,6 +3,7 @@
 // as a texture (render/WallFrames.ts). Drawing it ourselves keeps it one cheap texture in the
 // scene, repainted only when its content changes.
 import type { WidgetName } from '@world/shared';
+import { animeActivityWidget } from './anime-activity';
 import { spotifyWidget } from './spotify';
 
 export interface Widget {
@@ -13,6 +14,8 @@ export interface Widget {
   // fetches and animates only while it is and the tab is showing, and catches up at once when it
   // comes back.
   setShown: (shown: boolean) => void;
+  // Moves a widget longer than its frame by `dy` pixels of wheel, if it scrolls.
+  scroll?: (dy: number) => void;
 }
 
 // A widget laid out as its web page would be in a window of this aspect (width over height).
@@ -20,4 +23,5 @@ export type WidgetFactory = (aspect: number) => Widget;
 
 export const WIDGETS: Record<WidgetName, WidgetFactory> = {
   spotify: spotifyWidget,
+  'anime-activity': animeActivityWidget,
 };

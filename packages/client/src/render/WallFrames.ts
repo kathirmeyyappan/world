@@ -16,6 +16,7 @@ const LINE_GAP = 0.3; // metres between the top of a frame's border and the bott
 export interface HungFrame {
   frame: WallFrame;
   above: Vector3; // where its line sits: just over the middle of its top edge, on the wall
+  scroll?: (dy: number) => void; // a widget longer than its frame, moved by the wheel
 }
 
 export class WallFrames {
@@ -32,6 +33,7 @@ export class WallFrames {
       const picture = layoutWallFrame(frame);
       const mesh = panelsMesh(engine, `frame-${n}`, picture.panels);
       const { show } = frame;
+      let scroll: HungFrame['scroll'];
       if (show.kind === 'image') {
         const img = new Image();
         img.src = show.src;
@@ -42,6 +44,7 @@ export class WallFrames {
           onShown: widget.setShown,
           crt: frame.crt,
         });
+        scroll = widget.scroll;
       }
       mesh.isPickable = true;
       const border = panelsMesh(
@@ -52,7 +55,7 @@ export class WallFrames {
       border.material = wood;
       border.isPickable = false;
       const { x, z } = picture.centre;
-      this.byMesh.set(mesh.name, { frame, above: new Vector3(x, picture.top + BORDER + LINE_GAP, z) });
+      this.byMesh.set(mesh.name, { frame, above: new Vector3(x, picture.top + BORDER + LINE_GAP, z), scroll });
     });
   }
 

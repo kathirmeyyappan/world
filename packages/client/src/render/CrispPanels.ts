@@ -56,7 +56,8 @@ interface Shown {
 
 export class CrispPanels {
   private readonly layer = document.createElement('div');
-  private readonly masks = new Set<AbstractMesh>();
+  // Every frame's mask, with how far its middle was from the camera at the last update().
+  private readonly masks = new Map<AbstractMesh, number>();
   private readonly shown: Shown[] = [];
 
   constructor(engine: Engine) {
@@ -64,9 +65,15 @@ export class CrispPanels {
     this.layer.id = 'crisp-panels';
     engine.engine.getRenderingCanvas()?.before(this.layer);
     scene.clearColor = new Color4(0, 0, 0, 0);
-    const isMask = (m: AbstractMesh) => (this.masks.has(m) ? 1 : 0);
-    // Masks first, so their depth holds back everything behind them; otherwise list order.
-    scene.setRenderingOrder(0, (a, b) => isMask(b.getMesh()) - isMask(a.getMesh()));
+    // Masks first, so their depth holds back everything behind them, and the nearest of them first:
+    // a hole writes no colour, so a farther frame's still picture drawn before it would stay in the
+    // canvas over the crisp one. Everything else in list order.
+    scene.setRenderingOrder(0, (a, b) => {
+      const da = this.masks.get(a.getMesh());
+      const db = this.masks.get(b.getMesh());
+      if (da === undefined || db === undefined) return (da === undefined ? 1 : 0) - (db === undefined ? 1 : 0);
+      return da - db;
+    });
   }
 
   // Show `source` across a frame's `panels` (its picture's layout, `u` running 0 to 1 across it),
@@ -96,7 +103,7 @@ export class CrispPanels {
     still.transparencyMode = Material.MATERIAL_OPAQUE;
     still.alphaMode = Constants.ALPHA_PREMULTIPLIED;
     mask.material = still;
-    this.masks.add(mask);
+    this.masks.set(mask, Infinity);
     const frame: Shown = { mask, hole, still, stillTexture, panels: [], visible: false, onShown };
     this.shown.push(frame);
     const repaint = () => {
@@ -160,6 +167,7 @@ export class CrispPanels {
     const frustum = Frustum.GetPlanes(camera.getTransformationMatrix());
     for (const frame of this.shown) {
       const far = Vector3.Distance(camera.globalPosition, frame.mask.getBoundingInfo().boundingSphere.centerWorld);
+      this.masks.set(frame.mask, far);
       const visible = far < CRISP_RANGE && frame.mask.isInFrustum(frustum);
       if (visible !== frame.visible) {
         frame.visible = visible;
