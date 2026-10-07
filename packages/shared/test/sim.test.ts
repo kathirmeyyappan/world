@@ -6,7 +6,6 @@ import { botMapSource, type BotMap } from '../src/sim/botMap';
 import {
   EYE_HEIGHT,
   GEAR,
-  ITEMS,
   JUMP_VELOCITY,
   SCOPED_SPEED_MULTIPLIER,
   SPEEDY_MULTIPLIER,
@@ -206,19 +205,6 @@ test('a landing hurts by its speed: free under a 15 m drop, every heart at 80 m,
   fly(TICK_RATE * GEAR.jetpack.fuelSeconds);
   assert.equal(p.gear?.fuel, 0);
   assert.ok(!p.thrusting && p.vy < 0, 'an empty tank drops them');
-});
-
-test('a timed item wears off after its window; a permanent one never does', () => {
-  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
-  p.item = { id: 'gun', left: ITEMS.gun.seconds, permanent: false, fuel: null };
-  for (let i = 1; i <= ITEMS.gun.seconds - 1; i++) stepPlayer(p, null, 1, WORLD_SHAPE);
-  assert.ok(p.item, 'still armed just before the window ends');
-  stepPlayer(p, null, 1, WORLD_SHAPE);
-  assert.equal(p.item, null);
-
-  const q = createPlayer('b', 'SNIPERb', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
-  for (let i = 0; i < 1000; i++) stepPlayer(q, null, 1, WORLD_SHAPE);
-  assert.deepEqual(q.item, { id: 'sniper', left: 0, permanent: true, fuel: null });
 });
 
 // Structures: walk into a wall, up a ramp onto a platform, off its far end, and jump under a roof.

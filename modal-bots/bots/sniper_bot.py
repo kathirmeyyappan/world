@@ -4,8 +4,7 @@ How the sniper works. Every decision comes from the latest snapshot and the worl
 (``common.world``); about players it remembers only when it first saw each one and who it's
 aiming at.
 
-1. The rifle. It asks for one with ``/sniper`` when it joins and again whenever it isn't holding
-   one (a rifle from chat lasts 45 s).
+1. The rifle. It asks for one with ``/sniper`` when it joins, and again until it's holding one.
 
 2. Who it's after, its quarry. Every living person, or with ``targets`` every living player (bots
    included) whose name contains one of them, in any case. Never itself, and never anyone it saw

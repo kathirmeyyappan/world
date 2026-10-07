@@ -469,19 +469,18 @@ export class Room {
     this.broadcast({ t: 'system', text: `${me.name} put on a ${id}` }, me.id);
   }
 
-  // One item at a time. A permanent holder can't swap; anyone else can, and re-equipping the
-  // same item restarts its timer.
+  // One item at a time. A locked holder can't swap; anyone else can.
   private equip(seat: Seat, id: ItemId): void {
     const me = seat.state;
     const held = me.item;
-    if (held?.permanent) {
+    if (held?.locked) {
       if (held.id === id) this.broadcast({ t: 'system', text: `${me.name} already has a ${id}` });
       else seat.link.send({ t: 'system', text: `you can't put down your ${held.id}` });
       return;
     }
     const spec = ITEMS[id];
     me.item = createItem(id, false);
-    seat.link.send({ t: 'system', text: `you drew a ${id} for ${spec.seconds}s. ${howTo(spec)}.` });
+    seat.link.send({ t: 'system', text: `you drew a ${id}. ${howTo(spec)}.` });
     this.broadcast(
       {
         t: 'system',
