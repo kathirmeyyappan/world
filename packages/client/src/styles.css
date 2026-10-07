@@ -176,31 +176,13 @@ body {
   letter-spacing: 2px;
   color: rgba(255, 255, 255, 0.55);
 }
-#loading .powered svg {
+#loading .powered img {
   height: 16px;
-  width: auto;
-  shape-rendering: crispEdges;
 }
-/* Nothing shows until the art is in (LoadingArt.ts), so the title never shows without it. */
-#loading:not(.ready) > * {
-  visibility: hidden;
-}
-/* One frame of Elizabeth's strip; the strip slides through it. */
 #loading .mascot {
   height: 100px;
   margin-bottom: 20px;
-  overflow: hidden;
-}
-#loading .mascot canvas {
-  display: block;
-  height: 100%;
   image-rendering: pixelated;
-}
-.modal-logo rect {
-  fill: #62de61;
-}
-.modal-logo .d {
-  fill: #09af58;
 }
 .loader {
   width: 48px;
