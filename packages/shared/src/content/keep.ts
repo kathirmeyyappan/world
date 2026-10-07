@@ -49,9 +49,9 @@ const DOORS = [
   [0, 75, 127.5, 180, 255, 307.5],
   [0, 75, 127.5, 180, 255, 307.5],
 ].map((floor) => floor.map(deg));
-// Floors whose main door is twice the others' width and height; floor 1's is an ordinary door, so the
-// frames hung over it clear it by more than a sliver of wall.
-const WIDE_MAIN = [0, 2, 3];
+// Floors whose main door is twice the others' width and height: the ground floor's way in and the top
+// floor's, onto the tower's sky bridge. The rest are ordinary doors.
+const WIDE_MAIN = [0, 3];
 
 export interface Keep {
   structures: Structure[];
