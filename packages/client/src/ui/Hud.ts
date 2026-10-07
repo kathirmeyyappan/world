@@ -17,6 +17,10 @@ function inviteLink(roomId: string): string {
   return url.toString();
 }
 const CHAT_FADE_MS = 12_000;
+// Lines sent from this tab, oldest first, that Up and Down step back through like a shell's history.
+// Kept in sessionStorage, since dying reloads the page.
+const HISTORY_KEY = 'world.chat-history';
+const HISTORY_LINES = 50;
 
 export class Hud {
   private readonly roomCode = document.getElementById('room-code') as HTMLButtonElement;
@@ -30,6 +34,9 @@ export class Hud {
   private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
   private itemHintText = '';
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
+  private readonly sent = loadHistory();
+  private recalled = 0; // the line of `sent` in the box; sent.length is the one being typed
+  private draft = ''; // what was being typed before stepping back
   private readonly crosshair = document.getElementById('crosshair')!;
   private players = new Map<string, RosterEntry>();
   private myId = '';
@@ -58,10 +65,16 @@ export class Hud {
       e.stopPropagation();
       if (e.code === 'Enter') {
         const text = this.chatInput.value.trim().slice(0, MAX_CHAT_LENGTH);
-        if (text) this.onChat?.(text);
+        if (text) {
+          this.remember(text);
+          this.onChat?.(text);
+        }
         this.closeChat();
       } else if (e.code === 'Escape') {
         this.closeChat();
+      } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+        e.preventDefault();
+        this.recall(e.code === 'ArrowUp' ? -1 : 1);
       }
     });
     this.chatInput.addEventListener('blur', () => this.closeChat());
@@ -81,8 +94,29 @@ export class Hud {
     if (document.pointerLockElement) document.exitPointerLock();
     this.chatInput.classList.remove('hidden');
     this.chatInput.value = '';
+    this.recalled = this.sent.length;
     this.chatInput.focus();
     this.onChatOpenChange?.(true);
+  }
+
+  // Puts the line `step` back (-1) or on (1) from the one shown in the box, keeping what was being
+  // typed to come back to past the newest.
+  private recall(step: number): void {
+    const next = this.recalled + step;
+    if (next < 0 || next > this.sent.length) return;
+    if (this.recalled === this.sent.length) this.draft = this.chatInput.value;
+    this.recalled = next;
+    this.chatInput.value = next === this.sent.length ? this.draft : this.sent[next];
+  }
+
+  private remember(text: string): void {
+    if (this.sent.at(-1) !== text) this.sent.push(text);
+    this.sent.splice(0, this.sent.length - HISTORY_LINES);
+    try {
+      sessionStorage.setItem(HISTORY_KEY, JSON.stringify(this.sent));
+    } catch {
+      // Storage full or blocked: the history still lasts this page.
+    }
   }
 
   private closeChat(): void {
@@ -282,4 +316,13 @@ function text(s: string): Text {
 // 7.5 stays 7.5; 8 stays 8.
 function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function loadHistory(): string[] {
+  try {
+    const saved: unknown = JSON.parse(sessionStorage.getItem(HISTORY_KEY) ?? '[]');
+    return Array.isArray(saved) ? saved.filter((line): line is string => typeof line === 'string') : [];
+  } catch {
+    return [];
+  }
 }
