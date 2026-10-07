@@ -181,23 +181,20 @@ body {
   width: auto;
   shape-rendering: crispEdges;
 }
-#loading .mascot svg {
+/* Nothing shows until the art is in (LoadingArt.ts), so the title never shows without it. */
+#loading:not(.ready) > * {
+  visibility: hidden;
+}
+/* One frame of Elizabeth's strip; the strip slides through it. */
+#loading .mascot {
   height: 100px;
-  width: auto;
-  shape-rendering: crispEdges;
   margin-bottom: 20px;
+  overflow: hidden;
 }
-.elizabeth .k {
-  fill: #141414;
-}
-.elizabeth .c {
-  fill: #fffce6;
-}
-.elizabeth .w {
-  fill: #ffffff;
-}
-.elizabeth .o {
-  fill: #f5be5a;
+#loading .mascot canvas {
+  display: block;
+  height: 100%;
+  image-rendering: pixelated;
 }
 .modal-logo rect {
   fill: #62de61;
