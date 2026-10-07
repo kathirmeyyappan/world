@@ -176,34 +176,13 @@ body {
   letter-spacing: 2px;
   color: rgba(255, 255, 255, 0.55);
 }
-#loading .powered svg {
+#loading .powered img {
   height: 16px;
-  width: auto;
-  shape-rendering: crispEdges;
 }
-#loading .mascot svg {
+#loading .mascot {
   height: 100px;
-  width: auto;
-  shape-rendering: crispEdges;
   margin-bottom: 20px;
-}
-.elizabeth .k {
-  fill: #141414;
-}
-.elizabeth .c {
-  fill: #fffce6;
-}
-.elizabeth .w {
-  fill: #ffffff;
-}
-.elizabeth .o {
-  fill: #f5be5a;
-}
-.modal-logo rect {
-  fill: #62de61;
-}
-.modal-logo .d {
-  fill: #09af58;
+  image-rendering: pixelated;
 }
 .loader {
   width: 48px;
