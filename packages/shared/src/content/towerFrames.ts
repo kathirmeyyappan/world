@@ -82,7 +82,6 @@ const FLOORS: Mural[][] = [
     {
       angle: 78.75,
       height: 16.5,
-      crt: true,
       show: {
         kind: 'widget',
         widget: 'anime-activity',
