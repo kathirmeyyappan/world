@@ -14,6 +14,11 @@ export class WsConnection implements Connection {
   readonly kind = 'ws';
   private messageCb: ((msg: ServerMessage) => void) | null = null;
   private closeCb: ((reason: string) => void) | null = null;
+  // What arrives before anything listens (the join can finish while the game is still downloading),
+  // kept in order for the first listener: the welcome and every event, but only the newest snapshot,
+  // since each is the whole room. And why it closed, if it closed in that time.
+  private backlog: ServerMessage[] = [];
+  private closedWith: string | null = null;
 
   private constructor(private readonly ws: WebSocket) {
     ws.onmessage = (e) => {
@@ -23,9 +28,14 @@ export class WsConnection implements Connection {
       } catch {
         return;
       }
-      this.messageCb?.(parsed);
+      if (this.messageCb) this.messageCb(parsed);
+      else this.backlog = [...this.backlog.filter((m) => parsed.t !== 'snap' || m.t !== 'snap'), parsed];
     };
-    ws.onclose = (e) => this.closeCb?.(e.reason || `connection closed (${e.code})`);
+    ws.onclose = (e) => {
+      const reason = e.reason || `connection closed (${e.code})`;
+      if (this.closeCb) this.closeCb(reason);
+      else this.closedWith = reason;
+    };
   }
 
   static connect(url: string, timeoutMs = 8000): Promise<WsConnection> {
@@ -55,9 +65,11 @@ export class WsConnection implements Connection {
   }
   onMessage(cb: (msg: ServerMessage) => void): void {
     this.messageCb = cb;
+    for (const m of this.backlog.splice(0)) cb(m);
   }
   onClose(cb: (reason: string) => void): void {
     this.closeCb = cb;
+    if (this.closedWith !== null) cb(this.closedWith);
   }
   close(): void {
     this.ws.close();
