@@ -136,10 +136,16 @@ export class Sfx {
     const l = this.ctx.listener;
     const t = this.ctx.currentTime;
     const [x, y, z] = audioSpace(pos);
+    const [fx, , fz] = audioSpace({ x: Math.sin(yaw), y: 0, z: Math.cos(yaw) });
+    // Firefox's listener has only the older setters, not these AudioParams.
+    if (l.positionX === undefined) {
+      l.setPosition(x, y, z);
+      l.setOrientation(fx, 0, fz, 0, 1, 0);
+      return;
+    }
     l.positionX.setValueAtTime(x, t);
     l.positionY.setValueAtTime(y, t);
     l.positionZ.setValueAtTime(z, t);
-    const [fx, , fz] = audioSpace({ x: Math.sin(yaw), y: 0, z: Math.cos(yaw) });
     l.forwardX.setValueAtTime(fx, t);
     l.forwardY.setValueAtTime(0, t);
     l.forwardZ.setValueAtTime(fz, t);
