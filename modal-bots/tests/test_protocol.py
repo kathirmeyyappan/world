@@ -50,7 +50,7 @@ def test_ignores_fields_added_later() -> None:
     data = welcome()
     data["players"][0]["armour"] = 3
     data["players"][0]["pos"]["w"] = 1
-    data["players"][0]["item"] = {"id": "gun", "left": 45, "permanent": False, "fuel": None, "ammo": 6}
+    data["players"][0]["item"] = {"id": "gun", "locked": False, "fuel": None, "ammo": 6}
     data["cubes"][0]["spin"] = 2
     joined = decode(json.dumps(data))
     assert isinstance(joined, Welcome)

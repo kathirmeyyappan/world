@@ -153,7 +153,7 @@ test('/gun then shoot: the server resolves the hit, kills the target, and the de
   press(room, ida, 0, false);
   assert.ok(!bob.dead, 'nothing to shoot with yet');
   room.receive(ida, { t: 'chat', text: '/gun' });
-  assert.deepEqual(alice.item, { id: 'gun', left: 45, permanent: false, fuel: null });
+  assert.deepEqual(alice.item, { id: 'gun', locked: false, fuel: null });
   const chest = Math.atan2(0.8, 8);
   press(room, ida, chest, false);
   assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, "a body shot takes the gun's damage");
@@ -320,7 +320,7 @@ test('a hard landing hurts like a shot with no shooter, and a fatal one is annou
   assert.ok(a.inbox.some((m) => m.t === 'fell' && m.victim === id));
 });
 
-test('commands swap items freely, items time out, and the gun only reaches 20 m', () => {
+test('commands swap items freely, items stay, and the gun only reaches 20 m', () => {
   const room = new Room('items', { seed: 6 });
   const a = link();
   const b = link();
@@ -340,8 +340,8 @@ test('commands swap items freely, items time out, and the gun only reaches 20 m'
   press(room, ida, 0, false);
   assert.equal(bob.hearts, MAX_HEARTS, '25 m is past the gun');
 
-  for (let i = 0; i < 30 * 46; i++) room.step();
-  assert.ok(alice.item === null, 'the gun wore off');
+  for (let i = 0; i < 30 * 60; i++) room.step();
+  assert.equal(alice.item?.id, 'gun', 'still armed a minute later');
   room.receive(ida, { t: 'chat', text: '/sniper' });
   assert.equal(room.players.find((p) => p.id === ida)!.item?.id, 'sniper');
   press(room, ida, 0, false);
@@ -350,12 +350,12 @@ test('commands swap items freely, items time out, and the gun only reaches 20 m'
   assert.ok(bob.dead, 'scoped, the sniper reaches 25 m');
 });
 
-test('a name containing GUN or SNIPER is armed permanently and can never swap', () => {
+test('a name containing GUN or SNIPER is armed for good and can never swap', () => {
   const room = new Room('perm', { seed: 2 });
   const a = link();
   const ida = room.join('bigGUNner', a)!;
   const me = room.players.find((p) => p.id === ida)!;
-  assert.deepEqual(me.item, { id: 'gun', left: 0, permanent: true, fuel: null });
+  assert.deepEqual(me.item, { id: 'gun', locked: true, fuel: null });
   for (let i = 0; i < 30 * 60; i++) room.step();
   assert.equal(me.item?.id, 'gun', 'still armed a minute later');
   room.receive(ida, { t: 'chat', text: '/gun' });
@@ -469,7 +469,7 @@ test('flamethrower: hold to spray a 20 m cone, 0.5 hearts every 5 ticks, on a 7.
   dave.pos = { x: alice.pos.x + 5, y: alice.pos.y, z: alice.pos.z + 6 }; // 40 degrees off: outside
 
   room.receive(ida, { t: 'chat', text: '/flamethrower' });
-  assert.deepEqual(alice.item, { id: 'flamethrower', left: 45, permanent: false, fuel: 7.5 });
+  assert.deepEqual(alice.item, { id: 'flamethrower', locked: false, fuel: 7.5 });
   hold(room, ida, 30);
   assert.equal(bob.hearts, MAX_HEARTS - 3, 'six 0.5 ticks in a second (ticks 0, 5, 10, 15, 20, 25)');
   assert.equal(carol.hearts, MAX_HEARTS, 'out of reach');

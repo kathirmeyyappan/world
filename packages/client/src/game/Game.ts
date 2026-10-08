@@ -517,7 +517,7 @@ export class Game {
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
     this.hud.setItemHint(
-      held && !this.dead ? itemHint(held.id, held.permanent ? null : held.left, !IS_TOUCH, this.scoped) : '',
+      held && !this.dead ? itemHint(held.id, !IS_TOUCH, this.scoped) : '',
       held ? itemStats(held.id) : '',
     );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
@@ -666,12 +666,11 @@ export class Game {
 }
 
 // The hint bar's text. A scope-only weapon leads with the step that's missing.
-function itemHint(id: ItemId, left: number | null, withKeys: boolean, scoped: boolean): string {
+function itemHint(id: ItemId, withKeys: boolean, scoped: boolean): string {
   const parts = [id.toUpperCase()];
   if (ITEMS[id].fireNeedsScope && !scoped)
     parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
   else if (withKeys) parts.push(itemHelp(id, ' · '));
-  if (left !== null) parts.push(`${Math.ceil(left)}s`);
   return parts.join(' · ');
 }
 

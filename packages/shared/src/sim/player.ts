@@ -17,7 +17,7 @@ import { avatarFor } from './avatars';
 import type { Structures } from './collision';
 import { CAPSULE_TOP, MAX_HEARTS } from './health';
 import { stepGear, thrust } from './gear';
-import { ITEMS, createItem, nextFuel, permanentItemFor } from './items';
+import { ITEMS, createItem, nextFuel, lockedItemFor } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
 
@@ -34,7 +34,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
-    item: permanentItem(name),
+    item: lockedItem(name),
     gear: null,
     scoped: false,
     firing: false,
@@ -51,8 +51,8 @@ export function clonePlayer(p: PlayerState): PlayerState {
   return { ...p, pos: { ...p.pos }, item: p.item && { ...p.item }, gear: p.gear && { ...p.gear } };
 }
 
-function permanentItem(name: string) {
-  const id = permanentItemFor(name);
+function lockedItem(name: string) {
+  const id = lockedItemFor(name);
   return id ? createItem(id, true) : null;
 }
 
@@ -101,10 +101,6 @@ export function stepPlayer(
 
   const boosted = p.boost > 0;
   p.boost = Math.max(0, p.boost - dt);
-  if (p.item && !p.item.permanent) {
-    p.item.left -= dt;
-    if (p.item.left <= 0) p.item = null;
-  }
   stepItem(p, input, dt);
   // Scoped (decided by stepItem from this frame) slows the walk and pins them to the ground.
   const speed = MOVE_SPEED * (boosted ? SPEEDY_MULTIPLIER : 1) * (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1);

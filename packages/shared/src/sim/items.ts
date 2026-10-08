@@ -26,7 +26,6 @@ export type FireShape = { kind: 'hitscan' } | { kind: 'cone'; halfAngle: number 
 
 export interface ItemSpec {
   id: ItemId;
-  seconds: number; // how long a chat-command equip lasts
   range: number; // metres a shot can reach
   damage: number; // hearts a hit takes; hitscan headshots multiply it (health.ts)
   cooldownTicks: number; // between shots, or between damage ticks while holding
@@ -34,14 +33,13 @@ export interface ItemSpec {
   fire: FireShape;
   fireNeedsScope: boolean; // can only shoot while scoped
   fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at FUEL_REFILL_RATE
-  nameTag: string; // a name containing this spawns with the item permanently
+  nameTag: string; // a name containing this spawns holding the item, locked in hand
   blurb: string; // one plain line for the commands menu
 }
 
 export const ITEMS: Record<ItemId, ItemSpec> = {
   gun: {
     id: 'gun',
-    seconds: 45,
     range: 20,
     damage: 2,
     cooldownTicks: 7,
@@ -54,7 +52,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   },
   sniper: {
     id: 'sniper',
-    seconds: 45,
     range: 500,
     damage: 4,
     cooldownTicks: 30,
@@ -67,7 +64,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   },
   flamethrower: {
     id: 'flamethrower',
-    seconds: 45,
     range: 20,
     damage: 0.5,
     cooldownTicks: 5,
@@ -83,18 +79,16 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 export const FUEL_REFILL_RATE = 7.5 / 25; // of the burn rate: a 7.5 s tank takes 25 s to refill
 
-// What a player is holding. `left` counts down in the sim unless `permanent`; `fuel` is seconds
-// of fire left for hold items, null otherwise.
+// What a player is holding, until they draw another or die. `locked` (a name tag's item) can't be
+// put down; `fuel` is seconds of fire left for hold items, null otherwise.
 export interface ItemState {
   id: ItemId;
-  left: number;
-  permanent: boolean;
+  locked: boolean;
   fuel: number | null;
 }
 
-export function createItem(id: ItemId, permanent: boolean): ItemState {
-  const spec = ITEMS[id];
-  return { id, left: permanent ? 0 : spec.seconds, permanent, fuel: spec.fuelSeconds };
+export function createItem(id: ItemId, locked: boolean): ItemState {
+  return { id, locked, fuel: ITEMS[id].fuelSeconds };
 }
 
 export function isItemId(v: unknown): v is ItemId {
@@ -114,7 +108,7 @@ export function nextFuel(fuel: number, full: number, burning: boolean, refilling
 
 // The item a name entitles its owner to for the whole session, if any. Longer tags win so a
 // name like "SNIPERGUN" is a sniper, not a gun.
-export function permanentItemFor(name: string): ItemId | null {
+export function lockedItemFor(name: string): ItemId | null {
   const matches = ITEM_IDS.filter((id) => name.includes(ITEMS[id].nameTag));
   matches.sort((a, b) => ITEMS[b].nameTag.length - ITEMS[a].nameTag.length);
   return matches[0] ?? null;

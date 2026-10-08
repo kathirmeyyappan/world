@@ -22,8 +22,7 @@ class Vec3:
 @dataclass(frozen=True, slots=True)
 class Item:
     id: str
-    left: float
-    permanent: bool
+    locked: bool
     fuel: float | None
 
 
