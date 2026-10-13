@@ -19,23 +19,23 @@ type Mural = Omit<WallFrame, 'room'>;
 // height of the big frame's middle: six from where the stair has climbed past them round over the
 // main door to the big frame, and four from the door at 127.5° to where the stair comes back down to
 // them. Every gap between borders is the same 2.15 m, the two either side of the big frame too. Each
-// hover names the show.
+// hover names the show in English and, under it in 「」, by its Japanese title.
 const COVER_ANGLES = [292.4, 314.5, 336.65, 358.75, 20.9, 43, 114.5, 136.6, 158.75, 180.85];
 const COVERS: Mural[] = [
-  ['Gintama', 'gintama'],
-  ['One Piece', 'one-piece'],
-  ['Steins;Gate', 'steins-gate'],
-  ['Monogatari Series', 'monogatari'],
-  ['March Comes in Like a Lion', 'march-comes-in-like-a-lion'],
-  ['Baccano!', 'baccano'],
-  ['Made in Abyss', 'made-in-abyss'],
-  ['The Tatami Galaxy', 'tatami-galaxy'],
-  ['Monster', 'monster'],
-  ['Violet Evergarden', 'violet-evergarden'],
-].map(([name, file], i) => ({
+  ['Gintama', '銀魂', 'gintama'],
+  ['One Piece', 'ONE PIECE', 'one-piece'],
+  ['Steins;Gate', 'STEINS;GATE', 'steins-gate'],
+  ['Monogatari Series', '〈物語〉シリーズ', 'monogatari'],
+  ['March Comes in Like a Lion', '3月のライオン', 'march-comes-in-like-a-lion'],
+  ['Baccano!', 'バッカーノ!', 'baccano'],
+  ['Made in Abyss', 'メイドインアビス', 'made-in-abyss'],
+  ['The Tatami Galaxy', '四畳半神話大系', 'tatami-galaxy'],
+  ['Monster', 'MONSTER', 'monster'],
+  ['Violet Evergarden', 'ヴァイオレット・エヴァーガーデン', 'violet-evergarden'],
+].map(([name, japanese, file], i) => ({
   angle: COVER_ANGLES[i],
   height: 6,
-  show: { kind: 'image', src: `/assets/frames/anime/${file}.jpg`, aspect: 0.7, line: name },
+  show: { kind: 'image', src: `/assets/frames/anime/${file}.jpg`, aspect: 0.7, line: `${name}\n「${japanese}」` },
 }));
 
 // Each floor's murals, ground floor (and Building 1) first.
@@ -87,7 +87,7 @@ const FLOORS: Mural[][] = [
         kind: 'widget',
         widget: 'anime-activity',
         aspect: 0.8,
-        line: 'This frame tracks and emits my recent anime/manga activity.',
+        line: '最近見たアニメや読んだマンガを載せてみた',
       },
     },
     ...COVERS,
