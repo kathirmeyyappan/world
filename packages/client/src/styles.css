@@ -273,6 +273,7 @@ body {
   box-shadow: 4px 4px 0 #000;
   color: #fff;
   font: 21px/1.15 var(--mono);
+  white-space: pre-line; /* a line can carry a second, after a \n */
   will-change: transform;
 }
 .bubble.plain {
