@@ -87,7 +87,7 @@ const FLOORS: Mural[][] = [
         kind: 'widget',
         widget: 'anime-activity',
         aspect: 0.8,
-        line: 'Recent dire activities.',
+        line: '最近見たアニメや読んだマンガを載せてみた',
       },
     },
     ...COVERS,
