@@ -10,6 +10,7 @@ interface Pin {
   el: HTMLDivElement;
   arrow: HTMLSpanElement;
   label: HTMLSpanElement;
+  color: string; // last written to it
 }
 
 export class Pins {
@@ -39,6 +40,7 @@ export class Pins {
       }
       const onScreen = !behind && screen.x >= 0 && screen.x <= w && screen.y >= 0 && screen.y <= h;
       const pin = this.pins.get(p.id) ?? this.create(p);
+      if (p.color !== pin.color) pin.el.style.color = pin.color = p.color;
       if (onScreen) {
         pin.el.style.display = 'none';
         continue;
@@ -69,7 +71,6 @@ export class Pins {
     const el = document.createElement('div');
     el.className = 'pin';
     el.title = p.name;
-    el.style.color = p.color;
     const arrow = document.createElement('span');
     arrow.className = 'pin-arrow';
     arrow.textContent = '▲';
@@ -77,7 +78,7 @@ export class Pins {
     label.className = 'pin-label';
     el.append(arrow, label);
     this.root.appendChild(el);
-    const pin = { el, arrow, label };
+    const pin = { el, arrow, label, color: '' };
     this.pins.set(p.id, pin);
     return pin;
   }

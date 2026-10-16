@@ -27,7 +27,7 @@ export class StandardAvatar implements Avatar {
   constructor(
     engine: Engine,
     readonly id: string,
-    color: string,
+    readonly color: string,
   ) {
     const scene = engine.scene;
     const c = Color3.FromHexString(color);
