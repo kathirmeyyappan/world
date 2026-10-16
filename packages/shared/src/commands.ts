@@ -13,6 +13,7 @@ import {
   type BotId,
 } from './sim/bots';
 import { isGearId, type GearId } from './sim/gear';
+import { NAMED_COLORS } from './sim/constants';
 import { isItemId, type ItemId } from './sim/items';
 
 export type Command =
@@ -20,6 +21,7 @@ export type Command =
   | { name: 'equip'; item: ItemId }
   | { name: 'wear'; gear: GearId }
   | { name: 'avatar'; avatar: AvatarId }
+  | { name: 'color'; color: string } // one of NAMED_COLORS' names
   | { name: 'bot'; bot: BotId; call: BotCallArgs | null } // null: the flags didn't parse
   | { name: 'kill-bots' }
   | { name: 'unknown'; raw: string };
@@ -36,13 +38,14 @@ export function parseCommand(text: string): Command | null {
 
   const [raw, ...args] = text.slice(1).trim().split(/\s+/);
   const name = raw.toLowerCase();
-  const normalized = COMMAND_SHORTCUTS[name] ?? name;
+  const normalized = (Object.hasOwn(COMMAND_SHORTCUTS, name) && COMMAND_SHORTCUTS[name]) || name;
 
   if (normalized === 'speedy') return { name: 'speedy' };
   if (isItemId(normalized)) return { name: 'equip', item: normalized };
   if (isGearId(normalized)) return { name: 'wear', gear: normalized };
   const avatar = avatarForCommand(normalized);
   if (avatar) return { name: 'avatar', avatar };
+  if (Object.hasOwn(NAMED_COLORS, normalized)) return { name: 'color', color: normalized };
   if (normalized === 'kill-bots') return { name: 'kill-bots' };
   const bot = botIdFor(normalized);
   if (bot) return botCommand(bot, args);

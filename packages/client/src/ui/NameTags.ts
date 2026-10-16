@@ -13,11 +13,12 @@ const TAG_EM = 0.23; // metres: the font size in the world, about 20 px at 6 m
 const MIN_PX = 9; // far off, small but still sharp
 const MAX_PX = 28;
 
-// The element, and the font size and stacking last written to it (writes only on change).
+// The element, and the font size, stacking and colour last written to it (writes only on change).
 interface Tag {
   el: HTMLDivElement;
   px: number;
   z: number;
+  color: string;
 }
 
 export class NameTags {
@@ -37,6 +38,7 @@ export class NameTags {
     for (const p of players) {
       seen.add(p.id);
       const tag = this.tags.get(p.id) ?? this.create(p);
+      if (p.color !== tag.color) tag.el.style.color = tag.color = p.color;
       const at = new Vector3(p.x, p.y - EYE_HEIGHT + AVATARS[p.avatar].hitbox.top + ABOVE_BODY, p.z);
       const screen = Vector3.Project(at, Matrix.Identity(), transform, viewport);
       const visible =
@@ -74,9 +76,8 @@ export class NameTags {
     const el = document.createElement('div');
     el.className = 'name-tag';
     el.textContent = p.name;
-    el.style.color = p.color;
     this.root.appendChild(el);
-    const tag = { el, px: 0, z: -1 };
+    const tag = { el, px: 0, z: -1, color: '' };
     this.tags.set(p.id, tag);
     return tag;
   }

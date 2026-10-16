@@ -98,7 +98,7 @@ export function botArguments(worker: BotWorker): string {
 export const BOT_IDS = Object.keys(BOTS) as BotId[];
 
 export function isBotId(v: unknown): v is BotId {
-  return typeof v === 'string' && v in BOTS;
+  return typeof v === 'string' && Object.hasOwn(BOTS, v);
 }
 
 // "/circle-bot" and "/circle" both mean the circle bot.

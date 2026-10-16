@@ -6,6 +6,7 @@ import {
   HEADSHOT_MULTIPLIER,
   ITEMS,
   MAX_HEARTS,
+  NAMED_COLORS,
   MAX_PLAYERS,
   MAX_REWIND_TICKS,
   MOVE_SPEED,
@@ -404,7 +405,7 @@ test('a corpse that never rejoins is removed and its link closed', () => {
   );
 });
 
-test('avatars: /elizabeth is for good; ELIZABETH in the name locks the look', () => {
+test('looks: /elizabeth is for good, ELIZABETH in the name locks it, and /red recolours', () => {
   const room = new Room('av', { seed: 1 });
   const a = link();
   const b = link();
@@ -435,6 +436,12 @@ test('avatars: /elizabeth is for good; ELIZABETH in the name locks the look', ()
   room.receive(ida, { t: 'chat', text: '/standard' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
   assert.equal(ann.avatar, 'elizabeth');
+
+  room.receive(idb, { t: 'chat', text: '/RED' });
+  assert.equal(bob.color, NAMED_COLORS.red, 'a colour by name, any case');
+  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'bob is now red'));
+  room.receive(idb, { t: 'chat', text: '/constructor' });
+  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /constructor' });
 });
 
 test('headshots do 2.5x: a gun takes 5 hearts, a scoped sniper to the head is a one-shot kill', () => {

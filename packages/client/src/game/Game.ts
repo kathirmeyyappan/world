@@ -36,7 +36,7 @@ import { IS_TOUCH } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, type Avatar } from '../render/avatars';
+import { createAvatar, StandardAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -534,7 +534,8 @@ export class Game {
     for (const rp of sampled.players) {
       seen.add(rp.id);
       let avatar = this.avatars.get(rp.id);
-      if (avatar && avatar.kind !== rp.avatar) {
+      // A new look, or a new colour on the figure that wears it, is a new avatar.
+      if (avatar && (avatar.kind !== rp.avatar || (avatar instanceof StandardAvatar && avatar.color !== rp.color))) {
         avatar.dispose();
         avatar = undefined;
       }

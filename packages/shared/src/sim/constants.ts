@@ -47,6 +47,21 @@ export const MAX_NAME_LENGTH = 16;
 export const MAX_CHAT_LENGTH = 140;
 export const MAX_ROOM_ID_LENGTH = 24;
 
+// The colours anyone can switch to with "/<name>" (commands.ts). Black is a dark grey, so a name tag
+// in it still reads against the night sky.
+export const NAMED_COLORS: Readonly<Record<string, string>> = {
+  yellow: '#fff176',
+  green: '#81c784',
+  blue: '#64b5f6',
+  pink: '#f06292',
+  red: '#e57373',
+  orange: '#ffb74d',
+  brown: '#a1887f',
+  purple: '#ba68c8',
+  black: '#424242',
+  white: '#f5f5f5',
+};
+
 export const PLAYER_COLORS = [
   '#64b5f6',
   '#f06292',
