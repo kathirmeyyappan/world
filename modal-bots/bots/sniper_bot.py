@@ -242,7 +242,7 @@ class Sniper:
     name: str
     rng: random.Random = field(default_factory=random.Random)
     seen: dict[str, int] = field(default_factory=dict)  # player id: tick it first saw them
-    shots: int = 0  # shots the server took: its own "shot" events, not its presses of the trigger
+    shots: int = 0
     kills: int = 0
     hurt: bool = False  # something hit it since it last picked a spot
     in_sight: str | None = None  # who it's watching, if anyone
