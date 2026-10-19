@@ -152,6 +152,8 @@ async def run_sniper_bot(
                         log_kill(name, victim.name if victim else "?", item="sniper", headshot=message.data["headshot"])
                     elif message.data["victim"] == me.id:
                         log_death(name, shooter.name if shooter else "?", item=message.data["item"])
+                if isinstance(message, Event) and message.t == "shot" and message.data["id"] == me.id:
+                    sniper.shots += 1
                 if isinstance(message, Event) and message.t == "hit":
                     if message.data["victim"] == me.id:
                         sniper.hurt = True
@@ -321,7 +323,6 @@ class Sniper:
             me.pos, aim_point(me.pos, self._lead(target), self.world.hitbox(target.avatar), zone, self.rng)
         )
         controls.fire_once()
-        self.shots += 1
         self.last_shot = tick
         self.ready_at = tick + round(MISS_COOLDOWN_SECONDS * TICK_RATE)  # until it hears it hit
         self.fire_at = self.ready_at + self.rng.randint(*GRACE_TICKS)
