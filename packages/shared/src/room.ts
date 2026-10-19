@@ -19,6 +19,7 @@ import {
   MAX_NAME_LENGTH,
   MAX_PLAYERS,
   DEATH_SCREEN_SECONDS,
+  NAMED_COLORS,
   PLAYER_COLORS,
   PLAYER_PADDING,
   SPEEDY_SECONDS,
@@ -402,6 +403,10 @@ export class Room {
         this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}` });
         return;
       }
+      case 'color':
+        seat.state.color = NAMED_COLORS[command.color];
+        this.broadcast({ t: 'system', text: `${seat.state.name} is now ${command.color}` });
+        return;
       case 'bot':
         this.callBot(seat, command.bot, command.call);
         return;

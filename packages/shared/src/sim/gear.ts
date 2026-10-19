@@ -46,7 +46,7 @@ export function createGear(id: GearId): GearState {
 }
 
 export function isGearId(v: unknown): v is GearId {
-  return typeof v === 'string' && v in GEAR;
+  return typeof v === 'string' && Object.hasOwn(GEAR, v);
 }
 
 // What the gear pushes with this tick (sim/player.ts applies it through `thrust`).

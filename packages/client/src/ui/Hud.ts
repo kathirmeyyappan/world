@@ -142,12 +142,13 @@ export class Hud {
   }
 
   // Once per snapshot: hearts and kills on the roster. Re-renders only when a number moved.
-  updateStats(list: { id: string; hearts: number; kills: number; dead: boolean }[]): void {
+  updateStats(list: { id: string; color: string; hearts: number; kills: number; dead: boolean }[]): void {
     let changed = false;
     for (const p of list) {
       const e = this.players.get(p.id);
       if (!e) continue;
-      if (e.hearts !== p.hearts || e.kills !== p.kills || e.dead !== p.dead) {
+      if (e.color !== p.color || e.hearts !== p.hearts || e.kills !== p.kills || e.dead !== p.dead) {
+        e.color = p.color;
         e.hearts = p.hearts;
         e.kills = p.kills;
         e.dead = p.dead;

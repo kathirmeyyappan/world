@@ -8,6 +8,7 @@ import { StandardAvatar } from './Standard';
 import type { Avatar } from './common';
 
 export type { Avatar } from './common';
+export { StandardAvatar } from './Standard';
 
 export function createAvatar(engine: Engine, p: { id: string; color: string; avatar: AvatarId }): Avatar {
   switch (p.avatar) {

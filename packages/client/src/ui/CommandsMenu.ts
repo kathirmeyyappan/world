@@ -92,6 +92,7 @@ function buildGroups(): Group[] {
       title: 'other',
       rows: [
         [commandLabel('speedy'), 'run faster for a bit'],
+        ['/[color]', 'change your colour (try one)'],
         ...GEAR_IDS.map((id): Group['rows'][number] => [commandLabel(id), GEAR[id].blurb]),
       ],
     },

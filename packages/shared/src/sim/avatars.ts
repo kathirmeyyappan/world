@@ -50,7 +50,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
 export const AVATAR_IDS = Object.keys(AVATARS) as AvatarId[];
 
 export function isAvatarId(v: unknown): v is AvatarId {
-  return typeof v === 'string' && v in AVATARS;
+  return typeof v === 'string' && Object.hasOwn(AVATARS, v);
 }
 
 // The avatar a chat command word ("tung") switches a person to, if any.

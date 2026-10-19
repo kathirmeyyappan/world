@@ -92,7 +92,7 @@ export function createItem(id: ItemId, locked: boolean): ItemState {
 }
 
 export function isItemId(v: unknown): v is ItemId {
-  return typeof v === 'string' && v in ITEMS;
+  return typeof v === 'string' && Object.hasOwn(ITEMS, v);
 }
 
 export function isItemAction(v: unknown): v is ItemAction {
