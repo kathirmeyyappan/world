@@ -10,7 +10,7 @@
 // under the top of the flight past 270°, where its steps run well over them. Each floor's flight
 // starts half a turn on from the one below's.
 import type { WallFrame } from '../sim/wallFrames';
-import { BUILDING_ROOMS } from './buildings';
+import { BUILDING_FLOORS, BUILDING_ROOMS } from './buildings';
 import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 
 type Mural = Omit<WallFrame, 'room'>;
@@ -97,5 +97,7 @@ const FLOORS: Mural[][] = [
 ];
 
 export const WALL_FRAMES: WallFrame[] = FLOORS.flatMap((murals, s) =>
-  [TUNG_TUNG_TOWER_ROOMS[s], BUILDING_ROOMS[s]].flatMap((room) => murals.map((m) => ({ ...m, room }))),
+  [TUNG_TUNG_TOWER_ROOMS[s], ...BUILDING_ROOMS.filter((_, b) => BUILDING_FLOORS[b] === s)].flatMap((room) =>
+    murals.map((m) => ({ ...m, room })),
+  ),
 );
