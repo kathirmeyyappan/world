@@ -15,7 +15,7 @@ export const SKY_OBJECTS: SkyContent[] = [
   {
     id: 'mugiwara',
     image: '/assets/textures/sky/mugiwara.png',
-    line: "Visit anime.kathirm.com if you're curious.",
+    line: 'おれはモンキー・D・ルフィ！\n海賊王になる男だ！',
   },
   {
     id: 'patriots',
