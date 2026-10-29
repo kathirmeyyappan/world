@@ -26,6 +26,9 @@ import {
   type PlayerState,
   type ServerMessage,
   type Vec3,
+  AVATARS,
+  EYE_HEIGHT,
+  eyeOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
@@ -68,6 +71,8 @@ const STEP_EASE_HALF_LIFE = 0.05; // seconds for the camera to catch up with a s
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
+const EYE_EASE = 0.25; // seconds the camera takes to settle at a new avatar's eye height
+const CEILING_GAP = 0.15; // metres the camera keeps under a lintel or ceiling the body passes beneath
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const FRAME_RANGE = 40; // metres from a frame you can read its line: the tower's width, wall to wall
 const DEFAULT_FOV = 1.2;
@@ -96,6 +101,7 @@ export class Game {
   private readonly cubes = new Map<string, CubeMesh>();
   private readonly cubeByMesh = new Map<string, CubeMesh>();
   private readonly avatars = new Map<string, Avatar>();
+  private eyeLift: number | null = null; // metres the camera sits above the body's eye point, for the avatar worn
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
@@ -458,19 +464,21 @@ export class Game {
     this.pendingShots = [];
   }
 
-  // Where a shot from `p` (along their look, stopped by walls and its range) came closest to the
-  // local player's eye, how far from it, and which way it was going; null if it never came level
-  // with them.
+  // Where a shot from `p` (from their eyes along their look, stopped by walls and its range) came
+  // closest to the local player's eyes, how far from them, and which way it was going; null if it
+  // never came level with them.
   private closestPass(p: PlayerState): { at: Vec3; distance: number; along: Vec3 } | null {
     const me = this.prediction?.state;
     if (!me || this.dead || !p.item) return null;
     const dir = lookDirection(p.yaw, p.pitch);
+    const from = eyeOf(p);
+    const ear = eyeOf(me);
     const range = ITEMS[p.item.id].range;
-    const reach = Math.min(range, WORLD_STRUCTURES.raycast(p.pos, dir, range));
-    const along = (me.pos.x - p.pos.x) * dir.x + (me.pos.y - p.pos.y) * dir.y + (me.pos.z - p.pos.z) * dir.z;
+    const reach = Math.min(range, WORLD_STRUCTURES.raycast(from, dir, range));
+    const along = (ear.x - from.x) * dir.x + (ear.y - from.y) * dir.y + (ear.z - from.z) * dir.z;
     if (along <= 0 || along > reach) return null;
-    const at = { x: p.pos.x + dir.x * along, y: p.pos.y + dir.y * along, z: p.pos.z + dir.z * along };
-    return { at, distance: Math.hypot(at.x - me.pos.x, at.y - me.pos.y, at.z - me.pos.z), along: dir };
+    const at = { x: from.x + dir.x * along, y: from.y + dir.y * along, z: from.z + dir.z * along };
+    return { at, distance: Math.hypot(at.x - ear.x, at.y - ear.y, at.z - ear.z), along: dir };
   }
 
   private addAvatar(p: PlayerState): void {
@@ -502,13 +510,20 @@ export class Game {
     this.correction.scaleInPlace(decay);
     this.stepEase *= Math.pow(0.5, dt / STEP_EASE_HALF_LIFE);
     const p = this.prediction.state.pos;
-    this.camera.position.set(p.x + this.correction.x, p.y + this.correction.y + this.stepEase, p.z + this.correction.z);
+    const eye = new Vector3(p.x + this.correction.x, p.y + this.correction.y + this.stepEase, p.z + this.correction.z);
+    // The camera sits at the avatar's own eyes, easing there when the look changes, and never up
+    // through a lintel or ceiling the body fits under.
+    const lift = AVATARS[this.prediction.state.avatar].eye - EYE_HEIGHT;
+    this.eyeLift = this.eyeLift === null ? lift : this.eyeLift + (lift - this.eyeLift) * Math.min(1, dt / EYE_EASE);
+    const room =
+      this.eyeLift > 0 ? Math.max(eye.y, WORLD_STRUCTURES.ceilingAt(eye.x, eye.z, eye.y) - CEILING_GAP) : Infinity;
+    this.camera.position.set(eye.x, Math.min(eye.y + this.eyeLift, room), eye.z);
     this.kick *= Math.pow(0.5, dt / KICK_HALF_LIFE);
     if (this.kick < 1e-4) this.kick = 0;
     this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);
 
     this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
-    this.environment.update(dt, this.camera.position);
+    this.environment.update(dt, eye);
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
@@ -567,7 +582,7 @@ export class Game {
       this.canFire() &&
       resolveFire(
         ITEMS[held.id],
-        { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch },
+        { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch, avatar: me.avatar },
         targets(sampled.players),
         WORLD_STRUCTURES,
       ).length > 0;

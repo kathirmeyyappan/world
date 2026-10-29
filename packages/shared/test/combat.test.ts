@@ -55,6 +55,11 @@ test('where the shot lands decides a headshot: eye level is the head, the chest 
   x.avatar = 'sahur';
   me.pitch = 0;
   assert.equal(findHit(me, [x], GUN)?.headshot, false, 'level with our eyes is its chest');
+
+  // Shots leave from the shooter's own eyes: Mike's are 1.08 m up, below everyone's head.
+  x.avatar = 'standard';
+  me.avatar = 'mike';
+  assert.equal(findHit(me, [x], GUN)?.headshot, false, "a level shot from Mike's eyes is a chest shot");
 });
 
 test('resolveFire: hitscan picks one, a cone takes everyone inside it', () => {

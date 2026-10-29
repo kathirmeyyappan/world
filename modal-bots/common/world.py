@@ -21,7 +21,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-from .protocol import Vec3
+from .protocol import Player, Vec3
 
 MAP_PATH = Path(__file__).with_name("world_map.json.gz")
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
@@ -104,6 +104,7 @@ class WorldMap:
             avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
             for avatar, h in data["hitboxes"].items()
         }
+        self.eyes = {avatar: float(e) for avatar, e in data["eyes"].items()}
         # The tower's four floors inside its wall, ground floor first.
         self.tower_inside = tuple(
             Region(
@@ -130,6 +131,11 @@ class WorldMap:
     def hitbox(self, avatar: str) -> Hitbox:
         """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
         return self.hitboxes.get(avatar, self.hitboxes["standard"])
+
+    def eye_of(self, p: Player) -> Vec3:
+        """Where a player's avatar has its eyes, and so where its shots leave: ``pos`` is the body's
+        eye point, EYE_HEIGHT up, and the avatar's own may sit higher or lower."""
+        return Vec3(p.pos.x, p.pos.y - EYE_HEIGHT + self.eyes.get(p.avatar, EYE_HEIGHT), p.pos.z)
 
     def clear(self, a: Vec3, b: Vec3) -> bool:
         """Whether nothing stands between ``a`` and ``b``: a shot from one reaches the other."""
