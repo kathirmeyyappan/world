@@ -153,14 +153,18 @@ export class Sfx {
 
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
   // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
-  // scales its volume.
-  play(id: SoundId, at: Vec3 | null = null, o: { delay?: number; along?: Vec3; level?: number } = {}): void {
+  // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long).
+  play(
+    id: SoundId,
+    at: Vec3 | null = null,
+    o: { delay?: number; along?: Vec3; level?: number; rate?: number } = {},
+  ): void {
     const buffer = this.buffers.get(SOUNDS[id].file);
     if (!this.ctx || !buffer) return;
     if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return;
     const t = this.ctx.currentTime + (o.delay ?? 0);
     const voice = this.voice(id, at, o.level ?? 1);
-    const src = new AudioBufferSourceNode(this.ctx, { buffer });
+    const src = new AudioBufferSourceNode(this.ctx, { buffer, playbackRate: o.rate ?? 1 });
     src.connect(voice.gain);
     src.start(t);
     if (voice.panner && at && o.along) {
@@ -168,7 +172,7 @@ export class Sfx {
       const from = { x: at.x - d.x * SWEEP, y: at.y - d.y * SWEEP, z: at.z - d.z * SWEEP };
       const to = { x: at.x + d.x * SWEEP, y: at.y + d.y * SWEEP, z: at.z + d.z * SWEEP };
       place(voice.panner, from, t);
-      glide(voice.panner, to, t + buffer.duration);
+      glide(voice.panner, to, t + buffer.duration / (o.rate ?? 1));
     }
   }
 

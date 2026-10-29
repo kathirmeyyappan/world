@@ -99,6 +99,14 @@ export function eyeOf(p: { pos: Vec3; avatar: AvatarId }): Vec3 {
   return { x: p.pos.x, y: p.pos.y + AVATARS[p.avatar].eye - EYE_HEIGHT, z: p.pos.z };
 }
 
+// How big an avatar is beside the standard one, by where its eyes are: Mike 0.64, SpongeBob 0.87,
+// Patrick 1.18, Tung Tung Tung 1.57. The client scales what makes a wearer feel their size by it
+// (how wide they see, how often and how heavily they step, how far their head bobs); the sim does
+// not, so a look is never a faster or a harder-to-hit body.
+export function statureOf(avatar: AvatarId): number {
+  return AVATARS[avatar].eye / EYE_HEIGHT;
+}
+
 // The avatar a chat command word ("tung") switches a person to, if any.
 export function avatarForCommand(word: string): AvatarId | null {
   return AVATAR_IDS.find((id) => AVATARS[id].command === word) ?? null;
