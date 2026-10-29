@@ -26,9 +26,10 @@ import {
   type PlayerState,
   type ServerMessage,
   type Vec3,
-  AVATARS,
   EYE_HEIGHT,
+  MOVE_SPEED,
   eyeOf,
+  statureOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
@@ -71,8 +72,16 @@ const STEP_EASE_HALF_LIFE = 0.05; // seconds for the camera to catch up with a s
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
-const EYE_EASE = 0.25; // seconds the camera takes to settle at a new avatar's eye height
+const EYE_EASE = 0.25; // seconds the camera takes to settle at a new avatar's eye height and view
 const CEILING_GAP = 0.15; // metres the camera keeps under a lintel or ceiling the body passes beneath
+// A smaller body sees wider and a bigger one narrower, by its stature to this power: Mike's view
+// is 5° wider than the standard body's and Tung Tung Tung's 5° narrower, enough to feel and no more.
+const FOV_SHRINK = 0.15;
+// Head bob: the eyes dip with each footfall, by this many metres at the standard body's full walk,
+// in proportion to its stature, and in step with the footstep sounds. Small, so the view never
+// swims and the crosshair stays where it was.
+const BOB = 0.02;
+const BOB_EASE = 0.15; // seconds the bob takes to come and go with the walk
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const FRAME_RANGE = 40; // metres from a frame you can read its line: the tower's width, wall to wall
 const DEFAULT_FOV = 1.2;
@@ -101,7 +110,9 @@ export class Game {
   private readonly cubes = new Map<string, CubeMesh>();
   private readonly cubeByMesh = new Map<string, CubeMesh>();
   private readonly avatars = new Map<string, Avatar>();
-  private eyeLift: number | null = null; // metres the camera sits above the body's eye point, for the avatar worn
+  private stature: number | null = null; // the worn avatar's size beside the standard one, eased over a change of look
+  private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
+  private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
@@ -311,9 +322,14 @@ export class Game {
     on = on && can;
     if (on === this.scoped) return;
     this.scoped = on;
-    this.camera.fov = on ? SCOPED_FOV : DEFAULT_FOV;
-    this.input.lookScale = on ? SCOPED_FOV / DEFAULT_FOV : 1;
+    this.camera.fov = on ? SCOPED_FOV : this.wornFov();
+    this.input.lookScale = on ? SCOPED_FOV / this.wornFov() : 1;
     document.getElementById('scope')!.classList.toggle('hidden', !on);
+  }
+
+  // The view the worn avatar has when not scoped.
+  private wornFov(): number {
+    return DEFAULT_FOV * Math.pow(this.stature ?? 1, -FOV_SHRINK);
   }
 
   private isBlocked(): boolean {
@@ -509,15 +525,25 @@ export class Game {
     const decay = Math.pow(0.5, dt / CORRECTION_HALF_LIFE);
     this.correction.scaleInPlace(decay);
     this.stepEase *= Math.pow(0.5, dt / STEP_EASE_HALF_LIFE);
-    const p = this.prediction.state.pos;
+    const self = this.prediction.state;
+    const p = self.pos;
     const eye = new Vector3(p.x + this.correction.x, p.y + this.correction.y + this.stepEase, p.z + this.correction.z);
-    // The camera sits at the avatar's own eyes, easing there when the look changes, and never up
-    // through a lintel or ceiling the body fits under.
-    const lift = AVATARS[this.prediction.state.avatar].eye - EYE_HEIGHT;
-    this.eyeLift = this.eyeLift === null ? lift : this.eyeLift + (lift - this.eyeLift) * Math.min(1, dt / EYE_EASE);
-    const room =
-      this.eyeLift > 0 ? Math.max(eye.y, WORLD_STRUCTURES.ceilingAt(eye.x, eye.z, eye.y) - CEILING_GAP) : Infinity;
-    this.camera.position.set(eye.x, Math.min(eye.y + this.eyeLift, room), eye.z);
+    // The camera sits at the avatar's own eyes with its own width of view, easing there when the
+    // look changes, and never up through a lintel or ceiling the body fits under.
+    const worn = statureOf(self.avatar);
+    this.stature = this.stature === null ? worn : this.stature + (worn - this.stature) * Math.min(1, dt / EYE_EASE);
+    const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
+    if (!this.scoped) this.camera.fov = this.wornFov();
+    // The bob follows the body's own speed across the ground, so it fades out against a wall and
+    // stops in the air, down the scope and in death; its dip is deepest as each step lands.
+    const speed = this.lastFeet && dt > 0 ? Math.hypot(p.x - this.lastFeet.x, p.z - this.lastFeet.z) / dt : 0;
+    this.lastFeet = { x: p.x, z: p.z };
+    const walking = !this.dead && !this.scoped && isGrounded(self) ? Math.sqrt(Math.min(1, speed / MOVE_SPEED)) : 0;
+    this.bobbing += (walking - this.bobbing) * Math.min(1, dt / BOB_EASE);
+    const dip =
+      ((BOB * this.stature * this.bobbing) / 2) * (1 + Math.cos(2 * Math.PI * this.footsteps.phase(this.myId)));
+    const room = lift > 0 ? Math.max(eye.y, WORLD_STRUCTURES.ceilingAt(eye.x, eye.z, eye.y) - CEILING_GAP) : Infinity;
+    this.camera.position.set(eye.x, Math.min(eye.y + lift, room) - dip, eye.z);
     this.kick *= Math.pow(0.5, dt / KICK_HALF_LIFE);
     if (this.kick < 1e-4) this.kick = 0;
     this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);
@@ -528,7 +554,6 @@ export class Game {
     const held = this.held;
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
-    const self = this.prediction.state;
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
     this.hud.setItemHint(
@@ -606,10 +631,18 @@ export class Game {
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
     ]);
     this.footsteps.update([
-      { id: this.myId, pos: self.pos, grounded: !this.dead && isGrounded(self), falling: -self.vy, self: true },
+      {
+        id: this.myId,
+        pos: self.pos,
+        avatar: self.avatar,
+        grounded: !this.dead && isGrounded(self),
+        falling: -self.vy,
+        self: true,
+      },
       ...sampled.players.map((rp) => ({
         id: rp.id,
         pos: { x: rp.x, y: rp.y, z: rp.z },
+        avatar: rp.avatar,
         grounded: rp.grounded && !rp.dead,
         self: false,
       })),
