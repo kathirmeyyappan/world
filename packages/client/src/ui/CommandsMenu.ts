@@ -87,7 +87,7 @@ function buildGroups(): Group[] {
         ['/kill-bots', 'every bot in the room drops dead'],
       ],
     },
-    { title: 'wear skin', rows: skins.map((id) => [`/${AVATARS[id].command}`, AVATARS[id].blurb]) },
+    { title: 'wear skin', rows: skins.map((id) => [commandLabel(AVATARS[id].command ?? id), AVATARS[id].blurb]) },
     {
       title: 'other',
       rows: [
