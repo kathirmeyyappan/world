@@ -202,7 +202,7 @@ export class Room {
   private addDefaultBots(): void {
     if (this.defaultBotsAdded || !this.spawnBot || !this.publicName) return;
     this.defaultBotsAdded = true;
-    const bots = defaultBotsFor(this.publicName);
+    const bots = defaultBotsFor(this.publicName, this.rng);
     if (bots.length === 0) return;
     this.broadcast({ t: 'system', text: `${botRollCall(bots.map((b) => BOTS[b.bot].playerName))} on the way` });
     for (const { bot, seconds, targets, ...placement } of bots) {

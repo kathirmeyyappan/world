@@ -18,6 +18,7 @@ import {
   TICK_DT,
   TICK_RATE,
   worldDistance,
+  CIRCLE_LOOKS,
   defaultBotsFor,
   type BotRequest,
   type InputFrame,
@@ -608,7 +609,15 @@ test("the first person in brings the room's default bots; nobody else does", asy
     ...placement,
     worker: 'dumb',
   }));
-  assert.deepEqual(spawned, expected, 'placements ride along with the request');
+  // The circle bots' looks are the room's own draw: two different ones from the list.
+  const looks = spawned.filter((r) => r.bot === 'circle').map((r) => r.avatar);
+  assert.ok(
+    looks.length === 2 && looks[0] !== looks[1] && looks.every((a) => a && CIRCLE_LOOKS.includes(a)),
+    String(looks),
+  );
+  const sansLook = <T extends Pick<BotRequest, 'bot' | 'avatar'>>(r: T): T =>
+    r.bot === 'circle' ? { ...r, avatar: undefined } : r;
+  assert.deepEqual(spawned.map(sansLook), expected.map(sansLook), 'placements ride along with the request');
   assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'circle-bot x2, stalker-bot x3 on the way'));
   room.join('bob', link(), { room: 'global' });
   room.join('circle-bot', link(), { bot: true, room: 'global' });
