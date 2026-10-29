@@ -305,8 +305,8 @@ def decimate(part: dict, keep: float) -> None:
     """Collapses a part's edges (quadric error, so the shape holds) until about `keep` of its
     triangles are left. Vertices at one spot are welded for the collapsing, so a texture seam (whose
     vertices come doubled, one per side) closes up with everything else; each corner of a surviving
-    triangle then stands where its vertex ended up but keeps the texture coordinates, normal and
-    weights of the original closest to that spot on its own side of any seam."""
+    triangle then stands where its vertex ended up but keeps the texture coordinates and normal of
+    the original closest to that spot on its own side of any seam, and the weights of them all."""
     welded_points, welded = np.unique(np.round(part["positions"], 5), axis=0, return_inverse=True)
     welded = welded.ravel()
     points = welded_points.astype(np.float32)
@@ -334,8 +334,13 @@ def decimate(part: dict, keep: float) -> None:
     keys, triangles = np.unique(np.stack([corners.ravel(), stand_in.ravel()], axis=1), axis=0, return_inverse=True)
     part["triangles"] = triangles.reshape(-1, 3)
     part["positions"] = kept_points[keys[:, 0]].astype(np.float64)
-    for key in ("normals", "uvs", "bones"):
+    for key in ("normals", "uvs"):
         part[key] = part[key][keys[:, 1]]
+    # One set of weights per spot, whichever side of a seam a vertex is on, or the seam opens up
+    # as soon as a bone turns.
+    weights = np.zeros((len(kept_points), part["bones"].shape[1]))
+    np.add.at(weights, keys[:, 0], part["bones"][keys[:, 1]])
+    part["bones"] = (weights / np.bincount(keys[:, 0], minlength=len(kept_points))[:, None])[keys[:, 0]]
 
 
 def pack_atlas(
