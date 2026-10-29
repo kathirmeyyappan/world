@@ -2,11 +2,15 @@
 // runner steps faster and a scoped one slower), a swoosh on leaving the ground going up, and on
 // touching down a landing as hard as the fall was fast. Worked out from each player's position and
 // whether they're grounded, frame to frame, so it's the same for everyone. A body's size sets its
-// stride and how heavy it sounds: Mike patters, Tung Tung Tung plods.
+// stride and how heavy it sounds: Mike patters, Tung Tung Tung plods. SpongeBob's shoes squeak.
 import { GRAVITY, statureOf, type AvatarId, type Vec3 } from '@world/shared';
 import type { Sfx, SoundId } from './Sfx';
 
+// A body's step sounds, a different one each step; the thuds unless its avatar has its own.
 const STEPS: SoundId[] = ['step-1', 'step-2', 'step-3', 'step-4'];
+const OWN_STEPS: Partial<Record<AvatarId, SoundId[]>> = {
+  spongebob: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'],
+};
 const STRIDE = 2.6; // metres between the standard body's steps: about three a second at the 8 m/s walk
 // A bigger body steps and lands lower and longer: the sound's rate is its stature to this power
 // (Mike's about a third up, Tung Tung Tung's about a third down).
@@ -103,8 +107,9 @@ export class Footsteps {
       w.walked += across;
       if (w.walked < w.stride) continue;
       w.walked -= w.stride;
-      w.step = (w.step + 1 + Math.floor(Math.random() * (STEPS.length - 1))) % STEPS.length;
-      this.sfx.play(STEPS[w.step], at, { level, rate });
+      const steps = OWN_STEPS[p.avatar] ?? STEPS;
+      w.step = (w.step + 1 + Math.floor(Math.random() * (steps.length - 1))) % steps.length;
+      this.sfx.play(steps[w.step], at, { level, rate });
     }
     for (const id of this.walkers.keys()) if (!seen.has(id)) this.walkers.delete(id);
   }
