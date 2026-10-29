@@ -1,18 +1,20 @@
 """Builds render/avatars/<name>Model.ts and the avatar's texture from a rigged character on Sketchfab
 (all CC BY 4.0), downloaded as a .glb:
 
-    pip install numpy pillow
+    pip install numpy pillow fast_simplification
     python packages/client/scripts/monster-model.py sulley path/to/sulley_monsters_inc.glb
     python packages/client/scripts/monster-model.py mike path/to/mike_wazowski_monsters_inc.glb
     python packages/client/scripts/monster-model.py spongebob path/to/spongebob_squarepants.glb
+    python packages/client/scripts/monster-model.py patrick path/to/patrick_star_fortnite.glb
 
 Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, with no animation. This poses it
 in its bind pose, folds the rig down to the bones the avatar moves on their own (MONSTERS), giving
 every vertex the weights it had on each bone's subtree, so the client can skin it on the GPU and the
-joints bend instead of tearing, and turns it into the avatar's frame (y up, facing +z, x to its right,
-feet at 0, `height` tall). Everything the model draws goes into one mesh with one texture: the meshes
-are joined, and their textures (tiled as far as their texture coordinates repeat them) and plain
-colours are packed into one atlas, with the coordinates moved to match. It writes the vertices in
+joints bend instead of tearing, decimates the trunk where the model is over its budget, and turns it
+into the avatar's frame (y up, facing +z, x to its right, feet at 0, `height` tall). Everything the
+model draws goes into one mesh with one texture: the meshes are joined, and their textures (no
+bigger than `texture_size`, tiled as far as their texture coordinates repeat them) and plain colours
+are packed into one atlas, with the coordinates moved to match. It writes the vertices in
 millimetres, the normals, texture coordinates, triangles and weights, base64-encoded, with each bone's
 pivot (its joint in the bind pose), the right palm (where a held item goes) and a point on the back
 (where the tank sits); and the atlas as a palette PNG, which looks the same at well under half the
@@ -30,6 +32,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import fast_simplification
 import numpy as np
 from PIL import Image
 
@@ -53,6 +56,10 @@ class Monster:
     palm: tuple[Joint, ...]  # the right hand and finger roots: a held item goes at their middle
     # Colours for materials that have none in the file, by material name (sRGB 0 to 255).
     colours: dict[str, tuple[int, int, int]] = field(default_factory=dict)
+    # Triangles to keep, give or take: the biggest part (the trunk) is decimated to get there, the
+    # small ones (a face's) kept whole. None keeps the model as it is.
+    budget: int | None = None
+    texture_size: int = 512  # px: a bigger texture is scaled down to this on its long side
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -101,8 +108,24 @@ MONSTERS = {
         (50, 51, 54, 57),
         {"Tongue": (214, 96, 118)},
     ),
+    "patrick": Monster(
+        "Patrick Star (Fortnite)",
+        "NickBob",
+        2.85,  # one and a half SpongeBobs, as on the show
+        (
+            ("body", "pelvis"),
+            ("armL", "upperarm_l"),
+            ("armR", "upperarm_r"),
+            ("legL", "thigh_l"),
+            ("legR", "thigh_r"),
+        ),
+        ("body",),
+        ("hand_r",),
+        budget=2000,
+    ),
 }
 
+SEAM = 0.1  # texture coordinates further apart than this are on different sides of a seam
 SWATCH = 8  # px: the square a plain colour gets in the atlas
 GUTTER = 8  # px between the atlas's regions, so their mipmaps bleed into nothing that's used
 
@@ -184,6 +207,12 @@ def main(name: str, glb: str) -> None:
                     "material": prim["material"],
                 }
             )
+    total = sum(len(part["triangles"]) for part in parts)
+    if monster.budget and monster.budget < total:
+        biggest = max(parts, key=lambda part: len(part["triangles"]))
+        decimate(biggest, (monster.budget - total + len(biggest["triangles"])) / len(biggest["triangles"]))
+        print(f"decimated {total} triangles to {sum(len(part['triangles']) for part in parts)}")
+
     # Joined into one mesh, each vertex noting its material.
     posed = np.vstack([part["positions"] for part in parts])
     posed_normals = np.vstack([part["normals"] for part in parts])
@@ -272,6 +301,48 @@ def main(name: str, glb: str) -> None:
     print(f"wrote {texture_out} ({atlas.size[0]}x{atlas.size[1]}, {texture_out.stat().st_size} bytes)")
 
 
+def decimate(part: dict, keep: float) -> None:
+    """Collapses a part's edges (quadric error, so the shape holds) until about `keep` of its
+    triangles are left. Vertices at one spot are welded for the collapsing, so a texture seam (whose
+    vertices come doubled, one per side) closes up with everything else; each corner of a surviving
+    triangle then stands where its vertex ended up but keeps the texture coordinates and normal of
+    the original closest to that spot on its own side of any seam, and the weights of them all."""
+    welded_points, welded = np.unique(np.round(part["positions"], 5), axis=0, return_inverse=True)
+    welded = welded.ravel()
+    points = welded_points.astype(np.float32)
+    faces = welded[part["triangles"]].astype(np.int64)
+    _, _, collapses = fast_simplification.simplify(points, faces, target_reduction=1 - keep, return_collapses=True)
+    kept_points, _, mapping = fast_simplification.replay_simplification(points, faces, collapses)
+    ended = mapping[welded]  # each original vertex's new one
+    corners = ended[part["triangles"]]
+    alive = (corners[:, 0] != corners[:, 1]) & (corners[:, 1] != corners[:, 2]) & (corners[:, 0] != corners[:, 2])
+    originals = part["triangles"][alive]
+    corners = corners[alive]
+
+    # The originals that ended up in each new vertex, to pick a corner's stand-in from.
+    by_new = np.argsort(ended, kind="stable")
+    starts = np.searchsorted(ended[by_new], np.arange(len(kept_points) + 1))
+    uvs = part["uvs"]
+    stand_in = np.empty_like(originals)
+    for f in range(len(originals)):
+        for c in range(3):
+            original, new = originals[f, c], corners[f, c]
+            candidates = by_new[starts[new] : starts[new + 1]]
+            same_side = candidates[np.linalg.norm(uvs[candidates] - uvs[original], axis=1) < SEAM]
+            distance = np.linalg.norm(part["positions"][same_side] - kept_points[new], axis=1)
+            stand_in[f, c] = same_side[np.argmin(distance)]
+    keys, triangles = np.unique(np.stack([corners.ravel(), stand_in.ravel()], axis=1), axis=0, return_inverse=True)
+    part["triangles"] = triangles.reshape(-1, 3)
+    part["positions"] = kept_points[keys[:, 0]].astype(np.float64)
+    for key in ("normals", "uvs"):
+        part[key] = part[key][keys[:, 1]]
+    # One set of weights per spot, whichever side of a seam a vertex is on, or the seam opens up
+    # as soon as a bone turns.
+    weights = np.zeros((len(kept_points), part["bones"].shape[1]))
+    np.add.at(weights, keys[:, 0], part["bones"][keys[:, 1]])
+    part["bones"] = (weights / np.bincount(keys[:, 0], minlength=len(kept_points))[:, None])[keys[:, 0]]
+
+
 def pack_atlas(
     doc: dict, blob: bytes, monster: Monster, uv: np.ndarray, material: np.ndarray
 ) -> tuple[Image.Image, np.ndarray]:
@@ -303,6 +374,9 @@ def pack_atlas(
         image = Image.open(io.BytesIO(blob[view["byteOffset"] : view["byteOffset"] + view["byteLength"]])).convert(
             "RGB"
         )
+        if max(image.size) > monster.texture_size:
+            shrink = monster.texture_size / max(image.size)
+            image = image.resize((round(image.width * shrink), round(image.height * shrink)), Image.LANCZOS)
         u0, v0 = (math.floor(c) for c in uv[vertices].min(axis=0))
         u1, v1 = (math.ceil(c) for c in uv[vertices].max(axis=0))
         u1, v1 = max(u1, u0 + 1), max(v1, v0 + 1)
