@@ -1,13 +1,18 @@
 // Tints an avatar's materials red for a moment when it takes a hit. Time-based rather than
 // frame-based so it looks the same at any frame rate; the avatar calls update() from its own
-// per-frame update.
-import { Color3, type StandardMaterial } from '@babylonjs/core';
+// per-frame update. A material that glows through a texture glows plain red for the moment.
+import { Color3, type BaseTexture, type StandardMaterial } from '@babylonjs/core';
 
 const FLASH_MS = 140;
 const FLASH_COLOR = new Color3(1, 0.12, 0.16);
 
 export class HitFlash {
-  private readonly originals: { mat: StandardMaterial; diffuse: Color3; emissive: Color3 }[];
+  private readonly originals: {
+    mat: StandardMaterial;
+    diffuse: Color3;
+    emissive: Color3;
+    emissiveTexture: BaseTexture | null;
+  }[];
   private until = 0;
   private lit = false;
 
@@ -16,6 +21,7 @@ export class HitFlash {
       mat,
       diffuse: mat.diffuseColor.clone(),
       emissive: mat.emissiveColor.clone(),
+      emissiveTexture: mat.emissiveTexture,
     }));
   }
 
@@ -26,15 +32,17 @@ export class HitFlash {
     for (const { mat } of this.originals) {
       mat.diffuseColor = FLASH_COLOR;
       mat.emissiveColor = FLASH_COLOR.scale(0.6);
+      mat.emissiveTexture = null;
     }
   }
 
   update(): void {
     if (!this.lit || performance.now() < this.until) return;
     this.lit = false;
-    for (const { mat, diffuse, emissive } of this.originals) {
+    for (const { mat, diffuse, emissive, emissiveTexture } of this.originals) {
       mat.diffuseColor = diffuse;
       mat.emissiveColor = emissive;
+      mat.emissiveTexture = emissiveTexture;
     }
   }
 }
