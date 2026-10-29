@@ -1,32 +1,20 @@
 // Sulley (Monsters, Inc.): 2.6 m of teal fur with purple spots, from Guilherme Navarro's low-poly
-// model (sulleyModel.ts, made by scripts/sulley-model.py), one textured mesh skinned on the GPU over
-// eight bones: hips, chest, head, the arms, the legs and the tail. A transform node per bone drives
-// the skeleton, so the skin bends at the joints and a held item rides the right arm like anything
-// else hung on a node. It lumbers: short legs stride, the long arms swing against them, the chest
-// rolls, the tail sways on its own, and the head follows the look. It dies flat on its back with the
-// tail out to one side. Worn with /sulley; its hit capsule is sized to it (AVATARS.sulley.hitbox),
-// movement and items are everyone's.
-import {
-  Bone,
-  Color3,
-  Matrix,
-  Mesh,
-  Skeleton,
-  StandardMaterial,
-  Texture,
-  TransformNode,
-  Vector3,
-  VertexData,
-} from '@babylonjs/core';
+// model (sulleyModel.ts, made by scripts/monster-model.py), skinned over eight bones: hips, chest,
+// head, the arms, the legs and the tail. It lumbers: short legs stride, the long arms swing against
+// them, the chest rolls, the tail sways on its own, and the head follows the look. A held item rides
+// the right arm, which points forward to aim. It dies flat on its back with the tail out to one side.
+// Worn with /sulley; its hit capsule is sized to it (AVATARS.sulley.hitbox), movement and items are
+// everyone's.
+import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
+import { SkinnedBody } from './skinned';
 import { SULLEY_MODEL } from './sulleyModel';
 
 const TEXTURE = '/assets/textures/avatars/sulley.png';
-const GLOW = 0.3; // how much the fur lights itself, so it reads in the dark like the other avatars
 const LEG_SWING = 0.55; // radians each way at a full-speed walk
 const ARM_SWING = 0.3;
 const ROLL = 0.06; // radians the chest rolls side to side with each stride
@@ -39,17 +27,23 @@ const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
 const DEAD_HEAD = -0.4;
 
-type BoneName = keyof typeof SULLEY_MODEL.bones;
-interface Part {
-  node: TransformNode;
-  bone: Bone | null;
-  pivot: readonly number[];
-}
+type Bone = keyof typeof SULLEY_MODEL.bones;
+const PARENTS: Record<Bone, Bone | null> = {
+  hips: null,
+  chest: 'hips',
+  head: 'chest',
+  armL: 'chest',
+  armR: 'chest',
+  legL: 'hips',
+  legR: 'hips',
+  tail: 'hips',
+};
 
 export class SulleyAvatar implements Avatar {
   readonly kind = 'sulley' as const;
   private readonly root: TransformNode;
   private readonly body: TransformNode;
+  private readonly skin: SkinnedBody<Bone>;
   private readonly chest: TransformNode;
   private readonly head: TransformNode;
   private readonly armL: TransformNode;
@@ -57,7 +51,6 @@ export class SulleyAvatar implements Avatar {
   private readonly legL: TransformNode;
   private readonly legR: TransformNode;
   private readonly tail: TransformNode;
-  private readonly skeleton: Skeleton;
   private readonly shadow: Mesh;
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
@@ -70,68 +63,29 @@ export class SulleyAvatar implements Avatar {
     readonly id: string,
   ) {
     const scene = engine.scene;
-    const model = SULLEY_MODEL;
     this.swayOffset = [...id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % TAIL_SWAY_MS;
     this.root = new TransformNode(`avatar-${id}`, scene);
     this.body = new TransformNode(`avatar-body-${id}`, scene);
     this.body.parent = this.root;
 
-    // A bone per entry of the model, in its order (the vertices' bone indices), parented here and
-    // placed at its pivot. Each is linked to a node in the same hierarchy: turning the node turns
-    // the bone, and anything hung on the node (the held item) follows the skin.
-    const skeleton = new Skeleton(`sulley-${id}`, `sulley-${id}`, scene);
-    skeleton.useTextureToStoreBoneMatrices = false; // eight bones fit in uniforms
-    this.skeleton = skeleton;
-    const boneIndex = Object.keys(model.bones);
-    const part = (name: BoneName, parent: Part): Part => {
-      const pivot = model.bones[name];
-      const node = new TransformNode(`sulley-${name}-${id}`, scene);
-      node.parent = parent.node;
-      node.position.set(pivot[0] - parent.pivot[0], pivot[1] - parent.pivot[1], pivot[2] - parent.pivot[2]);
-      const local = Matrix.Translation(node.position.x, node.position.y, node.position.z);
-      const bone = new Bone(name, skeleton, parent.bone, local, null, null, boneIndex.indexOf(name));
-      bone.linkTransformNode(node);
-      return { node, bone, pivot };
-    };
-    const hips = part('hips', { node: this.body, bone: null, pivot: [0, 0, 0] });
-    const chest = part('chest', hips);
-    this.chest = chest.node;
-    this.head = part('head', chest).node;
-    this.armL = part('armL', chest).node;
-    const armR = part('armR', chest);
-    this.armR = armR.node;
-    this.legL = part('legL', hips).node;
-    this.legR = part('legR', hips).node;
-    this.tail = part('tail', hips).node;
+    this.skin = new SkinnedBody(engine, `sulley-${id}`, SULLEY_MODEL, TEXTURE, PARENTS, this.body);
+    this.chest = this.skin.node('chest');
+    this.head = this.skin.node('head');
+    this.armL = this.skin.node('armL');
+    this.armR = this.skin.node('armR');
+    this.legL = this.skin.node('legL');
+    this.legR = this.skin.node('legR');
+    this.tail = this.skin.node('tail');
+    this.hitFlash = new HitFlash([this.skin.material]);
 
-    // The fur is the model's texture, lit, with a little of itself as glow. glTF texture coordinates
-    // run down the image, so it isn't flipped on load. Sampled nearest like the world's textures.
-    const texture = new Texture(TEXTURE, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
-    const fur = new StandardMaterial(`sulley-fur-${id}`, scene);
-    fur.diffuseTexture = texture;
-    fur.emissiveTexture = texture;
-    fur.emissiveColor = new Color3(GLOW, GLOW, GLOW);
-    fur.specularColor = new Color3(0.06, 0.06, 0.06);
-    fur.specularPower = 8;
-    this.hitFlash = new HitFlash([fur]);
-
-    const mesh = new Mesh(`sulley-mesh-${id}`, scene);
-    vertexData().applyToMesh(mesh);
-    mesh.material = fur;
-    mesh.skeleton = skeleton;
-    mesh.parent = this.body;
-    mesh.isPickable = false;
-
-    // A held item goes in the right palm; the arm points forward while holding one so it reads as
-    // aiming. The flamethrower's tank hangs on the back below the shoulders.
-    const { hand, back } = model;
+    // A held item goes in the right palm; the flamethrower's tank hangs on the back below the shoulders.
     this.items = new HeldItems(
       engine,
       `sulley-${id}`,
       this.armR,
-      new Vector3(hand[0] - armR.pivot[0], hand[1] - armR.pivot[1], hand[2] - armR.pivot[2]),
+      this.skin.offset('armR', SULLEY_MODEL.hand),
       this.chest,
-      new Vector3(back[0] - chest.pivot[0], back[1] - chest.pivot[1], back[2] - chest.pivot[2]),
+      this.skin.offset('chest', SULLEY_MODEL.back),
     );
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.7);
@@ -189,30 +143,10 @@ export class SulleyAvatar implements Avatar {
 
   dispose(): void {
     this.root.dispose(false, true);
-    this.skeleton.dispose();
+    this.skin.dispose();
   }
 
   corpse(): Vector3 | null {
     return this.dead && this.root.isEnabled() ? centreOf(this.body) : null;
   }
-}
-
-let decoded: VertexData | null = null;
-
-// The model's mesh, decoded once per page: the same arrays go into every Sulley's own buffers.
-function vertexData(): VertexData {
-  if (decoded) return decoded;
-  const m = SULLEY_MODEL;
-  decoded = new VertexData();
-  decoded.positions = Array.from(new Int16Array(bytes(m.positions).buffer), (mm) => mm / 1000);
-  decoded.normals = Array.from(new Int8Array(bytes(m.normals).buffer), (n) => n / 127);
-  decoded.uvs = Array.from(new Uint16Array(bytes(m.uvs).buffer), (u) => u / 65535);
-  decoded.indices = Array.from(new Uint16Array(bytes(m.indices).buffer));
-  decoded.matricesIndices = Array.from(bytes(m.boneIndices));
-  decoded.matricesWeights = Array.from(bytes(m.boneWeights), (w) => w / 255);
-  return decoded;
-}
-
-function bytes(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }

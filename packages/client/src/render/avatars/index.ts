@@ -3,6 +3,7 @@
 import type { AvatarId } from '@world/shared';
 import type { Engine } from '../Engine';
 import { ElizabethAvatar } from './Elizabeth';
+import { MikeAvatar } from './Mike';
 import { SahurAvatar } from './Sahur';
 import { StandardAvatar } from './Standard';
 import { SulleyAvatar } from './Sulley';
@@ -19,6 +20,8 @@ export function createAvatar(engine: Engine, p: { id: string; color: string; ava
       return new SahurAvatar(engine, p.id);
     case 'sulley':
       return new SulleyAvatar(engine, p.id);
+    case 'mike':
+      return new MikeAvatar(engine, p.id);
     case 'standard':
       return new StandardAvatar(engine, p.id, p.color);
   }

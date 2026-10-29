@@ -26,19 +26,24 @@ export type Command =
   | { name: 'kill-bots' }
   | { name: 'unknown'; raw: string };
 
-export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | 'speedy'>>> = {
+export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | AvatarId | 'speedy'>>> = {
   g: 'gun',
   ft: 'flamethrower',
   j: 'jetpack',
   s: 'speedy',
+  wazowski: 'mike',
 };
+
+// The command a word stands for: itself unless it's a shortcut.
+export function commandFor(word: string): string {
+  return (Object.hasOwn(COMMAND_SHORTCUTS, word) && COMMAND_SHORTCUTS[word]) || word;
+}
 
 export function parseCommand(text: string): Command | null {
   if (!text.startsWith('/')) return null;
 
   const [raw, ...args] = text.slice(1).trim().split(/\s+/);
-  const name = raw.toLowerCase();
-  const normalized = (Object.hasOwn(COMMAND_SHORTCUTS, name) && COMMAND_SHORTCUTS[name]) || name;
+  const normalized = commandFor(raw.toLowerCase());
 
   if (normalized === 'speedy') return { name: 'speedy' };
   if (isItemId(normalized)) return { name: 'equip', item: normalized };
@@ -86,7 +91,7 @@ function botCommand(bot: BotId, args: string[]): Command {
         if (call.botName === null) return bad;
         break;
       case 'skin':
-        call.avatar = avatarForCommand(value() ?? '');
+        call.avatar = avatarForCommand(commandFor(value() ?? ''));
         if (call.avatar === null) return bad;
         break;
       case 'target':
