@@ -276,7 +276,7 @@ class Sniper:
         self._plan(me, quarry, tick)
         # Look first: the walk is relative to it.
         if target is not None:
-            controls.look_at(me.pos, chest(target))
+            controls.look_at(self.world.eye_of(me), chest(target))
         elif self.route is not None and not self.route.done:
             controls.look_at(me.pos, self.route.ahead(me.pos))
         if self.route is None or not self.route.steer(me.pos, tick, controls):
@@ -298,7 +298,8 @@ class Sniper:
         """The nearest quarry with a clear line from the eye, the one it's watching first."""
         candidates = quarry[:SIGHT_CHECKS]
         candidates.sort(key=lambda p: p.id != self.in_sight)
-        return next((p for p in candidates if self.world.clear(me.pos, chest(p))), None)
+        eye = self.world.eye_of(me)
+        return next((p for p in candidates if self.world.clear(eye, chest(p))), None)
 
     def _fire_when_ready(self, me: Player, target: Player, tick: int, controls: Controls) -> None:
         """Start the grace delay on someone new; once it's over, stop, scope in and shoot."""
@@ -319,9 +320,8 @@ class Sniper:
         if not me.scoped or not holding:
             return
         zone = self.rng.choices(list(AIM_ZONES), weights=list(AIM_ZONES.values()))[0]
-        controls.look_at(
-            me.pos, aim_point(me.pos, self._lead(target), self.world.hitbox(target.avatar), zone, self.rng)
-        )
+        eye = self.world.eye_of(me)
+        controls.look_at(eye, aim_point(eye, self._lead(target), self.world.hitbox(target.avatar), zone, self.rng))
         controls.fire_once()
         self.last_shot = tick
         self.ready_at = tick + round(MISS_COOLDOWN_SECONDS * TICK_RATE)  # until it hears it hit

@@ -1,8 +1,8 @@
-// Hitscan shooting, resolved on the server from the shooter's own position and look direction.
+// Hitscan shooting, resolved on the server from the shooter's avatar's eyes (eyeOf) along their look.
 // A player is a vertical capsule from the feet, sized to their avatar (AVATARS[avatar].hitbox); the
 // nearest one the ray passes through within range is the hit, and where on it the ray lands says
 // whether it was a headshot. Structures stop shots: nothing behind a wall is hit. Damage numbers live in health.ts.
-import { AVATARS, type AvatarId, type Hitbox } from './avatars';
+import { AVATARS, eyeOf, type AvatarId, type Hitbox } from './avatars';
 import type { Structures } from './collision';
 import { capsuleFeetY, isHeadshot } from './health';
 import type { ItemSpec } from './items';
@@ -22,6 +22,7 @@ export interface Shooter {
   pos: Vec3;
   yaw: number;
   pitch: number;
+  avatar: AvatarId;
 }
 
 export interface Hit<T extends Target> {
@@ -60,7 +61,7 @@ export function findConeHits<T extends Target>(
   structures: Structures = WORLD_STRUCTURES,
 ): Hit<T>[] {
   const dir = lookDirection(shooter.yaw, shooter.pitch);
-  const o = shooter.pos;
+  const o = eyeOf(shooter);
   const hits: Hit<T>[] = [];
   for (const p of players) {
     if (p.id === shooter.id || p.dead) continue;
@@ -96,7 +97,7 @@ export function findHit<T extends Target>(
   structures: Structures = WORLD_STRUCTURES,
 ): Hit<T> | null {
   const dir = lookDirection(shooter.yaw, shooter.pitch);
-  const o = shooter.pos;
+  const o = eyeOf(shooter);
   let best: T | null = null;
   let bestT = Math.min(range, structures.raycast(o, dir, range)); // the shot stops at the first wall
   for (const p of players) {

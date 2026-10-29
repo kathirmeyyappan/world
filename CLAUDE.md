@@ -364,9 +364,12 @@ protocol.
   browser interpolation.
 - Look is client-authoritative; movement, jumping, shooting, damage, and death are
   server-authoritative.
-- `Player.pos` is eye position, in three dimensions: structures put players on floors, stairs and
-  bridges, so `y` varies (feet are at `pos.y - 1.7`). Use straight-line distance, not `x`/`z` only,
-  when choosing targets. Yaw `0` faces `+z`; positive pitch looks down, and `look_at` aims in 3D.
+- `Player.pos` is the body's eye point, 1.7 m up whatever the avatar, in three dimensions: structures
+  put players on floors, stairs and bridges, so `y` varies (feet are at `pos.y - 1.7`). Use
+  straight-line distance, not `x`/`z` only, when choosing targets. Yaw `0` faces `+z`; positive pitch
+  looks down, and `look_at` aims in 3D. An avatar's own eyes (`AVATARS[id].eye`;
+  `world.eye_of(player)`) may sit higher or lower, and its wearer looks and shoots from there, so aim
+  from `world.eye_of(me)`.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
 - Snapshots carry the floating pickups (`state.pickups`); walking into a heart below full health

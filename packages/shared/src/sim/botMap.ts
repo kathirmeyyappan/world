@@ -60,6 +60,7 @@ export interface BotMap {
   lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
   lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
+  eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
   towerInside: Region[]; // the tower's four floors inside its wall (content/regions.ts TOWER_INSIDE)
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
   // Python side's line of sight is checked against these.
@@ -67,7 +68,7 @@ export interface BotMap {
 }
 
 // A fingerprint of what the map depends on: the world's outline and structures, the body and
-// movement constants, this file's own settings, the avatars' hitboxes, and the tower's floors.
+// movement constants, this file's own settings, the avatars' hitboxes and eyes, and the tower's floors.
 export function botMapSource(): number {
   const physics = [
     EYE_HEIGHT,
@@ -92,11 +93,15 @@ export function botMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), TOWER_INSIDE]));
+  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), TOWER_INSIDE]));
 }
 
 function hitboxes(): Record<string, Hitbox> {
   return Object.fromEntries(AVATAR_IDS.map((id) => [id, AVATARS[id].hitbox]));
+}
+
+function eyes(): Record<string, number> {
+  return Object.fromEntries(AVATAR_IDS.map((id) => [id, AVATARS[id].eye]));
 }
 
 // The structures without their looks, which nothing here depends on.
@@ -137,6 +142,7 @@ export function buildBotMap(): BotMap {
     lookouts: found,
     lookoutPlaces: found.map((i) => placeOf(nodes[i])),
     hitboxes: hitboxes(),
+    eyes: eyes(),
     towerInside: TOWER_INSIDE,
     sightChecks: sightChecks(nodes),
   };
