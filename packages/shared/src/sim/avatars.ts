@@ -3,7 +3,7 @@
 // a name containing an avatar's tag spawns as it and can't switch at all. A bot can also ask for any
 // avatar when it joins (BotPlacement), including one with no command. Adding one means a row here,
 // a builder in the client's render/avatars/, and `npm run bot-map` (bots aim with these hitboxes).
-export type AvatarId = 'standard' | 'elizabeth' | 'sahur' | 'sulley' | 'mike';
+export type AvatarId = 'standard' | 'elizabeth' | 'sahur' | 'sulley' | 'mike' | 'spongebob';
 
 // What shots test against (sim/combat.ts): a vertical capsule from the feet up to `top` metres,
 // `radius` round its axis, whose top `head` metres count as the head. Sized to the drawn body, with
@@ -58,6 +58,13 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
     blurb: 'become mike wazowski from monsters, inc.',
     command: 'mike',
     hitbox: { top: 1.4, radius: 0.5, head: 0.5 }, // a 0.9 m ball that is all head: the eye is 1.07 m up
+  },
+  spongebob: {
+    id: 'spongebob',
+    nameTag: 'SPONGEBOB',
+    blurb: 'become spongebob squarepants',
+    command: 'spongebob',
+    hitbox: { top: 1.9, radius: 0.55, head: 0.75 }, // a 0.95 m square that is all head: the eyes are 1.5 m up
   },
 };
 
