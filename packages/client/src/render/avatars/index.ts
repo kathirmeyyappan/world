@@ -2,9 +2,11 @@
 // whenever the id in their state changes.
 import type { AvatarId } from '@world/shared';
 import type { Engine } from '../Engine';
+import { BodyAvatar } from './Body';
 import { ElizabethAvatar } from './Elizabeth';
-import { MikeAvatar } from './Mike';
+import { MIKE } from './Mike';
 import { SahurAvatar } from './Sahur';
+import { SPONGEBOB } from './SpongeBob';
 import { StandardAvatar } from './Standard';
 import { SulleyAvatar } from './Sulley';
 import type { Avatar } from './common';
@@ -21,7 +23,9 @@ export function createAvatar(engine: Engine, p: { id: string; color: string; ava
     case 'sulley':
       return new SulleyAvatar(engine, p.id);
     case 'mike':
-      return new MikeAvatar(engine, p.id);
+      return new BodyAvatar(engine, p.id, MIKE);
+    case 'spongebob':
+      return new BodyAvatar(engine, p.id, SPONGEBOB);
     case 'standard':
       return new StandardAvatar(engine, p.id, p.color);
   }
