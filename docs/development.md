@@ -101,7 +101,7 @@ Two ways to start one:
   Node never holds a token. Without a sidecar (local dev) the command says bots can't be called.
 
 Rooms also start with bots: the first person in brings the line-up from
-`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`, two circle bots for now), spawned the
+`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room, rng)`, two circle bots in different looks for now), spawned the
 same way with `caller: 'room'`.
 
 Deploy the bots app separately: `modal deploy modal-bots/app.py`, with the `kathir-world-bots-config`

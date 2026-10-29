@@ -295,7 +295,7 @@ therefore needs a row in `bots.ts` as well as its Python module; one without a r
 started only with `modal run`.
 
 Rooms also start with bots: the first person to join brings the line-up from
-`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room)`: two circle bots anywhere, and a
+`packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room, rng)`: two circle bots anywhere, each in a different look drawn from `CIRCLE_LOOKS`, and a
 Tung Tung Tung Sahur stalker in the middle of each of the tower's lower three floors), all staying 3500 s. Each entry may carry a
 `BotPlacement` (`spawn`, a feet position, and `avatar`); edit that function for per-room profiles.
 The Room spawns them once, with `caller: 'room'`.

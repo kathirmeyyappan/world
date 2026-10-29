@@ -102,7 +102,10 @@ test('/circle-bot -t 60 posts the room request to the bot sidecar', async () => 
       body: { bot, room: 'late-night', seconds, caller: 'room', ...placement, worker: 'dumb' },
     }));
     for (let i = 0; i < 50 && received.length <= defaults.length; i++) await new Promise((r) => setTimeout(r, 20));
-    assert.deepEqual(received.slice(0, -1), defaults);
+    // The circle bots' looks are the room's own random draw, so compare without them.
+    const sansLook = <T extends { body: Pick<BotRequest, 'bot' | 'avatar'> }>(r: T): T =>
+      r.body.bot === 'circle' ? { ...r, body: { ...r.body, avatar: undefined } } : r;
+    assert.deepEqual(received.slice(0, -1).map(sansLook), defaults.map(sansLook));
     const { spawn: near, ...call } = received[received.length - 1].body;
     assert.deepEqual(call, { bot: 'circle', room: 'late-night', seconds: 60, caller: 'kathir', worker: 'dumb' });
     assert.equal(typeof near?.x, 'number', 'a called bot spawns near its caller');

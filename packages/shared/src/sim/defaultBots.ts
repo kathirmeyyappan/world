@@ -6,7 +6,9 @@
 // can be placed and dressed (BotPlacement); leave both out for a random spawn in its own look.
 
 import { TUNG_TUNG_TOWER_FLOORS } from '../content/tower';
+import type { AvatarId } from './avatars';
 import { BOT_MAX_SECONDS, type BotId, type BotPlacement } from './bots';
+import type { Rng } from './rng';
 
 export interface DefaultBot extends BotPlacement {
   bot: BotId;
@@ -17,11 +19,18 @@ export interface DefaultBot extends BotPlacement {
 // A room's own bots stay as long as a bot can; only people calling one get the shorter default.
 const STAY = BOT_MAX_SECONDS;
 
-// Two circle bots, wherever they land.
-const TWO_CIRCLES: DefaultBot[] = [
-  { bot: 'circle', seconds: STAY },
-  { bot: 'circle', seconds: STAY },
-];
+// The looks a room's circle bots wear, drawn at random, no two alike.
+export const CIRCLE_LOOKS: readonly AvatarId[] = ['sulley', 'mike', 'elizabeth'];
+const CIRCLES = 2;
+
+// The circle bots, wherever they land, each in a look of its own.
+function circles(rng: Rng): DefaultBot[] {
+  const looks = [...CIRCLE_LOOKS];
+  return Array.from({ length: CIRCLES }, () => {
+    const [avatar] = looks.splice(Math.floor(rng() * looks.length), 1);
+    return { bot: 'circle', seconds: STAY, avatar };
+  });
+}
 
 // A stalker in the middle of each of the tower's lower three floors, watching whoever comes up.
 const TOWER_STALKERS: DefaultBot[] = TUNG_TUNG_TOWER_FLOORS.slice(0, 3).map((spawn) => ({
@@ -31,7 +40,8 @@ const TOWER_STALKERS: DefaultBot[] = TUNG_TUNG_TOWER_FLOORS.slice(0, 3).map((spa
   avatar: 'sahur',
 }));
 
-export function defaultBotsFor(room: string): DefaultBot[] {
-  if (room === 'global') return [...TWO_CIRCLES, ...TOWER_STALKERS];
-  return [...TWO_CIRCLES, ...TOWER_STALKERS];
+// `rng` draws the circle bots' looks: a room passes its own, so each room gets its own pair.
+export function defaultBotsFor(room: string, rng: Rng = Math.random): DefaultBot[] {
+  if (room === 'global') return [...circles(rng), ...TOWER_STALKERS];
+  return [...circles(rng), ...TOWER_STALKERS];
 }
