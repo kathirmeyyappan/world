@@ -19,6 +19,10 @@ export type SoundId =
   | 'step-2'
   | 'step-3'
   | 'step-4'
+  | 'squeak-1'
+  | 'squeak-2'
+  | 'squeak-3'
+  | 'squeak-4'
   | 'jump'
   | 'land'
   | 'land-hard'
@@ -50,6 +54,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'step-2': { file: 'step-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-3': { file: 'step-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-4': { file: 'step-4.mp3', half: 6, reach: 30, volume: 0.08 },
+  'squeak-1': { file: 'squeak-1.mp3', half: 6, reach: 30, volume: 0.08 },
+  'squeak-2': { file: 'squeak-2.mp3', half: 6, reach: 30, volume: 0.08 },
+  'squeak-3': { file: 'squeak-3.mp3', half: 6, reach: 30, volume: 0.08 },
+  'squeak-4': { file: 'squeak-4.mp3', half: 6, reach: 30, volume: 0.08 },
   jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
