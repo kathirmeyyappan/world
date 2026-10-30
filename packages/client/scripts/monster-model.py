@@ -7,7 +7,8 @@
     python packages/client/scripts/monster-model.py spongebob path/to/spongebob_squarepants.glb
     python packages/client/scripts/monster-model.py patrick path/to/patrick_star_fortnite.glb
 
-Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, with no animation. This poses it
+Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, or rigid parts on a tree of
+nodes, with no animation. This poses it
 in its bind pose, folds the rig down to the bones the avatar moves on their own (MONSTERS), giving
 every vertex the weights it had on each bone's subtree, so the client can skin it on the GPU and the
 joints bend instead of tearing, decimates the trunk where the model is over its budget, and turns it
@@ -56,10 +57,14 @@ class Monster:
     palm: tuple[Joint, ...]  # the right hand and finger roots: a held item goes at their middle
     # Colours for materials that have none in the file, by material name (sRGB 0 to 255).
     colours: dict[str, tuple[int, int, int]] = field(default_factory=dict)
-    # Triangles to keep, give or take: the biggest part (the trunk) is decimated to get there, the
-    # small ones (a face's) kept whole. None keeps the model as it is.
+    # Triangles to keep, give or take: the big parts (a trunk, a claw) are decimated to get there,
+    # each losing the same share, and the small ones (a face's) kept whole. None keeps the model as
+    # it is.
     budget: int | None = None
     texture_size: int = 512  # px: a bigger texture is scaled down to this on its long side
+    # Bones that swing from the top of their own geometry rather than from their joint: a stub leg
+    # whose node sits partway down it.
+    hinges: tuple[str, ...] = ()
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -123,9 +128,29 @@ MONSTERS = {
         ("hand_r",),
         budget=2000,
     ),
+    # Not skinned: rigid parts on a tree of nodes named for what they are, so the joints are the
+    # nodes. The right palm is node 34, the hand mesh's own node out in the claw.
+    "krabs": Monster(
+        "Mr Krabs (Spongebob)",
+        "Anthony Yanez",
+        2.4,  # a quarter taller than SpongeBob, eyestalks and all
+        (
+            ("body", "Body"),
+            ("armL", "Left_shoulder"),
+            ("armR", "Right_shoulder"),
+            ("legL", "Left_leg"),
+            ("legR", "Right_leg"),
+        ),
+        ("body",),
+        (34,),
+        hinges=("legL", "legR"),
+        budget=2400,
+        texture_size=128,
+    ),
 }
 
 SEAM = 0.1  # texture coordinates further apart than this are on different sides of a seam
+SMALL_PART = 100  # triangles: a part with no more is kept whole when the model is decimated
 SWATCH = 8  # px: the square a plain colour gets in the atlas
 GUTTER = 8  # px between the atlas's regions, so their mipmaps bleed into nothing that's used
 
@@ -148,9 +173,15 @@ def main(name: str, glb: str) -> None:
             world[i] = transform(parent[i]) @ m if i in parent else m
         return world[i]
 
-    skin = doc["skins"][0]
-    joints = skin["joints"]
-    inverse_bind = accessor(doc, blob, skin["inverseBindMatrices"]).reshape(-1, 4, 4).transpose(0, 2, 1)
+    if doc.get("skins"):
+        skin = doc["skins"][0]
+        joints = skin["joints"]
+        inverse_bind = accessor(doc, blob, skin["inverseBindMatrices"]).reshape(-1, 4, 4).transpose(0, 2, 1)
+    else:
+        # Rigid parts, each a mesh on a node of the tree: every node is a joint, and a part follows
+        # its own node wholly, so its skinning matrix is just the node's transform.
+        joints = list(range(len(nodes)))
+        inverse_bind = np.broadcast_to(np.eye(4), (len(nodes), 4, 4))
     skinning = np.array([transform(j) @ inverse_bind[k] for k, j in enumerate(joints)])
     names = [name_of(nodes[j]["name"]) for j in joints]
     joint_index = {j: k for k, j in enumerate(joints)}
@@ -177,15 +208,23 @@ def main(name: str, glb: str) -> None:
 
     # Every primitive of every skinned mesh, posed, with its weights folded onto the avatar's bones.
     parts = []
-    for node in nodes:
+    for index, node in enumerate(nodes):
         if "mesh" not in node:
             continue
         for prim in doc["meshes"][node["mesh"]]["primitives"]:
             attrs = prim["attributes"]
             p = accessor(doc, blob, attrs["POSITION"]).astype(np.float64)
             n = accessor(doc, blob, attrs["NORMAL"]).astype(np.float64)
-            j = accessor(doc, blob, attrs["JOINTS_0"]).astype(np.int64)
-            w = accessor(doc, blob, attrs["WEIGHTS_0"]).astype(np.float64)
+            triangles = accessor(doc, blob, prim["indices"]).reshape(-1, 3).astype(np.int64)
+            if "JOINTS_0" in attrs:
+                j = accessor(doc, blob, attrs["JOINTS_0"]).astype(np.int64)
+                w = accessor(doc, blob, attrs["WEIGHTS_0"]).astype(np.float64)
+            else:
+                j = np.full((len(p), 4), joint_index[index])
+                w = np.c_[np.ones(len(p)), np.zeros((len(p), 3))]
+                # A part its node mirrors (a negative scale) comes out wound inside out.
+                if np.linalg.det(skinning[joint_index[index]][:3, :3]) < 0:
+                    triangles = triangles[:, ::-1]
             homogeneous = np.c_[p, np.ones(len(p))]
             posed = np.zeros_like(p)
             posed_normals = np.zeros_like(n)
@@ -203,14 +242,17 @@ def main(name: str, glb: str) -> None:
                     "normals": posed_normals,
                     "uvs": accessor(doc, blob, attrs["TEXCOORD_0"]).astype(np.float64),
                     "bones": folded,
-                    "triangles": accessor(doc, blob, prim["indices"]).reshape(-1, 3).astype(np.int64),
+                    "triangles": triangles,
                     "material": prim["material"],
                 }
             )
     total = sum(len(part["triangles"]) for part in parts)
     if monster.budget and monster.budget < total:
-        biggest = max(parts, key=lambda part: len(part["triangles"]))
-        decimate(biggest, (monster.budget - total + len(biggest["triangles"])) / len(biggest["triangles"]))
+        big = [part for part in parts if len(part["triangles"]) > SMALL_PART]
+        big_total = sum(len(part["triangles"]) for part in big)
+        keep = (monster.budget - total + big_total) / big_total
+        for part in big:
+            decimate(part, keep)
         print(f"decimated {total} triangles to {sum(len(part['triangles']) for part in parts)}")
 
     # Joined into one mesh, each vertex noting its material.
@@ -251,6 +293,9 @@ def main(name: str, glb: str) -> None:
 
     bone_names = [bone for bone, _ in monster.bones]
     pivots = {bone: avatar(transform(joints[joint(ref)])[:3, 3])[0] for bone, ref in monster.bones}
+    for bone in monster.hinges:
+        own = posed[order[:, 0] == bone_names.index(bone)]
+        pivots[bone] = np.array([own[:, 0].mean(), own[:, 1].max(), own[:, 2].mean()])
     palm = avatar(np.mean([transform(joints[joint(ref)])[:3, 3] for ref in monster.palm], axis=0))[0]
     # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
     shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - 0.2
@@ -347,7 +392,8 @@ def pack_atlas(
     doc: dict, blob: bytes, monster: Monster, uv: np.ndarray, material: np.ndarray
 ) -> tuple[Image.Image, np.ndarray]:
     """One image for every material: each texture tiled over the whole-number range its coordinates
-    span (so repeats bake in and nothing wraps), each plain colour a swatch; laid out in a row, with
+    span (so repeats bake in and nothing wraps; a span that fits one tile but straddles a whole number
+    gets the image rolled round to it instead), each plain colour a swatch; laid out in a row, with
     the coordinates moved into their region. A model with one texture and no repeats gets it back as
     it is."""
     regions: list[
@@ -374,11 +420,26 @@ def pack_atlas(
         image = Image.open(io.BytesIO(blob[view["byteOffset"] : view["byteOffset"] + view["byteLength"]])).convert(
             "RGB"
         )
+        extrema = image.getextrema()
+        if all(low == high for low, high in extrema):
+            # One colour all over: a swatch is the same thing in 64 pixels.
+            colour = tuple(low for low, _ in extrema)
+            regions.append((Image.new("RGB", (SWATCH, SWATCH), colour), vertices, 0.5, 0.5, 0, 0))
+            continue
         if max(image.size) > monster.texture_size:
             shrink = monster.texture_size / max(image.size)
             image = image.resize((round(image.width * shrink), round(image.height * shrink)), Image.LANCZOS)
-        u0, v0 = (math.floor(c) for c in uv[vertices].min(axis=0))
-        u1, v1 = (math.ceil(c) for c in uv[vertices].max(axis=0))
+        low, high = uv[vertices].min(axis=0), uv[vertices].max(axis=0)
+        if all(high - low <= 1):
+            # The texture repeats, so rolling it round by the fraction the span starts at puts the
+            # whole span on one copy.
+            pixels = np.roll(
+                np.asarray(image), (-round((low[1] % 1) * image.height), -round((low[0] % 1) * image.width)), (0, 1)
+            )
+            regions.append((Image.fromarray(pixels), vertices, float(low[0]), float(low[1]), 1, 1))
+            continue
+        u0, v0 = (math.floor(c) for c in low)
+        u1, v1 = (math.ceil(c) for c in high)
         u1, v1 = max(u1, u0 + 1), max(v1, v0 + 1)
         tiled = Image.new("RGB", (image.width * (u1 - u0), image.height * (v1 - v0)))
         for i in range(u1 - u0):

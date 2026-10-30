@@ -6,7 +6,7 @@
 import { EYE_HEIGHT } from './constants';
 import type { Vec3 } from './types';
 
-export type AvatarId = 'standard' | 'elizabeth' | 'sahur' | 'sulley' | 'mike' | 'spongebob' | 'patrick';
+export type AvatarId = 'standard' | 'elizabeth' | 'sahur' | 'sulley' | 'mike' | 'spongebob' | 'patrick' | 'krabs';
 
 // What shots test against (sim/combat.ts): a vertical capsule from the feet up to `top` metres,
 // `radius` round its axis, whose top `head` metres count as the head. Sized to the drawn body, with
@@ -85,6 +85,14 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
     command: 'patrick',
     eye: 2.0,
     hitbox: { top: 2.85, radius: 0.7, head: 1.0 }, // a cone that is all head: the eyes are 2 m up
+  },
+  krabs: {
+    id: 'krabs',
+    nameTag: 'KRABS',
+    blurb: 'become mr. krabs',
+    command: 'krabs',
+    eye: 1.95, // the pupils, near the top of the eyestalks
+    hitbox: { top: 2.4, radius: 0.7, head: 1.3 }, // a 1.35 m shell with the face on it, eyestalks on top: the head is everything from the mouth up
   },
 };
 
