@@ -10,9 +10,13 @@ export const KRABS: BodySpec = {
   model: KRABS_MODEL,
   texture: '/assets/textures/avatars/krabs.png',
   shadow: 1.5,
-  stride: 6.5,
-  legSwing: 0.6,
-  armSwing: 0.35,
-  bob: 0.03,
+  // A scuttle: tiny quick steps, about sixteen a second at a full walk, two a cycle, as in his
+  // scuttle loop (audio/Footsteps.ts), with the body rocking from side to side and the claws held up.
+  stride: 6.1,
+  legSwing: 0.35,
+  armSwing: 0.1,
+  bob: 0.015,
+  sway: 0.06,
   follow: 0.3,
+  doubleSided: true, // the shirt and shell are open shells: under the chin you look into the collar
 };

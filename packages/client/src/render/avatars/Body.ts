@@ -32,7 +32,11 @@ export interface BodySpec {
   legSwing: number; // radians each way at a full-speed walk
   armSwing: number;
   bob: number; // metres the body rises mid-stride
+  sway?: number; // radians the body rocks to each side with the stride: a crab's scuttle
   follow: number; // how much of the look's pitch the body tips by
+  // Draw the inside of the model too: for one made of open shells, where a gap (under a chin, inside
+  // a collar) looks into the back of another part rather than out the other side.
+  doubleSided?: boolean;
 }
 
 // Lying on its back: radians the legs and arms drop toward the ground.
@@ -73,6 +77,10 @@ export class BodyAvatar implements Avatar {
     this.armR = this.skin.node('armR');
     this.legL = this.skin.node('legL');
     this.legR = this.skin.node('legR');
+    if (spec.doubleSided) {
+      this.skin.material.backFaceCulling = false;
+      this.skin.material.twoSidedLighting = true;
+    }
     this.hitFlash = new HitFlash([this.skin.material]);
 
     // A held item goes in the right palm; the flamethrower's tank hangs on the back.
@@ -91,7 +99,7 @@ export class BodyAvatar implements Avatar {
   }
 
   update(p: RemotePlayer): void {
-    const { legSwing, armSwing, bob, follow, model } = this.spec;
+    const { legSwing, armSwing, bob, sway = 0, follow, model } = this.spec;
     this.hitFlash.update();
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
@@ -108,6 +116,7 @@ export class BodyAvatar implements Avatar {
     // The arm is under the body, so it only needs the rest of the pitch to aim where the look does.
     this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch * (1 - follow) : (swing * armSwing) / legSwing;
     this.base.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * bob * effort;
+    this.base.rotation.z = airborne ? 0 : Math.sin(phase) * sway * effort;
     this.items.update(p);
 
     if (p.dead !== this.dead) {
@@ -118,6 +127,7 @@ export class BodyAvatar implements Avatar {
       this.base.position.y = p.dead ? model.lie : 0;
     }
     if (p.dead) {
+      this.base.rotation.z = 0;
       this.legL.rotation.x = this.legR.rotation.x = DEAD_LEGS;
       this.armL.rotation.x = this.armR.rotation.x = DEAD_ARMS;
       this.body.rotation.x = 0;

@@ -57,9 +57,10 @@ class Monster:
     palm: tuple[Joint, ...]  # the right hand and finger roots: a held item goes at their middle
     # Colours for materials that have none in the file, by material name (sRGB 0 to 255).
     colours: dict[str, tuple[int, int, int]] = field(default_factory=dict)
-    # Triangles to keep, give or take: the big parts (a trunk, a claw) are decimated to get there,
-    # each losing the same share, and the small ones (a face's) kept whole. None keeps the model as
-    # it is.
+    # Triangles to keep, give or take: the big closed parts (a trunk, a claw) are decimated to get
+    # there, each losing the same share. Small parts (a face's) are kept whole, and so are open
+    # shells (a shirt, a head that ends inside a collar), whose rims collapse inwards and open gaps.
+    # None keeps the model as it is.
     budget: int | None = None
     texture_size: int = 512  # px: a bigger texture is scaled down to this on its long side
     # Bones that swing from the top of their own geometry rather than from their joint: a stub leg
@@ -144,7 +145,6 @@ MONSTERS = {
         ("body",),
         (34,),
         hinges=("legL", "legR"),
-        budget=2400,
         texture_size=128,
     ),
 }
@@ -248,7 +248,7 @@ def main(name: str, glb: str) -> None:
             )
     total = sum(len(part["triangles"]) for part in parts)
     if monster.budget and monster.budget < total:
-        big = [part for part in parts if len(part["triangles"]) > SMALL_PART]
+        big = [part for part in parts if len(part["triangles"]) > SMALL_PART and closed(part)]
         big_total = sum(len(part["triangles"]) for part in big)
         keep = (monster.budget - total + big_total) / big_total
         for part in big:
@@ -344,6 +344,16 @@ def main(name: str, glb: str) -> None:
     texture_out.parent.mkdir(parents=True, exist_ok=True)
     atlas.quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(texture_out, optimize=True)
     print(f"wrote {texture_out} ({atlas.size[0]}x{atlas.size[1]}, {texture_out.stat().st_size} bytes)")
+
+
+def closed(part: dict) -> bool:
+    """Whether a part is a closed shell: every edge, with vertices at one spot taken as one, is
+    shared by two triangles."""
+    _, welded = np.unique(np.round(part["positions"], 5), axis=0, return_inverse=True)
+    corners = welded.ravel()[part["triangles"]]
+    edges = np.sort(np.concatenate([corners[:, [0, 1]], corners[:, [1, 2]], corners[:, [2, 0]]]), axis=1)
+    _, counts = np.unique(edges, axis=0, return_counts=True)
+    return bool(np.all(counts == 2))
 
 
 def decimate(part: dict, keep: float) -> None:

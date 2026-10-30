@@ -622,15 +622,7 @@ export class Game {
       this.hud.setCrosshairTarget(this.canHit);
     }
     this.sfx.listen(this.camera.position, this.input.yaw);
-    this.sfx.setLoops([
-      ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
-        key: this.myId,
-        id,
-        at: null,
-      })),
-      ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
-    ]);
-    this.footsteps.update([
+    const stepLoops = this.footsteps.update([
       {
         id: this.myId,
         pos: self.pos,
@@ -646,6 +638,15 @@ export class Game {
         grounded: rp.grounded && !rp.dead,
         self: false,
       })),
+    ]);
+    this.sfx.setLoops([
+      ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
+        key: this.myId,
+        id,
+        at: null,
+      })),
+      ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
+      ...stepLoops,
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {

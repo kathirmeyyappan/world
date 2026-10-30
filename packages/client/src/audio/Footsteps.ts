@@ -6,11 +6,14 @@
 import { GRAVITY, statureOf, type AvatarId, type Vec3 } from '@world/shared';
 import type { Sfx, SoundId } from './Sfx';
 
-// A body's step sounds, a different one each step; the thuds unless its avatar has its own.
+// A body's step sounds: the thuds, a different one each step, unless its avatar has its own, either
+// a set to pick from the same way or a loop that runs for as long as it moves along the ground.
 const STEPS: SoundId[] = ['step-1', 'step-2', 'step-3', 'step-4'];
-const OWN_STEPS: Partial<Record<AvatarId, SoundId[]>> = {
-  spongebob: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'],
+const OWN_STEPS: Partial<Record<AvatarId, { each: SoundId[] } | { loop: SoundId }>> = {
+  spongebob: { each: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'] },
+  krabs: { loop: 'scuttle' },
 };
+const MOVING = 0.01; // metres along the ground in one frame that keep a step loop going
 const STRIDE = 2.6; // metres between the standard body's steps: about three a second at the 8 m/s walk
 // A bigger body steps and lands lower and longer: the sound's rate is its stature to this power
 // (Mike's about a third up, Tung Tung Tung's about a third down).
@@ -51,11 +54,13 @@ export class Footsteps {
   // Everyone this frame: where they are, what they look like, whether they're on the ground, how
   // fast they're falling if that's known (the local player's own sim), and `self` for the local
   // player, whose sounds play flat. Without a speed, a landing is judged by the drop from their
-  // highest point, which takes no account of a jetpack braking the fall.
+  // highest point, which takes no account of a jetpack braking the fall. Returns the step loops
+  // wanted this frame, for the Sfx's loops.
   update(
     players: { id: string; pos: Vec3; avatar: AvatarId; grounded: boolean; falling?: number; self: boolean }[],
-  ): void {
+  ): { key: string; id: SoundId; at: Vec3 | null }[] {
     const seen = new Set<string>();
+    const loops: { key: string; id: SoundId; at: Vec3 | null }[] = [];
     for (const p of players) {
       seen.add(p.id);
       const stature = statureOf(p.avatar);
@@ -104,13 +109,17 @@ export class Footsteps {
         if (landing) this.sfx.play(landing.sound, at, { level, rate });
         w.walked = 0;
       }
+      const own = OWN_STEPS[p.avatar];
+      if (own && 'loop' in own && across > MOVING) loops.push({ key: p.id, id: own.loop, at });
       w.walked += across;
       if (w.walked < w.stride) continue;
       w.walked -= w.stride;
-      const steps = OWN_STEPS[p.avatar] ?? STEPS;
+      if (own && 'loop' in own) continue;
+      const steps = own ? own.each : STEPS;
       w.step = (w.step + 1 + Math.floor(Math.random() * (steps.length - 1))) % steps.length;
       this.sfx.play(steps[w.step], at, { level, rate });
     }
     for (const id of this.walkers.keys()) if (!seen.has(id)) this.walkers.delete(id);
+    return loops;
   }
 }
