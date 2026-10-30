@@ -33,6 +33,9 @@ export interface BodySpec {
   armSwing: number;
   bob: number; // metres the body rises mid-stride
   follow: number; // how much of the look's pitch the body tips by
+  // Draw the inside of the model too: for one made of open shells, where a gap (under a chin, inside
+  // a collar) looks into the back of another part rather than out the other side.
+  doubleSided?: boolean;
 }
 
 // Lying on its back: radians the legs and arms drop toward the ground.
@@ -73,6 +76,10 @@ export class BodyAvatar implements Avatar {
     this.armR = this.skin.node('armR');
     this.legL = this.skin.node('legL');
     this.legR = this.skin.node('legR');
+    if (spec.doubleSided) {
+      this.skin.material.backFaceCulling = false;
+      this.skin.material.twoSidedLighting = true;
+    }
     this.hitFlash = new HitFlash([this.skin.material]);
 
     // A held item goes in the right palm; the flamethrower's tank hangs on the back.
