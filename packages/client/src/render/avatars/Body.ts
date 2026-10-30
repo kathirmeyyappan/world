@@ -31,6 +31,7 @@ export interface BodySpec {
   stride: number; // radians of walk cycle per metre covered: short legs step quicker
   legSwing: number; // radians each way at a full-speed walk
   armSwing: number;
+  armsDown?: number; // radians the arms hang in from where the model holds them out
   bob: number; // metres the body rises mid-stride
   sway?: number; // radians the body rocks to each side with the stride: a crab's scuttle
   follow: number; // how much of the look's pitch the body tips by
@@ -99,7 +100,7 @@ export class BodyAvatar implements Avatar {
   }
 
   update(p: RemotePlayer): void {
-    const { legSwing, armSwing, bob, sway = 0, follow, model } = this.spec;
+    const { legSwing, armSwing, armsDown = 0, bob, sway = 0, follow, model } = this.spec;
     this.hitFlash.update();
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
@@ -113,8 +114,10 @@ export class BodyAvatar implements Avatar {
     this.legL.rotation.x = swing;
     this.legR.rotation.x = -swing;
     this.armL.rotation.x = (-swing * armSwing) / legSwing;
+    this.armL.rotation.z = armsDown;
     // The arm is under the body, so it only needs the rest of the pitch to aim where the look does.
     this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch * (1 - follow) : (swing * armSwing) / legSwing;
+    this.armR.rotation.z = p.item ? 0 : -armsDown;
     this.base.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * bob * effort;
     this.base.rotation.z = airborne ? 0 : Math.sin(phase) * sway * effort;
     this.items.update(p);
