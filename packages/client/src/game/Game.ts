@@ -23,6 +23,7 @@ import {
   resolveFire,
   type ItemAction,
   type ItemId,
+  type ItemState,
   type PlayerState,
   type ServerMessage,
   type Vec3,
@@ -65,6 +66,7 @@ import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
+import { View } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
@@ -111,6 +113,9 @@ export class Game {
   private readonly cubeByMesh = new Map<string, CubeMesh>();
   private readonly avatars = new Map<string, Avatar>();
   private stature: number | null = null; // the worn avatar's size beside the standard one, eased over a change of look
+  private readonly view = new View();
+  private aim = { yaw: 0, pitch: 0 }; // the look sent this frame: the camera's, or in third person the eyes' at the crosshair's target
+  private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
   private readonly skyByMesh = new Map<string, SkyObject>();
@@ -215,6 +220,7 @@ export class Game {
       if (e.code === 'KeyP') this.minimap.toggle();
       else if (e.code === 'KeyC') this.commandsMenu.set(true);
       else if (e.code === 'KeyO') toggleFullscreen();
+      else if (e.code === 'KeyZ') this.view.toggle();
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
     window.addEventListener(
@@ -508,6 +514,21 @@ export class Game {
     if (!this.prediction) return;
     this.syncBlocked();
     this.input.update();
+    const sampled = this.interp.sample(performance.now(), this.myId);
+    const third = this.view.third(this.scoped);
+    // From the boom the camera's centre ray and the eyes' differ, so the look sent (the shot, the
+    // head's turn) is the eyes' at what the crosshair is on, from where the camera was last frame.
+    this.aim = third
+      ? this.view.aim(
+          eyeOf(this.prediction.state),
+          this.camera.position,
+          this.input.yaw,
+          this.input.pitch,
+          this.myId,
+          targets(sampled.players),
+          WORLD_STRUCTURES,
+        )
+      : { yaw: this.input.yaw, pitch: this.input.pitch };
 
     this.accumulator += Math.min(dt, TICK_DT * MAX_TICKS_PER_FRAME);
     while (this.accumulator >= TICK_DT) {
@@ -518,6 +539,8 @@ export class Game {
         this.itemActions(),
         this.interp.viewTick,
       );
+      frame.yaw = this.aim.yaw;
+      frame.pitch = this.aim.pitch;
       this.stepEase -= this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
@@ -543,7 +566,8 @@ export class Game {
     const dip =
       ((BOB * this.stature * this.bobbing) / 2) * (1 + Math.cos(2 * Math.PI * this.footsteps.phase(this.myId)));
     const room = lift > 0 ? Math.max(eye.y, WORLD_STRUCTURES.ceilingAt(eye.x, eye.z, eye.y) - CEILING_GAP) : Infinity;
-    this.camera.position.set(eye.x, Math.min(eye.y + lift, room) - dip, eye.z);
+    const eyes = new Vector3(eye.x, Math.min(eye.y + lift, room), eye.z);
+    this.view.place(this.camera, eyes, dip, this.input.yaw, this.input.pitch, this.stature, third, WORLD_STRUCTURES);
     this.kick *= Math.pow(0.5, dt / KICK_HALF_LIFE);
     if (this.kick < 1e-4) this.kick = 0;
     this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);
@@ -553,7 +577,7 @@ export class Game {
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
-    this.viewmodel.show(held && !this.scoped && !this.dead ? held.id : null);
+    this.viewmodel.show(held && !this.scoped && !this.dead && !third ? held.id : null);
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
     this.hud.setItemHint(
@@ -568,7 +592,6 @@ export class Game {
       this.dead || this.hud.isChatOpen(),
     );
 
-    const sampled = this.interp.sample(performance.now(), this.myId);
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -587,6 +610,7 @@ export class Game {
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
+    this.updateOwnAvatar(third, { x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
@@ -607,7 +631,7 @@ export class Game {
       this.canFire() &&
       resolveFire(
         ITEMS[held.id],
-        { id: this.myId, pos: me.pos, yaw: this.input.yaw, pitch: this.input.pitch, avatar: me.avatar },
+        { id: this.myId, pos: me.pos, yaw: this.aim.yaw, pitch: this.aim.pitch, avatar: me.avatar },
         targets(sampled.players),
         WORLD_STRUCTURES,
       ).length > 0;
@@ -655,6 +679,41 @@ export class Game {
       cube.setReaders(readers.get(cs.id) ?? 0);
       cube.update(cs);
     }
+  }
+
+  // The player's own body, drawn only in third person: where prediction has it (its eye point `at`,
+  // corrected but not trailing a step like the camera), turned to the look sent.
+  private updateOwnAvatar(shown: boolean, at: Vec3, held: ItemState | null): void {
+    const self = this.prediction!.state;
+    if (!shown) {
+      this.ownAvatar?.hide();
+      return;
+    }
+    let avatar = this.ownAvatar;
+    if (avatar && (avatar.kind !== self.avatar || (avatar instanceof StandardAvatar && avatar.color !== self.color))) {
+      avatar.dispose();
+      avatar = null;
+    }
+    if (!avatar) avatar = this.ownAvatar = createAvatar(this.engine, self);
+    avatar.update({
+      id: self.id,
+      name: self.name,
+      color: self.color,
+      x: at.x,
+      y: at.y,
+      z: at.z,
+      yaw: this.aim.yaw,
+      pitch: this.aim.pitch,
+      reading: self.reading,
+      item: held?.id ?? null,
+      firing: self.firing,
+      gear: self.gear?.id ?? null,
+      thrusting: self.thrusting,
+      dead: this.dead,
+      avatar: self.avatar,
+      bot: false,
+      grounded: isGrounded(self),
+    });
   }
 
   private updateHover(): void {
