@@ -203,7 +203,7 @@ with concurrent receive and input loops.
   reaction, visibility, aim error, and respawn delay must be explicit policy choices.
 - Shots are lag-compensated: `Controls` sends the newest snapshot tick as `view`, and the server
   judges the shot against where targets were at that tick. Aim at the snapshot you have; don't lead.
-- Bots are visible players and count against the 32-player room limit. `connect` joins with `bot=1`:
+- Bots are visible players and count against the room's 64 seats, of which they may hold at most 32. `connect` joins with `bot=1`:
   `Player.bot` is true, the roster shows a robot icon, and a room with only bots left closes.
 - A bot may choose where it spawns and how it looks: pass `spawn` (a feet position, `Vec3`) and
   `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,

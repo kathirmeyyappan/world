@@ -17,6 +17,7 @@ import {
   MAX_INPUTS_PER_TICK,
   MAX_INPUT_QUEUE,
   MAX_NAME_LENGTH,
+  MAX_BOTS,
   MAX_PLAYERS,
   DEATH_SCREEN_SECONDS,
   NAMED_COLORS,
@@ -166,6 +167,10 @@ export class Room {
   join(rawName: string, link: ClientLink, opts: JoinOptions = {}): string | null {
     if (this.seats.size >= MAX_PLAYERS) {
       link.send({ t: 'error', message: 'room is full' });
+      return null;
+    }
+    if (opts.bot && this.botCount >= MAX_BOTS) {
+      link.send({ t: 'error', message: 'enough bots here' });
       return null;
     }
     if (opts.bot && this.humanCount === 0) {
@@ -443,6 +448,7 @@ export class Room {
     if (me.bot) return tell("bots can't call bots");
     if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
     if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
+    if (this.botCount >= MAX_BOTS) return tell('this room has enough bots');
 
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';
