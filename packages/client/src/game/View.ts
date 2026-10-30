@@ -27,12 +27,12 @@ const BODY_FROM = 0.35; // the way out past which the body is drawn: the camera 
 const STORAGE_KEY = 'world.view'; // the choice, kept for next time
 
 export class View {
-  mode: ViewMode = 'first';
+  mode: ViewMode = 'third';
   private reach = 0; // how far along its way out the boom is, 0 at the eyes to 1 at its length
 
   constructor() {
     try {
-      if (localStorage.getItem(STORAGE_KEY) === 'third') this.mode = 'third';
+      if (localStorage.getItem(STORAGE_KEY) === 'first') this.mode = 'first';
     } catch {
       // no storage: first person
     }
