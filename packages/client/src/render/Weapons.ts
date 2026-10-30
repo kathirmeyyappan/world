@@ -9,7 +9,7 @@ import { FlameJet } from './FlameJet';
 type Scene = Engine['scene'];
 
 const REST = new Vector3(0.3, -0.24, 0.6);
-const FLASH_SECONDS = 0.06;
+export const FLASH_SECONDS = 0.06;
 const RECOIL_HALF_LIFE = 0.05;
 
 interface Palette {
@@ -91,6 +91,29 @@ export function buildTank(scene: Scene, name: string, parent: TransformNode, pal
   return node;
 }
 
+const flashMaterials = new WeakMap<Scene, StandardMaterial>();
+
+// A muzzle flash: a small glowing cube at `muzzle` under `parent`, off until a shot.
+export function buildFlash(engine: Engine, name: string, parent: TransformNode, muzzle: Vector3): Mesh {
+  const scene = engine.scene;
+  let material = flashMaterials.get(scene);
+  if (!material) {
+    material = new StandardMaterial('muzzle-flash', scene);
+    material.emissiveColor = new Color3(1, 0.85, 0.4);
+    material.disableLighting = true;
+    flashMaterials.set(scene, material);
+  }
+  const flash = MeshBuilder.CreateBox(`${name}-flash`, { size: 0.09 }, scene);
+  flash.material = material;
+  flash.parent = parent;
+  flash.position.copyFrom(muzzle);
+  flash.isPickable = false;
+  flash.applyFog = false;
+  flash.setEnabled(false);
+  engine.glowLayer.addIncludedOnlyMesh(flash);
+  return flash;
+}
+
 export class Viewmodel {
   private readonly root: TransformNode;
   private readonly shapes = new Map<ItemId, { node: TransformNode; flash: Mesh }>();
@@ -107,9 +130,6 @@ export class Viewmodel {
     this.root.scaling.setAll(0.75);
 
     const pal = weaponPalette(scene, 'viewmodel');
-    const flashMat = new StandardMaterial('viewmodel-flash', scene);
-    flashMat.emissiveColor = new Color3(1, 0.85, 0.4);
-    flashMat.disableLighting = true;
     for (const id of ITEM_IDS) {
       const node = new TransformNode(`viewmodel-${id}`, scene);
       node.parent = this.root;
@@ -121,14 +141,7 @@ export class Viewmodel {
         // The root is scaled down, so the jet is stretched to still reach the item's range.
         this.jet = new FlameJet(engine, 'viewmodel', nozzle, ITEMS.flamethrower.range / 0.75);
       }
-      const flash = MeshBuilder.CreateBox(`viewmodel-${id}-flash`, { size: 0.09 }, scene);
-      flash.material = flashMat;
-      flash.parent = node;
-      flash.position.copyFrom(muzzle);
-      flash.isPickable = false;
-      flash.applyFog = false;
-      flash.setEnabled(false);
-      engine.glowLayer.addIncludedOnlyMesh(flash);
+      const flash = buildFlash(engine, `viewmodel-${id}`, node, muzzle);
       node.setEnabled(false);
       this.shapes.set(id, { node, flash });
     }

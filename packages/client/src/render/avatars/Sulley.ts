@@ -137,6 +137,10 @@ export class SulleyAvatar implements Avatar {
     this.hitFlash.trigger();
   }
 
+  fire(): void {
+    this.items.fire();
+  }
+
   hide(): void {
     this.root.setEnabled(false);
   }

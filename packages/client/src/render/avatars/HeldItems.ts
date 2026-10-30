@@ -1,17 +1,19 @@
-// What an avatar carries: every weapon's shape under the hand node (one enabled at a time), the
-// flamethrower's tank on the back, and its jet at the nozzle while the player is firing; and the
+// What an avatar carries: every weapon's shape under the hand node (one enabled at a time) with a
+// muzzle flash for its shots, the flamethrower's tank on the back, and its jet at the nozzle while the player is firing; and the
 // gear they wear (render/Gear.ts) on the back, with the tank behind it when they have both. Shared
 // by every avatar type so a new item is added here once.
-import { TransformNode, Vector3 } from '@babylonjs/core';
+import { TransformNode, Vector3, type Mesh } from '@babylonjs/core';
 import { ITEMS, ITEM_IDS, type ItemId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { FlameJet } from '../FlameJet';
 import { WornGear } from '../Gear';
-import { buildTank, buildWeapon, weaponPalette } from '../Weapons';
+import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, weaponPalette } from '../Weapons';
 
 export class HeldItems {
   private readonly weapons = new Map<ItemId, TransformNode>();
+  private readonly flashes = new Map<ItemId, Mesh>();
+  private flashLeft = 0;
   private readonly tank: TransformNode;
   private readonly jet: FlameJet;
   private readonly gear: WornGear;
@@ -45,6 +47,7 @@ export class HeldItems {
       }
       node.setEnabled(false);
       this.weapons.set(item, node);
+      this.flashes.set(item, buildFlash(engine, `${name}-${item}`, node, muzzle));
     }
     this.tank = buildTank(scene, name, back, pal);
     this.tank.position.copyFrom(backOffset);
@@ -68,5 +71,18 @@ export class HeldItems {
     }
     this.jet.set(firing && item === 'flamethrower');
     this.jet.update(dt);
+    if (this.flashLeft > 0) {
+      this.flashLeft -= dt;
+      if (this.flashLeft <= 0) for (const flash of this.flashes.values()) flash.setEnabled(false);
+    }
+  }
+
+  // A tap weapon's shot.
+  fire(): void {
+    if (!this.held) return;
+    const flash = this.flashes.get(this.held)!;
+    flash.setEnabled(true);
+    flash.rotation.z = Math.random() * Math.PI;
+    this.flashLeft = FLASH_SECONDS;
   }
 }
