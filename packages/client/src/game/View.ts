@@ -34,7 +34,7 @@ export class View {
     try {
       if (localStorage.getItem(STORAGE_KEY) === 'first') this.mode = 'first';
     } catch {
-      // no storage: first person
+      // no storage: the default
     }
     this.reach = this.mode === 'third' ? 1 : 0;
   }
