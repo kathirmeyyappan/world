@@ -403,10 +403,19 @@ export class Room {
         this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}` });
         return;
       }
-      case 'color':
-        seat.state.color = NAMED_COLORS[command.color];
-        this.broadcast({ t: 'system', text: `${seat.state.name} is now ${command.color}` });
+      case 'color': {
+        // A colour is the standard body's, so it brings its wearer back to that body; a name-given
+        // look can't be changed, by colour either.
+        const me = seat.state;
+        if (me.avatarLocked) {
+          seat.link.send({ t: 'system', text: `you're ${me.avatar} for good` });
+          return;
+        }
+        me.color = NAMED_COLORS[command.color];
+        me.avatar = 'standard';
+        this.broadcast({ t: 'system', text: `${me.name} is now ${command.color}` });
         return;
+      }
       case 'bot':
         this.callBot(seat, command.bot, command.call);
         return;
