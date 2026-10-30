@@ -112,6 +112,25 @@ export function findHit<T extends Target>(
   return { target: best, headshot: isHeadshot(o.y + dir.y * bestT, best.pos.y, AVATARS[best.avatar].hitbox) };
 }
 
+// How far a ray from `o` along `d` gets, up to `range`: to the first wall or live player other than
+// `selfId`. What the camera's centre ray lands on, for the third-person view's aim.
+export function reach<T extends Target>(
+  o: Vec3,
+  d: Vec3,
+  players: Iterable<T>,
+  range: number,
+  selfId: string,
+  structures: Structures = WORLD_STRUCTURES,
+): number {
+  let best = Math.min(range, structures.raycast(o, d, range));
+  for (const p of players) {
+    if (p.id === selfId || p.dead) continue;
+    const t = rayCapsule(o, d, p.pos, AVATARS[p.avatar].hitbox, best);
+    if (t !== null && t < best) best = t;
+  }
+  return best;
+}
+
 // Distance along the ray to the hitbox of a player whose eyes are at `eye`, or null. Checks the ray
 // against spheres of the hitbox's radius strung along its axis, one every half radius or closer.
 function rayCapsule(o: Vec3, d: Vec3, eye: Vec3, box: Hitbox, maxT: number): number | null {
