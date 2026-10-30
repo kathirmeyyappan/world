@@ -12,6 +12,7 @@ export const SPONGEBOB: BodySpec = {
   stride: 6,
   legSwing: 0.6,
   armSwing: 0.5,
+  armsDown: 0.6,
   bob: 0.03,
   follow: 0.3,
 };

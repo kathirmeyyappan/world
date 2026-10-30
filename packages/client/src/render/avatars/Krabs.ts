@@ -15,6 +15,7 @@ export const KRABS: BodySpec = {
   stride: 6.1,
   legSwing: 0.35,
   armSwing: 0.1,
+  armsDown: 0.7,
   bob: 0.015,
   sway: 0.06,
   follow: 0.3,

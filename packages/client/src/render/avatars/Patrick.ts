@@ -13,6 +13,7 @@ export const PATRICK: BodySpec = {
   stride: 4.5,
   legSwing: 0.55,
   armSwing: 0.4,
+  armsDown: 0.6,
   bob: 0.04,
   follow: 0.35,
 };
