@@ -440,7 +440,11 @@ test('looks: /elizabeth is for good, ELIZABETH in the name locks it, and /red re
 
   room.receive(idb, { t: 'chat', text: '/RED' });
   assert.equal(bob.color, NAMED_COLORS.red, 'a colour by name, any case');
+  assert.equal(bob.avatar, 'standard', "a colour is the standard body's: back to it");
   assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'bob is now red'));
+  room.receive(ida, { t: 'chat', text: '/red' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
+  assert.equal(ann.avatar, 'elizabeth');
   room.receive(idb, { t: 'chat', text: '/constructor' });
   assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /constructor' });
 });
