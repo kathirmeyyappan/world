@@ -7,10 +7,10 @@ import { GRAVITY, statureOf, type AvatarId, type Vec3 } from '@world/shared';
 import type { Sfx, SoundId } from './Sfx';
 
 // A body's step sounds: the thuds, a different one each step, unless its avatar has its own, either
-// a set to pick from the same way or a loop that runs for as long as it moves along the ground.
+// a bar played round in order or a loop that runs for as long as it moves along the ground.
 const STEPS: SoundId[] = ['step-1', 'step-2', 'step-3', 'step-4'];
-const OWN_STEPS: Partial<Record<AvatarId, { each: SoundId[] } | { loop: SoundId }>> = {
-  spongebob: { each: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'] },
+const OWN_STEPS: Partial<Record<AvatarId, { bar: SoundId[] } | { loop: SoundId }>> = {
+  spongebob: { bar: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'] }, // high, low, high, low
   krabs: { loop: 'scuttle' },
 };
 const MOVING = 0.01; // metres along the ground in one frame that keep a step loop going
@@ -115,9 +115,10 @@ export class Footsteps {
       if (w.walked < w.stride) continue;
       w.walked -= w.stride;
       if (own && 'loop' in own) continue;
-      const steps = own ? own.each : STEPS;
-      w.step = (w.step + 1 + Math.floor(Math.random() * (steps.length - 1))) % steps.length;
-      this.sfx.play(steps[w.step], at, { level, rate });
+      w.step = own
+        ? (w.step + 1) % own.bar.length
+        : (w.step + 1 + Math.floor(Math.random() * (STEPS.length - 1))) % STEPS.length;
+      this.sfx.play(own ? own.bar[w.step] : STEPS[w.step], at, { level, rate });
     }
     for (const id of this.walkers.keys()) if (!seen.has(id)) this.walkers.delete(id);
     return loops;
