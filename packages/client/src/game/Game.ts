@@ -515,20 +515,17 @@ export class Game {
     this.syncBlocked();
     this.input.update();
     const sampled = this.interp.sample(performance.now(), this.myId);
-    const third = this.view.third(this.scoped);
-    // From the boom the camera's centre ray and the eyes' differ, so the look sent (the shot, the
-    // head's turn) is the eyes' at what the crosshair is on, from where the camera was last frame.
-    this.aim = third
-      ? this.view.aim(
-          eyeOf(this.prediction.state),
-          this.camera.position,
-          this.input.yaw,
-          this.input.pitch,
-          this.myId,
-          targets(sampled.players),
-          WORLD_STRUCTURES,
-        )
-      : { yaw: this.input.yaw, pitch: this.input.pitch };
+    // Off the eyes the camera's centre ray and theirs differ, so the look sent (the shot, the head's
+    // turn) is the eyes' at what the crosshair is on, from where the camera was last frame.
+    this.aim = this.view.aim(
+      eyeOf(this.prediction.state),
+      this.camera.position,
+      this.input.yaw,
+      this.input.pitch,
+      this.myId,
+      targets(sampled.players),
+      WORLD_STRUCTURES,
+    );
 
     this.accumulator += Math.min(dt, TICK_DT * MAX_TICKS_PER_FRAME);
     while (this.accumulator >= TICK_DT) {
@@ -567,7 +564,17 @@ export class Game {
       ((BOB * this.stature * this.bobbing) / 2) * (1 + Math.cos(2 * Math.PI * this.footsteps.phase(this.myId)));
     const room = lift > 0 ? Math.max(eye.y, WORLD_STRUCTURES.ceilingAt(eye.x, eye.z, eye.y) - CEILING_GAP) : Infinity;
     const eyes = new Vector3(eye.x, Math.min(eye.y + lift, room), eye.z);
-    this.view.place(this.camera, eyes, dip, this.input.yaw, this.input.pitch, this.stature, third, WORLD_STRUCTURES);
+    this.view.place(
+      this.camera,
+      eyes,
+      dip,
+      this.input.yaw,
+      this.input.pitch,
+      this.stature,
+      this.scoped,
+      WORLD_STRUCTURES,
+      dt,
+    );
     this.kick *= Math.pow(0.5, dt / KICK_HALF_LIFE);
     if (this.kick < 1e-4) this.kick = 0;
     this.camera.rotation.set(this.input.pitch - this.kick, this.input.yaw, 0);
@@ -577,7 +584,7 @@ export class Game {
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
-    this.viewmodel.show(held && !this.scoped && !this.dead && !third ? held.id : null);
+    this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null);
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
     this.hud.setItemHint(
@@ -610,7 +617,7 @@ export class Game {
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
-    this.updateOwnAvatar(third, { x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
+    this.updateOwnAvatar(this.view.showsBody, { x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
