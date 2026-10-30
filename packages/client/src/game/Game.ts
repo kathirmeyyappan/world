@@ -310,6 +310,7 @@ export class Game {
     if (spec.actions.shoot?.mode !== 'tap' || performance.now() < this.localCooldownUntil) return;
     this.localCooldownUntil = performance.now() + spec.cooldownTicks * TICK_DT * 1000;
     this.viewmodel.fire();
+    this.ownAvatar?.fire();
     const shot = ITEM_SOUNDS[this.held.id].shot;
     if (shot) this.sfx.play(shot, null, { level: OWN_SHOT });
     // Recoil the camera up and let it settle. Bigger for the sniper, whose viewmodel is hidden
@@ -475,6 +476,7 @@ export class Game {
       const p = players.find((q) => q.id === s.shooter);
       const sounds = p?.item && ITEM_SOUNDS[p.item.id];
       if (!p || !sounds) continue;
+      this.avatars.get(p.id)?.fire();
       if (sounds.shot) this.sfx.play(sounds.shot, p.pos);
       const whiz = s.hitMe ? undefined : sounds.nearMiss;
       const miss = whiz && this.closestPass(p);
