@@ -40,7 +40,6 @@ const TOWER_STALKERS: DefaultBot[] = TUNG_TUNG_TOWER_FLOORS.slice(0, 3).map((spa
   avatar: 'sahur',
 }));
 
-// `rng` draws the circle bots' looks: a room passes its own, so each room gets its own pair.
 export function defaultBotsFor(room: string, rng: Rng = Math.random): DefaultBot[] {
   if (room === 'global') return [...circles(rng), ...TOWER_STALKERS];
   return [...circles(rng), ...TOWER_STALKERS];
