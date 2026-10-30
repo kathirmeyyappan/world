@@ -15,4 +15,5 @@ export const KRABS: BodySpec = {
   armSwing: 0.35,
   bob: 0.03,
   follow: 0.3,
+  doubleSided: true, // the shirt and shell are open shells: under the chin you look into the collar
 };
