@@ -162,9 +162,8 @@ export class Room {
   }
 
   // Seats a new player and sends them the world. Returns null (after an error message) when
-  // the room is full, when the bots' share of it is, or when a bot would be alone: bots don't keep
-  // a room open, so one that arrives after everyone left (a slow spawn) must not start a room that
-  // nothing would close.
+  // the room is full, or when a bot would be alone: bots don't keep a room open, so one that
+  // arrives after everyone left (a slow spawn) must not start a room that nothing would close.
   join(rawName: string, link: ClientLink, opts: JoinOptions = {}): string | null {
     if (this.seats.size >= MAX_PLAYERS) {
       link.send({ t: 'error', message: 'room is full' });

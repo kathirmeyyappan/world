@@ -8,7 +8,6 @@ import {
   MAX_HEARTS,
   NAMED_COLORS,
   MAX_BOTS,
-  MAX_PLAYERS,
   MAX_REWIND_TICKS,
   MOVE_SPEED,
   PICKUP_AREAS,
@@ -699,14 +698,12 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   room.receive(idb, { t: 'chat', text: '/circle-bot' });
   assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "bots can't call bots" });
 
-  // Bots have their own share of the seats; people still fit once it's taken.
   while (room.botCount < MAX_BOTS) room.join('bot', link(), { bot: true });
   room.receive(ida, { t: 'chat', text: '/stalker-bot' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room has enough bots' });
   assert.equal(spawned.length, 5);
   assert.equal(room.join('late-bot', link(), { bot: true }), null);
-  assert.ok(room.join('carol', link()), 'a person still gets a seat');
-  assert.ok(room.playerCount < MAX_PLAYERS);
+  assert.ok(room.join('carol', link()));
 
   fail = true;
   const c = link();
