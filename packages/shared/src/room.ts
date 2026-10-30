@@ -17,6 +17,7 @@ import {
   MAX_INPUTS_PER_TICK,
   MAX_INPUT_QUEUE,
   MAX_NAME_LENGTH,
+  MAX_BOTS,
   MAX_PLAYERS,
   DEATH_SCREEN_SECONDS,
   NAMED_COLORS,
@@ -161,11 +162,16 @@ export class Room {
   }
 
   // Seats a new player and sends them the world. Returns null (after an error message) when
-  // the room is full, or when a bot would be alone: bots don't keep a room open, so one that
-  // arrives after everyone left (a slow spawn) must not start a room that nothing would close.
+  // the room is full, when the bots' share of it is, or when a bot would be alone: bots don't keep
+  // a room open, so one that arrives after everyone left (a slow spawn) must not start a room that
+  // nothing would close.
   join(rawName: string, link: ClientLink, opts: JoinOptions = {}): string | null {
     if (this.seats.size >= MAX_PLAYERS) {
       link.send({ t: 'error', message: 'room is full' });
+      return null;
+    }
+    if (opts.bot && this.botCount >= MAX_BOTS) {
+      link.send({ t: 'error', message: 'enough bots here' });
       return null;
     }
     if (opts.bot && this.humanCount === 0) {
@@ -443,6 +449,7 @@ export class Room {
     if (me.bot) return tell("bots can't call bots");
     if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
     if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
+    if (this.botCount >= MAX_BOTS) return tell('this room has enough bots');
 
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';

@@ -384,7 +384,7 @@ protocol.
 - Shots are lag-compensated: `Controls` sends the newest snapshot tick as `view`, and the server
   judges the shot against where targets were at that tick (`packages/shared/src/sim/rewind.ts`,
   at most `MAX_REWIND_TICKS` back). Aim at the snapshot you have; don't lead.
-- Room capacity is 32 players. A bot is a visible player and occupies a seat. `connect` joins with
+- A room seats 64 players, at most 32 of them bots. A bot is a visible player and occupies a seat. `connect` joins with
   `bot=1`, so `Player.bot` is true for every bot, the roster shows a robot icon, and a room with only
   bots left closes like an empty one (the server disconnects them).
 - A bot may choose where it spawns and how it looks: pass `spawn` (a feet position, `Vec3`) and

@@ -42,7 +42,8 @@ export const CUBE_BOUNDARY = 8;
 export const CUBE_MIN_CENTER_DISTANCE = 10;
 export const CUBE_MIN_SPACING = 8;
 
-export const MAX_PLAYERS = 32;
+export const MAX_PLAYERS = 64; // seats in a room, people and bots together
+export const MAX_BOTS = 32; // of them, bots at one time
 export const MAX_NAME_LENGTH = 16;
 export const MAX_CHAT_LENGTH = 140;
 export const MAX_ROOM_ID_LENGTH = 24;
