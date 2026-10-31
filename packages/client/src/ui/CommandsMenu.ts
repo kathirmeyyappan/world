@@ -87,12 +87,17 @@ function buildGroups(): Group[] {
         ['/kill-bots', 'every bot in the room drops dead'],
       ],
     },
-    { title: 'wear skin', rows: skins.map((id) => [commandLabel(AVATARS[id].command ?? id), AVATARS[id].blurb]) },
+    {
+      title: 'wear skin',
+      rows: [
+        ...skins.map((id): Group['rows'][number] => [commandLabel(AVATARS[id].command ?? id), AVATARS[id].blurb]),
+        ['/[color]', 'change your color'],
+      ],
+    },
     {
       title: 'other',
       rows: [
         [commandLabel('speedy'), 'run faster for a bit'],
-        ['/[color]', 'change your colour (try one)'],
         ...GEAR_IDS.map((id): Group['rows'][number] => [commandLabel(id), GEAR[id].blurb]),
       ],
     },
