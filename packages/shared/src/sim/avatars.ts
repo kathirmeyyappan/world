@@ -1,8 +1,9 @@
-// Avatar types: how a player looks, and how big a target they make. Movement and items are the
-// same for all of them; only the hit capsule and the eyes follow the body. Its chat command switches for good;
+// Avatar types: how a player looks, how big a target they make, and which class (classes.ts) moves
+// its wearer; the hit capsule and the eyes follow the body. Its chat command switches for good;
 // a name containing an avatar's tag spawns as it and can't switch at all. A bot can also ask for any
 // avatar when it joins (BotPlacement), including one with no command. Adding one means a row here,
 // a builder in the client's render/avatars/, and `npm run bot-map` (bots aim with these hitboxes).
+import type { PlayerClass } from './classes';
 import { EYE_HEIGHT } from './constants';
 import type { Vec3 } from './types';
 
@@ -27,11 +28,13 @@ export interface AvatarSpec {
   // body everyone moves with has its eyes at EYE_HEIGHT, and `pos` stays that point.
   eye: number;
   hitbox: Hitbox;
+  class: PlayerClass; // how its wearer moves (classes.ts)
 }
 
 export const AVATARS: Record<AvatarId, AvatarSpec> = {
   standard: {
     id: 'standard',
+    class: 'walker',
     nameTag: null,
     blurb: 'back to your normal self',
     command: 'standard',
@@ -40,6 +43,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   elizabeth: {
     id: 'elizabeth',
+    class: 'walker',
     nameTag: 'ELIZABETH',
     blurb: 'become elizabeth from gintama',
     command: 'elizabeth',
@@ -48,6 +52,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   sahur: {
     id: 'sahur',
+    class: 'walker',
     nameTag: null,
     blurb: 'become tung tung tung sahur',
     command: 'tung',
@@ -56,6 +61,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   sulley: {
     id: 'sulley',
+    class: 'walker',
     nameTag: 'SULLEY',
     blurb: 'become sulley from monsters, inc.',
     command: 'sulley',
@@ -64,6 +70,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   mike: {
     id: 'mike',
+    class: 'walker',
     nameTag: 'MIKE',
     blurb: 'become mike wazowski from monsters, inc.',
     command: 'mike',
@@ -72,6 +79,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   spongebob: {
     id: 'spongebob',
+    class: 'walker',
     nameTag: 'SPONGEBOB',
     blurb: 'become spongebob squarepants',
     command: 'spongebob',
@@ -80,6 +88,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   patrick: {
     id: 'patrick',
+    class: 'walker',
     nameTag: 'PATRICK',
     blurb: 'become patrick star',
     command: 'patrick',
@@ -88,6 +97,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   krabs: {
     id: 'krabs',
+    class: 'walker',
     nameTag: 'KRABS',
     blurb: 'become mr. krabs',
     command: 'krabs',
