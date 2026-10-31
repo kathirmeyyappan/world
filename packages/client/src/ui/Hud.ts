@@ -1,5 +1,5 @@
 // Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events.
-import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId } from '@world/shared';
+import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type PlayerClass } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
@@ -186,6 +186,18 @@ export class Hud {
   }
 
   // What you're holding and how to use it, or nothing.
+  // The key legend along the bottom: the walker's is the page's own; a dragon flies and roars.
+  setKeys(cls: PlayerClass): void {
+    const el = document.getElementById('instructions')!;
+    this.walkerKeys ??= el.innerHTML;
+    el.innerHTML =
+      cls === 'walker'
+        ? this.walkerKeys
+        : `<kbd translate="no">W</kbd> fly &nbsp;|&nbsp; <kbd translate="no">A</kbd><kbd translate="no">S</kbd><kbd translate="no">D</kbd> roar &nbsp;|&nbsp;
+           Click select &nbsp;|&nbsp; <kbd translate="no">Z</kbd> view &nbsp;|&nbsp; <kbd translate="no">O</kbd> fullscreen &nbsp;|&nbsp; <kbd translate="no">Esc</kbd> mouse`;
+  }
+  private walkerKeys: string | null = null;
+
   setItemHint(text: string, stats = ''): void {
     const key = `${text}\n${stats}`;
     if (key === this.itemHintText) return;
