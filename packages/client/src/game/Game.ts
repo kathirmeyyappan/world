@@ -37,7 +37,7 @@ import {
   statureOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
-import { ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
+import { ACTION_SOUNDS, ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -99,6 +99,9 @@ const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
 // Your own shots play at this share of their volume: right at your ear, they'd drown out the rest.
 const OWN_SHOT = 0.7;
 const NEAR_MISS_DELAY = 0.1; // seconds after the shot that a near miss whizzes by (about 4 frames)
+// A roar comes back off the world: the same again, this much later and this much quieter.
+const ECHO_DELAY = 0.5;
+const ECHO_LEVEL = 0.3;
 
 export class Game {
   private readonly engine: Engine;
@@ -120,6 +123,7 @@ export class Game {
   private aim = { yaw: 0, pitch: 0 }; // the look sent this frame: the camera's, or in third person the eyes' at the crosshair's target
   private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
   private classId: PlayerClass | null = null; // the class the player was last seen as
+  private readonly cried = new Set<string>(); // the dragons whose rise has been heard
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
   private readonly skyByMesh = new Map<string, SkyObject>();
@@ -431,6 +435,16 @@ export class Game {
       case 'shot':
         if (m.id !== this.myId) this.pendingShots.push({ shooter: m.id, hitMe: false });
         return;
+      case 'action': {
+        const sound = ACTION_SOUNDS[m.action];
+        const at = this.headOf(m.id);
+        if (sound && at) {
+          this.sfx.play(sound, at);
+          this.sfx.play(sound, at, { delay: ECHO_DELAY, level: ECHO_LEVEL });
+        }
+        (m.id === this.myId ? this.ownAvatar : this.avatars.get(m.id))?.act?.(m.action);
+        return;
+      }
       case 'hit':
         this.onHit(m);
         return;
@@ -451,6 +465,13 @@ export class Game {
         this.hud.system(m.message);
         return;
     }
+  }
+
+  // Where a player's head is right now: the local player's by prediction, anyone else's as drawn.
+  private headOf(id: string): Vec3 | null {
+    if (id === this.myId) return this.prediction?.state.pos ?? null;
+    const p = this.interp.sample(performance.now(), this.myId).players.find((rp) => rp.id === id);
+    return p ? { x: p.x, y: p.y, z: p.z } : null;
   }
 
   // The local player died; `how` heads the death screen.
@@ -698,6 +719,26 @@ export class Game {
         self: false,
       })),
     ]);
+    // Every dragon rises out of the ground with a cry; the nearest living one's theme plays from
+    // its head.
+    const dragons = [
+      ...(self.dragon && !this.dead ? [{ id: this.myId, at: self.pos, spine: self.dragon.spine }] : []),
+      ...sampled.players.flatMap((rp) =>
+        rp.dragon && !rp.dead ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, spine: rp.dragon.spine }] : [],
+      ),
+    ];
+    for (const d of dragons) {
+      if (this.cried.has(d.id)) continue;
+      this.cried.add(d.id);
+      if (d.spine[d.spine.length - 2] < WORLD_STRUCTURES.groundAt(d.at.x, d.at.z, d.at.y))
+        this.sfx.play('dragon-cry', d.at);
+    }
+    const ear = this.camera.position;
+    const nearest = dragons.sort(
+      (a, b) =>
+        Vector3.Distance(ear, new Vector3(a.at.x, a.at.y, a.at.z)) -
+        Vector3.Distance(ear, new Vector3(b.at.x, b.at.y, b.at.z)),
+    )[0];
     this.sfx.setLoops([
       ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
         key: this.myId,
@@ -706,6 +747,7 @@ export class Game {
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...stepLoops,
+      ...(nearest ? [{ key: 'dragon', id: 'dragon-theme' as const, at: nearest.at }] : []),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {

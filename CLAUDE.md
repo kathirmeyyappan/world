@@ -208,7 +208,8 @@ and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES
 has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
 (`game/View.ts`) for how it's seen. The dragon is drawn by `render/avatars/Dragon.ts` from a model
 `scripts/dragon-model.py` rigs along the spine (its docstring says how); the GLB helpers both
-model scripts share are in `scripts/glb.py`.
+model scripts share are in `scripts/glb.py`. Its roars are `ACTION_SOUNDS` in `audio/Sfx.ts`, and
+its theme and the cry it rises with are rows there too.
 
 ## Adding a Modal bot
 
