@@ -129,6 +129,18 @@ export class Structures {
     }
   }
 
+  // Whether any structure that is a wall to `body` comes within its radius of (x, z).
+  touches(x: number, z: number, body: Body): boolean {
+    const r = body.radius;
+    for (const p of this.near(x - r, z - r, x + r, z + r)) {
+      const [lx, lz] = local(p, x, z);
+      const qx = Math.max(-p.hw, Math.min(p.hw, lx));
+      const qz = Math.max(-p.hd, Math.min(p.hd, lz));
+      if (Math.hypot(lx - qx, lz - qz) < r - 1e-6 && blocks(p, qx, qz, body)) return true;
+    }
+    return false;
+  }
+
   // Distance along the unit ray (o, d) to the first structure it enters within maxT, else Infinity.
   raycast(o: Vec3, d: Vec3, maxT: number): number {
     let best = Infinity;

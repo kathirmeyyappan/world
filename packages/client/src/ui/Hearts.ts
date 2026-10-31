@@ -1,7 +1,7 @@
-// The health bar: MAX_HEARTS pixel hearts in two rows at the top of the screen. Hearts you've
-// lost turn grey and crack. Pure DOM, driven by the server's heart count; nothing here decides
-// damage.
-import { MAX_HEARTS } from '@world/shared';
+// The health bar: a life's worth of pixel hearts in rows at the top of the screen, as many as the
+// worn class has (classes.ts). Hearts you've lost turn grey and crack. Pure DOM, driven by the
+// server's heart count; nothing here decides damage.
+import { WALKER, type ClassSpec } from '@world/shared';
 import { HEART as FULL, pixelSvg } from './pixelIcons';
 
 // 9x8 pixel heart. '#' body, '+' highlight, '.' empty. The broken one has a crack down it; the
@@ -14,32 +14,44 @@ const HALF = ['.LL...RR.', 'L+LL.RRRR', 'LLL.RRRRR', 'LLLL.RRRR', '.LLLL.RR.', '
 const PIX = { '+': 'hi', R: 'grey' };
 const FILL_MS = 70; // between one heart filling and the next as hearts come back
 const RANK = { lost: 0, half: 1, full: 2 };
+type State = keyof typeof RANK;
 
 export class Hearts {
   private readonly root = document.getElementById('hearts')!;
-  private readonly hearts: HTMLElement[] = [];
-  private shown = MAX_HEARTS; // what the bar shows
-  private target = MAX_HEARTS; // what the server says, which a fill catches the bar up to
+  private hearts: HTMLElement[] = [];
+  private max = 0; // a full life for the worn class
+  private shown = 0; // what the bar shows
+  private target = 0; // what the server says, which a fill catches the bar up to
   private fills: number[] = [];
 
   constructor() {
-    for (let i = 0; i < MAX_HEARTS; i++) {
-      const heart = document.createElement('div');
-      heart.className = 'heart';
-      heart.append(pixelSvg(FULL, 'full', PIX), pixelSvg(BROKEN, 'broken', PIX), pixelSvg(HALF, 'half', PIX));
-      this.root.append(heart);
-      this.hearts.push(heart);
-    }
+    this.setLife(WALKER);
   }
 
   get count(): number {
     return this.target;
   }
 
+  // The bar for a life of `cls`'s hearts in its rows, full when that changes (a new class).
+  setLife(cls: Pick<ClassSpec, 'hearts' | 'heartRow'>): void {
+    if (cls.hearts === this.max) return;
+    this.root.replaceChildren();
+    this.root.style.setProperty('--heart-row', String(cls.heartRow));
+    this.hearts = [];
+    for (let i = 0; i < cls.hearts; i++) {
+      const heart = document.createElement('div');
+      heart.className = 'heart';
+      heart.append(pixelSvg(FULL, 'full', PIX), pixelSvg(BROKEN, 'broken', PIX), pixelSvg(HALF, 'half', PIX));
+      this.root.append(heart);
+      this.hearts.push(heart);
+    }
+    this.max = this.shown = this.target = cls.hearts;
+  }
+
   // A loss shows at once; hearts coming back fill one at a time, FILL_MS apart. Only the bar
   // takes its time: the health itself is already back.
   set(count: number): void {
-    const n = Math.max(0, Math.min(MAX_HEARTS, count));
+    const n = Math.max(0, Math.min(this.max, count));
     if (n === this.target) return;
     this.target = n;
     for (const timer of this.fills) clearTimeout(timer);
@@ -56,10 +68,10 @@ export class Hearts {
   // count >= i+0.5, else lost. A heart that just dropped a state gets the breaking animation, one
   // that just gained one the filling one.
   private draw(n: number): void {
-    for (let i = 0; i < MAX_HEARTS; i++) {
+    for (let i = 0; i < this.max; i++) {
       const heart = this.hearts[i];
-      const state = n >= i + 1 ? 'full' : n >= i + 0.5 ? 'half' : 'lost';
-      const was = heart.classList.contains('lost') ? 'lost' : heart.classList.contains('half') ? 'half' : 'full';
+      const state: State = n >= i + 1 ? 'full' : n >= i + 0.5 ? 'half' : 'lost';
+      const was: State = heart.classList.contains('lost') ? 'lost' : heart.classList.contains('half') ? 'half' : 'full';
       if (state === was) continue;
       heart.classList.toggle('half', state === 'half');
       heart.classList.toggle('lost', state === 'lost');

@@ -67,16 +67,7 @@ export class SkinnedBody<B extends string> {
       this.parts.set(name, { node, pivot });
     });
 
-    // The model's texture, lit, with a little of itself as glow. glTF texture coordinates run down
-    // the image, so it isn't flipped on load. Sampled nearest like the world's textures.
-    const image = new Texture(texture, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
-    this.material = new StandardMaterial(`${name}-skin`, scene);
-    this.material.diffuseTexture = image;
-    this.material.emissiveTexture = image;
-    this.material.emissiveColor = new Color3(GLOW, GLOW, GLOW);
-    this.material.specularColor = new Color3(0.06, 0.06, 0.06);
-    this.material.specularPower = 8;
-
+    this.material = skinMaterial(scene, name, texture);
     this.mesh = new Mesh(`${name}-mesh`, scene);
     vertexData(model).applyToMesh(this.mesh);
     this.mesh.material = this.material;
@@ -107,6 +98,19 @@ export class SkinnedBody<B extends string> {
   }
 }
 
+// The model's texture, lit, with a little of itself as glow. glTF texture coordinates run down the
+// image, so it isn't flipped on load. Sampled nearest like the world's textures.
+export function skinMaterial(scene: Engine['scene'], name: string, texture: string): StandardMaterial {
+  const image = new Texture(texture, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
+  const material = new StandardMaterial(`${name}-skin`, scene);
+  material.diffuseTexture = image;
+  material.emissiveTexture = image;
+  material.emissiveColor = new Color3(GLOW, GLOW, GLOW);
+  material.specularColor = new Color3(0.06, 0.06, 0.06);
+  material.specularPower = 8;
+  return material;
+}
+
 const decoded = new Map<string, VertexData>();
 
 // A model's mesh, decoded once per page (keyed by its vertices): the same arrays go into every
@@ -125,6 +129,6 @@ function vertexData(m: SkinnedModel<string>): VertexData {
   return data;
 }
 
-function bytes(base64: string): Uint8Array {
+export function bytes(base64: string): Uint8Array {
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }

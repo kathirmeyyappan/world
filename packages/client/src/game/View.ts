@@ -6,15 +6,32 @@
 // what the crosshair is on is what gets hit. The boom goes out and comes back over a moment, at the
 // pace the eyes rise when the look changes; the scope is always looked down from the eyes, at once.
 import { Vector3, type UniversalCamera } from '@babylonjs/core';
-import { lookDirection, MAX_PITCH, reach, type Structures, type Target, type Vec3 } from '@world/shared';
+import {
+  lookDirection,
+  MAX_PITCH,
+  reach,
+  type PlayerClass,
+  type Structures,
+  type Target,
+  type Vec3,
+} from '@world/shared';
 
 export type ViewMode = 'first' | 'third';
 
-// The boom, in metres for the standard body and in proportion for the rest: back from the eyes, out
-// past the right shoulder, and up.
-const BOOM_BACK = 3.4;
-const BOOM_RIGHT = 0.6;
-const BOOM_UP = 0.6;
+// The boom in metres: back from the eyes, out past the right shoulder, and up.
+export interface Boom {
+  back: number;
+  right: number;
+  up: number;
+}
+
+// How each class (sim/classes.ts) is seen: its boom, for the standard body and in proportion for
+// the rest of the walkers, and how wide it sees. A dragon is watched from well back and above its
+// head, over the body trailing behind it, and sees wide.
+export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
+  walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
+  dragon: { boom: { back: 12, right: 0, up: 4 }, fov: 1.45 },
+};
 const SKIN = 0.25; // metres the camera keeps off a wall the boom runs into
 const FLOOR = 0.15; // metres the camera keeps above the ground when the boom dips under it
 // The eyes aim at what the crosshair is on, or a point this far out when nothing is nearer, and no
@@ -40,7 +57,11 @@ export class View {
   }
 
   toggle(): void {
-    this.mode = this.mode === 'first' ? 'third' : 'first';
+    this.set(this.mode === 'first' ? 'third' : 'first');
+  }
+
+  set(mode: ViewMode): void {
+    this.mode = mode;
     try {
       localStorage.setItem(STORAGE_KEY, this.mode);
     } catch {
@@ -58,17 +79,16 @@ export class View {
     return this.reach > BODY_FROM;
   }
 
-  // Puts the camera for this frame: at `eyes` (less the head bob's `dip`) or out along the boom
-  // behind them, scaled by `stature` and stopped short of `structures`, by how far it has got in
-  // `dt` more seconds. Scoped, it is at the eyes at once. The look is the camera's rotation either
-  // way, set by the Game.
+  // Puts the camera for this frame: at `eyes` (less the head bob's `dip`) or out along the `boom`
+  // behind them, stopped short of `structures`, by how far it has got in `dt` more seconds. Scoped,
+  // it is at the eyes at once. The look is the camera's rotation either way, set by the Game.
   place(
     camera: UniversalCamera,
     eyes: Vector3,
     dip: number,
     yaw: number,
     pitch: number,
-    stature: number,
+    boom: Boom,
     scoped: boolean,
     structures: Structures,
     dt: number,
@@ -82,12 +102,10 @@ export class View {
     }
     const out = this.reach * this.reach * (3 - 2 * this.reach); // eased at both ends
     const f = lookDirection(yaw, pitch);
-    const back = BOOM_BACK * stature;
-    const right = BOOM_RIGHT * Math.max(1, stature); // a small body is no narrower across the shoulders than its gun arm reaches
     const want = new Vector3(
-      eyes.x - f.x * back + Math.cos(yaw) * right,
-      eyes.y - f.y * back + BOOM_UP * stature,
-      eyes.z - f.z * back - Math.sin(yaw) * right,
+      eyes.x - f.x * boom.back + Math.cos(yaw) * boom.right,
+      eyes.y - f.y * boom.back + boom.up,
+      eyes.z - f.z * boom.back - Math.sin(yaw) * boom.right,
     );
     const span = Vector3.Distance(eyes, want);
     const dir = want.subtract(eyes).scaleInPlace(1 / span);

@@ -1,11 +1,11 @@
 // Sound effects: short recordings in public/assets/sounds, fetched in the background once the
-// browser lets the page make sound (after the first click or key); one that hasn't arrived yet
-// doesn't play. SOUNDS says what each one is, and ITEM_SOUNDS and GEAR_SOUNDS which item or gear
-// makes which, so a new weapon is a row in each (the Records make the compiler ask). Other
-// players' sounds are placed where they are and fade with distance (falloff); the local player's
-// own play flat. Everything goes through one limiter, so a pile of
-// shots at once gets squashed rather than clipping.
-import type { GearId, ItemId, Vec3 } from '@world/shared';
+// browser lets the page make sound (after the first click or key), or, for a big one (`lazy`), the
+// first time it's wanted; one that hasn't arrived yet doesn't play. SOUNDS says what each one is,
+// and ITEM_SOUNDS, GEAR_SOUNDS and ACTION_SOUNDS which item, gear or class action makes which, so a
+// new weapon is a row in each (the Records make the compiler ask). Other players' sounds are placed
+// where they are and fade with distance (falloff); the local player's own play flat. Everything
+// goes through one limiter, so a pile of shots at once gets squashed rather than clipping.
+import type { GearId, ItemAction, ItemId, Vec3 } from '@world/shared';
 
 export type SoundId =
   | 'gun'
@@ -27,7 +27,12 @@ export type SoundId =
   | 'jump'
   | 'land'
   | 'land-hard'
-  | 'hurt';
+  | 'hurt'
+  | 'roar-1'
+  | 'roar-2'
+  | 'roar-3'
+  | 'dragon-cry'
+  | 'dragon-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -37,6 +42,7 @@ interface SoundSpec {
   loop?: boolean;
   intro?: string; // played once first, ending on the sample the loop starts on
   swell?: number; // seconds a loop takes to rise from silence to its volume (FADE if not given)
+  lazy?: boolean; // fetched the first time it's wanted, not up front: a big one few will hear
 }
 
 // Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
@@ -64,6 +70,13 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing
+  // A dragon's (the light dragon's own cries): its roars carry across the whole world, as does the
+  // cry it rises out of the ground with; its theme plays from its head, soft a way off.
+  'roar-1': { file: 'roar-1.mp3', half: 45, volume: 0.5 },
+  'roar-2': { file: 'roar-2.mp3', half: 45, volume: 0.5 },
+  'roar-3': { file: 'roar-3.mp3', half: 45, volume: 0.5 },
+  'dragon-cry': { file: 'dragon-cry.mp3', half: 45, volume: 0.5 },
+  'dragon-theme': { file: 'dragon-theme.mp3', half: 25, volume: 0.22, loop: true, swell: 2.5, lazy: true },
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
@@ -76,10 +89,18 @@ export const ITEM_SOUNDS: Record<
   gun: { shot: 'gun' },
   sniper: { shot: 'sniper', nearMiss: { within: 20, sounds: ['whiz-1', 'whiz-2', 'whiz-3'] } },
   flamethrower: { firing: 'flame' },
+  firebreath: { firing: 'flame' },
 };
 
 export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
   jetpack: { thrusting: 'jet' },
+};
+
+// What a class's own actions sound like, played where whoever did it is.
+export const ACTION_SOUNDS: Partial<Record<ItemAction, SoundId>> = {
+  'roar-1': 'roar-1',
+  'roar-2': 'roar-2',
+  'roar-3': 'roar-3',
 };
 
 // The loops a player is making this frame: their hold weapon spraying, their gear thrusting.
@@ -117,6 +138,7 @@ export class Sfx {
   private out: AudioNode | null = null; // the limiter in front of the speakers
   private heard: Vec3 = { x: 0, y: 0, z: 0 }; // the listener
   private readonly buffers = new Map<string, AudioBuffer>();
+  private readonly fetched = new Set<string>();
   private readonly loops = new Map<string, Voice>();
 
   constructor() {
@@ -164,14 +186,16 @@ export class Sfx {
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
   // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
   // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long).
+  // False if it couldn't play yet: no sound until the page is clicked, or the recording still on
+  // its way.
   play(
     id: SoundId,
     at: Vec3 | null = null,
     o: { delay?: number; along?: Vec3; level?: number; rate?: number } = {},
-  ): void {
-    const buffer = this.buffers.get(SOUNDS[id].file);
-    if (!this.ctx || !buffer) return;
-    if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return;
+  ): boolean {
+    const buffer = this.buffer(id);
+    if (!this.ctx || !buffer) return false;
+    if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
     const t = this.ctx.currentTime + (o.delay ?? 0);
     const voice = this.voice(id, at, o.level ?? 1);
     const src = new AudioBufferSourceNode(this.ctx, { buffer, playbackRate: o.rate ?? 1 });
@@ -184,6 +208,7 @@ export class Sfx {
       place(voice.panner, from, t);
       glide(voice.panner, to, t + buffer.duration / (o.rate ?? 1));
     }
+    return true;
   }
 
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
@@ -218,7 +243,7 @@ export class Sfx {
   private startLoop(id: SoundId, at: Vec3 | null): Voice | null {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
-    const buffer = this.buffers.get(spec.file);
+    const buffer = this.buffer(id);
     if (!buffer) return null;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
@@ -253,15 +278,30 @@ export class Sfx {
     return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime };
   }
 
-  // Every file, fetched and decoded in the background.
+  // A sound's recording, if it has arrived; a lazy one is sent for the first time it's asked for.
+  private buffer(id: SoundId): AudioBuffer | undefined {
+    const spec = SOUNDS[id];
+    if (spec.lazy && this.ctx) this.fetch(this.ctx, spec.file);
+    return this.buffers.get(spec.file);
+  }
+
+  // Every file but the lazy ones, fetched and decoded in the background.
   private load(ctx: AudioContext): void {
-    const files = new Set(Object.values(SOUNDS).flatMap((s) => (s.intro ? [s.file, s.intro] : [s.file])));
-    for (const file of files)
-      void fetch(`/assets/sounds/${file}`)
-        .then((r) => r.arrayBuffer())
-        .then((data) => ctx.decodeAudioData(data))
-        .then((buffer) => this.buffers.set(file, buffer))
-        .catch(() => {});
+    for (const spec of Object.values(SOUNDS)) {
+      if (spec.lazy) continue;
+      this.fetch(ctx, spec.file);
+      if (spec.intro) this.fetch(ctx, spec.intro);
+    }
+  }
+
+  private fetch(ctx: AudioContext, file: string): void {
+    if (this.fetched.has(file)) return;
+    this.fetched.add(file);
+    void fetch(`/assets/sounds/${file}`)
+      .then((r) => r.arrayBuffer())
+      .then((data) => ctx.decodeAudioData(data))
+      .then((buffer) => this.buffers.set(file, buffer))
+      .catch(() => {});
   }
 }
 

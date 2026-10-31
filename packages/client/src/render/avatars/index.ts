@@ -3,6 +3,7 @@
 import type { AvatarId } from '@world/shared';
 import type { Engine } from '../Engine';
 import { BodyAvatar } from './Body';
+import { DragonAvatar } from './Dragon';
 import { ElizabethAvatar } from './Elizabeth';
 import { KRABS } from './Krabs';
 import { MIKE } from './Mike';
@@ -15,6 +16,7 @@ import type { Avatar } from './common';
 
 export type { Avatar } from './common';
 export { StandardAvatar } from './Standard';
+export { preloadDragonModel } from './Dragon';
 
 export function createAvatar(engine: Engine, p: { id: string; color: string; avatar: AvatarId }): Avatar {
   switch (p.avatar) {
@@ -34,5 +36,7 @@ export function createAvatar(engine: Engine, p: { id: string; color: string; ava
       return new BodyAvatar(engine, p.id, KRABS);
     case 'standard':
       return new StandardAvatar(engine, p.id, p.color);
+    case 'light-dragon':
+      return new DragonAvatar(engine, p.id);
   }
 }

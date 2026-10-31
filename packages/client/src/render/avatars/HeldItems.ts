@@ -40,6 +40,10 @@ export class HeldItems {
       node.position.copyFrom(handOffset);
       node.rotation.x = Math.PI / 2;
       const muzzle = buildWeapon(scene, `${name}-${item}`, item, node, pal);
+      if (!muzzle) {
+        node.dispose();
+        continue;
+      }
       if (item === 'flamethrower') {
         nozzle = new TransformNode(`${name}-nozzle`, scene);
         nozzle.parent = node;
@@ -52,7 +56,14 @@ export class HeldItems {
     this.tank = buildTank(scene, name, back, pal);
     this.tank.position.copyFrom(backOffset);
     this.tank.setEnabled(false);
-    this.jet = new FlameJet(engine, name, nozzle!, ITEMS.flamethrower.range);
+    const flame = ITEMS.flamethrower.fire;
+    this.jet = new FlameJet(
+      engine,
+      name,
+      nozzle!,
+      ITEMS.flamethrower.range,
+      flame.kind === 'cone' ? flame.halfAngle : 0,
+    );
     this.gear = new WornGear(engine, name, back, backOffset);
     this.backOffset = backOffset.clone();
   }
@@ -70,8 +81,8 @@ export class HeldItems {
     this.gear.update(gear, thrusting, dt);
     this.tank.position.z = this.backOffset.z - this.gear.depth;
     if (item !== this.held) {
-      if (this.held) this.weapons.get(this.held)!.setEnabled(false);
-      if (item) this.weapons.get(item)!.setEnabled(true);
+      if (this.held) this.weapons.get(this.held)?.setEnabled(false);
+      if (item) this.weapons.get(item)?.setEnabled(true);
       this.tank.setEnabled(item === 'flamethrower');
       this.held = item;
     }
@@ -85,8 +96,8 @@ export class HeldItems {
 
   // A tap weapon's shot.
   fire(): void {
-    if (!this.held) return;
-    const flash = this.flashes.get(this.held)!;
+    const flash = this.held && this.flashes.get(this.held);
+    if (!flash) return;
     flash.setEnabled(true);
     flash.rotation.z = Math.random() * Math.PI;
     this.flashLeft = FLASH_SECONDS;

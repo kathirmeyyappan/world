@@ -10,7 +10,7 @@ import {
   TransformNode,
   type Vector3,
 } from '@babylonjs/core';
-import { MOVE_SPEED, WORLD_STRUCTURES, type AvatarId } from '@world/shared';
+import { MOVE_SPEED, WORLD_STRUCTURES, type AvatarId, type ItemAction } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 
@@ -24,6 +24,8 @@ export interface Avatar {
   hide(): void;
   dispose(): void;
   corpse(): Vector3 | null; // where the body lies, while dead and drawn; null otherwise
+  setHeadless?(on: boolean): void; // draw the body without the head, for its own wearer's view from its eyes
+  act?(action: ItemAction): void; // did one of its class's own actions (a dragon's roar)
 }
 
 const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed

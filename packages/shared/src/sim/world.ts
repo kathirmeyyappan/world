@@ -98,6 +98,23 @@ export function worldDiscs(shape: WorldPart[] = WORLD_SHAPE): Disc[] {
   return shape.filter((p): p is Disc => p.kind === 'disc');
 }
 
+// How far out from the origin the world reaches: a circle round every part of it, the sky a dragon
+// flies in, over the ground or the void.
+export function worldReach(shape: WorldPart[] = WORLD_SHAPE): number {
+  let reach = 0;
+  for (const part of shape) {
+    if (part.kind === 'disc') reach = Math.max(reach, Math.hypot(part.x, part.z) + part.r);
+    else if (part.kind === 'bridge')
+      reach = Math.max(
+        reach,
+        Math.hypot(part.ax, part.az) + part.halfWidth,
+        Math.hypot(part.bx, part.bz) + part.halfWidth,
+      );
+    else reach = Math.max(reach, Math.hypot(part.x, part.z) + part.r + part.halfWidth);
+  }
+  return reach;
+}
+
 // Keeps `pos` at least `padding` inside the world. Finds the part the point is deepest in (or
 // nearest to) and pushes the point back onto that part's inset edge, which slides naturally
 // along walls and lets a player pass from a disc into a bridge without a seam.

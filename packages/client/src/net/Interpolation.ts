@@ -3,12 +3,14 @@
 import {
   INTERP_DELAY_TICKS,
   TICK_RATE,
+  type Vec3,
   type CubeSnapshot,
   type PickupSnapshot,
   type PlayerState,
   type ItemId,
   type GearId,
   type AvatarId,
+  type DragonState,
 } from '@world/shared';
 
 interface Snapshot {
@@ -34,9 +36,11 @@ export interface RemotePlayer {
   thrusting: boolean;
   dead: boolean;
   avatar: AvatarId;
+  dragon: DragonState | null; // a dragon's body, its spine drawn between snapshots like the head
   bot: boolean;
-  // Standing on something (a floor, a stair, a deck): the sim zeroes vy whenever a player is on the
-  // ground, so this is the server's own answer rather than a guess from the drawn height.
+  // Standing on something (a floor, a stair, a deck): the sim zeroes vy whenever a walker is on the
+  // ground, so this is the server's own answer rather than a guess from the drawn height. A dragon
+  // flies.
   grounded: boolean;
 }
 
@@ -109,8 +113,13 @@ export class Interpolation {
         thrusting: b.thrusting,
         dead: b.dead,
         avatar: b.avatar,
+        dragon: b.dragon && {
+          ...b.dragon,
+          head: lerpUnit(a.dragon?.head, b.dragon.head, t),
+          spine: lerpSpine(a.dragon?.spine, b.dragon.spine, t),
+        },
         bot: b.bot,
-        grounded: b.vy === 0,
+        grounded: b.vy === 0 && !b.dragon,
       });
     }
     const cubes: CubeSnapshot[] = [];
@@ -138,6 +147,20 @@ export class Interpolation {
     }
     return { players, cubes, pickups };
   }
+}
+
+// Between two spines point for point; the newer one alone when they aren't the same body.
+function lerpSpine(a: number[] | undefined, b: number[], t: number): number[] {
+  return a && a.length === b.length ? b.map((v, i) => lerp(a[i], v, t)) : b;
+}
+
+function lerpUnit(a: Vec3 | undefined, b: Vec3, t: number): Vec3 {
+  if (!a) return b;
+  const x = lerp(a.x, b.x, t);
+  const y = lerp(a.y, b.y, t);
+  const z = lerp(a.z, b.z, t);
+  const len = Math.hypot(x, y, z);
+  return len > 1e-6 ? { x: x / len, y: y / len, z: z / len } : b;
 }
 
 function lerp(a: number, b: number, t: number): number {

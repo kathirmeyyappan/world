@@ -13,6 +13,8 @@ import {
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   actionForKey,
+  actionHelp,
+  classOf,
   createRng,
   hashSeed,
   isGrounded,
@@ -24,6 +26,8 @@ import {
   type ItemAction,
   type ItemId,
   type ItemState,
+  type ClassSpec,
+  type PlayerClass,
   type PlayerState,
   type ServerMessage,
   type Vec3,
@@ -33,7 +37,7 @@ import {
   statureOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
-import { ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
+import { ACTION_SOUNDS, ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -41,7 +45,7 @@ import { IS_TOUCH } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, StandardAvatar, type Avatar } from '../render/avatars';
+import { createAvatar, preloadDragonModel, StandardAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -66,7 +70,7 @@ import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
-import { View } from './View';
+import { VIEWS, View, type Boom } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
@@ -86,7 +90,6 @@ const BOB = 0.02;
 const BOB_EASE = 0.15; // seconds the bob takes to come and go with the walk
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const FRAME_RANGE = 40; // metres from a frame you can read its line: the tower's width, wall to wall
-const DEFAULT_FOV = 1.2;
 const SCOPED_FOV = 0.3;
 const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can see across the world
 const HIP_KICK = 0.02;
@@ -97,6 +100,9 @@ const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
 const OWN_SHOT = 0.7;
 const NEAR_MISS_DELAY = 0.1; // seconds after the shot that a near miss whizzes by (about 4 frames)
 const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size they read as toys
+// A roar comes back off the world: the same again, this much later and this much quieter.
+const ECHO_DELAY = 0.5;
+const ECHO_LEVEL = 0.3;
 
 export class Game {
   private readonly engine: Engine;
@@ -117,6 +123,8 @@ export class Game {
   private readonly view = new View();
   private aim = { yaw: 0, pitch: 0 }; // the look sent this frame: the camera's, or in third person the eyes' at the crosshair's target
   private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
+  private classId: PlayerClass | null = null; // the class the player was last seen as
+  private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
   private readonly skyByMesh = new Map<string, SkyObject>();
@@ -171,10 +179,11 @@ export class Game {
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
+    preloadDragonModel();
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
-    this.camera.fov = DEFAULT_FOV;
+    this.camera.fov = VIEWS.walker.fov;
     this.engine.scene.activeCamera = this.camera;
     this.viewmodel = new Viewmodel(this.engine, this.camera);
     this.pickups = new Pickups(this.engine);
@@ -285,11 +294,14 @@ export class Game {
     }
     this.localEffects(actions.includes('shoot'));
     // Gear actions are holds, on their key (the jetpack's is the jump key, which the touch jump
-    // button also holds down).
-    const gear = this.prediction?.state.gear;
-    if (gear)
-      for (const [action, spec] of Object.entries(GEAR[gear.id].actions))
+    // button also holds down). The class's own are taps, reported as levels like the shot.
+    const self = this.prediction?.state;
+    if (self?.gear)
+      for (const [action, spec] of Object.entries(GEAR[self.gear.id].actions))
         if (this.input.isDown(spec.key)) actions.push(action as ItemAction);
+    if (self)
+      for (const [action, spec] of Object.entries(classOf(self.avatar).actions))
+        if (this.input.isDown(spec.key) || this.input.wasPressed(spec.key)) actions.push(action as ItemAction);
     return actions;
   }
 
@@ -335,9 +347,20 @@ export class Game {
     document.getElementById('scope')!.classList.toggle('hidden', !on);
   }
 
-  // The view the worn avatar has when not scoped.
+  // The view the worn avatar has when not scoped: its class's, and for a walker a little wider or
+  // narrower by its stature.
   private wornFov(): number {
-    return DEFAULT_FOV * Math.pow(this.stature ?? 1, -FOV_SHRINK);
+    const cls = this.prediction ? classOf(this.prediction.state.avatar) : null;
+    return (cls ? VIEWS[cls.id].fov : VIEWS.walker.fov) * Math.pow(this.stature ?? 1, -FOV_SHRINK);
+  }
+
+  // The boom the camera hangs on in third person: the class's, scaled to a walker's stature.
+  private boom(): Boom {
+    const cls = classOf(this.prediction!.state.avatar);
+    const { boom } = VIEWS[cls.id];
+    const scale = cls.id === 'walker' ? (this.stature ?? 1) : 1;
+    // A small body is no narrower across the shoulders than its gun arm reaches.
+    return { back: boom.back * scale, right: boom.right * Math.max(1, scale), up: boom.up * scale };
   }
 
   private isBlocked(): boolean {
@@ -376,6 +399,7 @@ export class Game {
         this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) {
+          this.hearts.setLife(classOf(me.avatar));
           if (me.hearts > this.hearts.count && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
         }
@@ -414,6 +438,16 @@ export class Game {
       case 'shot':
         if (m.id !== this.myId) this.pendingShots.push({ shooter: m.id, hitMe: false });
         return;
+      case 'action': {
+        const sound = ACTION_SOUNDS[m.action];
+        const at = this.headOf(m.id);
+        if (sound && at) {
+          this.sfx.play(sound, at);
+          this.sfx.play(sound, at, { delay: ECHO_DELAY, level: ECHO_LEVEL });
+        }
+        (m.id === this.myId ? this.ownAvatar : this.avatars.get(m.id))?.act?.(m.action);
+        return;
+      }
       case 'hit':
         this.onHit(m);
         return;
@@ -434,6 +468,13 @@ export class Game {
         this.hud.system(m.message);
         return;
     }
+  }
+
+  // Where a player's head is right now: the local player's by prediction, anyone else's as drawn.
+  private headOf(id: string): Vec3 | null {
+    if (id === this.myId) return this.prediction?.state.pos ?? null;
+    const p = this.interp.sample(performance.now(), this.myId).players.find((rp) => rp.id === id);
+    return p ? { x: p.x, y: p.y, z: p.z } : null;
   }
 
   // The local player died; `how` heads the death screen.
@@ -555,6 +596,14 @@ export class Game {
     // look changes, and never up through a lintel or ceiling the body fits under.
     const worn = statureOf(self.avatar);
     this.stature = this.stature === null ? worn : this.stature + (worn - this.stature) * Math.min(1, dt / EYE_EASE);
+    // A new class is seen its own way (a dragon from behind and above, by default) and has its own
+    // keys.
+    const cls = classOf(self.avatar).id;
+    if (cls !== this.classId) {
+      if (cls === 'dragon') this.view.set('third');
+      this.hud.setKeys(cls);
+      this.classId = cls;
+    }
     const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
     if (!this.scoped) this.camera.fov = this.wornFov();
     // The bob follows the body's own speed across the ground, so it fades out against a wall and
@@ -573,7 +622,7 @@ export class Game {
       dip,
       this.input.yaw,
       this.input.pitch,
-      this.stature,
+      this.boom(),
       this.scoped,
       WORLD_STRUCTURES,
       dt,
@@ -591,7 +640,7 @@ export class Game {
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
     this.hud.setItemHint(
-      held && !this.dead ? itemHint(held.id, !IS_TOUCH, this.scoped) : '',
+      held && !this.dead ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held ? itemStats(held.id) : '',
     );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
@@ -620,7 +669,7 @@ export class Game {
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
-    this.updateOwnAvatar(this.view.showsBody, { x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
+    this.updateOwnAvatar({ x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
@@ -641,7 +690,7 @@ export class Game {
       this.canFire() &&
       resolveFire(
         ITEMS[held.id],
-        { id: this.myId, pos: me.pos, yaw: this.aim.yaw, pitch: this.aim.pitch, avatar: me.avatar },
+        { id: this.myId, pos: me.pos, yaw: this.aim.yaw, pitch: this.aim.pitch, avatar: me.avatar, dragon: me.dragon },
         targets(sampled.players),
         WORLD_STRUCTURES,
       ).length > 0;
@@ -673,6 +722,25 @@ export class Game {
         self: false,
       })),
     ]);
+    // Every dragon rises out of the ground with a cry (kept trying until the recording has arrived,
+    // and heard again from the same player's next one); the nearest living one's theme plays from
+    // its head.
+    const dragons = [
+      ...(self.dragon && !this.dead ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen }] : []),
+      ...sampled.players.flatMap((rp) =>
+        rp.dragon && !rp.dead ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon.risen }] : [],
+      ),
+    ];
+    for (const d of dragons) {
+      if (d.risen) this.cried.delete(d.id);
+      else if (!this.cried.has(d.id) && this.sfx.play('dragon-cry', d.at)) this.cried.add(d.id);
+    }
+    const ear = this.camera.position;
+    const nearest = dragons.sort(
+      (a, b) =>
+        Vector3.Distance(ear, new Vector3(a.at.x, a.at.y, a.at.z)) -
+        Vector3.Distance(ear, new Vector3(b.at.x, b.at.y, b.at.z)),
+    )[0];
     this.sfx.setLoops([
       ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
         key: this.myId,
@@ -681,6 +749,7 @@ export class Game {
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...stepLoops,
+      ...(nearest ? [{ key: 'dragon', id: 'dragon-theme' as const, at: nearest.at }] : []),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
@@ -691,14 +760,11 @@ export class Game {
     }
   }
 
-  // The player's own body, drawn only in third person: where prediction has it (its eye point `at`,
-  // corrected but not trailing a step like the camera), turned to the look sent.
-  private updateOwnAvatar(shown: boolean, at: Vec3, held: ItemState | null): void {
+  // The player's own body: where prediction has it (its eye point `at`, corrected but not trailing a
+  // step like the camera), turned to the look sent. Drawn in third person, and from the eyes only
+  // where the body goes on behind them without the head (a dragon's).
+  private updateOwnAvatar(at: Vec3, held: ItemState | null): void {
     const self = this.prediction!.state;
-    if (!shown) {
-      this.ownAvatar?.hide();
-      return;
-    }
     let avatar = this.ownAvatar;
     if (avatar && (avatar.kind !== self.avatar || (avatar instanceof StandardAvatar && avatar.color !== self.color))) {
       avatar.dispose();
@@ -708,7 +774,14 @@ export class Game {
       avatar = this.ownAvatar = createAvatar(this.engine, self);
       avatar.scaleWeapons(OWN_WEAPON_SCALE);
     }
-    avatar.update({
+    const own: Avatar = avatar;
+    const shown = this.view.showsBody;
+    if (!shown && !own.setHeadless) {
+      own.hide();
+      return;
+    }
+    own.setHeadless?.(!shown);
+    own.update({
       id: self.id,
       name: self.name,
       color: self.color,
@@ -724,6 +797,7 @@ export class Game {
       thrusting: self.thrusting,
       dead: this.dead,
       avatar: self.avatar,
+      dragon: self.dragon,
       bot: false,
       grounded: isGrounded(self),
     });
@@ -787,17 +861,26 @@ export class Game {
   }
 }
 
-// The hint bar's text. A scope-only weapon leads with the step that's missing.
-function itemHint(id: ItemId, withKeys: boolean, scoped: boolean): string {
+// The hint bar's text. A scope-only weapon leads with the step that's missing; a class with
+// actions of its own (a dragon's roars) has them after the item's.
+function itemHint(id: ItemId, withKeys: boolean, scoped: boolean, cls: ClassSpec): string {
   const parts = [id.toUpperCase()];
   if (ITEMS[id].fireNeedsScope && !scoped)
     parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
   else if (withKeys) parts.push(itemHelp(id, ' · '));
+  const own = withKeys ? actionHelp(cls.actions) : '';
+  if (own) parts.push(own);
   return parts.join(' · ');
 }
 
 function targets(players: RemotePlayer[]) {
-  return players.map((p) => ({ id: p.id, pos: { x: p.x, y: p.y, z: p.z }, dead: p.dead, avatar: p.avatar }));
+  return players.map((p) => ({
+    id: p.id,
+    pos: { x: p.x, y: p.y, z: p.z },
+    dead: p.dead,
+    avatar: p.avatar,
+    dragon: p.dragon,
+  }));
 }
 
 // The whole page, HUD included, so the browser's own Esc (or O again) comes back out.
