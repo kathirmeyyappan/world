@@ -186,14 +186,16 @@ export class Sfx {
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
   // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
   // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long).
+  // False if it couldn't play yet: no sound until the page is clicked, or the recording still on
+  // its way.
   play(
     id: SoundId,
     at: Vec3 | null = null,
     o: { delay?: number; along?: Vec3; level?: number; rate?: number } = {},
-  ): void {
+  ): boolean {
     const buffer = this.buffer(id);
-    if (!this.ctx || !buffer) return;
-    if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return;
+    if (!this.ctx || !buffer) return false;
+    if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
     const t = this.ctx.currentTime + (o.delay ?? 0);
     const voice = this.voice(id, at, o.level ?? 1);
     const src = new AudioBufferSourceNode(this.ctx, { buffer, playbackRate: o.rate ?? 1 });
@@ -206,6 +208,7 @@ export class Sfx {
       place(voice.panner, from, t);
       glide(voice.panner, to, t + buffer.duration / (o.rate ?? 1));
     }
+    return true;
   }
 
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null

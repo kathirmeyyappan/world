@@ -16,6 +16,7 @@ import type { Avatar } from './common';
 
 export type { Avatar } from './common';
 export { StandardAvatar } from './Standard';
+export { preloadDragonModel } from './Dragon';
 
 export function createAvatar(engine: Engine, p: { id: string; color: string; avatar: AvatarId }): Avatar {
   switch (p.avatar) {
