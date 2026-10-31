@@ -198,7 +198,7 @@ switching into it, `enter`/`exit` for its own state on `PlayerState`, its `hitSh
 capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it leaves. The walker
 (`walker.ts`) is everyone on foot; the dragon (`dragon.ts`) is a head sphere flying where its rider
 looks with a spine of points following it, kept 4 m up and too big for a door, breathing a wide
-cone (`fire-breath`, the look's own item) and roaring on A, S and D; its rules and numbers are
+cone (`firebreath`, the look's own item) and roaring on A, S and D; its rules and numbers are
 constants at the top of that file. `becomeAvatar` (`player.ts`) is the one way a player changes
 look: a new class is a new body at the same eye point, with hearts in proportion.
 

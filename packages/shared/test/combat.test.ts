@@ -124,7 +124,7 @@ test('a dragon is hit on its head, a headshot, or anywhere along its body; its b
   dragon.pitch = Math.atan2(6 - EYE_HEIGHT, 10);
   const side = at('side', 6, 0); // 31 degrees off the line down to me
   assert.deepEqual(
-    resolveFire(ITEMS['fire-breath'], dragon, [me, side])
+    resolveFire(ITEMS['firebreath'], dragon, [me, side])
       .map((h) => h.target.id)
       .sort(),
     ['me', 'side'],

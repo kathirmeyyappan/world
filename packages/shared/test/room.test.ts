@@ -781,12 +781,12 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
   room.receive(ida, { t: 'chat', text: '/light-dragon' });
   assert.equal(alice.avatar, 'light-dragon');
   assert.equal(alice.hearts, 28);
-  assert.deepEqual(alice.item, { id: 'fire-breath', locked: true, fuel: 7.5 });
+  assert.deepEqual(alice.item, { id: 'firebreath', locked: true, fuel: 7.5 });
   assert.equal(alice.gear, null);
   assert.equal(alice.boost, 0);
   assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'alice is now light-dragon'));
   room.receive(ida, { t: 'chat', text: '/gun' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you can't put down your fire-breath" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you can't put down your firebreath" });
   room.receive(ida, { t: 'chat', text: '/jetpack' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as a dragon' });
   room.receive(ida, { t: 'chat', text: '/speedy' });
