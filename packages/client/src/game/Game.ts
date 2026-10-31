@@ -13,7 +13,6 @@ import {
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   actionForKey,
-  actionHelp,
   classOf,
   createRng,
   hashSeed,
@@ -26,8 +25,6 @@ import {
   type ItemAction,
   type ItemId,
   type ItemState,
-  type ClassSpec,
-  type PlayerClass,
   type PlayerState,
   type ServerMessage,
   type Vec3,
@@ -70,7 +67,7 @@ import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
-import { VIEWS, View, type Boom } from './View';
+import { View } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
@@ -90,6 +87,7 @@ const BOB = 0.02;
 const BOB_EASE = 0.15; // seconds the bob takes to come and go with the walk
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const FRAME_RANGE = 40; // metres from a frame you can read its line: the tower's width, wall to wall
+const DEFAULT_FOV = 1.2;
 const SCOPED_FOV = 0.3;
 const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can see across the world
 const HIP_KICK = 0.02;
@@ -119,7 +117,6 @@ export class Game {
   private readonly view = new View();
   private aim = { yaw: 0, pitch: 0 }; // the look sent this frame: the camera's, or in third person the eyes' at the crosshair's target
   private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
-  private classId: PlayerClass | null = null; // the class the player was last seen as
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
   private readonly skyByMesh = new Map<string, SkyObject>();
@@ -177,7 +174,7 @@ export class Game {
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
-    this.camera.fov = VIEWS.walker.fov;
+    this.camera.fov = DEFAULT_FOV;
     this.engine.scene.activeCamera = this.camera;
     this.viewmodel = new Viewmodel(this.engine, this.camera);
     this.pickups = new Pickups(this.engine);
@@ -341,19 +338,9 @@ export class Game {
     document.getElementById('scope')!.classList.toggle('hidden', !on);
   }
 
-  // The view the worn avatar has when not scoped: its class's, and for a walker a little wider or
-  // narrower by its stature.
+  // The view the worn avatar has when not scoped.
   private wornFov(): number {
-    const cls = this.prediction ? classOf(this.prediction.state.avatar) : null;
-    return (cls ? VIEWS[cls.id].fov : VIEWS.walker.fov) * Math.pow(this.stature ?? 1, -FOV_SHRINK);
-  }
-
-  // The boom the camera hangs on in third person: the class's, scaled to a walker's stature.
-  private boom(): Boom {
-    const cls = classOf(this.prediction!.state.avatar);
-    const { boom } = VIEWS[cls.id];
-    const scale = cls.id === 'walker' ? (this.stature ?? 1) : 1;
-    return { back: boom.back * scale, right: boom.right * scale, up: boom.up * scale };
+    return DEFAULT_FOV * Math.pow(this.stature ?? 1, -FOV_SHRINK);
   }
 
   private isBlocked(): boolean {
@@ -572,14 +559,6 @@ export class Game {
     // look changes, and never up through a lintel or ceiling the body fits under.
     const worn = statureOf(self.avatar);
     this.stature = this.stature === null ? worn : this.stature + (worn - this.stature) * Math.min(1, dt / EYE_EASE);
-    // A new class is seen its own way (a dragon from behind and above, by default) and has its own
-    // keys.
-    const cls = classOf(self.avatar).id;
-    if (cls !== this.classId) {
-      if (cls === 'dragon') this.view.set('third');
-      this.hud.setKeys(cls);
-      this.classId = cls;
-    }
     const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
     if (!this.scoped) this.camera.fov = this.wornFov();
     // The bob follows the body's own speed across the ground, so it fades out against a wall and
@@ -598,7 +577,7 @@ export class Game {
       dip,
       this.input.yaw,
       this.input.pitch,
-      this.boom(),
+      this.stature,
       this.scoped,
       WORLD_STRUCTURES,
       dt,
@@ -616,7 +595,7 @@ export class Game {
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
     this.hud.setItemHint(
-      held && !this.dead ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
+      held && !this.dead ? itemHint(held.id, !IS_TOUCH, this.scoped) : '',
       held ? itemStats(held.id) : '',
     );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
@@ -645,7 +624,7 @@ export class Game {
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
-    this.updateOwnAvatar({ x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
+    this.updateOwnAvatar(this.view.showsBody, { x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
@@ -716,25 +695,21 @@ export class Game {
     }
   }
 
-  // The player's own body: where prediction has it (its eye point `at`, corrected but not trailing a
-  // step like the camera), turned to the look sent. Drawn in third person, and from the eyes only
-  // where the body goes on behind them without the head (a dragon's).
-  private updateOwnAvatar(at: Vec3, held: ItemState | null): void {
+  // The player's own body, drawn only in third person: where prediction has it (its eye point `at`,
+  // corrected but not trailing a step like the camera), turned to the look sent.
+  private updateOwnAvatar(shown: boolean, at: Vec3, held: ItemState | null): void {
     const self = this.prediction!.state;
+    if (!shown) {
+      this.ownAvatar?.hide();
+      return;
+    }
     let avatar = this.ownAvatar;
     if (avatar && (avatar.kind !== self.avatar || (avatar instanceof StandardAvatar && avatar.color !== self.color))) {
       avatar.dispose();
       avatar = null;
     }
     if (!avatar) avatar = this.ownAvatar = createAvatar(this.engine, self);
-    const own: Avatar = avatar;
-    const shown = this.view.showsBody;
-    if (!shown && !own.setHeadless) {
-      own.hide();
-      return;
-    }
-    own.setHeadless?.(!shown);
-    own.update({
+    avatar.update({
       id: self.id,
       name: self.name,
       color: self.color,
@@ -814,15 +789,12 @@ export class Game {
   }
 }
 
-// The hint bar's text. A scope-only weapon leads with the step that's missing; a class with
-// actions of its own (a dragon's roars) has them after the item's.
-function itemHint(id: ItemId, withKeys: boolean, scoped: boolean, cls: ClassSpec): string {
+// The hint bar's text. A scope-only weapon leads with the step that's missing.
+function itemHint(id: ItemId, withKeys: boolean, scoped: boolean): string {
   const parts = [id.toUpperCase()];
   if (ITEMS[id].fireNeedsScope && !scoped)
     parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
   else if (withKeys) parts.push(itemHelp(id, ' · '));
-  const own = withKeys ? actionHelp(cls.actions) : '';
-  if (own) parts.push(own);
   return parts.join(' · ');
 }
 

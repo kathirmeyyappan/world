@@ -56,14 +56,7 @@ export class HeldItems {
     this.tank = buildTank(scene, name, back, pal);
     this.tank.position.copyFrom(backOffset);
     this.tank.setEnabled(false);
-    const flame = ITEMS.flamethrower.fire;
-    this.jet = new FlameJet(
-      engine,
-      name,
-      nozzle!,
-      ITEMS.flamethrower.range,
-      flame.kind === 'cone' ? flame.halfAngle : 0,
-    );
+    this.jet = new FlameJet(engine, name, nozzle!, ITEMS.flamethrower.range);
     this.gear = new WornGear(engine, name, back, backOffset);
     this.backOffset = backOffset.clone();
   }

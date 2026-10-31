@@ -25,13 +25,17 @@ size.
 from __future__ import annotations
 
 import base64
+import io
+import json
+import math
+import struct
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import fast_simplification
 import numpy as np
 from PIL import Image
-from glb import SMALL_PART, accessor, closed, decimate, local_matrix, name_of, pack_atlas, read_glb
 
 CLIENT = Path(__file__).resolve().parents[1]
 
@@ -144,6 +148,11 @@ MONSTERS = {
         texture_size=128,
     ),
 }
+
+SEAM = 0.1  # texture coordinates further apart than this are on different sides of a seam
+SMALL_PART = 100  # triangles: a part with no more is kept whole when the model is decimated
+SWATCH = 8  # px: the square a plain colour gets in the atlas
+GUTTER = 8  # px between the atlas's regions, so their mipmaps bleed into nothing that's used
 
 
 def main(name: str, glb: str) -> None:
@@ -296,7 +305,7 @@ def main(name: str, glb: str) -> None:
     # Fallen on its back, the body lies this far up: how far the back is behind the root bone's pivot.
     lie = -posed[order[:, 0] == 0][:, 2].min()
 
-    atlas, uv = pack_atlas(doc, blob, uv, material, monster.colours, monster.texture_size)
+    atlas, uv = pack_atlas(doc, blob, monster, uv, material)
 
     def b64(a: np.ndarray) -> str:
         return base64.b64encode(a.tobytes()).decode()
@@ -335,6 +344,183 @@ def main(name: str, glb: str) -> None:
     texture_out.parent.mkdir(parents=True, exist_ok=True)
     atlas.quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(texture_out, optimize=True)
     print(f"wrote {texture_out} ({atlas.size[0]}x{atlas.size[1]}, {texture_out.stat().st_size} bytes)")
+
+
+def closed(part: dict) -> bool:
+    """Whether a part is a closed shell: every edge, with vertices at one spot taken as one, is
+    shared by two triangles."""
+    _, welded = np.unique(np.round(part["positions"], 5), axis=0, return_inverse=True)
+    corners = welded.ravel()[part["triangles"]]
+    edges = np.sort(np.concatenate([corners[:, [0, 1]], corners[:, [1, 2]], corners[:, [2, 0]]]), axis=1)
+    _, counts = np.unique(edges, axis=0, return_counts=True)
+    return bool(np.all(counts == 2))
+
+
+def decimate(part: dict, keep: float) -> None:
+    """Collapses a part's edges (quadric error, so the shape holds) until about `keep` of its
+    triangles are left. Vertices at one spot are welded for the collapsing, so a texture seam (whose
+    vertices come doubled, one per side) closes up with everything else; each corner of a surviving
+    triangle then stands where its vertex ended up but keeps the texture coordinates and normal of
+    the original closest to that spot on its own side of any seam, and the weights of them all."""
+    welded_points, welded = np.unique(np.round(part["positions"], 5), axis=0, return_inverse=True)
+    welded = welded.ravel()
+    points = welded_points.astype(np.float32)
+    faces = welded[part["triangles"]].astype(np.int64)
+    _, _, collapses = fast_simplification.simplify(points, faces, target_reduction=1 - keep, return_collapses=True)
+    kept_points, _, mapping = fast_simplification.replay_simplification(points, faces, collapses)
+    ended = mapping[welded]  # each original vertex's new one
+    corners = ended[part["triangles"]]
+    alive = (corners[:, 0] != corners[:, 1]) & (corners[:, 1] != corners[:, 2]) & (corners[:, 0] != corners[:, 2])
+    originals = part["triangles"][alive]
+    corners = corners[alive]
+
+    # The originals that ended up in each new vertex, to pick a corner's stand-in from.
+    by_new = np.argsort(ended, kind="stable")
+    starts = np.searchsorted(ended[by_new], np.arange(len(kept_points) + 1))
+    uvs = part["uvs"]
+    stand_in = np.empty_like(originals)
+    for f in range(len(originals)):
+        for c in range(3):
+            original, new = originals[f, c], corners[f, c]
+            candidates = by_new[starts[new] : starts[new + 1]]
+            same_side = candidates[np.linalg.norm(uvs[candidates] - uvs[original], axis=1) < SEAM]
+            distance = np.linalg.norm(part["positions"][same_side] - kept_points[new], axis=1)
+            stand_in[f, c] = same_side[np.argmin(distance)]
+    keys, triangles = np.unique(np.stack([corners.ravel(), stand_in.ravel()], axis=1), axis=0, return_inverse=True)
+    part["triangles"] = triangles.reshape(-1, 3)
+    part["positions"] = kept_points[keys[:, 0]].astype(np.float64)
+    for key in ("normals", "uvs"):
+        part[key] = part[key][keys[:, 1]]
+    # One set of weights per spot, whichever side of a seam a vertex is on, or the seam opens up
+    # as soon as a bone turns.
+    weights = np.zeros((len(kept_points), part["bones"].shape[1]))
+    np.add.at(weights, keys[:, 0], part["bones"][keys[:, 1]])
+    part["bones"] = (weights / np.bincount(keys[:, 0], minlength=len(kept_points))[:, None])[keys[:, 0]]
+
+
+def pack_atlas(
+    doc: dict, blob: bytes, monster: Monster, uv: np.ndarray, material: np.ndarray
+) -> tuple[Image.Image, np.ndarray]:
+    """One image for every material: each texture tiled over the whole-number range its coordinates
+    span (so repeats bake in and nothing wraps; a span that fits one tile but straddles a whole number
+    gets the image rolled round to it instead), each plain colour a swatch; laid out in a row, with
+    the coordinates moved into their region. A model with one texture and no repeats gets it back as
+    it is."""
+    regions: list[
+        tuple[Image.Image, np.ndarray, float, float, float, float]
+    ] = []  # image, vertices, u0, v0, u span, v span
+    textures = doc.get("textures", [])
+    by_texture: dict[int, list[int]] = {}
+    for m, mat in enumerate(doc["materials"]):
+        texture = mat.get("pbrMetallicRoughness", {}).get("baseColorTexture", {}).get("index")
+        if texture is None:
+            colour = monster.colours.get(mat["name"])
+            if colour is None:
+                factor = mat.get("pbrMetallicRoughness", {}).get("baseColorFactor", [1, 1, 1, 1])
+                colour = tuple(round(c ** (1 / 2.2) * 255) for c in factor[:3])
+                print(f"material {mat['name']} has no texture; using {colour}")
+            vertices = np.flatnonzero(material == m)
+            if len(vertices):
+                regions.append((Image.new("RGB", (SWATCH, SWATCH), colour), vertices, 0.5, 0.5, 0, 0))
+        else:
+            by_texture.setdefault(texture, []).append(m)
+    for texture, mats in by_texture.items():
+        vertices = np.flatnonzero(np.isin(material, mats))
+        view = doc["bufferViews"][doc["images"][textures[texture]["source"]]["bufferView"]]
+        image = Image.open(io.BytesIO(blob[view["byteOffset"] : view["byteOffset"] + view["byteLength"]])).convert(
+            "RGB"
+        )
+        extrema = image.getextrema()
+        if all(low == high for low, high in extrema):
+            # One colour all over: a swatch is the same thing in 64 pixels.
+            colour = tuple(low for low, _ in extrema)
+            regions.append((Image.new("RGB", (SWATCH, SWATCH), colour), vertices, 0.5, 0.5, 0, 0))
+            continue
+        if max(image.size) > monster.texture_size:
+            shrink = monster.texture_size / max(image.size)
+            image = image.resize((round(image.width * shrink), round(image.height * shrink)), Image.LANCZOS)
+        low, high = uv[vertices].min(axis=0), uv[vertices].max(axis=0)
+        if all(high - low <= 1):
+            # The texture repeats, so rolling it round by the fraction the span starts at puts the
+            # whole span on one copy.
+            pixels = np.roll(
+                np.asarray(image), (-round((low[1] % 1) * image.height), -round((low[0] % 1) * image.width)), (0, 1)
+            )
+            regions.append((Image.fromarray(pixels), vertices, float(low[0]), float(low[1]), 1, 1))
+            continue
+        u0, v0 = (math.floor(c) for c in low)
+        u1, v1 = (math.ceil(c) for c in high)
+        u1, v1 = max(u1, u0 + 1), max(v1, v0 + 1)
+        tiled = Image.new("RGB", (image.width * (u1 - u0), image.height * (v1 - v0)))
+        for i in range(u1 - u0):
+            for j in range(v1 - v0):
+                tiled.paste(image, (i * image.width, j * image.height))
+        regions.append((tiled, vertices, u0, v0, u1 - u0, v1 - v0))
+    if len(regions) == 1 and regions[0][4] == 1 and regions[0][5] == 1:
+        image, _, u0, v0, _, _ = regions[0]
+        return image, uv - [u0, v0]
+
+    width = sum(r[0].width for r in regions) + GUTTER * (len(regions) - 1)
+    height = max(r[0].height for r in regions)
+    atlas = Image.new("RGB", (width, height), (128, 128, 128))
+    placed = uv.copy()
+    x = 0
+    for image, vertices, u0, v0, du, dv in regions:
+        atlas.paste(image, (x, 0))
+        if du:
+            placed[vertices] = ((uv[vertices] - [u0, v0]) / [du, dv] * image.size + [x, 0]) / atlas.size
+        else:
+            placed[vertices] = np.array([x + SWATCH / 2, SWATCH / 2]) / atlas.size
+        x += image.width + GUTTER
+    print(f"atlas {width}x{height} from {len(regions)} regions")
+    return atlas, placed
+
+
+def read_glb(data: bytes) -> tuple[dict, bytes]:
+    """The JSON document and the binary buffer of a .glb."""
+    chunks = []
+    offset = 12
+    while offset < len(data):
+        length, kind = struct.unpack_from("<II", data, offset)
+        offset += 8
+        chunks.append((kind, data[offset : offset + length]))
+        offset += length
+    return json.loads(chunks[0][1]), chunks[1][1]
+
+
+def accessor(doc: dict, blob: bytes, index: int) -> np.ndarray:
+    """An accessor's data as an array of its count by its component count."""
+    acc = doc["accessors"][index]
+    view = doc["bufferViews"][acc["bufferView"]]
+    dtype = {5121: "u1", 5123: "<u2", 5125: "<u4", 5126: "<f4"}[acc["componentType"]]
+    width = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}[acc["type"]]
+    start = view.get("byteOffset", 0) + acc.get("byteOffset", 0)
+    stride = view.get("byteStride", width * np.dtype(dtype).itemsize)
+    rows = np.frombuffer(blob, np.uint8, stride * (acc["count"] - 1) + width * np.dtype(dtype).itemsize, start)
+    strided = np.lib.stride_tricks.as_strided(rows, (acc["count"], width * np.dtype(dtype).itemsize), (stride, 1))
+    return np.frombuffer(np.ascontiguousarray(strided).tobytes(), dtype).reshape(acc["count"], width)
+
+
+def local_matrix(node: dict) -> np.ndarray:
+    """A node's transform relative to its parent, as a column-vector matrix."""
+    if "matrix" in node:
+        return np.array(node["matrix"]).reshape(4, 4).T
+    x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+    m = np.eye(4)
+    m[:3, :3] = [
+        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+    ]
+    m[:3, :3] *= node.get("scale", [1, 1, 1])
+    m[:3, 3] = node.get("translation", [0, 0, 0])
+    return m
+
+
+def name_of(node_name: str) -> str:
+    """A rig joint's name without the exporter's numeric suffix: Bip001_L_Thigh_02 is Bip001_L_Thigh."""
+    stem, _, suffix = node_name.rpartition("_")
+    return stem if suffix.isdigit() else node_name
 
 
 if __name__ == "__main__":

@@ -23,7 +23,6 @@ export interface Avatar {
   hide(): void;
   dispose(): void;
   corpse(): Vector3 | null; // where the body lies, while dead and drawn; null otherwise
-  setHeadless?(on: boolean): void; // draw the body without the head, for its own wearer's view from its eyes
 }
 
 const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
