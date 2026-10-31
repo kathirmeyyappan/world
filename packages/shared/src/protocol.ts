@@ -1,5 +1,5 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
-import { isItemAction, type ItemId } from './sim/items';
+import { isItemAction, type ItemAction, type ItemId } from './sim/items';
 import type { PickupKind } from './sim/pickups';
 import type { InputFrame, PlayerState } from './sim/types';
 
@@ -40,6 +40,7 @@ export type ServerMessage =
   | { t: 'chat'; id: string; name: string; color: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
+  | { t: 'action'; id: string; action: ItemAction } // someone did one of their class's actions (a dragon's roar); clients play it
   // Hearts came off: a shot landed, or with no shooter, a fall.
   | { t: 'hit'; shooter: string | null; victim: string; damage: number; headshot: boolean; hearts: number }
   | { t: 'kill'; shooter: string; victim: string; item: ItemId; headshot: boolean } // clients announce it

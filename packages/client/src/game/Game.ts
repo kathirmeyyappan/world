@@ -13,6 +13,7 @@ import {
   WORLD_SHAPE,
   WORLD_STRUCTURES,
   actionForKey,
+  classOf,
   createRng,
   hashSeed,
   isGrounded,
@@ -284,11 +285,14 @@ export class Game {
     }
     this.localEffects(actions.includes('shoot'));
     // Gear actions are holds, on their key (the jetpack's is the jump key, which the touch jump
-    // button also holds down).
-    const gear = this.prediction?.state.gear;
-    if (gear)
-      for (const [action, spec] of Object.entries(GEAR[gear.id].actions))
+    // button also holds down). The class's own are taps, reported as levels like the shot.
+    const self = this.prediction?.state;
+    if (self?.gear)
+      for (const [action, spec] of Object.entries(GEAR[self.gear.id].actions))
         if (this.input.isDown(spec.key)) actions.push(action as ItemAction);
+    if (self)
+      for (const [action, spec] of Object.entries(classOf(self.avatar).actions))
+        if (this.input.isDown(spec.key) || this.input.wasPressed(spec.key)) actions.push(action as ItemAction);
     return actions;
   }
 
@@ -375,6 +379,7 @@ export class Game {
         this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) {
+          this.hearts.setLife(classOf(me.avatar));
           if (me.hearts > this.hearts.count && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
         }
@@ -720,6 +725,7 @@ export class Game {
       thrusting: self.thrusting,
       dead: this.dead,
       avatar: self.avatar,
+      dragon: self.dragon,
       bot: false,
       grounded: isGrounded(self),
     });
@@ -793,7 +799,13 @@ function itemHint(id: ItemId, withKeys: boolean, scoped: boolean): string {
 }
 
 function targets(players: RemotePlayer[]) {
-  return players.map((p) => ({ id: p.id, pos: { x: p.x, y: p.y, z: p.z }, dead: p.dead, avatar: p.avatar }));
+  return players.map((p) => ({
+    id: p.id,
+    pos: { x: p.x, y: p.y, z: p.z },
+    dead: p.dead,
+    avatar: p.avatar,
+    dragon: p.dragon,
+  }));
 }
 
 // The whole page, HUD included, so the browser's own Esc (or O again) comes back out.

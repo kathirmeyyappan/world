@@ -1,18 +1,23 @@
 // Avatar types: how a player looks, how big a target they make, and which class (classes.ts) moves
 // its wearer; the hit capsule and the eyes follow the body. Its chat command switches for good;
 // a name containing an avatar's tag spawns as it and can't switch at all. A bot can also ask for any
-// avatar when it joins (BotPlacement), including one with no command. Adding one means a row here,
-// a builder in the client's render/avatars/, and `npm run bot-map` (bots aim with these hitboxes).
+// avatar whose class takes bots when it joins (BotPlacement), including one with no command. Adding
+// one means a row here, a builder in the client's render/avatars/, and `npm run bot-map` (bots aim
+// with these hitboxes).
 import type { PlayerClass } from './classes';
 import { EYE_HEIGHT } from './constants';
+import type { ItemId } from './items';
 import type { Vec3 } from './types';
 
-export type AvatarId = 'standard' | 'elizabeth' | 'sahur' | 'sulley' | 'mike' | 'spongebob' | 'patrick' | 'krabs';
+export type AvatarId =
+  'standard' | 'elizabeth' | 'sahur' | 'sulley' | 'mike' | 'spongebob' | 'patrick' | 'krabs' | 'light-dragon';
 
-// What shots test against (sim/combat.ts): a vertical capsule from the feet up to `top` metres,
-// `radius` round its axis, whose top `head` metres count as the head. Sized to the drawn body, with
-// the radius a little wider than it so a shot that grazes the silhouette still lands. Movement
-// ignores it: every avatar walks, steps and fits through doors with the same body (sim/player.ts).
+// What shots at a walker test against (sim/combat.ts): a vertical capsule from the feet up to `top`
+// metres, `radius` round its axis, whose top `head` metres count as the head. Sized to the drawn
+// body, with the radius a little wider than it so a shot that grazes the silhouette still lands.
+// Movement ignores it: every walker steps and fits through doors with the same body (sim/walker.ts).
+// Another class has its own hit shape; its rows describe it here for the Python bots, which aim with
+// these.
 export interface Hitbox {
   top: number;
   radius: number;
@@ -24,17 +29,22 @@ export interface AvatarSpec {
   nameTag: string | null; // a name containing this spawns with the avatar
   blurb: string; // one plain line for the commands menu
   command: string | null; // the chat command that switches a person to it (the menu lists it); null: bots only
+  hidden?: boolean; // the menu leaves its command out: a look you have to know about
   // Metres from the feet to its eyes: where its wearer looks from, and where their shots leave. The
   // body everyone moves with has its eyes at EYE_HEIGHT, and `pos` stays that point.
   eye: number;
   hitbox: Hitbox;
-  class: PlayerClass; // how its wearer moves (classes.ts)
+  class: PlayerClass; // what its wearer is (classes.ts)
+  item: ItemId | null; // held for good while it's worn, in place of anything else (a dragon's breath)
+  regen: boolean; // a heart back every REGEN_SECONDS (health.ts)
 }
 
 export const AVATARS: Record<AvatarId, AvatarSpec> = {
   standard: {
     id: 'standard',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: null,
     blurb: 'back to your normal self',
     command: 'standard',
@@ -44,6 +54,8 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   elizabeth: {
     id: 'elizabeth',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: 'ELIZABETH',
     blurb: 'become elizabeth from gintama',
     command: 'elizabeth',
@@ -53,6 +65,8 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   sahur: {
     id: 'sahur',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: null,
     blurb: 'become tung tung tung sahur',
     command: 'tung',
@@ -62,6 +76,8 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   sulley: {
     id: 'sulley',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: 'SULLEY',
     blurb: 'become sulley from monsters, inc.',
     command: 'sulley',
@@ -71,6 +87,8 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   mike: {
     id: 'mike',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: 'MIKE',
     blurb: 'become mike wazowski from monsters, inc.',
     command: 'mike',
@@ -80,6 +98,8 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   spongebob: {
     id: 'spongebob',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: 'SPONGEBOB',
     blurb: 'become spongebob squarepants',
     command: 'spongebob',
@@ -89,6 +109,8 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   patrick: {
     id: 'patrick',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: 'PATRICK',
     blurb: 'become patrick star',
     command: 'patrick',
@@ -98,11 +120,25 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   krabs: {
     id: 'krabs',
     class: 'walker',
+    item: null,
+    regen: false,
     nameTag: 'KRABS',
     blurb: 'become mr. krabs',
     command: 'krabs',
     eye: 1.95, // the pupils, near the top of the eyestalks
     hitbox: { top: 2.4, radius: 0.7, head: 1.3 }, // a 1.35 m shell with the face on it, eyestalks on top: the head is everything from the mouth up
+  },
+  'light-dragon': {
+    id: 'light-dragon',
+    class: 'dragon',
+    item: 'fire-breath',
+    regen: true,
+    nameTag: null,
+    blurb: 'become the light dragon',
+    command: 'light-dragon',
+    hidden: true,
+    eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
+    hitbox: { top: 3.7, radius: 2, head: 3.7 }, // the head's 2 m sphere, all of it head; shots test the body too
   },
 };
 

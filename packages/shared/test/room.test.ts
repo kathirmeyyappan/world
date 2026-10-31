@@ -19,6 +19,7 @@ import {
   TICK_RATE,
   worldDistance,
   CIRCLE_LOOKS,
+  HEAD_RADIUS,
   defaultBotsFor,
   type BotRequest,
   type InputFrame,
@@ -766,4 +767,77 @@ test('a bot corpse lingers for 5 s while a browser gets the full death screen', 
 
   for (let i = 0; i < 30 * 9; i++) room.step();
   assert.ok(humanClosed, "the browser's fallback cleanup eventually closed it");
+});
+
+test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a heart back every 7 s, one roar at a time, no bots; dead, it lies 30 s and leaves hearts along its body', () => {
+  const room = new Room('dragon', { seed: 3, structures: new Structures([]), spawnBot: async () => {} });
+  const a = link();
+  const ida = room.join('alice', a, { room: 'dragon' })!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  room.receive(ida, { t: 'chat', text: '/gun' });
+  room.receive(ida, { t: 'chat', text: '/jetpack' });
+  room.receive(ida, { t: 'chat', text: '/speedy' });
+  alice.hearts = 7;
+  room.receive(ida, { t: 'chat', text: '/light-dragon' });
+  assert.equal(alice.avatar, 'light-dragon');
+  assert.equal(alice.hearts, 28);
+  assert.deepEqual(alice.item, { id: 'fire-breath', locked: true, fuel: 7.5 });
+  assert.equal(alice.gear, null);
+  assert.equal(alice.boost, 0);
+  assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'alice is now light-dragon'));
+  room.receive(ida, { t: 'chat', text: '/gun' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you can't put down your fire-breath" });
+  room.receive(ida, { t: 'chat', text: '/jetpack' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as a dragon' });
+  room.receive(ida, { t: 'chat', text: '/speedy' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as a dragon' });
+  room.receive(ida, { t: 'chat', text: '/light-dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're already light-dragon" });
+
+  for (let i = 0; i < 7 * TICK_RATE; i++) room.step();
+  assert.equal(alice.hearts, 29, 'a heart back in 7 s');
+  room.receive(ida, { t: 'input', f: frame(0, ['roar-1']) });
+  room.step();
+  room.receive(ida, { t: 'input', f: frame(0, ['roar-1']) });
+  room.step();
+  room.receive(ida, { t: 'input', f: frame(0, []) });
+  room.step();
+  room.receive(ida, { t: 'input', f: frame(0, ['roar-2']) });
+  room.step();
+  assert.deepEqual(
+    a.inbox.filter((m) => m.t === 'action'),
+    [{ t: 'action', id: ida, action: 'roar-1' }],
+    'one roar on the press, and none over it',
+  );
+
+  const bot = link();
+  assert.equal(room.join('circle-bot', bot, { bot: true, avatar: 'light-dragon' }), null);
+  assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: "bots can't be a dragon" });
+  room.receive(ida, { t: 'chat', text: '/circle-bot -s light-dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "bots can't be a dragon" });
+
+  // Shot dead by a sniper at its head: it drops to the ground and lies there, long after alice has
+  // gone, then poofs with a heart under the head and four along the body.
+  const b = link();
+  const idb = room.join('SNIPERbob', b)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 6 };
+  alice.hearts = 10;
+  press(room, idb, 0, true);
+  assert.ok(alice.dead, 'a headshot: 4 x 2.5');
+  assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === ida && m.headshot));
+  room.receive(ida, { t: 'chat', text: '/standard' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "not while you're dead" });
+  for (let i = 0; i < TICK_RATE; i++) room.step();
+  assert.equal(alice.pos.y, HEAD_RADIUS, 'the head came to rest on the ground');
+  room.leave(ida);
+  for (let i = 0; i < 28 * TICK_RATE; i++) room.step();
+  assert.ok(
+    room.players.some((p) => p.id === ida),
+    'still lying there at 29 s',
+  );
+  for (let i = 0; i < 2 * TICK_RATE; i++) room.step();
+  assert.ok(!room.players.some((p) => p.id === ida), 'gone at 30 s');
+  const snap = [...b.inbox].reverse().find((m) => m.t === 'snap')!;
+  assert.equal(snap.pickups.filter((p) => p.kind === 'big-heart').length, 5);
 });

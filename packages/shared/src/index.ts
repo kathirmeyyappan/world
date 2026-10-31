@@ -7,6 +7,7 @@ export * from './sim/collision';
 export * from './sim/player';
 export * from './sim/classes';
 export * from './sim/walker';
+export * from './sim/dragon';
 export * from './sim/cubes';
 export * from './sim/combat';
 export * from './sim/rewind';

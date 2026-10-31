@@ -185,6 +185,28 @@ Cubes don't know about structures, and the minimap shows only the footprints in
 per floor above the ground), and with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the
 terrace, the sky bridge and the staircases. List a landmark's there when it's worth navigating by.
 
+## Player classes
+
+A class is what kind of body a player has (`packages/shared/src/sim/classes.ts`): every avatar names
+one (`AVATARS[id].class`), and `stepPlayer` applies the look and the held item every class shares,
+then the class's own `step`. A `ClassSpec` carries everything the Room, the client and the bots need
+to treat the class on its own terms: a full life and its HUD rows, whether it takes the kit (weapons
+by command, gear, `/speedy`), whether bots may wear it, how long its dead body stays in the room
+(outliving the socket), its own tap actions on keys of their own (reported in `InputFrame.actions`
+like an item's and announced by the Room as `action` messages), whether it `fits` where a player is
+switching into it, `enter`/`exit` for its own state on `PlayerState`, its `hitShape` for shots (a
+capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it leaves. The walker
+(`walker.ts`) is everyone on foot; the dragon (`dragon.ts`) is a head sphere flying where its rider
+looks with a spine of points following it, kept 4 m up and too big for a door, breathing a wide
+cone (`fire-breath`, the look's own item) and roaring on A, S and D; its rules and numbers are
+constants at the top of that file. `becomeAvatar` (`player.ts`) is the one way a player changes
+look: a new class is a new body at the same eye point, with hearts in proportion.
+
+A new look in a class is a row in `AVATARS` (with `item` for one that comes with its own weapon,
+`regen` for a heart back every 7 s, `hidden` to keep it out of the menu). A new class is a spec
+and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES`; nothing else
+has to know it exists, except the client's `createAvatar` for how it's drawn.
+
 ## Adding a Modal bot
 
 Keep this section synchronized with `AGENTS.md`. A bot is a headless Python client in
@@ -391,8 +413,8 @@ protocol.
   `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,
   clamping the spot inside the world and standing the bot on anything within a step of it, or
   leaving it in the air there to fall (and take the fall's damage); the avatar is
-  fixed for the run. Any avatar id works, including one with no chat command
-  (`AVATARS[id].command` null) that people can't switch to.
+  fixed for the run. Any avatar whose class takes bots works (`classes.ts`; a dragon's is refused),
+  including one with no chat command (`AVATARS[id].command` null) that people can't switch to.
 - A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
   so a bot that spawns after everyone left never starts a room nothing would close. Local tests
   seat a person first with `connect(..., bot=False)`.

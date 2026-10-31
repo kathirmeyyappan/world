@@ -35,8 +35,15 @@ export function weaponPalette(scene: Scene, name: string): Palette {
   };
 }
 
-// Builds one item's shape under `parent`. Returns where the muzzle is, for the flash.
-export function buildWeapon(scene: Scene, name: string, id: ItemId, parent: TransformNode, pal: Palette): Vector3 {
+// Builds one item's shape under `parent`. Returns where the muzzle is, for the flash; null for an
+// item no hand holds (a look's own).
+export function buildWeapon(
+  scene: Scene,
+  name: string,
+  id: ItemId,
+  parent: TransformNode,
+  pal: Palette,
+): Vector3 | null {
   const part = (n: string, w: number, h: number, d: number, mat: StandardMaterial, x: number, y: number, z: number) => {
     const m = MeshBuilder.CreateBox(`${name}-${n}`, { width: w, height: h, depth: d }, scene);
     m.material = mat;
@@ -68,6 +75,8 @@ export function buildWeapon(scene: Scene, name: string, id: ItemId, parent: Tran
       part('hose1', 0.05, 0.05, 0.16, pal.hose, 0, 0.03, -0.1);
       part('hose2', 0.05, 0.14, 0.05, pal.hose, 0, -0.03, -0.2);
       return new Vector3(0, 0.03, 0.5);
+    case 'fire-breath':
+      return null;
   }
 }
 
@@ -134,6 +143,10 @@ export class Viewmodel {
       const node = new TransformNode(`viewmodel-${id}`, scene);
       node.parent = this.root;
       const muzzle = buildWeapon(scene, `viewmodel-${id}`, id, node, pal);
+      if (!muzzle) {
+        node.dispose();
+        continue;
+      }
       if (id === 'flamethrower') {
         const nozzle = new TransformNode('viewmodel-nozzle', scene);
         nozzle.parent = node;
@@ -147,8 +160,10 @@ export class Viewmodel {
     }
   }
 
-  // Show this item (or nothing). Hidden while scoped: the scope overlay is the view.
+  // Show this item (or nothing). Hidden while scoped: the scope overlay is the view; an item with no
+  // shape in hand shows as nothing.
   show(id: ItemId | null): void {
+    if (id && !this.shapes.has(id)) id = null;
     if (id === this.current) return;
     if (this.current) this.shapes.get(this.current)!.node.setEnabled(false);
     if (id) this.shapes.get(id)!.node.setEnabled(true);

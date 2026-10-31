@@ -1,5 +1,5 @@
 // Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events.
-import { MAX_CHAT_LENGTH, MAX_HEARTS } from '@world/shared';
+import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
@@ -142,14 +142,18 @@ export class Hud {
   }
 
   // Once per snapshot: hearts and kills on the roster. Re-renders only when a number moved.
-  updateStats(list: { id: string; color: string; hearts: number; kills: number; dead: boolean }[]): void {
+  updateStats(
+    list: { id: string; color: string; hearts: number; kills: number; dead: boolean; avatar: AvatarId }[],
+  ): void {
     let changed = false;
     for (const p of list) {
       const e = this.players.get(p.id);
       if (!e) continue;
-      if (e.color !== p.color || e.hearts !== p.hearts || e.kills !== p.kills || e.dead !== p.dead) {
+      const life = heartsOf(p.avatar);
+      if (e.color !== p.color || e.hearts !== p.hearts || e.life !== life || e.kills !== p.kills || e.dead !== p.dead) {
         e.color = p.color;
         e.hearts = p.hearts;
+        e.life = life;
         e.kills = p.kills;
         e.dead = p.dead;
         changed = true;
@@ -271,7 +275,7 @@ export class Hud {
       // Dead: just the skull. Alive: hearts and kills.
       if (p.dead) stats.append(pixelSvg(SKULL, 'skull'));
       else {
-        stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${MAX_HEARTS}`));
+        stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
         stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
       }
       li.append(stats);
@@ -286,6 +290,7 @@ interface RosterPlayer {
   color: string;
   bot?: boolean;
   hearts?: number;
+  avatar?: AvatarId;
   kills?: number;
   dead?: boolean;
 }
@@ -295,6 +300,7 @@ interface RosterEntry {
   color: string;
   bot: boolean;
   hearts: number;
+  life: number; // a full life for their class
   kills: number;
   dead: boolean;
 }
@@ -305,6 +311,7 @@ function entry(p: RosterPlayer): RosterEntry {
     color: p.color,
     bot: !!p.bot,
     hearts: p.hearts ?? MAX_HEARTS,
+    life: p.avatar ? heartsOf(p.avatar) : MAX_HEARTS,
     kills: p.kills ?? 0,
     dead: !!p.dead,
   };

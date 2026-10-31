@@ -71,11 +71,12 @@ export class CommandsMenu {
 
 function buildGroups(): Group[] {
   // Skins: the default look last, so the ones you'd actually try come first.
-  const skins = AVATAR_IDS.filter((id) => AVATARS[id].command).sort(
+  const skins = AVATAR_IDS.filter((id) => AVATARS[id].command && !AVATARS[id].hidden).sort(
     (a, b) => Number(a === 'standard') - Number(b === 'standard'),
   );
+  const items = ITEM_IDS.filter((id) => !ITEMS[id].own);
   return [
-    { title: 'equip item', rows: ITEM_IDS.map((id) => [commandLabel(id), ITEMS[id].blurb]) },
+    { title: 'equip item', rows: items.map((id) => [commandLabel(id), ITEMS[id].blurb]) },
     {
       title: 'bot commands',
       rows: [
