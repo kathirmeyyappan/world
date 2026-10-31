@@ -11,7 +11,8 @@ every SPINE_SPACING behind the eyes, SPINE_POINTS of them) runs from the eyes to
 tail's tip, and puts a bone at the eyes and one at each spine point, each a frame on the curve with
 its forward toward the head and its up toward the dorsal spines. Every vertex of the body follows
 the two bones either side of its place on the curve; the head, eyes, lashes and horns follow the
-head bone alone, so the head turns in one piece. The head and the mane round it are a mesh of their
+head bone alone, so the head turns in one piece, except the lower jaw, which gets a bone of its own
+at its hinge so the mouth can open. The head and the mane round it are a mesh of their
 own, hidden for its rider's view from the eyes. Each part is decimated to its share of the budget with its open edges kept, the textures
 are packed into one atlas, and it writes both meshes as monster-model.py does, with the bones' rest
 frames and where the mouth is (the breath starts there), in the dragon's frame: metres, the eyes at
@@ -37,7 +38,14 @@ TITLE, AUTHOR = "TotK Light Dragon", "roboguts"
 SPINE_POINTS = 20
 SPINE_SPACING = 1.5
 TAIL = 1.5  # metres of tail past the last bone, rigid with it
-BONES = SPINE_POINTS + 1
+JAW_BONE = SPINE_POINTS + 1  # after the spine's bones
+BONES = JAW_BONE + 1
+# The lower jaw: the head's vertices under the lip line and ahead of the hinge, in the head bone's
+# frame (metres forward of and up from the eyes). The model's mouth is shut, so the line is a guess
+# at where the lips meet, and a band JAW_BLEND wide along it and at the hinge is shared with the head.
+JAW_HINGE = -0.25
+JAW_LIP = -0.34
+JAW_BLEND = 0.08
 
 RIGID_PARTS = ("Head", "Eyes", "Eyeashes", "Horns")  # one piece with the head bone
 HEAD_MESH = (*RIGID_PARTS, "Mane")  # round the head, so hidden with it; the mane's roots follow the neck
@@ -122,22 +130,24 @@ def main(glb: str) -> None:
     print(f"{len(curve) * SAMPLE:.1f} m from the eyes to the tail's tip, {scale:.4f} m per unit")
 
     # Where along the curve each vertex sits, and so which bones it follows.
+    spines = next(p for p in parts if p["group"] == "Spines")
+    frames = bone_frames(curve, spines["positions"])
     for part in parts:
         if part["group"] in RIGID_PARTS:
             part["bones"] = np.zeros((len(part["positions"]), BONES))
-            part["bones"][:, 0] = 1
+            jaw = jaw_share(part["positions"], frames[0]) if part["group"] == "Head" else 0
+            part["bones"][:, 0] = 1 - jaw
+            part["bones"][:, JAW_BONE] = jaw
             continue
         along = nearest(part["positions"], curve) * SAMPLE / SPINE_SPACING
-        first = np.minimum(np.floor(along).astype(int), BONES - 1)
-        second = np.minimum(first + 1, BONES - 1)
+        first = np.minimum(np.floor(along).astype(int), JAW_BONE - 1)
+        second = np.minimum(first + 1, JAW_BONE - 1)
         w = np.where(second > first, along - first, 0)
         bones = np.zeros((len(along), BONES))
         np.put_along_axis(bones, first[:, None], (1 - w)[:, None], axis=1)
         np.add.at(bones, (np.arange(len(along)), second), w)
         part["bones"] = bones
-    spines = next(p for p in parts if p["group"] == "Spines")
-    frames = bone_frames(curve, spines["positions"])
-    for i in (0, 1, 2, 5, 10, 15, 20):
+    for i in (0, 1, 2, 5, 10, 15, 20, JAW_BONE):
         f = frames[i]
         print(f"bone {i:2d} at {np.round(f[:3], 2)} up {np.round(f[6:9], 2)} forward {np.round(f[9:12], 2)}")
     head_part = next(p for p in parts if p["group"] == "Head")
@@ -180,7 +190,8 @@ def main(glb: str) -> None:
         "// (Uint16 over 0 to 1, v down the image), triangles (Uint16) and, per vertex, the two bones it follows",
         "// (Uint8) and the first's share of it (Uint8 of 255); all base64. `frames` is each bone's rest pose in index",
         "// order (its position, then its right, up and forward unit vectors): bone 0 at the eyes, bone i on the",
-        "// body's centreline i spine points back. `mouth` is the lower jaw's tip, where the breath starts.",
+        "// body's centreline i spine points back, and the last the lower jaw's, at its hinge, with the head's axes.",
+        "// `mouth` is the lower jaw's tip, where the breath starts.",
         "export const DRAGON_MODEL = {",
         f"  mouth: {vec(mouth)},",
         "  frames: [",
@@ -287,15 +298,26 @@ def nearest(points: np.ndarray, curve: np.ndarray) -> np.ndarray:
     return found
 
 
+def jaw_share(positions: np.ndarray, head: np.ndarray) -> np.ndarray:
+    """How much of each vertex the lower jaw's bone carries: all of it under the lip line and ahead
+    of the hinge, none above or behind, fading across JAW_BLEND either side of both."""
+    forward = (positions - head[:3]) @ head[9:12]
+    up = (positions - head[:3]) @ head[6:9]
+    under = np.clip((JAW_LIP + JAW_BLEND / 2 - up) / JAW_BLEND, 0, 1)
+    ahead = np.clip((forward - JAW_HINGE + JAW_BLEND / 2) / JAW_BLEND, 0, 1)
+    return under * ahead
+
+
 def bone_frames(curve: np.ndarray, spines: np.ndarray) -> np.ndarray:
     """Each bone's rest frame: on the curve SPINE_SPACING apart from the eyes, forward along it
     toward the head, up toward the dorsal spines there (carried on from the bone before where
-    there are none), right across. Rows of position, right, up, forward."""
+    there are none), right across; then the jaw's, the head's turned about its hinge. Rows of
+    position, right, up, forward."""
     per_bone = SPINE_SPACING / SAMPLE
     where = nearest(spines, curve) / per_bone
     frames = []
     up = np.array([0.0, 1.0, 0.0])
-    for i in range(BONES):
+    for i in range(JAW_BONE):
         at = min(int(round(i * per_bone)), len(curve) - 1)
         back = min(at + 2, len(curve) - 1)
         front = max(at - 2, 0)
@@ -308,6 +330,10 @@ def bone_frames(curve: np.ndarray, spines: np.ndarray) -> np.ndarray:
         up /= np.linalg.norm(up)
         right = np.cross(up, forward)
         frames.append(np.concatenate([curve[at], right, up, forward]))
+    head = frames[0]
+    jaw = head.copy()
+    jaw[:3] = head[:3] + head[9:12] * JAW_HINGE + head[6:9] * JAW_LIP
+    frames.append(jaw)
     return np.array(frames)
 
 
