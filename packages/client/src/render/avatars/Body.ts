@@ -4,7 +4,7 @@
 // body bobbing, and the whole body tips with the look, since that is where the face is. A held item
 // rides the right arm, which points forward to aim. It dies on its back with its limbs dropped.
 // Movement and items are everyone's; the hit capsule is the avatar's own (AVATARS).
-import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
+import { Matrix, Mesh, Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
 import type { AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
@@ -54,6 +54,8 @@ export class BodyAvatar implements Avatar {
   private readonly armR: TransformNode;
   private readonly legL: TransformNode;
   private readonly legR: TransformNode;
+  private readonly grip: TransformNode; // the right palm, turned so a held item's barrel runs along the look
+  private readonly reach: Vector3; // which way the arm hangs from the shoulder in the model
   private readonly shadow: Mesh;
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
@@ -84,12 +86,15 @@ export class BodyAvatar implements Avatar {
     }
     this.hitFlash = new HitFlash([this.skin.material]);
 
-    // A held item goes in the right palm; the flamethrower's tank hangs on the back.
+    this.grip = new TransformNode(`avatar-grip-${id}`, scene);
+    this.grip.parent = this.armR;
+    this.grip.position.copyFrom(this.skin.offset('armR', spec.model.hand));
+    this.reach = this.grip.position.normalizeToNew();
     this.items = new HeldItems(
       engine,
       `${spec.kind}-${id}`,
-      this.armR,
-      this.skin.offset('armR', spec.model.hand),
+      this.grip,
+      Vector3.Zero(),
       this.body,
       this.skin.offset('body', spec.model.back),
     );
@@ -115,9 +120,12 @@ export class BodyAvatar implements Avatar {
     this.legR.rotation.x = -swing;
     this.armL.rotation.x = (-swing * armSwing) / legSwing;
     this.armL.rotation.z = armsDown;
-    // The arm is under the body, so it only needs the rest of the pitch to aim where the look does.
-    this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch * (1 - follow) : (swing * armSwing) / legSwing;
-    this.armR.rotation.z = p.item ? 0 : -armsDown;
+    if (p.item && !p.dead) this.aim(p.pitch * (1 - follow));
+    else {
+      this.armR.rotationQuaternion = null;
+      this.armR.rotation.x = (swing * armSwing) / legSwing;
+      this.armR.rotation.z = -armsDown;
+    }
     this.base.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * bob * effort;
     this.base.rotation.z = airborne ? 0 : Math.sin(phase) * sway * effort;
     this.items.update(p);
@@ -132,6 +140,7 @@ export class BodyAvatar implements Avatar {
     if (p.dead) {
       this.base.rotation.z = 0;
       this.legL.rotation.x = this.legR.rotation.x = DEAD_LEGS;
+      this.armR.rotationQuaternion = null;
       this.armL.rotation.x = this.armR.rotation.x = DEAD_ARMS;
       this.body.rotation.x = 0;
       this.base.position.y = model.lie;
@@ -140,12 +149,30 @@ export class BodyAvatar implements Avatar {
     this.root.setEnabled(true);
   }
 
+  // Points the arm from the way it hangs in the model to `pitch` down of straight ahead (the body
+  // tips by the rest of the look's pitch), and turns the grip so an item's barrel (its -y) runs
+  // along the arm with its top (its +z) up, whatever the model's hand is doing.
+  private aim(pitch: number): void {
+    const ahead = new Vector3(0, -Math.sin(pitch), Math.cos(pitch));
+    const arm = (this.armR.rotationQuaternion ??= new Quaternion());
+    Quaternion.FromUnitVectorsToRef(this.reach, ahead, arm);
+    const right = Vector3.Cross(Vector3.Up(), ahead).normalize();
+    const top = Vector3.Cross(ahead, right);
+    const grip = Matrix.FromXYZAxesToRef(right, ahead.negate(), top, new Matrix());
+    const local = grip.multiply(Matrix.Invert(arm.toRotationMatrix(new Matrix())));
+    Quaternion.FromRotationMatrixToRef(local, (this.grip.rotationQuaternion ??= new Quaternion()));
+  }
+
   flash(): void {
     this.hitFlash.trigger();
   }
 
   fire(): void {
     this.items.fire();
+  }
+
+  scaleWeapons(factor: number): void {
+    this.items.scaleWeapons(factor);
   }
 
   hide(): void {

@@ -158,6 +158,10 @@ export class ElizabethAvatar implements Avatar {
     this.items.fire();
   }
 
+  scaleWeapons(factor: number): void {
+    this.items.scaleWeapons(factor);
+  }
+
   hide(): void {
     this.root.setEnabled(false);
   }

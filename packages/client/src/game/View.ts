@@ -83,7 +83,7 @@ export class View {
     const out = this.reach * this.reach * (3 - 2 * this.reach); // eased at both ends
     const f = lookDirection(yaw, pitch);
     const back = BOOM_BACK * stature;
-    const right = BOOM_RIGHT * stature;
+    const right = BOOM_RIGHT * Math.max(1, stature); // a small body is no narrower across the shoulders than its gun arm reaches
     const want = new Vector3(
       eyes.x - f.x * back + Math.cos(yaw) * right,
       eyes.y - f.y * back + BOOM_UP * stature,
