@@ -123,6 +123,8 @@ export function buildFlash(engine: Engine, name: string, parent: TransformNode, 
   return flash;
 }
 
+const FLAME_HALF_ANGLE = ITEMS.flamethrower.fire.kind === 'cone' ? ITEMS.flamethrower.fire.halfAngle : 0;
+
 export class Viewmodel {
   private readonly root: TransformNode;
   private readonly shapes = new Map<ItemId, { node: TransformNode; flash: Mesh }>();
@@ -152,7 +154,7 @@ export class Viewmodel {
         nozzle.parent = node;
         nozzle.position.copyFrom(muzzle);
         // The root is scaled down, so the jet is stretched to still reach the item's range.
-        this.jet = new FlameJet(engine, 'viewmodel', nozzle, ITEMS.flamethrower.range / 0.75);
+        this.jet = new FlameJet(engine, 'viewmodel', nozzle, ITEMS.flamethrower.range / 0.75, FLAME_HALF_ANGLE);
       }
       const flash = buildFlash(engine, `viewmodel-${id}`, node, muzzle);
       node.setEnabled(false);

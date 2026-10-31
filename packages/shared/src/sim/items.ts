@@ -149,18 +149,19 @@ export function itemHelp(id: ItemId, sep = ', '): string {
   return actionHelp(ITEMS[id].actions, sep);
 }
 
-// The same for any item's actions, naming each key with `keyName`.
+// The same for any set of actions, naming each key with `keyName`; keys that do the same thing go
+// together ("A, S, D to roar").
 export function actionHelp(
   actions: Partial<Record<ItemAction, ActionSpec>>,
   sep = ', ',
   keyName: (code: string) => string = keyLabel,
 ): string {
-  return Object.entries(actions)
-    .map(
-      ([action, spec]) =>
-        `${spec.mode === 'hold' ? 'hold ' : ''}${keyName(spec.key)}${ACTION_HELP[action as ItemAction](spec)}`,
-    )
-    .join(sep);
+  const keys = new Map<string, string[]>();
+  for (const [action, spec] of Object.entries(actions)) {
+    const phrase = `${spec.mode === 'hold' ? 'hold ' : ''}%${ACTION_HELP[action as ItemAction](spec)}`;
+    keys.set(phrase, [...(keys.get(phrase) ?? []), keyName(spec.key)]);
+  }
+  return [...keys].map(([phrase, named]) => phrase.replace('%', named.join(', '))).join(sep);
 }
 
 // What follows the key in actionHelp.

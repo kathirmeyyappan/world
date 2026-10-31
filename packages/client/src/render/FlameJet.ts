@@ -6,7 +6,6 @@ import type { Engine } from './Engine';
 
 const COUNT = 16; // blocks in a jet of BASE_LENGTH or shorter; longer ones get more
 const FLIGHT_SECONDS = 0.35;
-const SPREAD = Math.tan(Math.PI / 8); // matches the cone's half angle
 const BASE_LENGTH = 10; // metres a jet's blocks are sized for; longer jets grow them to fill the cone
 
 interface Particle {
@@ -21,17 +20,21 @@ interface Particle {
 export class FlameJet {
   private readonly particles: Particle[] = [];
   private readonly growth: number; // how much a block grows on its way out, in metres
+  private readonly spread: number; // how far out a block gets per metre along, at the cone's edge
   private on = false;
 
+  // `length` and `halfAngle` are the item's cone (ItemSpec).
   constructor(
     engine: Engine,
     name: string,
     parent: TransformNode,
     private readonly length: number,
+    halfAngle: number,
   ) {
     const scene = engine.scene;
     const stretch = Math.max(1, length / BASE_LENGTH);
     this.growth = 0.55 * stretch;
+    this.spread = Math.tan(halfAngle);
     const count = Math.round(COUNT * stretch);
     for (let i = 0; i < count; i++) {
       const mesh = MeshBuilder.CreateBox(`${name}-flame-${i}`, { size: 1 }, scene);
@@ -64,7 +67,7 @@ export class FlameJet {
         this.scatter(p);
       }
       const d = p.t * this.length;
-      p.mesh.position.set(p.ox * d * SPREAD, p.oy * d * SPREAD, d);
+      p.mesh.position.set(p.ox * d * this.spread, p.oy * d * this.spread, d);
       const size = 0.12 + p.t * this.growth;
       p.mesh.scaling.setAll(size);
       p.mesh.rotation.set(p.spin * p.t * 6, p.spin * p.t * 4, p.t * 3);
