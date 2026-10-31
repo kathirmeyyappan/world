@@ -100,7 +100,7 @@ export class DragonAvatar implements Avatar {
     }
     this.mouth = new TransformNode(`dragon-${id}-mouth`, scene);
     this.mouth.parent = this.bones[0];
-    const breath = ITEMS['fire-breath'];
+    const breath = ITEMS['firebreath'];
     this.jet = new FlameJet(
       engine,
       `dragon-${id}`,
@@ -191,7 +191,7 @@ export class DragonAvatar implements Avatar {
       this.place(i, here.add(up.scale(rise)), up, f);
       last = here;
     }
-    this.jet.set(!p.dead && p.firing && p.item === 'fire-breath');
+    this.jet.set(!p.dead && p.firing && p.item === 'firebreath');
     this.jet.update(dt);
     this.root.setEnabled(true);
   }

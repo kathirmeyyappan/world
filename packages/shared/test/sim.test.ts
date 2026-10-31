@@ -279,7 +279,7 @@ test('a dragon rises out of the ground, flies forward where it looks in arcs, ke
   p.hearts = 7;
   becomeAvatar(p, 'light-dragon');
   assert.equal(p.hearts, 28, '7 of 10 is 28 of 40');
-  assert.deepEqual(p.item, { id: 'fire-breath', locked: true, fuel: 7.5 });
+  assert.deepEqual(p.item, { id: 'firebreath', locked: true, fuel: 7.5 });
   assert.equal(p.dragon?.spine.length, SPINE_POINTS * 3);
   assert.ok(p.dragon!.spine[SPINE_POINTS * 3 - 2] < 0, 'the body starts in the ground under the head');
 

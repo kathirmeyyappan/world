@@ -131,7 +131,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   'light-dragon': {
     id: 'light-dragon',
     class: 'dragon',
-    item: 'fire-breath',
+    item: 'firebreath',
     regen: true,
     nameTag: null,
     blurb: 'become the light dragon',

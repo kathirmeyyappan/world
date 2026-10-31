@@ -7,7 +7,7 @@
 import { TICK_RATE } from './constants';
 import { HEADSHOT_MULTIPLIER } from './health';
 
-export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'fire-breath';
+export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'firebreath';
 
 // Things an item, or a player's class (classes.ts), can do. Each is bound to a key on the client and
 // reported in InputFrame.actions:
@@ -88,8 +88,8 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     blurb: 'equip a flamethrower',
   },
   // A dragon's: the flamethrower's burn and tank from a mouth, in a cone four times as wide.
-  'fire-breath': {
-    id: 'fire-breath',
+  firebreath: {
+    id: 'firebreath',
     range: 20,
     damage: 0.5,
     cooldownTicks: 5,
