@@ -28,7 +28,7 @@ from pathlib import Path
 import numpy as np
 import pyfqmr
 from PIL import Image
-from glb import SEAM, accessor, local_matrix, pack_atlas, read_glb
+from glb import accessor, local_matrix, pack_atlas, read_glb
 
 CLIENT = Path(__file__).resolve().parents[1]
 TITLE, AUTHOR = "TotK Light Dragon", "roboguts"
@@ -42,18 +42,21 @@ BONES = SPINE_POINTS + 1
 RIGID_PARTS = ("Head", "Eyes", "Eyeashes", "Horns")  # one piece with the head bone
 HEAD_MESH = (*RIGID_PARTS, "Mane")  # round the head, so hidden with it; the mane's roots follow the neck
 SKIP_PARTS = ("Master sword",)
-# Triangles each part is cut down to, give or take: the face keeps the most.
+# Triangles each part is cut down to, give or take; the face is kept whole.
 BUDGET = {
-    "Body": 3000,
-    "Belly and Legs": 2600,
-    "Mane": 2200,
-    "Horns": 900,
-    "Head": 1500,
+    "Body": 3500,
+    "Belly and Legs": 4500,
+    "Mane": 4500,
+    "Horns": 1000,
     "Eyes": 400,
     "Eyeashes": 400,
-    "Spines": 500,
+    "Spines": 700,
 }
-KEEP_WHOLE = 400  # triangles: a part with no more is kept as it is
+# Parts whose open edges may move as they're cut: strands of hair, all edge, which would otherwise
+# barely shrink; a plate or the body keeps its outline.
+FREE_EDGES = {"Mane"}
+PIECE_WHOLE = 60  # triangles: a piece with no more is kept as it is
+PIECE_FLOOR = 24  # the fewest a bigger piece is cut down to
 TEXTURE_SIZE = 512
 CURVE_STEP = 2.0  # model units of geodesic distance per centreline sample
 SAMPLE = 0.25  # metres between the resampled curve's points
@@ -154,8 +157,8 @@ def main(glb: str) -> None:
         own = [p for p in parts if p["group"] == group]
         count = sum(len(p["triangles"]) for p in own)
         for part in own:
-            if len(part["triangles"]) > KEEP_WHOLE:
-                decimate(part, round(budget * len(part["triangles"]) / count))
+            decimate(part, round(budget * len(part["triangles"]) / count), group not in FREE_EDGES)
+        print(f"{group}: {count} triangles to {sum(len(p['triangles']) for p in own)}")
     print(f"decimated {total} triangles to {sum(len(p['triangles']) for p in parts)}")
 
     uv = np.vstack([p["uvs"] for p in parts])
@@ -308,42 +311,88 @@ def bone_frames(curve: np.ndarray, spines: np.ndarray) -> np.ndarray:
     return np.array(frames)
 
 
-def decimate(part: dict, target: int) -> None:
-    """Cuts a part down to about `target` triangles: quadric collapses over the mesh with vertices at
-    one spot taken as one (so a texture seam closes up with everything else) that keep its open
-    edges where they are, so a strand of mane or a belly plate keeps its outline. Each new triangle
-    takes its texture coordinates, normals and bones corner by corner from the original triangle
-    nearest it, so all three corners are from one side of any seam."""
-    points, welded = np.unique(np.round(part["positions"], 4), axis=0, return_inverse=True)
-    simplifier = pyfqmr.Simplify()
-    simplifier.setMesh(points, welded.ravel()[part["triangles"]])
-    simplifier.simplify_mesh(target_count=target, aggressiveness=7, preserve_border=True, verbose=0)
-    positions, triangles, _ = simplifier.getMesh()
-    triangles = triangles.astype(np.int64)
-    originals = nearest(positions[triangles].mean(axis=1), part["positions"][part["triangles"]].mean(axis=1))
-    corners = np.empty_like(triangles)
-    for c in range(3):
-        candidates = part["positions"][part["triangles"][originals]]  # each new triangle's original's corners
-        distance = np.linalg.norm(candidates - positions[triangles[:, c]][:, None, :], axis=2)
-        corners[:, c] = part["triangles"][originals, np.argmin(distance, axis=1)]
-    # One stand-in per new vertex per side of a seam: of the originals its triangles chose, those
-    # with texture coordinates within SEAM of each other are one side, and the nearest stands for them.
-    uvs = part["uvs"]
-    order = np.argsort(triangles.ravel(), kind="stable")
-    starts = np.searchsorted(triangles.ravel()[order], np.arange(len(positions) + 1))
-    stand_in = corners.ravel().copy()
-    for v in range(len(positions)):
-        slots = order[starts[v] : starts[v + 1]]
-        chosen = corners.ravel()[slots]
-        distance = np.linalg.norm(part["positions"][chosen] - positions[v], axis=1)
-        for slot, original in zip(slots, chosen):
-            side = np.linalg.norm(uvs[chosen] - uvs[original], axis=1) < SEAM
-            stand_in[slot] = chosen[side][np.argmin(distance[side])]
-    keys, part["triangles"] = np.unique(np.stack([triangles.ravel(), stand_in], axis=1), axis=0, return_inverse=True)
-    part["triangles"] = part["triangles"].reshape(-1, 3)
-    part["positions"] = positions[keys[:, 0]]
-    for key in ("normals", "uvs", "bones"):
-        part[key] = part[key][keys[:, 1]]
+def decimate(part: dict, target: int, keep_edges: bool) -> None:
+    """Cuts a part down to about `target` triangles, piece by piece: each run of mesh joined at the
+    vertices (a belly plate, a strand of mane, the body) keeps its share of the part, never fewer
+    than PIECE_FLOOR triangles so a small plate keeps its shape, and one of PIECE_WHOLE or fewer is
+    kept as it is. The collapses are quadric ones over the piece with vertices at one spot facing one way taken
+    as one (so a texture seam closes up with everything else, while a two-sided sheet stays two
+    sheets) that keep its open edges where they are (`keep_edges`).
+    Each new vertex then takes its texture coordinates, normal and bones from the original nearest
+    it on the same island of the texture as the rest of its triangle, so a face never stretches
+    across a seam."""
+    positions, triangles = part["positions"], part["triangles"]
+    # Vertices at one spot facing the same way are one: a seam's doubled vertices, but not the two
+    # sides of a strand of mane or a fin, which would collapse into nothing.
+    spots = np.c_[np.round(positions, 4), np.round(part["normals"], 1)]
+    spots, welded = np.unique(spots, axis=0, return_inverse=True)
+    points = spots[:, :3]
+    welded = welded.ravel()
+    piece = components(welded[triangles], len(points))[welded]  # by vertex, seams joined
+    island = components(triangles, len(positions))  # by vertex, seams apart
+    keep = target / len(triangles)
+    pieces = {"positions": [], "normals": [], "uvs": [], "bones": [], "triangles": []}
+    base = 0
+    for label in np.unique(piece):
+        own = np.flatnonzero(piece[triangles[:, 0]] == label)
+        tris = triangles[own]
+        vertices = np.unique(tris)
+        local = {v: k for k, v in enumerate(vertices)}
+        if len(tris) <= PIECE_WHOLE:
+            stand_in = vertices
+            new_triangles = np.vectorize(local.get)(tris)
+            new_positions = positions[vertices]
+        else:
+            # The piece welded, cut down, and each corner given back a side of the texture.
+            wp, wi = np.unique(welded[vertices], return_inverse=True)
+            simplifier = pyfqmr.Simplify()
+            simplifier.setMesh(points[wp], wi.ravel()[np.vectorize(local.get)(tris)])
+            simplifier.simplify_mesh(
+                target_count=max(PIECE_FLOOR, round(len(tris) * keep)),
+                aggressiveness=7,
+                preserve_border=keep_edges,
+                verbose=0,
+            )
+            cut_points, cut_tris, _ = simplifier.getMesh()
+            cut_tris = cut_tris.astype(np.int64)
+            middle = nearest(cut_points[cut_tris].mean(axis=1), positions[vertices])
+            side = island[vertices[middle]]  # each cut triangle's island: its middle's nearest original's
+            corners = np.empty_like(cut_tris)
+            for c in range(3):
+                for s in np.unique(side):
+                    rows = np.flatnonzero(side == s)
+                    candidates = vertices[island[vertices] == s]
+                    corners[rows, c] = candidates[nearest(cut_points[cut_tris[rows, c]], positions[candidates])]
+            keys, new_triangles = np.unique(
+                np.stack([cut_tris.ravel(), corners.ravel()], axis=1), axis=0, return_inverse=True
+            )
+            new_triangles = new_triangles.reshape(-1, 3)
+            new_positions = cut_points[keys[:, 0]]
+            stand_in = keys[:, 1]
+        pieces["positions"].append(new_positions)
+        for key in ("normals", "uvs", "bones"):
+            pieces[key].append(part[key][stand_in])
+        pieces["triangles"].append(new_triangles + base)
+        base += len(new_positions)
+    for key, chunks in pieces.items():
+        part[key] = np.vstack(chunks)
+
+
+def components(triangles: np.ndarray, count: int) -> np.ndarray:
+    """A label per vertex (of `count`): which connected run of the triangles it is in."""
+    parent = np.arange(count)
+
+    def find(a: int) -> int:
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for a, b in np.concatenate([triangles[:, [0, 1]], triangles[:, [1, 2]]]):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    return np.array([find(a) for a in range(count)])
 
 
 if __name__ == "__main__":

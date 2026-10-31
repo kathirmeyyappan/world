@@ -97,6 +97,7 @@ export class DragonAvatar implements Avatar {
     const headRest = frameMatrix(m.frames, 0);
     this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth), Matrix.Invert(headRest));
     const material = skinMaterial(scene, `dragon-${this.id}`, TEXTURE);
+    material.backFaceCulling = false; // plates, strands and fins are open shells, seen from both sides
     this.hitFlash = new HitFlash([material]);
     const mesh = (name: string, data: MeshData) => {
       const mesh = new Mesh(`dragon-${this.id}-${name}`, scene);
