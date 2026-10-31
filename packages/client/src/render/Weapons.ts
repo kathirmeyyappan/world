@@ -75,7 +75,7 @@ export function buildWeapon(
       part('hose1', 0.05, 0.05, 0.16, pal.hose, 0, 0.03, -0.1);
       part('hose2', 0.05, 0.14, 0.05, pal.hose, 0, -0.03, -0.2);
       return new Vector3(0, 0.03, 0.5);
-    case 'fire-breath':
+    case 'firebreath':
       return null;
   }
 }
