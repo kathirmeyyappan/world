@@ -39,6 +39,8 @@ import {
   layoutWallFrame,
   CRUISE_SPEED,
   DRAGON,
+  EMERGE_POINTS,
+  HEAD_YAW,
   HEAD_RADIUS,
   MAX_PITCH,
   MIN_ALTITUDE,
@@ -270,7 +272,7 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
   assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, { steps: 2 }), /over/);
 });
 
-test('a dragon rises out of the ground, flies forward where it looks in arcs, keeps 4 m up, and is too big for a door', () => {
+test('a dragon climbs straight out of the ground, flies forward where it looks in arcs with its head turned as far as the neck lets it, keeps 4 m up, and is too big for a door', () => {
   const open = new Structures([]);
   const fly = (p: ReturnType<typeof createPlayer>, ticks: number, over: Partial<InputFrame>, world = open) => {
     for (let i = 0; i < ticks; i++) stepPlayer(p, frame(p.lastSeq + 1, over), TICK_DT, WORLD_SHAPE, world);
@@ -290,12 +292,16 @@ test('a dragon rises out of the ground, flies forward where it looks in arcs, ke
   assert.equal(p.pos.y, MIN_ALTITUDE);
   assert.ok(p.pos.x === 0 && p.pos.z === 0 && p.dragon!.speed === 0, 'hovering over where it rose');
 
-  // Only forward flies, up the neck at first and round toward the look.
+  // Only forward flies: straight up, head up, whatever the look, until EMERGE_POINTS of the spine
+  // are out of the ground; then round toward the look.
   fly(p, 30, { my: -1, mx: 1, yaw: Math.PI / 2 });
   assert.ok(p.pos.x === 0 && p.pos.z === 0, 'back and sideways do nothing');
   fly(p, 15, { my: 1, yaw: Math.PI / 2 });
-  assert.ok(p.pos.y > MIN_ALTITUDE + 1 && p.pos.x < p.pos.y - MIN_ALTITUDE, 'sets off upward, the way it rose');
-  fly(p, 75, { my: 1, yaw: Math.PI / 2 });
+  assert.ok(p.pos.y > MIN_ALTITUDE + 1 && p.pos.x === 0 && !p.dragon!.risen, 'climbing straight up');
+  assert.deepEqual(p.dragon!.head, { x: 0, y: 1, z: 0 }, 'looking straight up');
+  fly(p, 60, { my: 1, yaw: Math.PI / 2 });
+  assert.ok(p.dragon!.risen && p.pos.y >= EMERGE_POINTS * SPINE_SPACING, `out at ${p.pos.y.toFixed(1)} m`);
+  fly(p, 120, { my: 1, yaw: Math.PI / 2 });
   assert.ok(p.pos.x > 15 && Math.abs(p.pos.z) < 1e-9, `came round to +x: ${p.pos.x.toFixed(1)}`);
   assert.ok(Math.abs(p.dragon!.speed - CRUISE_SPEED) < 0.2, 'at cruise');
   const spine = p.dragon!.spine;
@@ -308,17 +314,24 @@ test('a dragon rises out of the ground, flies forward where it looks in arcs, ke
   }
   assert.ok(spine[0] < p.pos.x && spine[spine.length - 3] < spine[0], 'nearest first, tail last');
 
-  // Looking straight back, it carries on and comes round in an arc rather than turning on the spot.
+  // Looking straight back, it carries on and comes round in an arc rather than turning on the spot,
+  // its head turned back only as far as the neck lets it.
   const turn = p.pos.x;
   fly(p, 15, { my: 1, yaw: -Math.PI / 2 });
   assert.ok(p.pos.x > turn + 3, 'still going +x half a second in');
+  const { head, spine: neck } = p.dragon!;
+  const along = Math.hypot(p.pos.x - neck[0], p.pos.y - neck[1], p.pos.z - neck[2]);
+  const turned = Math.acos(
+    (head.x * (p.pos.x - neck[0]) + head.y * (p.pos.y - neck[1]) + head.z * (p.pos.z - neck[2])) / along,
+  );
+  assert.ok(Math.abs(turned - HEAD_YAW) < 0.05, `the head is ${turned.toFixed(2)} rad round from the neck`);
   fly(p, 120, { my: 1, yaw: -Math.PI / 2 });
   const back = p.pos.x;
   fly(p, 1, { my: 1, yaw: -Math.PI / 2 });
   assert.ok(p.pos.x < back, 'and heading -x four seconds later');
 
   // Diving keeps the head MIN_ALTITUDE over the ground.
-  fly(p, 90, { my: 1, yaw: -Math.PI / 2, pitch: MAX_PITCH });
+  fly(p, 150, { my: 1, yaw: -Math.PI / 2, pitch: MAX_PITCH });
   assert.equal(p.pos.y, MIN_ALTITUDE);
 
   // Let go: it glides to a stop and the body stays where it is.
@@ -332,6 +345,7 @@ test('a dragon rises out of the ground, flies forward where it looks in arcs, ke
   const door = new Structures([wall({ x: -10, z: 5 }, { x: -1, z: 5 }, 12), wall({ x: 1, z: 5 }, { x: 10, z: 5 }, 12)]);
   const q = createPlayer('e', 'e', '#fff', { x: 0, y: MIN_ALTITUDE, z: 0 });
   becomeAvatar(q, 'light-dragon');
+  q.dragon!.risen = true;
   fly(q, 120, { my: 1, yaw: 0 }, door);
   assert.ok(q.pos.z > 2 && q.pos.z < 5 - HEAD_RADIUS + 0.01, `stopped at the door, z ${q.pos.z.toFixed(2)}`);
   assert.ok(!DRAGON.fits({ x: 0, y: EYE_HEIGHT, z: 4 }, door), 'no room to rise beside a wall');

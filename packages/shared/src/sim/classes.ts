@@ -4,7 +4,7 @@
 // here with the sim it needs, and a new look in a class is a row in AVATARS.
 import { AVATARS, type AvatarId, type Hitbox } from './avatars';
 import type { Structures } from './collision';
-import type { Target } from './combat';
+import type { Shooter, Target } from './combat';
 import { DRAGON } from './dragon';
 import type { ActionSpec, ItemAction } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
@@ -46,6 +46,8 @@ export interface ClassSpec {
   // Moves `p` for one tick of `dt` seconds on `input` (null when no frame arrived), its look and
   // item already applied. Returns how fast it was falling if it landed, m/s downward, else 0.
   step(p: PlayerState, input: InputFrame | null, dt: number, shape: WorldPart[], structures: Structures): number;
+  // The way a shot from `p` goes: a walker's look; a dragon's breath leaves the way its head points.
+  aim(p: Shooter): Vec3;
   hitShape(p: Target): HitShape;
   // The floor points a dead one's body lies over, one per heart it leaves behind (CORPSE_DROP).
   lies(p: PlayerState, structures: Structures): Vec3[];

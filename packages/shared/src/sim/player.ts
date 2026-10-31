@@ -45,7 +45,12 @@ export function clonePlayer(p: PlayerState): PlayerState {
     pos: { ...p.pos },
     item: p.item && { ...p.item },
     gear: p.gear && { ...p.gear },
-    dragon: p.dragon && { ...p.dragon, dir: { ...p.dragon.dir }, spine: [...p.dragon.spine] },
+    dragon: p.dragon && {
+      ...p.dragon,
+      dir: { ...p.dragon.dir },
+      head: { ...p.dragon.head },
+      spine: [...p.dragon.spine],
+    },
   };
 }
 

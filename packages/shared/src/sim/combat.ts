@@ -31,6 +31,7 @@ export interface Shooter {
   yaw: number;
   pitch: number;
   avatar: AvatarId;
+  dragon: Pick<DragonState, 'head'> | null;
 }
 
 export interface Hit<T extends Target> {
@@ -61,7 +62,7 @@ export function findConeHits<T extends Target>(
   halfAngle: number,
   structures: Structures = WORLD_STRUCTURES,
 ): Hit<T>[] {
-  const dir = lookDirection(shooter.yaw, shooter.pitch);
+  const dir = classOf(shooter.avatar).aim(shooter);
   const o = eyeOf(shooter);
   const hits: Hit<T>[] = [];
   for (const p of players) {
@@ -106,7 +107,7 @@ export function findHit<T extends Target>(
   range: number,
   structures: Structures = WORLD_STRUCTURES,
 ): Hit<T> | null {
-  const dir = lookDirection(shooter.yaw, shooter.pitch);
+  const dir = classOf(shooter.avatar).aim(shooter);
   const o = eyeOf(shooter);
   let best: Hit<T> | null = null;
   let bestT = Math.min(range, structures.raycast(o, dir, range)); // the shot stops at the first wall

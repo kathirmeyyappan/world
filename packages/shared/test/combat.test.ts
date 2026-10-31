@@ -105,7 +105,7 @@ test('a wall stops a hitscan shot and hides a flamethrower target', () => {
   assert.equal(findHit(me, [at('x', 0, 8)], GUN, low)?.headshot, true, 'a level shot clears waist-high cover');
 });
 
-test('a dragon is hit on its head, a headshot, or anywhere along its body; its breath is a wide cone', () => {
+test('a dragon is hit on its head, a headshot, or anywhere along its body; its breath is a wide cone where its head points', () => {
   const me = at('me', 0, 0);
   const dragon = at('dragon', 0, 10);
   becomeAvatar(dragon, 'light-dragon');
@@ -119,9 +119,11 @@ test('a dragon is hit on its head, a headshot, or anywhere along its body; its b
   me.pitch = 0;
   assert.equal(resolveFire(ITEMS.flamethrower, me, [dragon]).length, 1, 'the body is in the cone');
 
-  // Its breath, looking back down at me: the flamethrower's reach in a cone four times as wide.
+  // Its breath goes where its head points: turned back down at me, three times the flamethrower's
+  // reach in a cone three times as wide.
   dragon.yaw = Math.PI;
   dragon.pitch = Math.atan2(6 - EYE_HEIGHT, 10);
+  dragon.dragon.head = lookDirection(dragon.yaw, dragon.pitch);
   const side = at('side', 6, 0); // 31 degrees off the line down to me
   assert.deepEqual(
     resolveFire(ITEMS['firebreath'], dragon, [me, side])

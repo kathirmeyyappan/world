@@ -19,6 +19,7 @@ import {
 import type { Structures } from './collision';
 import { CAPSULE_TOP, MAX_HEARTS } from './health';
 import { stepGear, thrust } from './gear';
+import { lookDirection } from './look';
 import type { InputFrame, PlayerState } from './types';
 import { WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
 
@@ -35,6 +36,7 @@ export const WALKER: ClassSpec = {
   enter() {},
   exit() {},
   step: stepWalker,
+  aim: (p) => lookDirection(p.yaw, p.pitch),
   hitShape: (p) => ({ kind: 'capsule', eye: p.pos, box: AVATARS[p.avatar].hitbox }),
   // Under the feet.
   lies: (p, structures) => [
