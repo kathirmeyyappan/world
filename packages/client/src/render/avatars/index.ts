@@ -3,6 +3,7 @@
 import type { AvatarId } from '@world/shared';
 import type { Engine } from '../Engine';
 import { BodyAvatar } from './Body';
+import { DragonAvatar } from './Dragon';
 import { ElizabethAvatar } from './Elizabeth';
 import { KRABS } from './Krabs';
 import { MIKE } from './Mike';
@@ -34,7 +35,7 @@ export function createAvatar(engine: Engine, p: { id: string; color: string; ava
       return new BodyAvatar(engine, p.id, KRABS);
     case 'standard':
       return new StandardAvatar(engine, p.id, p.color);
-    case 'light-dragon': // a stand-in at the head: the dragon has no body of its own yet
-      return new StandardAvatar(engine, p.id, p.color);
+    case 'light-dragon':
+      return new DragonAvatar(engine, p.id);
   }
 }

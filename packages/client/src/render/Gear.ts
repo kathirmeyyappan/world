@@ -9,6 +9,7 @@ import { FlameJet } from './FlameJet';
 type Scene = Engine['scene'];
 
 const JET_LENGTH = 1.3; // metres of flame below each nozzle
+const JET_SPREAD = Math.PI / 8; // the jet's cone, as wide as the flamethrower's
 
 export class WornGear {
   private readonly shapes = new Map<GearId, { node: TransformNode; depth: number }>();
@@ -27,7 +28,7 @@ export class WornGear {
         nozzle.parent = node;
         nozzle.position.copyFrom(at);
         nozzle.rotation.x = Math.PI / 2; // the jet runs along +z; this points it at the ground
-        this.jets.push(new FlameJet(engine, `${name}-${id}-${i}`, nozzle, JET_LENGTH));
+        this.jets.push(new FlameJet(engine, `${name}-${id}-${i}`, nozzle, JET_LENGTH, JET_SPREAD));
       }
       node.setEnabled(false);
       this.shapes.set(id, { node, depth });
