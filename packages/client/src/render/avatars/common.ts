@@ -19,6 +19,7 @@ export interface Avatar {
   readonly kind: AvatarId;
   update(p: RemotePlayer): void;
   flash(): void; // took a hit: blink red
+  scaleWeapons(factor: number): void; // its guns drawn this much bigger: the player's own body
   hide(): void;
   dispose(): void;
   corpse(): Vector3 | null; // where the body lies, while dead and drawn; null otherwise

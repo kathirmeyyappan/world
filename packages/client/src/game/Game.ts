@@ -96,6 +96,7 @@ const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
 // Your own shots play at this share of their volume: right at your ear, they'd drown out the rest.
 const OWN_SHOT = 0.7;
 const NEAR_MISS_DELAY = 0.1; // seconds after the shot that a near miss whizzes by (about 4 frames)
+const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size they read as toys
 
 export class Game {
   private readonly engine: Engine;
@@ -701,7 +702,10 @@ export class Game {
       avatar.dispose();
       avatar = null;
     }
-    if (!avatar) avatar = this.ownAvatar = createAvatar(this.engine, self);
+    if (!avatar) {
+      avatar = this.ownAvatar = createAvatar(this.engine, self);
+      avatar.scaleWeapons(OWN_WEAPON_SCALE);
+    }
     avatar.update({
       id: self.id,
       name: self.name,
