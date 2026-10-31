@@ -6,7 +6,7 @@
 //
 // A new kind is a row in PICKUPS (how high it floats, how close you must be, what taking it does)
 // and a shape in the client's render/Pickups.ts; where it appears is content/pickups.ts.
-import { MAX_HEARTS } from './health';
+import { heartsOf } from './classes';
 import { nextPointInRegion, randomPointInRegion, type Region } from './regions';
 import type { Rng } from './rng';
 import type { PlayerState, Vec3 } from './types';
@@ -22,7 +22,7 @@ export interface PickupSpec {
 
 export const PICKUPS: Record<PickupKind, PickupSpec> = {
   heart: { kind: 'heart', height: 1.4, reach: 1, use: heal(3) }, // just under eye level, half a cube's height
-  'big-heart': { kind: 'big-heart', height: 1.4, reach: 1.5, use: heal(MAX_HEARTS) }, // drawn twice the size
+  'big-heart': { kind: 'big-heart', height: 1.4, reach: 1.5, use: heal(Infinity) }, // drawn twice the size; back to full
 };
 
 export interface PickupArea {
@@ -121,11 +121,12 @@ function touches(pickup: PickupState, eye: Vec3, eyeHeight: number): boolean {
   );
 }
 
-// Gives back `hearts`, up to MAX_HEARTS; no use to someone already at full health.
+// Gives back `hearts`, up to a full life; no use to someone already at full health.
 function heal(hearts: number): (p: PlayerState) => boolean {
   return (p) => {
-    if (p.hearts >= MAX_HEARTS) return false;
-    p.hearts = Math.min(MAX_HEARTS, p.hearts + hearts);
+    const full = heartsOf(p.avatar);
+    if (p.hearts >= full) return false;
+    p.hearts = Math.min(full, p.hearts + hearts);
     return true;
   };
 }

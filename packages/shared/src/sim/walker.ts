@@ -1,6 +1,9 @@
-// A player on foot: everyone so far. Walks, jumps, falls, lands, climbs steps and ramps, and flies
-// on a jetpack, all against the structures. The sim half of the walker class (classes.ts); the look
-// and the held item are applied before it runs (player.ts).
+// A player on foot: everyone but the dragons. Walks, jumps, falls, lands, climbs steps and ramps,
+// and flies on a jetpack, all against the structures; a shot has to land in their avatar's capsule.
+// The sim half of the walker class (classes.ts); the look and the held item are applied before it
+// runs (player.ts).
+import { AVATARS } from './avatars';
+import type { ClassSpec } from './classes';
 import {
   EYE_HEIGHT,
   GRAVITY,
@@ -14,10 +17,30 @@ import {
   STEP_UP,
 } from './constants';
 import type { Structures } from './collision';
-import { CAPSULE_TOP } from './health';
+import { CAPSULE_TOP, MAX_HEARTS } from './health';
 import { stepGear, thrust } from './gear';
 import type { InputFrame, PlayerState } from './types';
 import { WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
+
+export const WALKER: ClassSpec = {
+  id: 'walker',
+  hearts: MAX_HEARTS,
+  heartRow: 5,
+  kit: true,
+  bots: true,
+  corpseSeconds: null,
+  actions: {},
+  actionTicks: 0,
+  fits: () => true,
+  enter() {},
+  exit() {},
+  step: stepWalker,
+  hitShape: (p) => ({ kind: 'capsule', eye: p.pos, box: AVATARS[p.avatar].hitbox }),
+  // Under the feet.
+  lies: (p, structures) => [
+    { x: p.pos.x, y: structures.groundAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + 0.01), z: p.pos.z },
+  ],
+};
 
 // Standing on the floor or on a structure's top: eyes no higher than EYE_HEIGHT above it.
 export function isGrounded(p: PlayerState, structures: Structures = WORLD_STRUCTURES): boolean {

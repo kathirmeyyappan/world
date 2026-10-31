@@ -14,7 +14,7 @@ import {
 } from './sim/bots';
 import { isGearId, type GearId } from './sim/gear';
 import { NAMED_COLORS } from './sim/constants';
-import { isItemId, type ItemId } from './sim/items';
+import { ITEMS, isItemId, type ItemId } from './sim/items';
 
 export type Command =
   | { name: 'speedy' }
@@ -46,7 +46,7 @@ export function parseCommand(text: string): Command | null {
   const normalized = commandFor(raw.toLowerCase());
 
   if (normalized === 'speedy') return { name: 'speedy' };
-  if (isItemId(normalized)) return { name: 'equip', item: normalized };
+  if (isItemId(normalized) && !ITEMS[normalized].own) return { name: 'equip', item: normalized };
   if (isGearId(normalized)) return { name: 'wear', gear: normalized };
   const avatar = avatarForCommand(normalized);
   if (avatar) return { name: 'avatar', avatar };

@@ -209,8 +209,8 @@ with concurrent receive and input loops.
   `avatar` through to `connect`, which puts them on the join URL. The Room honours them for bots only,
   clamping the spot inside the world and standing the bot on anything within a step of it, or
   leaving it in the air there to fall (and take the fall's damage); the avatar is
-  fixed for the run. Any avatar id works, including one with no chat command
-  (`AVATARS[id].command` null) that people can't switch to.
+  fixed for the run. Any avatar whose class takes bots works (`classes.ts`; a dragon's is refused),
+  including one with no chat command (`AVATARS[id].command` null) that people can't switch to.
 - A bot can't join a room with no people in it: the lobby answers 409 and Node answers `no one here`,
   so a bot that spawns after everyone left never starts a room nothing would close. Local tests
   seat a person first with `connect(..., bot=False)`.

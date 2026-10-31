@@ -76,6 +76,7 @@ export const ITEM_SOUNDS: Record<
   gun: { shot: 'gun' },
   sniper: { shot: 'sniper', nearMiss: { within: 20, sounds: ['whiz-1', 'whiz-2', 'whiz-3'] } },
   flamethrower: { firing: 'flame' },
+  firebreath: { firing: 'flame' },
 };
 
 export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {

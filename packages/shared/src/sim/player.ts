@@ -2,16 +2,16 @@
 // (classes.ts). Runs identically on the server (authoritative) and the client (prediction), so it
 // must stay pure: no Babylon, no DOM, no time reads.
 import { MAX_PITCH } from './constants';
-import { avatarFor } from './avatars';
+import { AVATARS, avatarFor, type AvatarId } from './avatars';
 import { classOf } from './classes';
 import type { Structures } from './collision';
-import { MAX_HEARTS } from './health';
-import { ITEMS, createItem, nextFuel, lockedItemFor } from './items';
+import { ITEMS, createItem, nextFuel, lockedItemFor, type ItemState } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, WORLD_STRUCTURES, type WorldPart } from './world';
 
 export function createPlayer(id: string, name: string, color: string, spawn: Vec3, bot = false): PlayerState {
-  return {
+  const avatar = avatarFor(name);
+  const p: PlayerState = {
     id,
     name,
     bot,
@@ -23,25 +23,56 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
-    item: lockedItem(name),
+    item: ownItem(avatar, name),
     gear: null,
     scoped: false,
     firing: false,
     thrusting: false,
-    avatar: avatarFor(name),
-    avatarLocked: avatarFor(name) !== 'standard',
-    hearts: MAX_HEARTS,
+    avatar,
+    dragon: null,
+    avatarLocked: avatar !== 'standard',
+    hearts: classOf(avatar).hearts,
     kills: 0,
     dead: false,
   };
+  classOf(avatar).enter(p);
+  return p;
 }
 
 export function clonePlayer(p: PlayerState): PlayerState {
-  return { ...p, pos: { ...p.pos }, item: p.item && { ...p.item }, gear: p.gear && { ...p.gear } };
+  return {
+    ...p,
+    pos: { ...p.pos },
+    item: p.item && { ...p.item },
+    gear: p.gear && { ...p.gear },
+    dragon: p.dragon && { ...p.dragon, dir: { ...p.dragon.dir }, spine: [...p.dragon.spine] },
+  };
 }
 
-function lockedItem(name: string) {
-  const id = lockedItemFor(name);
+// Puts `p` in `avatar`. A new class is a new body at the same eye point: its life in proportion to
+// the old, the old class's state gone and the new one's made, and the kit dropped where the class
+// has none. The look's own item is held for good; leaving one brings back whatever the name gives.
+export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
+  const from = classOf(p.avatar);
+  const to = classOf(avatar);
+  const hadOwn = AVATARS[p.avatar].item !== null;
+  p.avatar = avatar;
+  if (to !== from) {
+    if (!p.dead) p.hearts = Math.max(0.5, Math.round((p.hearts / from.hearts) * to.hearts * 2) / 2);
+    from.exit(p);
+    to.enter(p);
+    p.vy = 0;
+    if (!to.kit) {
+      p.gear = null;
+      p.boost = 0;
+    }
+  }
+  if (AVATARS[avatar].item || hadOwn) p.item = ownItem(avatar, p.name);
+}
+
+// The look's own item, locked, else the name's, else nothing.
+function ownItem(avatar: AvatarId, name: string): ItemState | null {
+  const id = AVATARS[avatar].item ?? lockedItemFor(name);
   return id ? createItem(id, true) : null;
 }
 

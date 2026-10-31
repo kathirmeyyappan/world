@@ -34,5 +34,7 @@ export function createAvatar(engine: Engine, p: { id: string; color: string; ava
       return new BodyAvatar(engine, p.id, KRABS);
     case 'standard':
       return new StandardAvatar(engine, p.id, p.color);
+    case 'light-dragon': // a stand-in at the head: the dragon has no body of its own yet
+      return new StandardAvatar(engine, p.id, p.color);
   }
 }

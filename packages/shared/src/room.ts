@@ -29,17 +29,19 @@ import {
   TICK_RATE,
 } from './sim/constants';
 import { parseCommand, type BotCallArgs, type Command } from './commands';
+import { AVATARS, type AvatarId } from './sim/avatars';
+import { classOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
 import { PositionHistory, rewindTick } from './sim/rewind';
-import { applyDamage, damageFor, fallDamage } from './sim/health';
+import { REGEN_SECONDS, applyDamage, damageFor, fallDamage } from './sim/health';
 import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
-import { ITEMS, createItem, itemHelp, type ItemId, type ItemSpec } from './sim/items';
+import { ITEMS, createItem, itemHelp, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
-import { createPlayer, stepPlayer } from './sim/player';
+import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import type { Structures } from './sim/collision';
@@ -63,7 +65,9 @@ const SPAWN_MARGIN = 1; // metres a spawn keeps inside its area: more than a bod
 // as a fallback. Bots cannot rejoin themselves, so approximate that window's midpoint.
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
 const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
+const REGEN_TICKS = REGEN_SECONDS * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
+const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
 
 export interface ClientLink {
@@ -73,7 +77,8 @@ export interface ClientLink {
 
 interface Seat {
   lastShotTick: number;
-  shootHeld: boolean; // last frame's shoot level, for tap weapons' press edge
+  lastActTick: number; // the class's own actions share one cooldown
+  held: ItemAction[]; // last frame's actions, for the press edge of tap ones
   diedTick: number | null;
   state: PlayerState;
   link: ClientLink;
@@ -177,15 +182,27 @@ export class Room {
       link.send({ t: 'error', message: 'no one here' });
       return null;
     }
+    if (opts.bot && opts.avatar && !classOf(opts.avatar).bots) {
+      link.send({ t: 'error', message: `bots can't be a ${classOf(opts.avatar).id}` });
+      return null;
+    }
     const id = `p${this.nextPlayerId++}`;
     const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint();
     const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), at, !!opts.bot);
     if (opts.bot && opts.avatar) {
-      state.avatar = opts.avatar;
+      becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
     }
     if (opts.room && !this.publicName) this.publicName = opts.room;
-    this.seats.set(id, { state, link, queue: [], lastShotTick: -Infinity, shootHeld: false, diedTick: null });
+    this.seats.set(id, {
+      state,
+      link,
+      queue: [],
+      lastShotTick: -Infinity,
+      lastActTick: -Infinity,
+      held: [],
+      diedTick: null,
+    });
     link.send({
       t: 'welcome',
       id,
@@ -218,17 +235,30 @@ export class Room {
     }
   }
 
-  // A player goes. A dead one's body poofs away on every client and leaves CORPSE_DROP on whatever
-  // it was lying on.
+  // A player's client went. A dead one whose class keeps its body for a while stays as that body
+  // until its time (step); anyone else goes at once.
   leave(id: string): void {
     const seat = this.seats.get(id);
     if (!seat) return;
-    this.seats.delete(id);
-    const { dead, pos } = seat.state;
-    if (dead) {
-      const feet = { x: pos.x, y: this.structures.groundAt(pos.x, pos.z, pos.y - EYE_HEIGHT + 0.01), z: pos.z };
-      dropPickup(this.pickups, CORPSE_DROP, feet, this.rng);
+    if (seat.state.dead && classOf(seat.state.avatar).corpseSeconds !== null) {
+      seat.link = GONE;
+      seat.queue = [];
+      return;
     }
+    this.remove(id);
+  }
+
+  // The seat goes. A dead one's body poofs away on every client and leaves CORPSE_DROP on whatever
+  // it was lying on (a long body, at points along it).
+  private remove(id: string): void {
+    const seat = this.seats.get(id);
+    if (!seat) return;
+    this.seats.delete(id);
+    if (seat.state.dead)
+      for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures)) {
+        clampToWorld(at, PLAYER_PADDING, this.worldShape);
+        dropPickup(this.pickups, CORPSE_DROP, at, this.rng);
+      }
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
     if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
@@ -263,30 +293,41 @@ export class Room {
     }
   }
 
-  // The shoot action in one frame: a tap weapon fires on the press, a hold weapon fires every
-  // cooldown while the sim says it's firing (held, scoped if needed, fuel left).
+  // The actions in one frame. The shoot action: a tap weapon fires on the press, a hold weapon fires
+  // every cooldown while the sim says it's firing (held, scoped if needed, fuel left). The class's
+  // own: announced on the press, one at a time.
   private applyActions(seat: Seat, frame: InputFrame): void {
     const me = seat.state;
-    const held = frame.actions.includes('shoot');
-    const pressed = held && !seat.shootHeld;
-    seat.shootHeld = held;
+    const pressed = (action: ItemAction) => frame.actions.includes(action) && !seat.held.includes(action);
+    const cls = classOf(me.avatar);
+    for (const action of Object.keys(cls.actions) as ItemAction[])
+      if (pressed(action) && !me.dead && this.tick - seat.lastActTick >= cls.actionTicks) {
+        seat.lastActTick = this.tick;
+        this.broadcast({ t: 'action', id: me.id, action });
+      }
+    const shot = pressed('shoot');
+    seat.held = frame.actions;
     const spec = me.item && ITEMS[me.item.id];
     const shoot = spec?.actions.shoot;
     if (!spec || !shoot || me.dead) return;
-    const wants = shoot.mode === 'hold' ? me.firing : pressed && (!spec.fireNeedsScope || me.scoped);
+    const wants = shoot.mode === 'hold' ? me.firing : shot && (!spec.fireNeedsScope || me.scoped);
     if (!wants || this.tick - seat.lastShotTick < spec.cooldownTicks) return;
     seat.lastShotTick = this.tick;
     if (shoot.mode === 'tap') this.broadcast({ t: 'shot', id: me.id });
     // Judge the shot where the targets were on the shooter's screen (rewind.ts); the shooter
     // fires from where they are now, which is what their own prediction showed them.
     const at = rewindTick(frame.view, this.tick);
-    const targets = this.players.map((p) => ({
-      id: p.id,
-      dead: p.dead,
-      avatar: p.avatar,
-      pos: this.history.at(p.id, at) ?? p.pos,
-      player: p,
-    }));
+    const targets = this.players.map((p) => {
+      const was = this.history.at(p.id, at);
+      return {
+        id: p.id,
+        dead: p.dead,
+        avatar: p.avatar,
+        pos: was?.pos ?? p.pos,
+        dragon: was ? was.dragon : p.dragon,
+        player: p,
+      };
+    });
     for (const hit of resolveFire(spec, me, targets, this.structures))
       this.damage(hit.target.player, damageFor(spec, hit.headshot), { shooter: seat, headshot: hit.headshot });
   }
@@ -321,12 +362,16 @@ export class Room {
 
   step(): void {
     for (const [id, seat] of this.seats) {
-      const corpseTicks = seat.state.bot ? BOT_CORPSE_TICKS : BROWSER_CORPSE_TICKS;
+      const me = seat.state;
+      const stays = classOf(me.avatar).corpseSeconds;
+      const corpseTicks = stays !== null ? stays * TICK_RATE : me.bot ? BOT_CORPSE_TICKS : BROWSER_CORPSE_TICKS;
       if (seat.diedTick !== null && this.tick - seat.diedTick >= corpseTicks) {
-        this.leave(id);
+        this.remove(id);
         seat.link.close?.('dead');
         continue;
       }
+      if (AVATARS[me.avatar].regen && !me.dead && this.tick % REGEN_TICKS === 0)
+        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + 1);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
         this.land(seat, stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures));
@@ -379,48 +424,31 @@ export class Room {
   }
 
   private runCommand(seat: Seat, command: Command): void {
+    const me = seat.state;
+    const tell = (text: string) => seat.link.send({ t: 'system', text });
     switch (command.name) {
       case 'speedy':
-        seat.state.boost = SPEEDY_SECONDS;
-        this.broadcast({
-          t: 'system',
-          text: `${seat.state.name} increased their movement speed for ${SPEEDY_SECONDS}s`,
-        });
+        if (!classOf(me.avatar).kit) return tell(`not as a ${classOf(me.avatar).id}`);
+        me.boost = SPEEDY_SECONDS;
+        this.broadcast({ t: 'system', text: `${me.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
       case 'equip':
         this.equip(seat, command.item);
         return;
       case 'wear':
+        if (!classOf(me.avatar).kit) return tell(`not as a ${classOf(me.avatar).id}`);
         this.wear(seat, command.gear);
         return;
-      case 'avatar': {
-        // Like a name-given item: a name-given look can't be changed; anyone else switches for good.
-        const me = seat.state;
-        if (me.avatarLocked) {
-          seat.link.send({ t: 'system', text: `you're ${me.avatar} for good` });
-          return;
-        }
-        if (me.avatar === command.avatar) {
-          seat.link.send({ t: 'system', text: `you're already ${command.avatar}` });
-          return;
-        }
-        me.avatar = command.avatar;
-        this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}` });
+      case 'avatar':
+        if (this.become(seat, command.avatar))
+          this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}` });
         return;
-      }
-      case 'color': {
-        // A colour is the standard body's, so it brings its wearer back to that body; a name-given
-        // look can't be changed, by colour either.
-        const me = seat.state;
-        if (me.avatarLocked) {
-          seat.link.send({ t: 'system', text: `you're ${me.avatar} for good` });
-          return;
-        }
+      case 'color':
+        // A colour is the standard body's, so it brings its wearer back to that body.
+        if (!this.become(seat, 'standard', true)) return;
         me.color = NAMED_COLORS[command.color];
-        me.avatar = 'standard';
         this.broadcast({ t: 'system', text: `${me.name} is now ${command.color}` });
         return;
-      }
       case 'bot':
         this.callBot(seat, command.bot, command.call);
         return;
@@ -431,6 +459,30 @@ export class Room {
         seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
         return;
     }
+  }
+
+  // Switches `seat` to `avatar`, or tells them why not. `again` lets the look they have pass, for
+  // a colour.
+  private become(seat: Seat, avatar: AvatarId, again = false): boolean {
+    const why = this.cantBecome(seat.state, avatar, again);
+    if (why) {
+      seat.link.send({ t: 'system', text: why });
+      return false;
+    }
+    becomeAvatar(seat.state, avatar);
+    return true;
+  }
+
+  // A name-given look can't be changed, the dead stay what they died as, and a new class needs room
+  // for its body.
+  private cantBecome(me: PlayerState, avatar: AvatarId, again: boolean): string | null {
+    if (me.avatarLocked) return `you're ${me.avatar} for good`;
+    if (me.avatar === avatar && !again) return `you're already ${avatar}`;
+    const to = classOf(avatar);
+    if (to === classOf(me.avatar)) return null;
+    if (me.dead) return "not while you're dead";
+    if (!to.fits(me.pos, this.structures)) return `no room for a ${to.id} here`;
+    return null;
   }
 
   // "/circle-bot -t 60 -n bob" or "/sniper-bot -s tung --target kat": ask the host to start a bot
@@ -449,6 +501,7 @@ export class Room {
     if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
     if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
     if (this.botCount >= MAX_BOTS) return tell('this room has enough bots');
+    if (call.avatar && !classOf(call.avatar).bots) return tell(`bots can't be a ${classOf(call.avatar).id}`);
 
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';

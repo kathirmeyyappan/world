@@ -463,7 +463,8 @@ body {
   transform: translate(-50%, -50%) scale(1.4);
 }
 
-/* Hearts: two rows of five pixel hearts, top centre. Lost ones grey out and crack. */
+/* Hearts: rows of pixel hearts, top centre (five to a row for a walker's ten, eight for a dragon's
+   forty; ui/Hearts.ts sets the row). Lost ones grey out and crack. */
 #hearts {
   position: fixed;
   top: 14px;
@@ -472,7 +473,7 @@ body {
   z-index: 50;
   pointer-events: none;
   display: grid;
-  grid-template-columns: repeat(5, 27px);
+  grid-template-columns: repeat(var(--heart-row, 5), 27px);
   gap: 3px 4px;
 }
 .heart {
@@ -1324,7 +1325,7 @@ body {
   }
   #hearts {
     top: 8px;
-    grid-template-columns: repeat(5, 18px);
+    grid-template-columns: repeat(var(--heart-row, 5), 18px);
     gap: 2px 3px;
   }
   .heart {
