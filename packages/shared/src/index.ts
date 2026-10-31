@@ -5,6 +5,8 @@ export * from './sim/world';
 export * from './sim/structures';
 export * from './sim/collision';
 export * from './sim/player';
+export * from './sim/classes';
+export * from './sim/walker';
 export * from './sim/cubes';
 export * from './sim/combat';
 export * from './sim/rewind';
