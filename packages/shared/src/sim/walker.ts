@@ -33,6 +33,7 @@ export const WALKER: ClassSpec = {
   actions: {},
   actionTicks: 0,
   fits: () => true,
+  confine: (p, shape) => clampToWorld(p.pos, PLAYER_PADDING, shape),
   enter() {},
   exit() {},
   step: stepWalker,

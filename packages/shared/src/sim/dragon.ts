@@ -8,8 +8,8 @@
 // HEAD_PITCH up or down), and its breath goes where the head points. The head keeps MIN_ALTITUDE
 // above whatever is under it, is too big for any doorway, and has the whole sky out to the world's
 // reach, the void between its parts included. A new one rises out of the ground where its rider
-// stood, head up and body straight below, and climbs straight on with the forward key until
-// EMERGE_POINTS of its spine are out; only then is it free to fly.
+// stood, head up and body straight below, and climbs straight on by itself, whatever the keys,
+// until the whole of its spine is out; only then is it free to fly.
 import type { ClassSpec, HitShape, Sphere } from './classes';
 import type { Body, Structures } from './collision';
 import type { Shooter, Target } from './combat';
@@ -27,7 +27,6 @@ export const SPINE_SPACING = 1.5; // metres between spine points, at most
 export const SPINE_POINTS = 20; // so the body runs 30 m behind the head
 export const HEAD_YAW = 0.5; // radians the head can turn round from the way the neck runs
 export const HEAD_PITCH = 0.5; // and up or down from it
-export const EMERGE_POINTS = 12; // spine points out of the ground before a new one may leave the way it rose
 const HEAD_TURN_RATE = 4; // radians per second the head comes round at
 const SPEED_EASE = 0.6; // seconds to get most of the way up to cruise or down to a stop
 const RISE_SPEED = 3; // m/s a new dragon's head comes out of the ground at
@@ -43,7 +42,7 @@ export interface DragonState {
   dir: Vec3; // the way the head is going, a unit vector
   speed: number; // m/s along it
   head: Vec3; // the way the head points, a unit vector: the look, as far round as the neck lets it
-  risen: boolean; // EMERGE_POINTS of the spine out of the ground it rose from, and free to fly
+  risen: boolean; // the whole spine out of the ground it rose from, and free to fly
   spine: number[]; // x, y, z of each spine point, nearest the head first, each within SPINE_SPACING of the last
 }
 
@@ -68,6 +67,7 @@ export const DRAGON: ClassSpec = {
   },
   actionTicks: ROAR_SECONDS * TICK_RATE,
   fits,
+  confine: (p, shape) => clampToSky(p.pos, shape),
   enter(p) {
     p.dragon = createDragon(p.pos);
   },
@@ -89,7 +89,7 @@ function headBody(y: number): Body {
 // to where its head will be once it's free to fly, and nothing round about the head on the way up.
 function fits(pos: Vec3, structures: Structures): boolean {
   const feet = pos.y - EYE_HEIGHT;
-  const top = feet + EMERGE_POINTS * SPINE_SPACING;
+  const top = feet + SPINE_POINTS * SPINE_SPACING;
   if (structures.ceilingAt(pos.x, pos.z, feet) < top + HEAD_RADIUS) return false;
   for (let y = feet + MIN_ALTITUDE; y <= top; y += HEAD_RADIUS)
     if (structures.touches(pos.x, pos.z, headBody(y))) return false;
@@ -112,24 +112,24 @@ export function stepDragon(
   // head on where the rider's own prediction, which steps once per frame, did not.
   if (!input) return 0;
   if (d.risen) fly(p, d, input, dt, shape, structures);
-  else emerge(p, d, input, dt, structures);
+  else emerge(p, d, dt, structures);
   return 0;
 }
 
-// Out of the ground: the head comes up on its own to MIN_ALTITUDE, then climbs straight on with
-// the forward key, looking straight up all the while, until EMERGE_POINTS of the spine are out.
-function emerge(p: PlayerState, d: DragonState, input: InputFrame, dt: number, structures: Structures): void {
+// Out of the ground: the head comes up on its own to MIN_ALTITUDE, then climbs straight on at
+// cruise, looking straight up all the while, until the whole spine is out; the keys do nothing.
+function emerge(p: PlayerState, d: DragonState, dt: number, structures: Structures): void {
   const head = p.pos;
   const ground = structures.groundAt(head.x, head.z, head.y);
   if (head.y < ground + MIN_ALTITUDE) {
     head.y = Math.min(ground + MIN_ALTITUDE, head.y + RISE_SPEED * dt);
     d.speed = 0;
   } else {
-    ease(d, input, dt);
+    ease(d, true, dt);
     head.y = Math.min(structures.ceilingAt(head.x, head.z, head.y) - HEAD_RADIUS, head.y + d.speed * dt);
   }
   follow(d.spine, head);
-  d.risen = d.spine[(EMERGE_POINTS - 1) * 3 + 1] >= ground;
+  d.risen = d.spine[(SPINE_POINTS - 1) * 3 + 1] >= ground;
 }
 
 function fly(
@@ -144,7 +144,7 @@ function fly(
   const look = lookDirection(p.yaw, p.pitch);
   // The head comes round toward the look, as far as the neck lets it, moving or not.
   d.head = turnToward(d.head, headTarget(neckOf(d, head), look), HEAD_TURN_RATE * dt);
-  ease(d, input, dt);
+  ease(d, input.my > 0, dt);
   if (d.speed === 0) return;
   const dir = (d.dir = turnToward(d.dir, look, (d.speed / TURN_RADIUS) * dt));
   const step = d.speed * dt;
@@ -192,9 +192,9 @@ function clampToSky(head: Vec3, shape: WorldPart[]): void {
   }
 }
 
-// Toward cruise with the forward key held, else to a stop.
-function ease(d: DragonState, input: InputFrame, dt: number): void {
-  const want = input.my > 0 ? CRUISE_SPEED : 0;
+// Toward cruise while `forward` is held, else to a stop.
+function ease(d: DragonState, forward: boolean, dt: number): void {
+  const want = forward ? CRUISE_SPEED : 0;
   d.speed += (want - d.speed) * Math.min(1, dt / SPEED_EASE);
   if (d.speed < 0.2) d.speed = 0;
 }
