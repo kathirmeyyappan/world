@@ -105,6 +105,7 @@ export class DragonAvatar implements Avatar {
   private hinge = new Vector3(); // the jaw's, in the head bone's frame
   private skeleton: Skeleton | null = null;
   private head: Mesh | null = null;
+  private maw: Mesh | null = null; // the inside of the mouth, drawn only while the jaw is open
   private hitFlash: HitFlash | null = null;
   private headless = false;
   private disposed = false;
@@ -177,8 +178,10 @@ export class DragonAvatar implements Avatar {
       return mesh;
     };
     this.head = mesh('head', m.head);
+    this.maw = mesh('maw', m.maw);
     mesh('body', m.body);
     this.head.setEnabled(!this.headless);
+    this.maw.setEnabled(false);
   }
 
   update(p: RemotePlayer): void {
@@ -239,6 +242,7 @@ export class DragonAvatar implements Avatar {
     const t = (now - this.roaredAt) / 1000;
     const want = !this.dead && (breathing || (t >= 0 && t < this.roarSeconds - ROAR_SHUT)) ? 1 : 0;
     this.jaw += (want - this.jaw) * Math.min(1, dt / JAW_EASE);
+    this.maw?.setEnabled(!this.headless && this.jaw > 0.02);
     const open = JAW_OPEN * this.jaw;
     const right = Vector3.Cross(up, forward);
     const hinge = this.at
