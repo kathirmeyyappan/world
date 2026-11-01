@@ -18,19 +18,19 @@ import { lookDirection } from './look';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { worldReach, type WorldPart } from './world';
 
-export const HEAD_RADIUS = 2; // metres: the head's sphere, what walls, undersides and headshots meet
-export const BODY_RADIUS = 1.2; // metres: the body's, round each spine point
-export const MIN_ALTITUDE = 4; // metres the head keeps above whatever is under it
-export const CRUISE_SPEED = 10; // m/s flat out
-export const TURN_RADIUS = 8; // metres: the tightest arc the head flies
-export const SPINE_SPACING = 1.5; // metres between spine points, at most
-export const SPINE_POINTS = 20; // so the body runs 30 m behind the head
+export const HEAD_RADIUS = 2.5; // metres: the head's sphere, what walls, undersides and headshots meet
+export const BODY_RADIUS = 1.5; // metres: the body's, round each spine point
+export const MIN_ALTITUDE = 5; // metres the head keeps above whatever is under it
+export const CRUISE_SPEED = 12.5; // m/s flat out
+export const TURN_RADIUS = 10; // metres: the tightest arc the head flies
+export const SPINE_SPACING = 1.875; // metres between spine points, at most
+export const SPINE_POINTS = 20; // so the body runs 37.5 m behind the head
 export const HEAD_YAW = 0.5; // radians the head can turn round from the way the neck runs
 export const HEAD_PITCH = 0.5; // and up or down from it
 const HEAD_TURN_RATE = 4; // radians per second the head comes round at
 const SPEED_EASE = 0.6; // seconds to get most of the way up to cruise or down to a stop
-const RISE_SPEED = 3; // m/s a new dragon's head comes out of the ground at
-const CLIMB_SPEED = 6; // m/s the head lifts at where the ground under it rises, to keep MIN_ALTITUDE
+const RISE_SPEED = 3.75; // m/s a new dragon's head comes out of the ground at
+const CLIMB_SPEED = 7.5; // m/s the head lifts at where the ground under it rises, to keep MIN_ALTITUDE
 const GROUND_SAMPLES = 8; // spots round the head's edge the ground is read at, besides its centre
 const SINK_SPEED = 6; // m/s a dead body's points settle onto what's under them at
 const ROAR_SECONDS = 3; // one roar at a time

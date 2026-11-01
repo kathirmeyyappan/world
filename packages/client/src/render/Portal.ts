@@ -4,7 +4,7 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, type Vector3 } from '@babylonjs/core';
 import type { Engine } from './Engine';
 
-const ACROSS = 7; // metres
+const ACROSS = 8.75; // metres
 const FADE = 0.6; // seconds to open or shut
 const TURN = 0.5; // radians a second
 
