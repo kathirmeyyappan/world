@@ -60,17 +60,6 @@ const JAW_EASE = 0.15;
 // over a tick the sim ran without the rider's frame.
 const BREATH = { density: 3, size: 1.6, core: 2.5 };
 const BREATH_HOLD = 0.2;
-// The sleeve: a plain tube of mane colour round the neck inside the mane, so the gaps between its
-// strands show gold rather than the sky. Rings on the first bones, each at a radius inside the
-// strands' spread there (the neck itself is thinner), with the mane's texture at one spot.
-const SLEEVE = [
-  { bone: 0, along: -0.35, radius: 0.5 },
-  { bone: 1, along: 0, radius: 0.72 },
-  { bone: 2, along: 0, radius: 0.72 },
-  { bone: 3, along: 0, radius: 0.68 },
-];
-const SLEEVE_SIDES = 10;
-const SLEEVE_UV = [0.18, 0.77];
 // The portal: metres across, how far under the ground a spine point counts as still in it, and
 // seconds it takes to open or close.
 const PORTAL = 7;
@@ -116,7 +105,6 @@ export class DragonAvatar implements Avatar {
   private hinge = new Vector3(); // the jaw's, in the head bone's frame
   private skeleton: Skeleton | null = null;
   private head: Mesh | null = null;
-  private sleeve: Mesh | null = null;
   private hitFlash: HitFlash | null = null;
   private headless = false;
   private disposed = false;
@@ -190,14 +178,7 @@ export class DragonAvatar implements Avatar {
     };
     this.head = mesh('head', m.head);
     mesh('body', m.body);
-    this.sleeve = new Mesh(`dragon-${this.id}-sleeve`, scene);
-    sleeveData(m.frames).applyToMesh(this.sleeve);
-    this.sleeve.material = material;
-    this.sleeve.skeleton = this.skeleton;
-    this.sleeve.parent = this.root;
-    this.sleeve.isPickable = false;
-    this.sleeve.alwaysSelectAsActiveMesh = true;
-    for (const m of [this.head, this.sleeve]) m.setEnabled(!this.headless);
+    this.head.setEnabled(!this.headless);
   }
 
   update(p: RemotePlayer): void {
@@ -313,7 +294,7 @@ export class DragonAvatar implements Avatar {
   // Draws the body without the head: the rider's own view from its eyes.
   setHeadless(on: boolean): void {
     this.headless = on;
-    for (const m of [this.head, this.sleeve]) m?.setEnabled(!on);
+    this.head?.setEnabled(!on);
   }
 
   act(action: ItemAction): void {
@@ -373,45 +354,6 @@ function portalMaterial(engine: Engine, name: string): StandardMaterial {
   m.disableLighting = true;
   m.backFaceCulling = false;
   return m;
-}
-
-// The sleeve in the rest pose, each ring's vertices following its bone alone.
-function sleeveData(frames: readonly number[]): VertexData {
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  const bones: number[] = [];
-  const weights: number[] = [];
-  for (const ring of SLEEVE) {
-    const f = frames.slice(ring.bone * 12, ring.bone * 12 + 12);
-    for (let i = 0; i < SLEEVE_SIDES; i++) {
-      const a = (i / SLEEVE_SIDES) * 2 * Math.PI;
-      const c = Math.cos(a);
-      const s = Math.sin(a);
-      for (let k = 0; k < 3; k++) {
-        normals.push(c * f[3 + k] + s * f[6 + k]);
-        positions.push(f[k] + f[9 + k] * ring.along + ring.radius * normals[normals.length - 1]);
-      }
-      uvs.push(SLEEVE_UV[0], SLEEVE_UV[1]);
-      bones.push(ring.bone, 0, 0, 0);
-      weights.push(1, 0, 0, 0);
-    }
-  }
-  for (let r = 0; r + 1 < SLEEVE.length; r++)
-    for (let i = 0; i < SLEEVE_SIDES; i++) {
-      const a = r * SLEEVE_SIDES + i;
-      const b = r * SLEEVE_SIDES + ((i + 1) % SLEEVE_SIDES);
-      indices.push(a, b, a + SLEEVE_SIDES, b, b + SLEEVE_SIDES, a + SLEEVE_SIDES);
-    }
-  const data = new VertexData();
-  data.positions = positions;
-  data.normals = normals;
-  data.uvs = uvs;
-  data.indices = indices;
-  data.matricesIndices = bones;
-  data.matricesWeights = weights;
-  return data;
 }
 
 // The neck's bones, spaced evenly along a curve from the head, leaving it the way the head points,
