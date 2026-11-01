@@ -13,8 +13,9 @@ its forward toward the head and its up toward the dorsal spines. Every vertex of
 the two bones either side of its place on the curve; the head, eyes, lashes and horns follow the
 head bone alone, so the head turns in one piece, except the lower jaw, which gets a bone of its own
 at its hinge so the mouth can open. The head and the mane round it are a mesh of their
-own, hidden for its rider's view from the eyes. Each part is decimated to its share of the budget with its open edges kept, the textures
-are packed into one atlas, and it writes both meshes as monster-model.py does, with the bones' rest
+own, hidden for its rider's view from the eyes, and the inside of the mouth a third, drawn only
+while the jaw is open. Each part is decimated to its share of the budget with its open edges kept, the textures
+are packed into one atlas, and it writes the meshes as monster-model.py does, with the bones' rest
 frames and where the mouth is (the breath starts there), in the dragon's frame: metres, the eyes at
 the origin, mirrored in x like the other models.
 """
@@ -40,12 +41,14 @@ SPINE_SPACING = 1.5
 TAIL = 1.5  # metres of tail past the last bone, rigid with it
 JAW_BONE = SPINE_POINTS + 1  # after the spine's bones
 BONES = JAW_BONE + 1
-# The lower jaw: the head's vertices under the lip line and ahead of the hinge, in the head bone's
-# frame (metres forward of and up from the eyes). The model's mouth is shut, so the line is a guess
-# at where the lips meet, and a band JAW_BLEND wide along it and at the hinge is shared with the head.
-JAW_HINGE = -0.25
-JAW_LIP = -0.34
-JAW_BLEND = 0.08
+# The lower jaw: the head cut along the lip line, from the hinge (metres forward of and up from the
+# eyes, in the head bone's frame, below the eye) straight to the snout's tip, and across at the
+# hinge. The model's mouth is shut, so the line is a guess at where the lips meet. The cut faces are
+# capped in the mouth's own colours (swatches in the atlas), with a row of teeth along the upper one.
+JAW_HINGE = (-0.3, -0.4)
+MOUTH_COLOURS = {"mouth": (26, 30, 64), "tongue": (178, 70, 96), "tooth": (240, 236, 220)}
+TOOTH = 0.08  # metres long
+TEETH_EVERY = 3  # rim vertices between teeth
 
 RIGID_PARTS = ("Head", "Eyes", "Eyeashes", "Horns")  # one piece with the head bone
 HEAD_MESH = (*RIGID_PARTS, "Mane")  # round the head, so hidden with it; the mane's roots follow the neck
@@ -132,12 +135,16 @@ def main(glb: str) -> None:
     # Where along the curve each vertex sits, and so which bones it follows.
     spines = next(p for p in parts if p["group"] == "Spines")
     frames = bone_frames(curve, spines["positions"])
+    # The mouth: the lower jaw's tip, the farthest forward the head goes below the eyes.
+    head = next(p for p in parts if p["group"] == "Head")
+    forward = frames[0, 9:12]
+    low = head["positions"][head["positions"][:, 1] < 0]
+    mouth = low[np.argmax(low @ forward)]
+    print("mouth", np.round(mouth, 2))
     for part in parts:
         if part["group"] in RIGID_PARTS:
             part["bones"] = np.zeros((len(part["positions"]), BONES))
-            jaw = jaw_share(part["positions"], frames[0]) if part["group"] == "Head" else 0
-            part["bones"][:, 0] = 1 - jaw
-            part["bones"][:, JAW_BONE] = jaw
+            part["bones"][:, 0] = 1
             continue
         along = nearest(part["positions"], curve) * SAMPLE / SPINE_SPACING
         first = np.minimum(np.floor(along).astype(int), JAW_BONE - 1)
@@ -150,17 +157,13 @@ def main(glb: str) -> None:
     for i in (0, 1, 2, 5, 10, 15, 20, JAW_BONE):
         f = frames[i]
         print(f"bone {i:2d} at {np.round(f[:3], 2)} up {np.round(f[6:9], 2)} forward {np.round(f[9:12], 2)}")
-    head_part = next(p for p in parts if p["group"] == "Head")
-    print(
-        "head spans", np.round(head_part["positions"].min(axis=0), 2), np.round(head_part["positions"].max(axis=0), 2)
-    )
+    print("head spans", np.round(head["positions"].min(axis=0), 2), np.round(head["positions"].max(axis=0), 2))
 
-    # The mouth: the lower jaw's tip, the farthest forward the head goes below the eyes.
-    head = next(p for p in parts if p["group"] == "Head")
-    forward = frames[0, 9:12]
-    low = head["positions"][head["positions"][:, 1] < 0]
-    mouth = low[np.argmax(low @ forward)]
-    print("mouth", np.round(mouth, 2))
+    for name, colour in MOUTH_COLOURS.items():
+        doc["materials"].append({"name": name})
+    swatches = {name: len(doc["materials"]) - len(MOUTH_COLOURS) + i for i, name in enumerate(MOUTH_COLOURS)}
+    for part in [p for p in parts if p["group"] == "Head"]:
+        parts.extend(cut_jaw(part, frames[0], mouth, swatches))
 
     total = sum(len(p["triangles"]) for p in parts)
     for group, budget in BUDGET.items():
@@ -173,7 +176,7 @@ def main(glb: str) -> None:
 
     uv = np.vstack([p["uvs"] for p in parts])
     material = np.concatenate([np.full(len(p["uvs"]), p["material"]) for p in parts])
-    atlas, uv = pack_atlas(doc, blob, uv, material, {}, TEXTURE_SIZE)
+    atlas, uv = pack_atlas(doc, blob, uv, material, MOUTH_COLOURS, TEXTURE_SIZE)
     base = 0
     for part in parts:
         part["uvs"] = uv[base : base + len(part["uvs"])]
@@ -185,8 +188,9 @@ def main(glb: str) -> None:
     lines = [
         f"// Generated by packages/client/scripts/dragon-model.py from {AUTHOR}'s {TITLE} (Sketchfab,"
         " CC BY-NC 4.0); don't edit.",
-        "// Two skinned meshes in the dragon's frame (metres, the eyes at the origin, x to its right): the head and",
-        "// the body, each with vertices in millimetres (Int16 x, y, z), unit normals (Int8), texture coordinates",
+        "// Three skinned meshes in the dragon's frame (metres, the eyes at the origin, x to its right): the head,",
+        "// the inside of its mouth (the roof, the tongue and the teeth, for while the jaw is open) and the body,",
+        "// each with vertices in millimetres (Int16 x, y, z), unit normals (Int8), texture coordinates",
         "// (Uint16 over 0 to 1, v down the image), triangles (Uint16) and, per vertex, the two bones it follows",
         "// (Uint8) and the first's share of it (Uint8 of 255); all base64. `frames` is each bone's rest pose in index",
         "// order (its position, then its right, up and forward unit vectors): bone 0 at the eyes, bone i on the",
@@ -198,7 +202,8 @@ def main(glb: str) -> None:
         *(f"    {', '.join(f'{c + 0.0:.4f}' for c in f)}," for f in frames),
         "  ],",
         *mesh_lines("head", [p for p in parts if p["group"] in HEAD_MESH]),
-        *mesh_lines("body", [p for p in parts if p["group"] not in HEAD_MESH]),
+        *mesh_lines("maw", [p for p in parts if p["group"] == "Mouth"]),
+        *mesh_lines("body", [p for p in parts if p["group"] not in (*HEAD_MESH, "Mouth")]),
         "} as const;",
         "",
     ]
@@ -298,14 +303,134 @@ def nearest(points: np.ndarray, curve: np.ndarray) -> np.ndarray:
     return found
 
 
-def jaw_share(positions: np.ndarray, head: np.ndarray) -> np.ndarray:
-    """How much of each vertex the lower jaw's bone carries: all of it under the lip line and ahead
-    of the hinge, none above or behind, fading across JAW_BLEND either side of both."""
-    forward = (positions - head[:3]) @ head[9:12]
-    up = (positions - head[:3]) @ head[6:9]
-    under = np.clip((JAW_LIP + JAW_BLEND / 2 - up) / JAW_BLEND, 0, 1)
-    ahead = np.clip((forward - JAW_HINGE + JAW_BLEND / 2) / JAW_BLEND, 0, 1)
-    return under * ahead
+def cut_jaw(part: dict, head: np.ndarray, mouth: np.ndarray, swatches: dict[str, int]) -> list[dict]:
+    """Cuts `part` (a piece of the head) into the head's shell and the lower jaw's along the lip
+    line and across at the hinge, in place, each bound to its own bone, and returns the parts that
+    close the cut: a cap over each open face (the roof of the mouth and the throat's on the head,
+    the tongue on the jaw) and a row of teeth hanging from the roof's rim. Those are a mesh of their
+    own, drawn only while the mouth is open, since the teeth hang past the lip line and the caps
+    meet at the seam when it's shut."""
+    right, up, forward = head[3:6], head[6:9], head[9:12]
+    hinge = head[:3] + forward * JAW_HINGE[0] + up * JAW_HINGE[1]
+    lip = np.cross(mouth - hinge, right)
+    lip /= np.linalg.norm(lip)
+    positions, normals, uvs, triangles = part["positions"], part["normals"], part["uvs"], part["triangles"]
+    # Negative inside the jaw: below the lip plane and ahead of the hinge.
+    field = np.maximum((positions - hinge) @ lip, -((positions - hinge) @ forward))
+    new_positions, new_normals, new_uvs = list(positions), list(normals), list(uvs)
+    side_of = list(field > 0)  # True on the head's side
+    split: dict[tuple[int, int, bool], int] = {}  # a cut point on an edge, one copy per side
+    boundary: dict[bool, list[tuple[int, int]]] = {True: [], False: []}
+    out = []
+
+    def cut_point(a: int, b: int, head_side: bool) -> int:
+        key = (min(a, b), max(a, b), head_side)
+        if key not in split:
+            t = field[a] / (field[a] - field[b])
+            new_positions.append(positions[a] + (positions[b] - positions[a]) * t)
+            n = normals[a] + (normals[b] - normals[a]) * t
+            new_normals.append(n / max(np.linalg.norm(n), 1e-9))
+            new_uvs.append(uvs[a] + (uvs[b] - uvs[a]) * t)
+            side_of.append(head_side)
+            split[key] = len(new_positions) - 1
+        return split[key]
+
+    for tri in triangles:
+        sides = [field[v] > 0 for v in tri]
+        if all(sides) or not any(sides):
+            out.append(list(tri))
+            continue
+        # One vertex alone on its side: the tip of a smaller triangle; the other two keep a quad.
+        lone = next(i for i in range(3) if sides.count(sides[i]) == 1)
+        a, b, c = tri[lone], tri[(lone + 1) % 3], tri[(lone + 2) % 3]
+        pa, qa = cut_point(a, b, sides[lone]), cut_point(a, c, sides[lone])
+        pb, qb = cut_point(a, b, not sides[lone]), cut_point(a, c, not sides[lone])
+        out.append([a, pa, qa])
+        out.append([pb, b, c])
+        out.append([pb, c, qb])
+        boundary[sides[lone]].append((pa, qa))
+        boundary[not sides[lone]].append((qb, pb))
+    part["positions"] = np.array(new_positions)
+    part["normals"] = np.array(new_normals)
+    part["uvs"] = np.array(new_uvs)
+    part["triangles"] = np.array(out)
+    part["bones"] = np.zeros((len(new_positions), BONES))
+    part["bones"][:, 0] = np.array(side_of)
+    part["bones"][:, JAW_BONE] = ~np.array(side_of)
+
+    # The caps: each run of boundary edges fanned from its middle, facing out of its piece.
+    caps = []
+    for head_side, edges in boundary.items():
+        for loop in chains(edges):
+            points = part["positions"][loop]
+            middle = points.mean(axis=0)
+            on_lip = abs((middle - hinge) @ lip) < abs((middle - hinge) @ forward)
+            normal = (lip if on_lip else forward) * (1 if head_side else -1)
+            colour = "mouth" if head_side or not on_lip else "tongue"
+            ring = np.vstack([points, middle[None]])
+            tris = [[len(points), i, (i + 1) % len(points)] for i in range(len(points) - (0 if len(loop) > 2 else 1))]
+            caps.append(cap_part(ring, normal, tris, swatches[colour], head_side))
+            if head_side and on_lip:
+                # Teeth: a triangle hanging from the rim every TEETH_EVERY vertices along it.
+                teeth = []
+                for i in range(0, len(points) - 1, TEETH_EVERY):
+                    a, b = points[i], points[i + 1]
+                    teeth.append(np.array([a, b, (a + b) / 2 - lip * TOOTH]))
+                if teeth:
+                    tooth_points = np.vstack(teeth)
+                    caps.append(
+                        cap_part(
+                            tooth_points,
+                            -lip,
+                            [[i * 3, i * 3 + 1, i * 3 + 2] for i in range(len(teeth))],
+                            swatches["tooth"],
+                            True,
+                        )
+                    )
+    return caps
+
+
+def chains(edges: list[tuple[int, int]]) -> list[list[int]]:
+    """The runs of vertices the edges join up into, loops or open chains."""
+    adjacent: dict[int, list[int]] = {}
+    for a, b in edges:
+        adjacent.setdefault(a, []).append(b)
+        adjacent.setdefault(b, []).append(a)
+    seen: set[int] = set()
+    runs = []
+    starts = [v for v, n in adjacent.items() if len(n) == 1] + list(adjacent)
+    for start in starts:
+        if start in seen:
+            continue
+        run = [start]
+        seen.add(start)
+        while True:
+            nxt = [v for v in adjacent[run[-1]] if v not in seen]
+            if not nxt:
+                break
+            run.append(nxt[0])
+            seen.add(nxt[0])
+        if len(run) >= 3:
+            runs.append(run)
+    return runs
+
+
+def cap_part(
+    points: np.ndarray, normal: np.ndarray, triangles: list[list[int]], material: int, head_side: bool
+) -> dict:
+    """A flat piece of the mouth: `points` in the dragon's frame, all facing `normal`, in one of the
+    mouth's colours, following the head's bone or the jaw's."""
+    bones = np.zeros((len(points), BONES))
+    bones[:, 0 if head_side else JAW_BONE] = 1
+    return {
+        "group": "Mouth",
+        "positions": np.array(points),
+        "normals": np.tile(normal / np.linalg.norm(normal), (len(points), 1)),
+        "uvs": np.full((len(points), 2), 0.5),
+        "triangles": np.array(triangles),
+        "material": material,
+        "bones": bones,
+    }
 
 
 def bone_frames(curve: np.ndarray, spines: np.ndarray) -> np.ndarray:
@@ -332,7 +457,7 @@ def bone_frames(curve: np.ndarray, spines: np.ndarray) -> np.ndarray:
         frames.append(np.concatenate([curve[at], right, up, forward]))
     head = frames[0]
     jaw = head.copy()
-    jaw[:3] = head[:3] + head[9:12] * JAW_HINGE + head[6:9] * JAW_LIP
+    jaw[:3] = head[:3] + head[9:12] * JAW_HINGE[0] + head[6:9] * JAW_HINGE[1]
     frames.append(jaw)
     return np.array(frames)
 

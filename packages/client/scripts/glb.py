@@ -14,7 +14,8 @@ from PIL import Image
 SEAM = 0.1  # texture coordinates further apart than this are on different sides of a seam
 SMALL_PART = 100  # triangles: a part with no more is kept whole when the model is decimated
 SWATCH = 8  # px: the square a plain colour gets in the atlas
-GUTTER = 8  # px between the atlas's regions, so their mipmaps bleed into nothing that's used
+GUTTER = 8  # px between the atlas's regions
+PAD = 16  # px of each region's own edge repeated round it: what the coarser mipmaps blend into its rim
 MAX_ATLAS_WIDTH = 2048  # px: an atlas wider than this wraps onto another row
 
 
@@ -142,24 +143,26 @@ def pack_atlas(
         return image, uv - [u0, v0]
 
     # Shelves: regions go along a row until the next wouldn't fit, then start another under it.
+    # Each sits in a border of its own edge pixels, so the coarser mipmaps (which average across
+    # neighbours) don't blend another region's colours into its rim.
     spots: list[tuple[int, int]] = []
     x = y = row_height = 0
     for image, *_ in regions:
-        if x and x + image.width > MAX_ATLAS_WIDTH:
+        if x and x + image.width + 2 * PAD > MAX_ATLAS_WIDTH:
             x, y, row_height = 0, y + row_height + GUTTER, 0
         spots.append((x, y))
-        x += image.width + GUTTER
-        row_height = max(row_height, image.height)
-    width = max(x + image.width for (x, _), (image, *_) in zip(spots, regions))
+        x += image.width + 2 * PAD + GUTTER
+        row_height = max(row_height, image.height + 2 * PAD)
+    width = max(x + image.width + 2 * PAD for (x, _), (image, *_) in zip(spots, regions))
     height = y + row_height
     atlas = Image.new("RGB", (width, height), (128, 128, 128))
     placed = uv.copy()
     for (x, y), (image, vertices, u0, v0, du, dv) in zip(spots, regions):
-        atlas.paste(image, (x, y))
+        atlas.paste(Image.fromarray(np.pad(np.asarray(image), ((PAD, PAD), (PAD, PAD), (0, 0)), mode="edge")), (x, y))
         if du:
-            placed[vertices] = ((uv[vertices] - [u0, v0]) / [du, dv] * image.size + [x, y]) / atlas.size
+            placed[vertices] = ((uv[vertices] - [u0, v0]) / [du, dv] * image.size + [x + PAD, y + PAD]) / atlas.size
         else:
-            placed[vertices] = np.array([x + SWATCH / 2, y + SWATCH / 2]) / atlas.size
+            placed[vertices] = np.array([x + PAD + SWATCH / 2, y + PAD + SWATCH / 2]) / atlas.size
     print(f"atlas {width}x{height} from {len(regions)} regions")
     return atlas, placed
 
