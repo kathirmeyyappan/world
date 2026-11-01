@@ -26,7 +26,7 @@ const BONES = JAW + 1;
 const NECK_BONES = 6;
 // The wave down the body: metres up and down at full size, bones per wavelength, seconds per
 // wave, and the bone by which it is at full size (none at the neck, so the head stays put).
-const WAVE = 0.3;
+const WAVE = 0.375;
 const WAVE_BONES = 7;
 const WAVE_SECONDS = 2.6;
 const WAVE_FROM = 4;

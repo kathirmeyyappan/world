@@ -30,7 +30,7 @@ export interface Boom {
 // head, over the body trailing behind it, and sees wide.
 export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
   walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
-  dragon: { boom: { back: 12, right: 0, up: 4 }, fov: 1.45 },
+  dragon: { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
 };
 const SKIN = 0.25; // metres the camera keeps off a wall the boom runs into
 const FLOOR = 0.15; // metres the camera keeps above the ground when the boom dips under it

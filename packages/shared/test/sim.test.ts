@@ -272,7 +272,7 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
   assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, { steps: 2 }), /over/);
 });
 
-test('a dragon climbs straight out of the ground, flies forward where it looks in arcs with its head turned as far as the neck lets it, keeps 4 m up, and is too big for a door', () => {
+test('a dragon climbs straight out of the ground, flies forward where it looks in arcs with its head turned as far as the neck lets it, keeps 5 m up, and is too big for a door', () => {
   const open = new Structures([]);
   const fly = (p: ReturnType<typeof createPlayer>, ticks: number, over: Partial<InputFrame>, world = open) => {
     for (let i = 0; i < ticks; i++) stepPlayer(p, frame(p.lastSeq + 1, over), TICK_DT, WORLD_SHAPE, world);
@@ -334,11 +334,12 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   fly(p, 30, {});
   assert.deepEqual(p.dragon!.spine, still);
 
-  // A doorway: two walls with a 2 m gap stop the head, which is 4 m across, well short.
+  // A doorway: two walls with a 2 m gap stop the head, which is 5 m across, well short.
   const door = new Structures([wall({ x: -10, z: 5 }, { x: -1, z: 5 }, 12), wall({ x: 1, z: 5 }, { x: 10, z: 5 }, 12)]);
   const q = createPlayer('e', 'e', '#fff', { x: 0, y: MIN_ALTITUDE, z: 0 });
   becomeAvatar(q, 'light-dragon');
   q.dragon!.risen = true;
+  q.dragon!.dir = { x: 0, y: 0, z: 1 }; // flying level at it
   fly(q, 120, { my: 1, yaw: 0 }, door);
   assert.ok(q.pos.z > 2 && q.pos.z < 5 - HEAD_RADIUS + 0.01, `stopped at the door, z ${q.pos.z.toFixed(2)}`);
   assert.ok(!DRAGON.fits({ x: 0, y: EYE_HEIGHT, z: 4 }, door), 'no room to rise beside a wall');

@@ -37,17 +37,17 @@ TITLE, AUTHOR = "TotK Light Dragon", "roboguts"
 
 # The sim's spine (packages/shared/src/sim/dragon.ts), which the bones sit on.
 SPINE_POINTS = 20
-SPINE_SPACING = 1.5
-TAIL = 1.5  # metres of tail past the last bone, rigid with it
+SPINE_SPACING = 1.875
+TAIL = 1.875  # metres of tail past the last bone, rigid with it
 JAW_BONE = SPINE_POINTS + 1  # after the spine's bones
 BONES = JAW_BONE + 1
 # The lower jaw: the head cut along the lip line, from the hinge (metres forward of and up from the
 # eyes, in the head bone's frame, below the eye) straight to the snout's tip, and across at the
 # hinge. The model's mouth is shut, so the line is a guess at where the lips meet. The cut faces are
 # capped in the mouth's own colours (swatches in the atlas), with a row of teeth along the upper one.
-JAW_HINGE = (-0.3, -0.4)
+JAW_HINGE = (-0.375, -0.5)
 MOUTH_COLOURS = {"mouth": (26, 30, 64), "tongue": (178, 70, 96), "tooth": (240, 236, 220)}
-TOOTH = 0.08  # metres long
+TOOTH = 0.1  # metres long
 TEETH_EVERY = 3  # rim vertices between teeth
 
 RIGID_PARTS = ("Head", "Eyes", "Eyeashes", "Horns")  # one piece with the head bone

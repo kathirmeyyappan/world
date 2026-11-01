@@ -109,12 +109,12 @@ test('a dragon is hit on its head, a headshot, or anywhere along its body; its b
   const me = at('me', 0, 0);
   const dragon = at('dragon', 0, 10);
   becomeAvatar(dragon, 'light-dragon');
-  dragon.pos.y = 6; // hovering, its body hanging straight down under the head: points at 4.5, 3, 1.5, 0, ...
+  dragon.pos.y = 6; // hovering, its body hanging straight down under the head: points at 4.1, 2.3, 0.4, ...
   dragon.dragon = createDragon(dragon.pos);
   assert.equal(findHit(me, [dragon], GUN)?.headshot, false, 'a level shot lands on the body');
   me.pitch = -Math.atan2(6 - EYE_HEIGHT, 10);
   assert.equal(findHit(me, [dragon], GUN)?.headshot, true, 'aiming up at the head');
-  me.pitch = -Math.atan2(9 - EYE_HEIGHT, 10);
+  me.pitch = -Math.atan2(10 - EYE_HEIGHT, 10);
   assert.equal(findHit(me, [dragon], GUN), null, 'over the head');
   me.pitch = 0;
   assert.equal(resolveFire(ITEMS.flamethrower, me, [dragon]).length, 1, 'the body is in the cone');
