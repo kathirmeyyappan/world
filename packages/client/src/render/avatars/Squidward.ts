@@ -1,9 +1,9 @@
 // Squidward Tentacles: a 3.2 m octopus in a brown shirt, from Super Tablé's model
 // (squidwardModel.ts, made by scripts/monster-model.py), skinned over eight bones: the body, the
-// head, the arms and four tentacle legs. He walks as on the show: the two legs of a side step
-// together, the back one a little behind the front, left and right in turn, each side's landing a
-// plop (gaits.ts); the arms swing gently against them, the body bobs and rocks a little, and the
-// head turns with the look. A held item rides the right arm, which points forward to aim. He dies
+// head, the arms and four tentacle legs. He walks as on the show: the two tentacles of a side move
+// as one, left and right in turn like a pair of legs, each side's landing a plop (gaits.ts); the
+// arms swing gently against them, the body bobs and rocks a little, and the head turns with the
+// look. A held item rides the right arm, which points forward to aim. He dies
 // on his back with his limbs dropped. Worn with /squidward; his hit capsule is
 // AVATARS.squidward.hitbox, movement and items are everyone's.
 import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
@@ -17,7 +17,6 @@ import { SQUIDWARD_MODEL } from './squidwardModel';
 
 const TEXTURE = '/assets/textures/avatars/squidward.png';
 const LEG_SWING = 0.45; // radians each way at a full-speed walk
-const TRAIL = 0.6; // radians of the stride a side's back leg swings behind its front one
 const ARM_SWING = 0.2;
 const BOB = 0.04; // metres the body rises mid-stride
 const SWAY = 0.03; // radians the body rocks to each side with the stride
@@ -38,13 +37,12 @@ const PARENTS: Record<Bone, Bone | null> = {
   legBL: 'body',
   legBR: 'body',
 };
-// Each leg's side (the left swings with the stride, the right against it) and how far behind the
-// stride it swings.
-const LEGS: { bone: Bone; side: 1 | -1; lag: number }[] = [
-  { bone: 'legFL', side: 1, lag: 0 },
-  { bone: 'legBL', side: 1, lag: TRAIL },
-  { bone: 'legFR', side: -1, lag: 0 },
-  { bone: 'legBR', side: -1, lag: TRAIL },
+// The left pair swings with the stride, the right pair against it; the two of a side never part.
+const LEGS: { bone: Bone; side: 1 | -1 }[] = [
+  { bone: 'legFL', side: 1 },
+  { bone: 'legBL', side: 1 },
+  { bone: 'legFR', side: -1 },
+  { bone: 'legBR', side: -1 },
 ];
 
 export class SquidwardAvatar implements Avatar {
@@ -55,7 +53,7 @@ export class SquidwardAvatar implements Avatar {
   private readonly head: TransformNode;
   private readonly armL: TransformNode;
   private readonly armR: TransformNode;
-  private readonly legs: { node: TransformNode; side: 1 | -1; lag: number }[];
+  private readonly legs: { node: TransformNode; side: 1 | -1 }[];
   private readonly grip: TransformNode; // the right hand, turned so a held item's barrel runs along the look
   private readonly reach: Vector3; // which way the arm hangs from the shoulder in the model
   private readonly shadow: Mesh;
@@ -77,7 +75,7 @@ export class SquidwardAvatar implements Avatar {
     this.head = this.skin.node('head');
     this.armL = this.skin.node('armL');
     this.armR = this.skin.node('armR');
-    this.legs = LEGS.map(({ bone, side, lag }) => ({ node: this.skin.node(bone), side, lag }));
+    this.legs = LEGS.map(({ bone, side }) => ({ node: this.skin.node(bone), side }));
     // Every part is an open shell: under the collar and up the sleeves you look into other parts.
     this.skin.material.backFaceCulling = false;
     this.skin.material.twoSidedLighting = true;
@@ -111,13 +109,13 @@ export class SquidwardAvatar implements Avatar {
 
     this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
-    const swing = (lag: number) => (airborne ? 0.3 : Math.sin(phase - lag) * effort * LEG_SWING);
-    for (const { node, side, lag } of this.legs) node.rotation.x = side * swing(lag);
-    this.armL.rotation.x = (-swing(0) * ARM_SWING) / LEG_SWING;
+    const swing = airborne ? 0.3 : Math.sin(phase) * effort * LEG_SWING;
+    for (const { node, side } of this.legs) node.rotation.x = side * swing;
+    this.armL.rotation.x = (-swing * ARM_SWING) / LEG_SWING;
     if (p.item && !p.dead) aimArm(this.armR, this.grip, this.reach, p.pitch);
     else {
       this.armR.rotationQuaternion = null;
-      this.armR.rotation.x = (swing(0) * ARM_SWING) / LEG_SWING;
+      this.armR.rotation.x = (swing * ARM_SWING) / LEG_SWING;
     }
     this.base.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * BOB * effort;
     this.base.rotation.z = airborne ? 0 : Math.sin(phase) * SWAY * effort;
