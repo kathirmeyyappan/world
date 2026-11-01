@@ -17,6 +17,11 @@ const TYPES: Record<string, string> = {
   '.webp': 'image/webp',
 };
 
+// Vite's build output is named for its content (`Game-DXWI046V.js`), so it can be kept for good;
+// anything else under /assets/ (textures, sounds, pictures) keeps its name when it changes, so it is
+// checked against its modification time on every load.
+const HASHED = /^\/assets\/[^/]+-[\w-]{8}\.[\w.]+$/;
+
 // The page is served with the lobby's URL in a meta tag when the host knows it, so a tab that
 // didn't arrive through the lobby (a pasted URL) can still reach it to join a room.
 export function createStaticHandler(dir: string, lobbyUrl = '') {
@@ -36,11 +41,17 @@ export function createStaticHandler(dir: string, lobbyUrl = '') {
       return;
     }
     try {
-      const size = statSync(file).size;
+      const { size, mtime } = statSync(file);
+      const modified = Math.floor(mtime.getTime() / 1000); // HTTP dates have whole seconds
+      if (modified <= Math.floor(Date.parse(req.headers['if-modified-since'] ?? '') / 1000)) {
+        res.writeHead(304).end();
+        return;
+      }
       res.writeHead(200, {
         'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
         'content-length': size,
-        'cache-control': path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+        'last-modified': mtime.toUTCString(),
+        'cache-control': HASHED.test(path) ? 'public, max-age=31536000, immutable' : 'no-cache',
       });
       res.end(readFileSync(file));
     } catch {
