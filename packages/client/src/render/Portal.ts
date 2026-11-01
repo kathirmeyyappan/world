@@ -1,11 +1,10 @@
-// The portal of light a dragon rises through: a glowing disc lying on the ground where its body
-// goes in, open while any of the spine is still down there, turning slowly, and fading shut once
-// the tail is out. One per dragon; the light itself is drawn once and shared.
-import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture } from '@babylonjs/core';
+// The portal of light a dragon rises through: a glowing disc lying on the ground where it comes
+// up, open while its body is still coming out, turning slowly, and fading shut once the tail is
+// out. One per dragon; the light itself is drawn once and shared.
+import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, type Vector3 } from '@babylonjs/core';
 import type { Engine } from './Engine';
 
 const ACROSS = 7; // metres
-const DEPTH = 0.3; // how far under the ground a spine point counts as still in the portal
 const FADE = 0.6; // seconds to open or shut
 const TURN = 0.5; // radians a second
 
@@ -34,18 +33,11 @@ export class Portal {
     engine.glowLayer.addIncludedOnlyMesh(this.disc);
   }
 
-  // `spine` is the body's points (x, y, z each, nearest the head first) and `ground` the floor under
-  // the head; `shut` closes it whatever is down there.
-  update(spine: readonly number[], ground: number, shut: boolean, dt: number): void {
-    let under: number | null = null;
-    for (let i = 0; i < spine.length; i += 3)
-      if (spine[i + 1] < ground - DEPTH) {
-        under = i;
-        break;
-      }
-    const want = under === null || shut ? 0 : 1;
-    this.open = Math.max(0, Math.min(1, this.open + ((want ? 1 : -1) * dt) / FADE));
-    if (under !== null) this.disc.position.set(spine[under], ground + 0.04, spine[under + 2]);
+  // `at` is over where the body comes out (its x and z), `ground` the floor there, and `open`
+  // whether any of the body is still down in it.
+  update(at: Vector3, ground: number, open: boolean, dt: number): void {
+    this.open = Math.max(0, Math.min(1, this.open + ((open ? 1 : -1) * dt) / FADE));
+    if (open) this.disc.position.set(at.x, ground + 0.04, at.z);
     this.disc.setEnabled(this.open > 0);
     this.material.alpha = this.open;
     this.disc.rotation.y += dt * TURN;

@@ -5,7 +5,7 @@
 // body is drawn along the spine, its back kept up the way the head's is, with a slow wave running
 // down it so it never hangs still. Fire breath pours from the open mouth while it's breathing, and
 // it lifts its head and opens its mouth to roar: on its rider's key, and as it rises out of the
-// ground, where a portal of light lies open while any of the body is still down there. The model is
+// ground, where a portal of light lies open until the whole of it is out. The model is
 // a few hundred kilobytes, fetched the first time one appears. Worn with /light-dragon; what shots
 // have to hit is the class's (sim/dragon.ts), not anything drawn here.
 import { Bone, Matrix, Mesh, Quaternion, Skeleton, TransformNode, Vector3, VertexData } from '@babylonjs/core';
@@ -176,7 +176,12 @@ export class DragonAvatar implements Avatar {
     const breathing = now < this.breathUntil;
     this.updateJaw(now, dt, breathing, head);
     const spine = d?.spine ?? [];
-    this.portal.update(spine, WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y), this.dead, dt);
+    this.portal.update(
+      this.at,
+      WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y),
+      !!d && !d.risen && !this.dead,
+      dt,
+    );
     const wave = ((now / 1000 / WAVE_SECONDS + this.phase) % 1) * 2 * Math.PI;
     let up = head.up;
     spineFrames(this.at, head.forward, spine).forEach(({ at, forward }, n) => {
