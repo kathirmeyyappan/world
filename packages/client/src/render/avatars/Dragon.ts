@@ -356,57 +356,23 @@ function portalMaterial(engine: Engine, name: string): StandardMaterial {
   return m;
 }
 
-// The neck's bones, spaced evenly along a curve from the head, leaving it the way the head points,
-// to the first bone past the neck, arriving the way the spine runs there: a turn of the head bends
-// the neck and the skin follows the bend, where bones on the spine turned toward the head would
-// shear it. The curve is a cubic Hermite, measured along a fine sampling.
+// The neck's bones, along a curve from the head, leaving it the way the head points, to the first
+// bone past the neck, arriving the way the spine runs there: the head's turn bends the neck, most
+// just behind the head and less each bone back, and the skin follows the bend.
 function neckBones(head: Vector3, forward: Vector3, spine: number[]): { at: Vector3; forward: Vector3 }[] {
   const k = NECK_BONES * 3;
   if (spine.length < k + 6) return [];
   const end = new Vector3(spine[k], spine[k + 1], spine[k + 2]);
-  const endForward = new Vector3(
-    spine[k - 3] - spine[k + 3],
-    spine[k - 2] - spine[k + 4],
-    spine[k - 1] - spine[k + 5],
-  ).normalize();
+  const endForward = new Vector3(spine[k - 3] - spine[k + 3], spine[k - 2] - spine[k + 4], spine[k - 1] - spine[k + 5]);
   const length = Vector3.Distance(head, end);
   const t0 = forward.scale(-length);
-  const t1 = endForward.scale(-length);
-  const steps = (NECK_BONES + 1) * 8;
-  const points: Vector3[] = [];
-  const tangents: Vector3[] = [];
-  const along = [0];
-  for (let s = 0; s <= steps; s++) {
-    const t = s / steps;
-    const t2 = t * t;
-    const t3 = t2 * t;
-    points.push(
-      head
-        .scale(2 * t3 - 3 * t2 + 1)
-        .addInPlace(t0.scale(t3 - 2 * t2 + t))
-        .addInPlace(end.scale(3 * t2 - 2 * t3))
-        .addInPlace(t1.scale(t3 - t2)),
-    );
-    tangents.push(
-      head
-        .scale(6 * t2 - 6 * t)
-        .addInPlace(t0.scale(3 * t2 - 4 * t + 1))
-        .addInPlace(end.scale(6 * t - 6 * t2))
-        .addInPlace(t1.scale(3 * t2 - 2 * t)),
-    );
-    if (s > 0) along.push(along[s - 1] + Vector3.Distance(points[s - 1], points[s]));
-  }
-  const bones: { at: Vector3; forward: Vector3 }[] = [];
-  let s = 0;
+  const t1 = endForward.normalize().scaleInPlace(-length);
+  const bones = [];
   for (let i = 1; i <= NECK_BONES; i++) {
-    const want = (along[steps] * i) / (NECK_BONES + 1);
-    while (s < steps - 1 && along[s + 1] < want) s++;
-    const f = (want - along[s]) / (along[s + 1] - along[s] || 1);
+    const t = i / (NECK_BONES + 1);
     bones.push({
-      at: Vector3.Lerp(points[s], points[s + 1], f),
-      forward: Vector3.Lerp(tangents[s], tangents[s + 1], f)
-        .normalize()
-        .scaleInPlace(-1),
+      at: Vector3.Hermite(head, t0, end, t1, t),
+      forward: Vector3.Hermite1stDerivative(head, t0, end, t1, t).normalize().scaleInPlace(-1),
     });
   }
   return bones;
