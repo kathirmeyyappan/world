@@ -600,6 +600,7 @@ export class Game {
     if (cls !== this.classId) {
       if (cls === 'dragon') this.view.set('third');
       this.hud.setKeys(cls);
+      this.environment.setBounds(cls === 'dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }
     const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
