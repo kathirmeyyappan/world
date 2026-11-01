@@ -3,11 +3,11 @@
 // scripts/monster-model.py. It walks with the arms swinging against the legs and the body bobbing, and the whole body tips with the look, since that is where the face is. A held item
 // rides the right arm, which points forward to aim. It dies on its back with its limbs dropped.
 // Movement and items are everyone's; the hit capsule is the avatar's own (AVATARS).
-import { Matrix, Mesh, Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
+import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
 import type { AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
+import { aimArm, centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 import { SkinnedBody, type SkinnedModel } from './skinned';
@@ -118,7 +118,7 @@ export class BodyAvatar implements Avatar {
     this.legR.rotation.x = -swing;
     this.armL.rotation.x = (-swing * armSwing) / legSwing;
     this.armL.rotation.z = armsDown;
-    if (p.item && !p.dead) this.aim(p.pitch * (1 - follow));
+    if (p.item && !p.dead) aimArm(this.armR, this.grip, this.reach, p.pitch * (1 - follow));
     else {
       this.armR.rotationQuaternion = null;
       this.armR.rotation.x = (swing * armSwing) / legSwing;
@@ -145,20 +145,6 @@ export class BodyAvatar implements Avatar {
     }
     placeShadow(this.shadow, p, feetY);
     this.root.setEnabled(true);
-  }
-
-  // Points the arm from the way it hangs in the model to `pitch` down of straight ahead (the body
-  // tips by the rest of the look's pitch), and turns the grip so an item's barrel (its -y) runs
-  // along the arm with its top (its +z) up, whatever the model's hand is doing.
-  private aim(pitch: number): void {
-    const ahead = new Vector3(0, -Math.sin(pitch), Math.cos(pitch));
-    const arm = (this.armR.rotationQuaternion ??= new Quaternion());
-    Quaternion.FromUnitVectorsToRef(this.reach, ahead, arm);
-    const right = Vector3.Cross(Vector3.Up(), ahead).normalize();
-    const top = Vector3.Cross(ahead, right);
-    const grip = Matrix.FromXYZAxesToRef(right, ahead.negate(), top, new Matrix());
-    const local = grip.multiply(Matrix.Invert(arm.toRotationMatrix(new Matrix())));
-    Quaternion.FromRotationMatrixToRef(local, (this.grip.rotationQuaternion ??= new Quaternion()));
   }
 
   flash(): void {

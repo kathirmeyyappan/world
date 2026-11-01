@@ -6,11 +6,13 @@
     python packages/client/scripts/monster-model.py mike path/to/mike_wazowski_monsters_inc.glb
     python packages/client/scripts/monster-model.py spongebob path/to/spongebob_squarepants.glb
     python packages/client/scripts/monster-model.py patrick path/to/patrick_star_fortnite.glb
+    python packages/client/scripts/monster-model.py squidward path/to/squidward_tentacles.glb
 
 Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, or rigid parts on a tree of
 nodes, with no animation. This poses it
 in its bind pose, folds the rig down to the bones the avatar moves on their own (MONSTERS), giving
-every vertex the weights it had on each bone's subtree, so the client can skin it on the GPU and the
+every vertex the weights it had on each bone's subtree (or, for a rigid part holding several limbs,
+each limb its own bone), so the client can skin it on the GPU and the
 joints bend instead of tearing, decimates the trunk where the model is over its budget, and turns it
 into the avatar's frame (y up, facing +z, x to its right, feet at 0, `height` tall). Everything the
 model draws goes into one mesh with one texture: the meshes are joined, and their textures (no
@@ -31,7 +33,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-from glb import SMALL_PART, accessor, closed, decimate, local_matrix, name_of, pack_atlas, read_glb
+from glb import SMALL_PART, accessor, closed, components, decimate, local_matrix, name_of, pack_atlas, read_glb
 
 CLIENT = Path(__file__).resolve().parents[1]
 
@@ -41,27 +43,44 @@ Joint = str | int
 
 
 @dataclass(frozen=True)
+class Piece:
+    """One of the separate pieces of a rigid node's mesh, where it holds several limbs (four legs in
+    one mesh): the one whose middle is on this side of the body in the avatar's frame, `x` to its
+    right and `z` forward, each 1, -1 or 0 for either side."""
+
+    node: Joint
+    x: int = 0
+    z: int = 0
+
+
+@dataclass(frozen=True)
 class Monster:
     title: str  # the model's name on Sketchfab
     author: str
     height: float  # metres, feet to the top of the head
-    # The avatar's bones and the rig joint each takes the subtree of. The first is the root: its
-    # joint is only its pivot, and it takes every joint no other bone does. The order is the bone
-    # index the vertices refer to; the avatar parents them.
-    bones: tuple[tuple[str, Joint], ...]
+    # The avatar's bones and the rig joint each takes the subtree of, or the piece of a node's mesh
+    # it is. The first is the root: its joint is only its pivot, and it takes every joint no other
+    # bone does. The order is the bone index the vertices refer to; the avatar parents them.
+    bones: tuple[tuple[str, Joint | Piece], ...]
     torso: tuple[str, ...]  # the bones whose vertices are the trunk, for finding the back
-    palm: tuple[Joint, ...]  # the right hand and finger roots: a held item goes at their middle
+    # The right hand and finger roots: a held item goes at their middle. Or the bone that is the
+    # right arm, whose far end is the hand.
+    palm: tuple[Joint, ...] | str
     # Colours for materials that have none in the file, by material name (sRGB 0 to 255).
     colours: dict[str, tuple[int, int, int]] = field(default_factory=dict)
     # Triangles to keep, give or take: the big closed parts (a trunk, a claw) are decimated to get
     # there, each losing the same share. Small parts (a face's) are kept whole, and so are open
-    # shells (a shirt, a head that ends inside a collar), whose rims collapse inwards and open gaps.
+    # shells (a shirt, a head that ends inside a collar), whose rims collapse inwards and open gaps,
+    # unless `open_shells_too` says their rims are all hidden inside other parts.
     # None keeps the model as it is.
     budget: int | None = None
+    open_shells_too: bool = False
     texture_size: int = 512  # px: a bigger texture is scaled down to this on its long side
     # Bones that swing from the top of their own geometry rather than from their joint: a stub leg
-    # whose node sits partway down it.
+    # whose node sits partway down it. A piece always does.
     hinges: tuple[str, ...] = ()
+    # Bones that turn on the bottom of their own geometry: a head whose node is at its middle.
+    necks: tuple[str, ...] = ()
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -143,6 +162,31 @@ MONSTERS = {
         hinges=("legL", "legR"),
         texture_size=128,
     ),
+    # Not skinned: rigid parts on a tree of nodes named for their shapes. The head (with the eyes
+    # under it) is node 5, the shirt 10 and its collar 13; the four legs are one mesh on node 16 and
+    # both arms one on node 19, so those bones are the pieces of them. Every part is an open shell,
+    # with its rim inside the part it meets.
+    "squidward": Monster(
+        "Squidward Tentacles",
+        "Super Tablé",
+        3.2,  # taller than Patrick, as on the show
+        (
+            ("body", 10),
+            ("head", 5),
+            ("armL", Piece(19, x=-1)),
+            ("armR", Piece(19, x=1)),
+            ("legFL", Piece(16, x=-1, z=1)),
+            ("legFR", Piece(16, x=1, z=1)),
+            ("legBL", Piece(16, x=-1, z=-1)),
+            ("legBR", Piece(16, x=1, z=-1)),
+        ),
+        ("body",),
+        "armR",
+        budget=3500,
+        open_shells_too=True,
+        texture_size=256,
+        necks=("head",),
+    ),
 }
 
 
@@ -185,8 +229,14 @@ def main(name: str, glb: str) -> None:
         return names.index(ref)
 
     # Fold the rig onto the avatar's bones: a joint belongs to the first bone whose subtree holds it,
-    # else to the root bone.
-    takes = {joint(ref): i for i, (_, ref) in enumerate(monster.bones[1:], start=1)}
+    # else to the root bone; a piece's bone takes it from whichever bone has its node.
+    takes = {joint(ref): i for i, (_, ref) in enumerate(monster.bones[1:], start=1) if not isinstance(ref, Piece)}
+    pieces: dict[int, list[tuple[int, Piece]]] = {}  # a joint's pieces, with their bones
+    for i, (_, ref) in enumerate(monster.bones):
+        if isinstance(ref, Piece):
+            pieces.setdefault(joint(ref.node), []).append((i, ref))
+    root = joint(monster.bones[0][1])
+    hip = transform(joints[root])[:3, 3]
 
     def bone_of(k: int) -> int:
         while k >= 0:
@@ -196,6 +246,13 @@ def main(name: str, glb: str) -> None:
         return 0
 
     joint_bone = np.array([bone_of(k) for k in range(len(joints))])
+
+    def pieces_of(k: int) -> list[tuple[int, Piece]]:
+        while k >= 0:
+            if k in pieces:
+                return pieces[k]
+            k = joint_parent[k]
+        return []
 
     # Every primitive of every skinned mesh, posed, with its weights folded onto the avatar's bones.
     parts = []
@@ -227,6 +284,14 @@ def main(name: str, glb: str) -> None:
                     "nij,nj->ni", np.linalg.inv(m[:, :3, :3]).transpose(0, 2, 1), n
                 )
                 np.add.at(folded, (np.arange(len(p)), joint_bone[j[:, k]]), w[:, k])
+            limbs = pieces_of(joint_index[index])
+            for vertices in components({"positions": posed, "triangles": triangles}) if limbs else []:
+                # The rig's left is +x, the avatar's right (see below).
+                x, _, z = hip - posed[vertices].mean(axis=0)
+                bones = [i for i, piece in limbs if piece.x * x >= 0 and piece.z * z <= 0]
+                assert len(bones) == 1, f"node {index}: a piece at x {x:.2f}, z {-z:.2f} is {len(bones)} bones"
+                folded[vertices] = 0
+                folded[vertices, bones[0]] = 1
             parts.append(
                 {
                     "positions": posed,
@@ -239,7 +304,9 @@ def main(name: str, glb: str) -> None:
             )
     total = sum(len(part["triangles"]) for part in parts)
     if monster.budget and monster.budget < total:
-        big = [part for part in parts if len(part["triangles"]) > SMALL_PART and closed(part)]
+        big = [
+            part for part in parts if len(part["triangles"]) > SMALL_PART and (monster.open_shells_too or closed(part))
+        ]
         big_total = sum(len(part["triangles"]) for part in big)
         keep = (monster.budget - total + big_total) / big_total
         for part in big:
@@ -261,8 +328,6 @@ def main(name: str, glb: str) -> None:
     # The rig's left is +x; the avatar's right is +x (it faces +z, as the rig does). Mirroring x also
     # swaps right- for left-handed axes, so the triangles' winding already faces out in Babylon's
     # left-handed frame.
-    root = joint(monster.bones[0][1])
-    hip = transform(joints[root])[:3, 3]
     feet = posed[:, 1].min()
     scale = monster.height / (posed[:, 1].max() - feet)
 
@@ -283,18 +348,34 @@ def main(name: str, glb: str) -> None:
     print("bones per vertex:", np.bincount((bone_weights > 0.002).sum(axis=1))[1:])
 
     bone_names = [bone for bone, _ in monster.bones]
-    pivots = {bone: avatar(transform(joints[joint(ref)])[:3, 3])[0] for bone, ref in monster.bones}
-    for bone in monster.hinges:
+    pivots = {
+        bone: avatar(transform(joints[joint(ref)])[:3, 3])[0] for bone, ref in monster.bones if not isinstance(ref, Piece)
+    }
+    # A hinge or a piece swings from the middle of the top of its own geometry, a neck turns on the
+    # middle of the bottom of its: the band within a twentieth of its height of that end.
+    for bone, ref in monster.bones:
+        if bone not in monster.hinges and bone not in monster.necks and not isinstance(ref, Piece):
+            continue
         own = posed[order[:, 0] == bone_names.index(bone)]
-        pivots[bone] = np.array([own[:, 0].mean(), own[:, 1].max(), own[:, 2].mean()])
-    palm = avatar(np.mean([transform(joints[joint(ref)])[:3, 3] for ref in monster.palm], axis=0))[0]
+        top, bottom = own[:, 1].max(), own[:, 1].min()
+        end = bottom if bone in monster.necks else top
+        pivots[bone] = own[abs(own[:, 1] - end) < (top - bottom) / 20].mean(axis=0)
+        pivots[bone][1] = end
+    if isinstance(monster.palm, str):
+        # The far end of the arm: the middle of what lies within a tenth of its length of its tip.
+        own = posed[order[:, 0] == bone_names.index(monster.palm)]
+        reach = np.linalg.norm(own - pivots[monster.palm], axis=1)
+        palm = own[reach > reach.max() * 0.9].mean(axis=0)
+    else:
+        palm = avatar(np.mean([transform(joints[joint(ref)])[:3, 3] for ref in monster.palm], axis=0))[0]
     # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
     shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - 0.2
     trunk = np.isin(order[:, 0], [bone_names.index(b) for b in monster.torso])
     back_z = posed[trunk & (abs(posed[:, 1] - shoulder_y) < 0.3)][:, 2].min() - 0.05
     back = np.array([0, shoulder_y, back_z])
-    # Fallen on its back, the body lies this far up: how far the back is behind the root bone's pivot.
-    lie = -posed[order[:, 0] == 0][:, 2].min()
+    # Fallen on its back, the body lies this far up: as far as anything (the back of a big head) is
+    # behind the root bone's pivot.
+    lie = -posed[:, 2].min()
 
     atlas, uv = pack_atlas(doc, blob, uv, material, monster.colours, monster.texture_size)
 

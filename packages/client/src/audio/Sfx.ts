@@ -24,6 +24,10 @@ export type SoundId =
   | 'squeak-3'
   | 'squeak-4'
   | 'scuttle'
+  | 'suction-1'
+  | 'suction-2'
+  | 'suction-3'
+  | 'suction-4'
   | 'jump'
   | 'land'
   | 'land-hard'
@@ -66,6 +70,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squeak-3': { file: 'squeak-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-4': { file: 'squeak-4.mp3', half: 6, reach: 30, volume: 0.08 },
   scuttle: { file: 'scuttle.wav', half: 6, reach: 30, volume: 0.07, loop: true },
+  'suction-1': { file: 'suction-1.mp3', half: 6, reach: 30, volume: 0.06 },
+  'suction-2': { file: 'suction-2.mp3', half: 6, reach: 30, volume: 0.06 },
+  'suction-3': { file: 'suction-3.mp3', half: 6, reach: 30, volume: 0.06 },
+  'suction-4': { file: 'suction-4.mp3', half: 6, reach: 30, volume: 0.06 },
   jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },

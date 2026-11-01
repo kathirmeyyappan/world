@@ -23,5 +23,8 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   spongebob: { stride: 2.3, steps: { bar: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'] }, pitch: 1.05 }, // high, low, high, low
   patrick: { stride: 2.6, steps: 'thuds', pitch: 0.9 },
   krabs: { stride: 0.52, steps: { loop: 'scuttle' }, pitch: 1 }, // the scuttle: tiny quick steps under one loop
+  // A side's two tentacles plop down together, a lighter higher plop then a heavier lower one, at
+  // the show's 2.3 a second at a full walk.
+  squidward: { stride: 3.5, steps: { bar: ['suction-1', 'suction-2', 'suction-3', 'suction-4'] }, pitch: 1 },
   'light-dragon': null,
 };
