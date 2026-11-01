@@ -40,6 +40,11 @@ export interface ClassSpec {
   actionTicks: number;
   // Whether a body of this class can be where `pos` (an eye point) is, for a switch into it.
   fits(pos: Vec3, structures: Structures): boolean;
+  // Keeps `p` where a body of this class may be: a walker inside the world's outline, a dragon's
+  // head within its reach. The class's own step applies it as the body moves; a switch into the
+  // class applies it at once, at the same height, so a dragon over the void lands a walker on the
+  // nearest edge rather than leaving them falling outside.
+  confine(p: PlayerState, shape: WorldPart[]): void;
   // Make and clear the class's own state on `p` as a player switches in and out of it.
   enter(p: PlayerState): void;
   exit(p: PlayerState): void;

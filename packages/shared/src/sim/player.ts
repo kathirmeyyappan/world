@@ -66,6 +66,7 @@ export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
     if (!p.dead) p.hearts = Math.max(0.5, Math.round((p.hearts / from.hearts) * to.hearts * 2) / 2);
     from.exit(p);
     to.enter(p);
+    to.confine(p, WORLD_SHAPE);
     p.vy = 0;
     if (!to.kit) {
       p.gear = null;

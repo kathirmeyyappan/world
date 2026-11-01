@@ -67,6 +67,7 @@ export const DRAGON: ClassSpec = {
   },
   actionTicks: ROAR_SECONDS * TICK_RATE,
   fits,
+  confine: (p, shape) => clampToSky(p.pos, shape),
   enter(p) {
     p.dragon = createDragon(p.pos);
   },
