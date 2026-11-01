@@ -2,7 +2,7 @@
 // shows up when you get close, at whatever height you're at. All of it follows the world shape. Sky
 // billboards live in SkyObject.ts.
 import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData } from '@babylonjs/core';
-import { EYE_HEIGHT, partDistance, worldBounds, type WorldPart } from '@world/shared';
+import { EYE_HEIGHT, partDistance, worldBounds, type WorldPart, worldReach } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
   GROUND_FOG,
@@ -19,6 +19,7 @@ import {
 
 const WALL_REVEAL_DISTANCE = 16;
 const WALL_ABOVE = 16; // the boundary reaches this far above the tallest structure (or the floor)
+const SKY_WALL_TOP = 500; // metres: the sky's edge reaches as high as a dragon is likely to fly
 const WALL_STEP = 0.8; // metres between ribbon samples along the outline
 
 const FOG_HALF_LIFE = 0.12; // seconds, for the scope's fog change
@@ -37,6 +38,8 @@ export class Environment {
   private readonly bounds;
   private readonly span: number;
   private time = 0;
+  private groundWall!: Mesh; // the outline a walker is kept inside, set in createWalls
+  private skyWall!: Mesh; // the circle round all of it a dragon is kept inside
 
   constructor(
     private readonly engine: Engine,
@@ -53,7 +56,14 @@ export class Environment {
     Effect.ShadersStore['worldWallFragmentShader'] = WALL_FRAGMENT;
     this.createGround();
     this.createSky();
-    this.createWall();
+    this.createWalls();
+  }
+
+  // Shows the boundary that applies to the viewer's class: the world's outline on foot, the circle
+  // of its reach as a dragon.
+  setBounds(bounds: 'ground' | 'sky'): void {
+    this.groundWall.setEnabled(bounds === 'ground');
+    this.skyWall.setEnabled(bounds === 'sky');
   }
 
   private createGround(): void {
@@ -165,11 +175,34 @@ export class Environment {
     this.materials.push(mat);
   }
 
-  // A vertical ribbon along the union's outline. Each part's edge is sampled, samples that fall
-  // inside another part are dropped (that's where parts join), and the survivors become quads,
-  // each run carried on to the exact point where its edge goes into the other part, so two parts'
-  // walls meet in the corner between them.
-  private createWall(): void {
+  // The two boundaries, one shown at a time (setBounds), on one material.
+  private createWalls(): void {
+    const scene = this.engine.scene;
+    const mat = new ShaderMaterial('wallMat', scene, 'worldWall', {
+      attributes: ['position', 'uv'],
+      uniforms: ['world', 'worldViewProjection', 'cameraPos', 'wallColor', 'revealDistance', 'time'],
+      needAlphaBlending: true,
+    });
+    mat.setColor3('wallColor', new Color3(1.0, 0.25, 0.35));
+    mat.setFloat('revealDistance', WALL_REVEAL_DISTANCE);
+    mat.backFaceCulling = false;
+    mat.disableDepthWrite = true;
+    this.materials.push(mat);
+    this.groundWall = this.createWall('wall', this.shape, this.ceiling + WALL_ABOVE, mat);
+    this.skyWall = this.createWall(
+      'sky-wall',
+      [{ kind: 'disc', x: 0, z: 0, r: worldReach(this.shape) }],
+      SKY_WALL_TOP,
+      mat,
+    );
+    this.skyWall.setEnabled(false);
+  }
+
+  // A vertical ribbon along a shape's outline, `top` metres tall. Each part's edge is sampled,
+  // samples that fall inside another part are dropped (that's where parts join), and the survivors
+  // become quads, each run carried on to the exact point where its edge goes into the other part,
+  // so two parts' walls meet in the corner between them.
+  private createWall(name: string, shape: WorldPart[], top: number, mat: ShaderMaterial): Mesh {
     const scene = this.engine.scene;
     const positions: number[] = [];
     const uvs: number[] = [];
@@ -181,7 +214,7 @@ export class Environment {
       const base = positions.length / 3;
       for (let i = 0; i < run.length; i++) {
         if (i > 0) arc += Math.hypot(run[i].x - run[i - 1].x, run[i].z - run[i - 1].z);
-        positions.push(run[i].x, 0, run[i].z, run[i].x, this.ceiling + WALL_ABOVE, run[i].z);
+        positions.push(run[i].x, 0, run[i].z, run[i].x, top, run[i].z);
         uvs.push(arc, 0, arc, 1);
       }
       for (let i = 0; i < run.length - 1; i++) {
@@ -191,9 +224,8 @@ export class Environment {
       arc += 3; // gap so the pattern doesn't line up across a join
     };
 
-    for (const part of this.shape) {
-      const exposed = (p: Point) =>
-        this.shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
+    for (const part of shape) {
+      const exposed = (p: Point) => shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
       let run: Point[] = [];
       let last: { p: Point; out: boolean } | null = null;
       for (const p of this.outline(part)) {
@@ -215,24 +247,15 @@ export class Environment {
       pushRun(run);
     }
 
-    const wall = new Mesh('wall', scene);
+    const wall = new Mesh(name, scene);
     const data = new VertexData();
     data.positions = positions;
     data.indices = indices;
     data.uvs = uvs;
     data.applyToMesh(wall);
     wall.isPickable = false;
-    const mat = new ShaderMaterial('wallMat', scene, 'worldWall', {
-      attributes: ['position', 'uv'],
-      uniforms: ['world', 'worldViewProjection', 'cameraPos', 'wallColor', 'revealDistance', 'time'],
-      needAlphaBlending: true,
-    });
-    mat.setColor3('wallColor', new Color3(1.0, 0.25, 0.35));
-    mat.setFloat('revealDistance', WALL_REVEAL_DISTANCE);
-    mat.backFaceCulling = false;
-    mat.disableDepthWrite = true;
     wall.material = mat;
-    this.materials.push(mat);
+    return wall;
   }
 
   // Points along one part's own edge, in order: a closed loop for discs, two sides for bridges and arcs

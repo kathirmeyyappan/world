@@ -47,6 +47,7 @@ import {
   SPINE_SPACING,
   becomeAvatar,
   wall,
+  PLAYER_PADDING,
 } from '@world/shared';
 import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
 
@@ -359,6 +360,17 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   assert.deepEqual(p.pos, eyes);
   fly(p, 60, {});
   assert.equal(p.pos.y, EYE_HEIGHT, 'fell to the floor');
+
+  // A dragon out over the void turning back into a walker lands on the nearest edge of the world,
+  // at the same height, rather than falling outside it.
+  becomeAvatar(p, 'light-dragon');
+  p.pos = { x: 60, y: 40, z: 60 };
+  becomeAvatar(p, 'standard');
+  assert.equal(p.pos.y, 40);
+  assert.ok(
+    Math.abs(worldDistance(p.pos.x, p.pos.z) + PLAYER_PADDING) < 1e-6,
+    `on the edge: ${p.pos.x.toFixed(1)}, ${p.pos.z.toFixed(1)}`,
+  );
 });
 
 test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {
