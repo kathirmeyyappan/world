@@ -10,7 +10,16 @@ import type { ItemId } from './items';
 import type { Vec3 } from './types';
 
 export type AvatarId =
-  'standard' | 'elizabeth' | 'sahur' | 'sulley' | 'mike' | 'spongebob' | 'patrick' | 'krabs' | 'light-dragon';
+  | 'standard'
+  | 'elizabeth'
+  | 'sahur'
+  | 'sulley'
+  | 'mike'
+  | 'spongebob'
+  | 'patrick'
+  | 'krabs'
+  | 'squidward'
+  | 'light-dragon';
 
 // What shots at a walker test against (sim/combat.ts): a vertical capsule from the feet up to `top`
 // metres, `radius` round its axis, whose top `head` metres count as the head. Sized to the drawn
@@ -127,6 +136,17 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
     command: 'krabs',
     eye: 1.95, // the pupils, near the top of the eyestalks
     hitbox: { top: 2.4, radius: 0.7, head: 1.3 }, // a 1.35 m shell with the face on it, eyestalks on top: the head is everything from the mouth up
+  },
+  squidward: {
+    id: 'squidward',
+    class: 'walker',
+    item: null,
+    regen: false,
+    nameTag: 'SQUIDWARD',
+    blurb: 'become squidward tentacles',
+    command: 'squidward',
+    eye: 2.74,
+    hitbox: { top: 3.2, radius: 0.6, head: 1.25 }, // a 0.95 m head on a 0.75 m shirt, the collar 1.95 m up: the head is everything above it
   },
   'light-dragon': {
     id: 'light-dragon',

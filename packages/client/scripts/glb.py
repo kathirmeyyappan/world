@@ -29,6 +29,26 @@ def closed(part: dict) -> bool:
     return bool(np.all(counts == 2))
 
 
+def components(part: dict) -> list[np.ndarray]:
+    """The separate pieces of a part, as the vertex indices of each: a triangle's corners are joined,
+    as are vertices at one spot."""
+    _, welded = np.unique(np.round(part["positions"], 5), axis=0, return_inverse=True)
+    welded = welded.ravel()
+    parent = list(range(welded.max() + 1))
+
+    def root(a: int) -> int:
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for a, b, c in welded[part["triangles"]].tolist():
+        parent[root(b)] = root(a)
+        parent[root(c)] = root(a)
+    roots = np.array([root(a) for a in welded.tolist()])
+    return [np.flatnonzero(roots == r) for r in np.unique(roots)]
+
+
 def decimate(part: dict, keep: float) -> None:
     """Collapses a part's edges (quadric error, so the shape holds) until about `keep` of its
     triangles are left. Vertices at one spot are welded for the collapsing, so a texture seam (whose

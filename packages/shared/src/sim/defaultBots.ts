@@ -20,7 +20,15 @@ export interface DefaultBot extends BotPlacement {
 const STAY = BOT_MAX_SECONDS;
 
 // The looks a room's circle bots wear, drawn at random, no two alike.
-export const CIRCLE_LOOKS: readonly AvatarId[] = ['sulley', 'mike', 'spongebob', 'patrick', 'krabs', 'elizabeth'];
+export const CIRCLE_LOOKS: readonly AvatarId[] = [
+  'sulley',
+  'mike',
+  'spongebob',
+  'patrick',
+  'krabs',
+  'squidward',
+  'elizabeth',
+];
 const CIRCLES = 2;
 
 // The circle bots, wherever they land, each in a look of its own.

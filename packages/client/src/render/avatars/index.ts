@@ -10,6 +10,7 @@ import { MIKE } from './Mike';
 import { PATRICK } from './Patrick';
 import { SahurAvatar } from './Sahur';
 import { SPONGEBOB } from './SpongeBob';
+import { SquidwardAvatar } from './Squidward';
 import { StandardAvatar } from './Standard';
 import { SulleyAvatar } from './Sulley';
 import type { Avatar } from './common';
@@ -34,6 +35,8 @@ export function createAvatar(engine: Engine, p: { id: string; color: string; ava
       return new BodyAvatar(engine, p.id, PATRICK);
     case 'krabs':
       return new BodyAvatar(engine, p.id, KRABS);
+    case 'squidward':
+      return new SquidwardAvatar(engine, p.id);
     case 'standard':
       return new StandardAvatar(engine, p.id, p.color);
     case 'light-dragon':
