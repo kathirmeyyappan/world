@@ -16,8 +16,10 @@ import { SkinnedBody } from './skinned';
 import { SQUIDWARD_MODEL } from './squidwardModel';
 
 const TEXTURE = '/assets/textures/avatars/squidward.png';
-const LEG_SWING = 0.45; // radians each way at a full-speed walk
-const ARM_SWING = 0.2;
+// Radians each way at a full-speed walk: the tentacles are long and stiff, so any more than a
+// shuffle splays them out under him.
+const LEG_SWING = 0.12;
+const ARM_SWING = 0.08;
 const BOB = 0.04; // metres the body rises mid-stride
 const SWAY = 0.03; // radians the body rocks to each side with the stride
 const HEAD_FOLLOW = 0.6; // how much of the look's pitch the head takes
@@ -109,7 +111,7 @@ export class SquidwardAvatar implements Avatar {
 
     this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
-    const swing = airborne ? 0.3 : Math.sin(phase) * effort * LEG_SWING;
+    const swing = airborne ? 0.1 : Math.sin(phase) * effort * LEG_SWING;
     for (const { node, side } of this.legs) node.rotation.x = side * swing;
     this.armL.rotation.x = (-swing * ARM_SWING) / LEG_SWING;
     if (p.item && !p.dead) aimArm(this.armR, this.grip, this.reach, p.pitch);
