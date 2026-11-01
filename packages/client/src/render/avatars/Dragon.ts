@@ -233,7 +233,11 @@ export class DragonAvatar implements Avatar {
     }
     const look = d ? d.head : lookDirection(p.yaw, p.pitch);
     let forward = new Vector3(look.x, look.y, look.z);
-    let up = Vector3.Up().subtract(forward.scale(forward.y)).normalize();
+    let up = Vector3.Up().subtract(forward.scale(forward.y));
+    // Pointing straight up or down (climbing out of the ground), the head has no lean to take its
+    // up from: its back faces away from the look, as it does just short of vertical.
+    if (up.lengthSquared() < 1e-6) up.set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw));
+    up.normalize();
     const lift = this.dead ? 0 : this.roarLift(now);
     if (lift > 0) {
       forward = forward.scale(Math.cos(lift)).addInPlace(up.scale(Math.sin(lift)));
