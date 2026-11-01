@@ -1,4 +1,4 @@
-// A monster from scripts/monster-model.py: one textured mesh skinned on the GPU over a few bones. A
+// A model from scripts/avatar-model.py: one textured mesh skinned on the GPU over a few bones. A
 // transform node per bone, parented like the bones and placed at its pivot, drives the skeleton:
 // turning a node bends the skin there, and anything hung on the node (a held item) follows it.
 import {

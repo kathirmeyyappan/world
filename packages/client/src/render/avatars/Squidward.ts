@@ -1,5 +1,5 @@
 // Squidward Tentacles: a 3.2 m octopus in a brown shirt, from Super Tablé's model
-// (squidwardModel.ts, made by scripts/monster-model.py), skinned over eight bones: the body, the
+// (squidwardModel.ts, made by scripts/avatar-model.py), skinned over eight bones: the body, the
 // head, the arms and four tentacle legs. He walks as on the show: the two tentacles of a side move
 // as one, left and right in turn like a pair of legs, each side's landing a plop (gaits.ts); the
 // arms swing gently against them, the body bobs and rocks a little, and the head turns with the
