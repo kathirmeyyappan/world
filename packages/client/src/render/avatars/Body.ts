@@ -1,7 +1,6 @@
 // An avatar whose head is its body: a trunk on two short legs with two arms and nothing else to
 // move (Mike Wazowski, SpongeBob), skinned over five bones from a model made by
-// scripts/monster-model.py. It scurries: quick strides with the arms swinging against them and the
-// body bobbing, and the whole body tips with the look, since that is where the face is. A held item
+// scripts/monster-model.py. It walks with the arms swinging against the legs and the body bobbing, and the whole body tips with the look, since that is where the face is. A held item
 // rides the right arm, which points forward to aim. It dies on its back with its limbs dropped.
 // Movement and items are everyone's; the hit capsule is the avatar's own (AVATARS).
 import { Matrix, Mesh, Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
@@ -28,7 +27,6 @@ export interface BodySpec {
   model: SkinnedModel<BodyBone>;
   texture: string;
   shadow: number; // metres across
-  stride: number; // radians of walk cycle per metre covered: short legs step quicker
   legSwing: number; // radians each way at a full-speed walk
   armSwing: number;
   armsDown?: number; // radians the arms hang in from where the model holds them out
@@ -69,7 +67,7 @@ export class BodyAvatar implements Avatar {
   ) {
     const scene = engine.scene;
     this.kind = spec.kind;
-    this.gait = new Gait(spec.stride);
+    this.gait = new Gait();
     this.root = new TransformNode(`avatar-${id}`, scene);
     this.base = new TransformNode(`avatar-body-${id}`, scene);
     this.base.parent = this.root;
@@ -104,7 +102,7 @@ export class BodyAvatar implements Avatar {
     this.shadow.position.y = 0.02;
   }
 
-  update(p: RemotePlayer): void {
+  update(p: RemotePlayer, step: number): void {
     const { legSwing, armSwing, armsDown = 0, bob, sway = 0, follow, model } = this.spec;
     this.hitFlash.update();
     const feetY = p.y - 1.7;
@@ -113,7 +111,7 @@ export class BodyAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
     this.body.rotation.x = p.pitch * follow;
 
-    this.gait.update(p.x, p.z, airborne);
+    this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.4 : Math.sin(phase) * effort * legSwing;
     this.legL.rotation.x = swing;

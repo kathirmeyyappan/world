@@ -10,7 +10,6 @@ export const PATRICK: BodySpec = {
   model: PATRICK_MODEL,
   texture: '/assets/textures/avatars/patrick.png',
   shadow: 1.7,
-  stride: 4.5,
   legSwing: 0.55,
   armSwing: 0.4,
   armsDown: 0.6,

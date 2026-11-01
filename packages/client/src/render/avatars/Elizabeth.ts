@@ -28,7 +28,7 @@ export class ElizabethAvatar implements Avatar {
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
   private dead = false;
-  private readonly gait = new Gait(5);
+  private readonly gait = new Gait();
 
   constructor(
     engine: Engine,
@@ -117,7 +117,7 @@ export class ElizabethAvatar implements Avatar {
     this.shadow.position.y = 0.02;
   }
 
-  update(p: RemotePlayer): void {
+  update(p: RemotePlayer, step: number): void {
     this.hitFlash.update();
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
@@ -125,7 +125,7 @@ export class ElizabethAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
 
     // Waddle: rock side to side and lift alternate feet, scaled by how fast they're going.
-    this.gait.update(p.x, p.z, airborne);
+    this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
     const sway = Math.sin(phase) * 0.09 * effort;
     this.body.rotation.z = sway;

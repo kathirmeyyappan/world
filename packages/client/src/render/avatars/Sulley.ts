@@ -15,7 +15,7 @@ import { SkinnedBody } from './skinned';
 import { SULLEY_MODEL } from './sulleyModel';
 
 const TEXTURE = '/assets/textures/avatars/sulley.png';
-const LEG_SWING = 0.55; // radians each way at a full-speed walk
+const LEG_SWING = 0.7; // radians each way at a full-speed walk
 const ARM_SWING = 0.3;
 const ROLL = 0.06; // radians the chest rolls side to side with each stride
 const BOB = 0.04; // metres the body rises mid-stride
@@ -56,7 +56,7 @@ export class SulleyAvatar implements Avatar {
   private readonly hitFlash: HitFlash;
   private readonly swayOffset: number;
   private dead = false;
-  private readonly gait = new Gait(4.2);
+  private readonly gait = new Gait();
 
   constructor(
     engine: Engine,
@@ -93,7 +93,7 @@ export class SulleyAvatar implements Avatar {
     this.shadow.position.y = 0.02;
   }
 
-  update(p: RemotePlayer): void {
+  update(p: RemotePlayer, step: number): void {
     this.hitFlash.update();
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
@@ -101,7 +101,7 @@ export class SulleyAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
     this.head.rotation.x = p.pitch * HEAD_FOLLOW;
 
-    this.gait.update(p.x, p.z, airborne);
+    this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.3 : Math.sin(phase) * effort * LEG_SWING;
     this.legL.rotation.x = swing;

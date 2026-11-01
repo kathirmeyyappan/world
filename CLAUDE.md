@@ -194,6 +194,11 @@ atlas; a trunk on two arms and two legs is a `BodySpec` (`Body.ts`). Rebuild the
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 
+Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace
+its step sounds and its limbs alike, what a footfall sounds like (the thuds, a bar of its own sounds,
+or a loop), and the sounds' pitch; the swing of its limbs is the renderer's. Ask for each when adding
+one.
+
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead; from the front, the side and
 behind; and your own body in third person. The model's bind pose decides how the arms hang

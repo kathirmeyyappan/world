@@ -9,7 +9,6 @@ export const SPONGEBOB: BodySpec = {
   model: SPONGEBOB_MODEL,
   texture: '/assets/textures/avatars/spongebob.png',
   shadow: 1.3,
-  stride: 6,
   legSwing: 0.6,
   armSwing: 0.5,
   armsDown: 0.6,

@@ -17,7 +17,7 @@ import type { Engine } from '../Engine';
 export interface Avatar {
   readonly id: string;
   readonly kind: AvatarId;
-  update(p: RemotePlayer): void;
+  update(p: RemotePlayer, step: number): void; // `step` is where they are in their stride (Footsteps.phase)
   flash(): void; // took a hit: blink red
   fire(): void; // shot a tap weapon: muzzle flash
   scaleWeapons(factor: number): void; // its guns drawn this much bigger: the player's own body
@@ -30,25 +30,24 @@ export interface Avatar {
 
 const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
 
-// A walk cycle from where a player is, frame to frame. `phase` (radians) advances with the distance
-// covered on the ground, `perMetre` a metre, so a slow walk steps slowly; `effort` (0 to 1) is how
-// big the steps are, following speed against a full-speed walk (its square root, so a slow walk
-// still visibly steps), eased so a jittery frame doesn't twitch the legs. 0 in the air.
+// A walk cycle from where a player is, frame to frame. `phase` (radians) is the stride's, paced by
+// the footsteps (`step`: 0 at one foot's fall, 1 at the other's, 2 back at the first's), a leg out
+// at each footfall, so the legs land with the sounds; `effort` (0 to 1) is how big the steps are,
+// following speed against a full-speed walk (its square root, so a slow walk still visibly steps),
+// eased so a jittery frame doesn't twitch the legs. 0 in the air.
 export class Gait {
   phase = 0;
   effort = 0;
   private last: { x: number; z: number; time: number } | null = null;
 
-  constructor(private readonly perMetre: number) {}
-
-  update(x: number, z: number, airborne: boolean): void {
+  update(x: number, z: number, airborne: boolean, step: number): void {
     const time = performance.now() / 1000;
     const last = this.last;
     this.last = { x, z, time };
+    this.phase = Math.PI / 2 + Math.PI * step;
     if (!last) return;
     const moved = Math.hypot(x - last.x, z - last.z);
     const dt = time - last.time;
-    if (moved > 0.002 && !airborne) this.phase += moved * this.perMetre;
     const speed = dt > 0 ? moved / dt : 0;
     const target = airborne ? 0 : Math.sqrt(Math.min(1, speed / MOVE_SPEED));
     this.effort += (target - this.effort) * Math.min(1, dt / GAIT_EASE);

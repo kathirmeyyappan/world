@@ -45,7 +45,7 @@ export class SahurAvatar implements Avatar {
   private readonly hitFlash: HitFlash;
   private readonly twitchOffset: number;
   private dead = false;
-  private readonly gait = new Gait(3.6);
+  private readonly gait = new Gait();
 
   constructor(
     engine: Engine,
@@ -114,7 +114,7 @@ export class SahurAvatar implements Avatar {
     this.shadow.position.y = 0.02;
   }
 
-  update(p: RemotePlayer): void {
+  update(p: RemotePlayer, step: number): void {
     this.hitFlash.update();
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
@@ -123,7 +123,7 @@ export class SahurAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
 
     // Stilted walk: stiff legs swing from the hip and the log bobs; the arms keep hanging.
-    this.gait.update(p.x, p.z, airborne);
+    this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.15 : Math.sin(phase) * 0.32 * effort;
     this.legL.rotation.x = swing;
