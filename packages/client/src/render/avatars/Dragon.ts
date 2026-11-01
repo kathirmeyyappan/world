@@ -53,7 +53,7 @@ const ROAR_SHUT = 0.5;
 const ROAR_SECONDS = 3;
 const CRY_SECONDS = 3.7;
 // The mouth: radians the jaw drops when open, and seconds it takes to open or shut.
-const JAW_OPEN = 1.0;
+const JAW_OPEN = 0.7;
 const JAW_EASE = 0.15;
 // Inside it, in the head bone's frame along the lip line from the hinge to the tip: the roof and
 // the floor of the mouth (a dark wedge each, as wide as the snout just inside its skin, this tall
@@ -65,7 +65,7 @@ const MOUTH_ROOF = [0.3, 0.04];
 const MOUTH_FLOOR = [0.1, 0.06];
 const MOUTH_GAP = 0.015;
 const TEETH = 7;
-const TOOTH = 0.16; // long
+const TOOTH = 0.12; // long
 const TONGUE_WIDTH = [0.5, 0.16];
 const TONGUE = 0.08; // thick
 const MOUTH_DARK = [0.08, 0.1, 0.24];

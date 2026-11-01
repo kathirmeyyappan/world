@@ -44,7 +44,7 @@ BONES = JAW_BONE + 1
 # shut, so the line is a guess at where the lips meet: from the hinge (metres forward of and up from
 # the eyes, in the head bone's frame, below and behind the eye) straight to the snout's tip. A band
 # JAW_BLEND wide along it and at the hinge is shared with the head.
-JAW_HINGE = (-0.5, -0.38)
+JAW_HINGE = (-0.15, -0.42)
 JAW_BLEND = 0.05
 
 RIGID_PARTS = ("Head", "Eyes", "Eyeashes", "Horns")  # one piece with the head bone
