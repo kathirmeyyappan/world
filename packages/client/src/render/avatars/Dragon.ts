@@ -1,54 +1,52 @@
 // The light dragon: a long serpent in the sky, from roboguts's Tears of the Kingdom model
-// (dragonModel.ts, made by scripts/dragon-model.py), skinned over a bone at the eyes and one at each
-// point of the spine the sim moves (sim/dragon.ts). The head turns with the look and the neck bends
-// after it; the body is drawn along the spine, its back kept up the way the head's is, with a slow
-// wave running down it so it never hangs still. Fire breath pours from the mouth while it's
-// breathing, and it lifts its head to roar. While any of the body is still in the ground it rose
-// out of, a portal of light lies open there. The model is a few hundred kilobytes, fetched the
-// first time one appears. Worn with /light-dragon; what shots have to hit is the class's
-// (sim/dragon.ts), not anything drawn here.
-import {
-  Bone,
-  Color3,
-  DynamicTexture,
-  Matrix,
-  Mesh,
-  MeshBuilder,
-  Quaternion,
-  Skeleton,
-  StandardMaterial,
-  Texture,
-  TransformNode,
-  Vector3,
-  VertexData,
-} from '@babylonjs/core';
-import { ITEMS, SPINE_POINTS, WORLD_STRUCTURES, lookDirection, type ItemAction } from '@world/shared';
+// (dragonModel.ts, made by scripts/dragon-model.py), skinned over a bone at the eyes, one at each
+// point of the spine the sim moves (sim/dragon.ts), and one for the lower jaw. The head points
+// where the sim says (the look, as far as the neck lets it) and the neck bends evenly after it; the
+// body is drawn along the spine, its back kept up the way the head's is, with a slow wave running
+// down it so it never hangs still. Fire breath pours from the open mouth while it's breathing, and
+// it lifts its head and opens its mouth to roar: on its rider's key, and as it rises out of the
+// ground, where a portal of light lies open while any of the body is still down there. The model is
+// a few hundred kilobytes, fetched the first time one appears. Worn with /light-dragon; what shots
+// have to hit is the class's (sim/dragon.ts), not anything drawn here.
+import { Bone, Matrix, Mesh, Quaternion, Skeleton, TransformNode, Vector3, VertexData } from '@babylonjs/core';
+import { ITEMS, SPINE_POINTS, WORLD_STRUCTURES, lookDirection, type ItemAction, type Vec3 } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { FlameJet } from '../FlameJet';
+import { Portal } from '../Portal';
 import type { Avatar } from './common';
 import { HitFlash } from './HitFlash';
 import { bytes, skinMaterial } from './skinned';
 
 const TEXTURE = '/assets/textures/avatars/light-dragon.png';
-const BONES = SPINE_POINTS + 1;
-// How far the first bones behind the head turn with it rather than along the spine: the neck.
-const NECK_FOLLOW = [0.7, 0.4, 0.15];
+const JAW = SPINE_POINTS + 1; // the lower jaw's bone, after the head's and the spine's
+const BONES = JAW + 1;
+// The neck: how many bones behind the head lie on a curve from the way the head points to the way
+// the spine runs, rather than on the spine itself, so a turn of the head bends them evenly.
+const NECK_BONES = 6;
 // The wave down the body: metres up and down at full size, bones per wavelength, seconds per
 // wave, and the bone by which it is at full size (none at the neck, so the head stays put).
 const WAVE = 0.3;
 const WAVE_BONES = 7;
 const WAVE_SECONDS = 2.6;
 const WAVE_FROM = 4;
-// A roar: the head comes up this far (radians) in ROAR_RISE seconds and settles over ROAR_SETTLE.
+// A roar: the head comes up this far (radians) in ROAR_RISE seconds and settles over ROAR_SETTLE,
+// with the mouth open until ROAR_SHUT seconds before the sound ends. The sounds' lengths are the
+// clips' (audio/Sfx.ts).
 const ROAR_LIFT = 0.28;
 const ROAR_RISE = 0.25;
 const ROAR_SETTLE = 2.2;
-// The portal: metres across, how far under the ground a spine point counts as still in it, and
-// seconds it takes to open or close.
-const PORTAL = 7;
-const PORTAL_DEPTH = 0.3;
-const PORTAL_FADE = 0.6;
+const ROAR_SHUT = 0.5;
+const ROAR_SECONDS = 3;
+const CRY_SECONDS = 3.7;
+// The mouth: radians the jaw drops when open, and seconds it takes to open or shut.
+const JAW_OPEN = 0.8;
+const JAW_EASE = 0.15;
+// The breath: how many times the flamethrower's blocks, how many times their size, how much they
+// keep to the middle of the cone, and seconds it keeps pouring after the last tick that said so,
+// over a tick the sim ran without the rider's frame.
+const BREATH = { density: 3, size: 1.6, core: 2.5 };
+const BREATH_HOLD = 0.2;
 
 type DragonModel = typeof import('./dragonModel').DRAGON_MODEL;
 interface MeshData {
@@ -65,18 +63,29 @@ function loadModel(): Promise<DragonModel> {
   return (model ??= import('./dragonModel').then((m) => m.DRAGON_MODEL));
 }
 
+// Fetches the model once the page has nothing better to do, so the first dragon anyone sees rises
+// with its skin on rather than a few seconds after.
+export function preloadDragonModel(): void {
+  const idle = window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 3000));
+  idle(() => void loadModel());
+}
+
 export class DragonAvatar implements Avatar {
   readonly kind = 'light-dragon' as const;
   private readonly root: TransformNode;
   private readonly bones: TransformNode[] = [];
   private readonly mouth: TransformNode;
   private readonly jet: FlameJet;
-  private readonly portal: Mesh;
-  private readonly portalMaterial: StandardMaterial;
-  private portalOpen = 0; // 0 shut to 1 open
+  private readonly portal: Portal;
   private roaredAt = -Infinity;
+  private roarSeconds = 0;
+  private rose = false; // roared its way out of the ground
+  private jaw = 0; // 0 shut to 1 open
+  private breathUntil = -Infinity;
+  private hinge = new Vector3(); // the jaw's, in the head bone's frame
   private skeleton: Skeleton | null = null;
   private head: Mesh | null = null;
+  private maw: Mesh | null = null; // the inside of the mouth, drawn only while the jaw is open
   private hitFlash: HitFlash | null = null;
   private headless = false;
   private disposed = false;
@@ -107,14 +116,9 @@ export class DragonAvatar implements Avatar {
       this.mouth,
       breath.range,
       breath.fire.kind === 'cone' ? breath.fire.halfAngle : 0,
+      BREATH,
     );
-    this.portal = MeshBuilder.CreateDisc(`dragon-${id}-portal`, { radius: PORTAL / 2, tessellation: 32 }, scene);
-    this.portal.rotation.x = Math.PI / 2;
-    this.portal.isPickable = false;
-    this.portalMaterial = portalMaterial(engine, `dragon-${id}-portal`);
-    this.portal.material = this.portalMaterial;
-    this.portal.setEnabled(false);
-    engine.glowLayer.addIncludedOnlyMesh(this.portal);
+    this.portal = new Portal(engine, `dragon-${id}-portal`);
     void loadModel().then((m) => this.build(engine, m));
   }
 
@@ -131,7 +135,9 @@ export class DragonAvatar implements Avatar {
       bone.linkTransformNode(this.bones[i]);
     }
     const headRest = frameMatrix(m.frames, 0);
-    this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth), Matrix.Invert(headRest));
+    const toHead = Matrix.Invert(headRest);
+    this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth), toHead);
+    this.hinge = Vector3.TransformCoordinates(frameMatrix(m.frames, JAW).getTranslation(), toHead);
     const material = skinMaterial(scene, `dragon-${this.id}`, TEXTURE);
     material.backFaceCulling = false; // plates, strands and fins are open shells, seen from both sides
     this.hitFlash = new HitFlash([material]);
@@ -146,8 +152,10 @@ export class DragonAvatar implements Avatar {
       return mesh;
     };
     this.head = mesh('head', m.head);
+    this.maw = mesh('maw', m.maw);
     mesh('body', m.body);
     this.head.setEnabled(!this.headless);
+    this.maw.setEnabled(false);
   }
 
   update(p: RemotePlayer): void {
@@ -157,44 +165,49 @@ export class DragonAvatar implements Avatar {
     this.hitFlash?.update();
     this.dead = p.dead;
     this.at.set(p.x, p.y, p.z);
-    const look = lookDirection(p.yaw, p.pitch);
-    let forward = new Vector3(look.x, look.y, look.z);
-    let up = Vector3.Up().subtract(forward.scale(forward.y)).normalize();
-    const lift = this.roarLift(now);
-    if (lift > 0) {
-      forward = forward.scale(Math.cos(lift)).addInPlace(up.scale(Math.sin(lift)));
-      up = Vector3.Up().subtract(forward.scale(forward.y)).normalize();
+    const d = p.dragon;
+    if (d && !d.risen && !this.rose) {
+      this.rose = true;
+      this.roar(CRY_SECONDS);
     }
-    this.place(0, this.at, up, forward);
-    const spine = p.dragon?.spine ?? [];
-    this.updatePortal(spine, dt);
-    const wave = ((performance.now() / 1000 / WAVE_SECONDS + this.phase) % 1) * 2 * Math.PI;
-    let last = this.at;
-    for (let i = 1; i < BONES; i++) {
-      const k = (i - 1) * 3;
-      const next = k + 3 < spine.length ? new Vector3(spine[k + 3], spine[k + 4], spine[k + 5]) : null;
-      const here = new Vector3(spine[k], spine[k + 1], spine[k + 2]);
-      // Along the spine, from the point behind to the one ahead; the neck leans toward the look.
-      const along = (next ? last.subtract(next) : last.subtract(here)).normalize();
-      const lean = NECK_FOLLOW[i - 1] ?? 0;
-      const f =
-        lean > 0
-          ? along
-              .scale(1 - lean)
-              .addInPlace(forward.scale(lean))
-              .normalize()
-          : along;
+    const head = headFrame(d ? d.head : lookDirection(p.yaw, p.pitch), p.yaw, this.dead ? 0 : this.roarLift(now));
+    this.place(0, this.at, head.up, head.forward);
+    if (!p.dead && p.firing && p.item === 'firebreath') this.breathUntil = now + BREATH_HOLD * 1000;
+    const breathing = now < this.breathUntil;
+    this.updateJaw(now, dt, breathing, head);
+    const spine = d?.spine ?? [];
+    this.portal.update(spine, WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y), this.dead, dt);
+    const wave = ((now / 1000 / WAVE_SECONDS + this.phase) % 1) * 2 * Math.PI;
+    let up = head.up;
+    spineFrames(this.at, head.forward, spine).forEach(({ at, forward }, n) => {
+      const i = n + 1;
       // The back stays up: the up carried along from the head, squared to each bone's forward.
-      up = up.subtract(f.scale(Vector3.Dot(f, up)));
-      if (up.lengthSquared() < 1e-6) up = Vector3.Cross(f, Vector3.Right());
+      up = up.subtract(forward.scale(Vector3.Dot(forward, up)));
+      if (up.lengthSquared() < 1e-6) up = Vector3.Cross(forward, Vector3.Right());
       up.normalize();
       const rise = p.dead ? 0 : WAVE * Math.min(1, i / WAVE_FROM) * Math.sin(wave - (i * 2 * Math.PI) / WAVE_BONES);
-      this.place(i, here.add(up.scale(rise)), up, f);
-      last = here;
-    }
-    this.jet.set(!p.dead && p.firing && p.item === 'firebreath');
+      this.place(i, at.add(up.scale(rise)), up, forward);
+    });
+    this.jet.set(breathing);
     this.jet.update(dt);
     this.root.setEnabled(true);
+  }
+
+  // The lower jaw hangs from its hinge in the head, dropped open to breathe or roar.
+  private updateJaw(now: number, dt: number, breathing: boolean, { up, forward }: Frame): void {
+    const t = (now - this.roaredAt) / 1000;
+    const want = !this.dead && (breathing || (t >= 0 && t < this.roarSeconds - ROAR_SHUT)) ? 1 : 0;
+    this.jaw += (want - this.jaw) * Math.min(1, dt / JAW_EASE);
+    this.maw?.setEnabled(!this.headless && this.jaw > 0.02);
+    const open = JAW_OPEN * this.jaw;
+    const right = Vector3.Cross(up, forward);
+    const hinge = this.at
+      .add(right.scale(this.hinge.x))
+      .addInPlace(up.scale(this.hinge.y))
+      .addInPlace(forward.scale(this.hinge.z));
+    const jawForward = forward.scale(Math.cos(open)).subtractInPlace(up.scale(Math.sin(open)));
+    const jawUp = up.scale(Math.cos(open)).addInPlace(forward.scale(Math.sin(open)));
+    this.place(JAW, hinge, jawUp, jawForward);
   }
 
   // How far the head is up for a roar: quickly up, then slowly down.
@@ -206,31 +219,17 @@ export class DragonAvatar implements Avatar {
     return ROAR_LIFT * (1 - s * s * (3 - 2 * s));
   }
 
-  // The portal lies where the body goes into the ground, open while any of it is still down there,
-  // turning slowly, and fades shut once the tail is out.
-  private updatePortal(spine: number[], dt: number): void {
-    const ground = WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y);
-    let under: number | null = null;
-    for (let i = 0; i < spine.length; i += 3)
-      if (spine[i + 1] < ground - PORTAL_DEPTH) {
-        under = i;
-        break;
-      }
-    const want = under === null || this.dead ? 0 : 1;
-    this.portalOpen = Math.max(0, Math.min(1, this.portalOpen + ((want ? 1 : -1) * dt) / PORTAL_FADE));
-    if (under !== null) this.portal.position.set(spine[under], ground + 0.04, spine[under + 2]);
-    this.portal.setEnabled(this.portalOpen > 0);
-    this.portalMaterial.alpha = this.portalOpen;
-    this.portal.rotation.y += dt * 0.5;
-    this.portal.scaling.setAll(0.6 + 0.4 * this.portalOpen);
-  }
-
   // Puts bone i's node at a live frame.
   private place(i: number, at: Vector3, up: Vector3, forward: Vector3): void {
     const node = this.bones[i];
     const right = Vector3.Cross(up, forward);
     Quaternion.FromRotationMatrixToRef(Matrix.FromXYZAxesToRef(right, up, forward, SCRATCH), node.rotationQuaternion!);
     node.position.copyFrom(at);
+  }
+
+  private roar(seconds: number): void {
+    this.roaredAt = performance.now();
+    this.roarSeconds = seconds;
   }
 
   // Draws the body without the head: the rider's own view from its eyes.
@@ -240,7 +239,7 @@ export class DragonAvatar implements Avatar {
   }
 
   act(action: ItemAction): void {
-    if (action.startsWith('roar')) this.roaredAt = performance.now();
+    if (action.startsWith('roar')) this.roar(ROAR_SECONDS);
   }
 
   flash(): void {
@@ -256,7 +255,7 @@ export class DragonAvatar implements Avatar {
   dispose(): void {
     this.disposed = true;
     this.jet.dispose();
-    this.portal.dispose(false, true);
+    this.portal.dispose();
     this.root.dispose(false, true);
     this.skeleton?.dispose();
   }
@@ -268,34 +267,51 @@ export class DragonAvatar implements Avatar {
 
 const SCRATCH = new Matrix();
 
-// Pale gold light: a soft disc with a brighter rim, drawn once and shared.
-let portalTexture: DynamicTexture | null = null;
-function portalMaterial(engine: Engine, name: string): StandardMaterial {
-  const scene = engine.scene;
-  if (!portalTexture) {
-    const size = 128;
-    portalTexture = new DynamicTexture('portalTex', size, scene, false, Texture.BILINEAR_SAMPLINGMODE);
-    portalTexture.hasAlpha = true;
-    const ctx = portalTexture.getContext() as CanvasRenderingContext2D;
-    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0, 'rgba(255,250,220,0.85)');
-    g.addColorStop(0.55, 'rgba(255,230,150,0.45)');
-    g.addColorStop(0.82, 'rgba(255,240,190,0.95)');
-    g.addColorStop(0.9, 'rgba(255,215,120,0.6)');
-    g.addColorStop(1, 'rgba(255,215,120,0)');
-    ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    portalTexture.update();
+// Which way a bone's back faces and which way it points.
+interface Frame {
+  up: Vector3;
+  forward: Vector3;
+}
+
+// The head's frame for a look, lifted `lift` radians for a roar. Pointing straight up or down
+// (climbing out of the ground), the head has no lean to take its up from: its back faces away from
+// the look, as it does just short of vertical.
+function headFrame(look: Vec3, yaw: number, lift: number): Frame {
+  let forward = new Vector3(look.x, look.y, look.z);
+  let up = Vector3.Up().subtract(forward.scale(forward.y));
+  if (up.lengthSquared() < 1e-6) up.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+  up.normalize();
+  if (lift > 0) {
+    forward = forward.scale(Math.cos(lift)).addInPlace(up.scale(Math.sin(lift)));
+    up = Vector3.Up().subtract(forward.scale(forward.y)).normalize();
   }
-  const m = new StandardMaterial(name, scene);
-  m.diffuseTexture = portalTexture;
-  m.opacityTexture = portalTexture;
-  m.emissiveTexture = portalTexture;
-  m.emissiveColor = new Color3(1, 0.95, 0.75);
-  m.disableLighting = true;
-  m.backFaceCulling = false;
-  return m;
+  return { up, forward };
+}
+
+// Where each spine bone goes and which way it points, nearest the head first: along the spine
+// through its point, except the neck's, which lie on a curve from the head, leaving it the way the
+// head points and arriving the way the spine runs past the neck, so a turn of the head bends the
+// neck, most just behind the head and less each bone back, and the skin follows the bend.
+function spineFrames(head: Vector3, forward: Vector3, spine: readonly number[]): { at: Vector3; forward: Vector3 }[] {
+  const points = [head];
+  for (let k = 0; k + 2 < spine.length; k += 3) points.push(new Vector3(spine[k], spine[k + 1], spine[k + 2]));
+  // Along the spine at point i: from the point behind it to the one ahead.
+  const along = (i: number) => points[i - 1].subtract(points[Math.min(i + 1, points.length - 1)]).normalize();
+  const frames = points.slice(1).map((at, n) => ({ at, forward: along(n + 1) }));
+  const end = NECK_BONES + 1;
+  if (points.length > end) {
+    const length = Vector3.Distance(head, points[end]);
+    const t0 = forward.scale(-length);
+    const t1 = along(end).scaleInPlace(-length);
+    for (let i = 1; i <= NECK_BONES; i++) {
+      const t = i / end;
+      frames[i - 1] = {
+        at: Vector3.Hermite(head, t0, points[end], t1, t),
+        forward: Vector3.Hermite1stDerivative(head, t0, points[end], t1, t).normalize().scaleInPlace(-1),
+      };
+    }
+  }
+  return frames;
 }
 
 // Bone i's rest frame as a matrix: its right, up and forward axes and its position.

@@ -90,11 +90,11 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   // A dragon's: the flamethrower's burn and tank from a mouth, in a cone four times as wide.
   firebreath: {
     id: 'firebreath',
-    range: 20,
+    range: 30,
     damage: 0.5,
     cooldownTicks: 5,
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
-    fire: { kind: 'cone', halfAngle: Math.PI / 4 },
+    fire: { kind: 'cone', halfAngle: Math.PI / 5 },
     element: 'fire',
     fireNeedsScope: false,
     fuelSeconds: 7.5,

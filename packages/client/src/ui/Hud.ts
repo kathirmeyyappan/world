@@ -194,7 +194,7 @@ export class Hud {
       cls === 'walker'
         ? this.walkerKeys
         : `<kbd translate="no">W</kbd> fly &nbsp;|&nbsp; <kbd translate="no">A</kbd><kbd translate="no">S</kbd><kbd translate="no">D</kbd> roar &nbsp;|&nbsp;
-           Click select &nbsp;|&nbsp; <kbd translate="no">Z</kbd> view &nbsp;|&nbsp; <kbd translate="no">O</kbd> fullscreen &nbsp;|&nbsp; <kbd translate="no">Esc</kbd> mouse`;
+           Click select &nbsp;|&nbsp; <kbd translate="no">Z</kbd> toggle perspective &nbsp;|&nbsp; <kbd translate="no">O</kbd> fullscreen &nbsp;|&nbsp; <kbd translate="no">Esc</kbd> mouse`;
   }
   private walkerKeys: string | null = null;
 

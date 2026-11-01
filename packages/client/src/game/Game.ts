@@ -45,7 +45,7 @@ import { IS_TOUCH } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, StandardAvatar, type Avatar } from '../render/avatars';
+import { createAvatar, preloadDragonModel, StandardAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -123,7 +123,7 @@ export class Game {
   private aim = { yaw: 0, pitch: 0 }; // the look sent this frame: the camera's, or in third person the eyes' at the crosshair's target
   private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
   private classId: PlayerClass | null = null; // the class the player was last seen as
-  private readonly cried = new Set<string>(); // the dragons whose rise has been heard
+  private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
   private readonly skyByMesh = new Map<string, SkyObject>();
@@ -178,6 +178,7 @@ export class Game {
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
+    preloadDragonModel();
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;
@@ -687,7 +688,7 @@ export class Game {
       this.canFire() &&
       resolveFire(
         ITEMS[held.id],
-        { id: this.myId, pos: me.pos, yaw: this.aim.yaw, pitch: this.aim.pitch, avatar: me.avatar },
+        { id: this.myId, pos: me.pos, yaw: this.aim.yaw, pitch: this.aim.pitch, avatar: me.avatar, dragon: me.dragon },
         targets(sampled.players),
         WORLD_STRUCTURES,
       ).length > 0;
@@ -719,19 +720,18 @@ export class Game {
         self: false,
       })),
     ]);
-    // Every dragon rises out of the ground with a cry; the nearest living one's theme plays from
+    // Every dragon rises out of the ground with a cry (kept trying until the recording has arrived,
+    // and heard again from the same player's next one); the nearest living one's theme plays from
     // its head.
     const dragons = [
-      ...(self.dragon && !this.dead ? [{ id: this.myId, at: self.pos, spine: self.dragon.spine }] : []),
+      ...(self.dragon && !this.dead ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen }] : []),
       ...sampled.players.flatMap((rp) =>
-        rp.dragon && !rp.dead ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, spine: rp.dragon.spine }] : [],
+        rp.dragon && !rp.dead ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon.risen }] : [],
       ),
     ];
     for (const d of dragons) {
-      if (this.cried.has(d.id)) continue;
-      this.cried.add(d.id);
-      if (d.spine[d.spine.length - 2] < WORLD_STRUCTURES.groundAt(d.at.x, d.at.z, d.at.y))
-        this.sfx.play('dragon-cry', d.at);
+      if (d.risen) this.cried.delete(d.id);
+      else if (!this.cried.has(d.id) && this.sfx.play('dragon-cry', d.at)) this.cried.add(d.id);
     }
     const ear = this.camera.position;
     const nearest = dragons.sort(

@@ -1,6 +1,7 @@
 // A flamethrower's spray: a stream of glowing blocks that fly out along the parent's +z,
-// spreading into a cone and cooling from yellow to red as they go. Cosmetic only; the server
-// decides who burns. One instance per muzzle (viewmodel or avatar).
+// spreading into a cone and cooling from yellow to red as they go; a dragon's breath is the same
+// with many more blocks, bigger, and crowded toward the middle of the cone. Cosmetic only; the
+// server decides who burns. One instance per muzzle (viewmodel or avatar).
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode } from '@babylonjs/core';
 import type { Engine } from './Engine';
 
@@ -20,22 +21,29 @@ interface Particle {
 export class FlameJet {
   private readonly particles: Particle[] = [];
   private readonly growth: number; // how much a block grows on its way out, in metres
+  private readonly start: number; // how big a block leaves the nozzle, in metres
   private readonly spread: number; // how far out a block gets per metre along, at the cone's edge
+  private readonly core: number; // how the blocks crowd the middle: 1 spreads them evenly, more bunches them
   private on = false;
 
-  // `length` and `halfAngle` are the item's cone (ItemSpec).
+  // `length` and `halfAngle` are the item's cone (ItemSpec); `density` is how many times the usual
+  // blocks it gets, `size` how many times their usual size, and `core` how much they keep to the
+  // middle of the cone.
   constructor(
     engine: Engine,
     name: string,
     parent: TransformNode,
     private readonly length: number,
     halfAngle: number,
+    { density = 1, size = 1, core = 1 }: { density?: number; size?: number; core?: number } = {},
   ) {
     const scene = engine.scene;
     const stretch = Math.max(1, length / BASE_LENGTH);
-    this.growth = 0.55 * stretch;
+    this.growth = 0.55 * stretch * size;
+    this.start = 0.12 * size;
     this.spread = Math.tan(halfAngle);
-    const count = Math.round(COUNT * stretch);
+    this.core = core;
+    const count = Math.round(COUNT * stretch * density);
     for (let i = 0; i < count; i++) {
       const mesh = MeshBuilder.CreateBox(`${name}-flame-${i}`, { size: 1 }, scene);
       const mat = new StandardMaterial(`${name}-flame-${i}-mat`, scene);
@@ -68,7 +76,7 @@ export class FlameJet {
       }
       const d = p.t * this.length;
       p.mesh.position.set(p.ox * d * this.spread, p.oy * d * this.spread, d);
-      const size = 0.12 + p.t * this.growth;
+      const size = this.start + p.t * this.growth;
       p.mesh.scaling.setAll(size);
       p.mesh.rotation.set(p.spin * p.t * 6, p.spin * p.t * 4, p.t * 3);
       // yellow at the nozzle, orange in the middle, dark red and fading at the end
@@ -87,7 +95,7 @@ export class FlameJet {
 
   private scatter(p: Particle): void {
     const a = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random());
+    const r = Math.pow(Math.random(), this.core / 2);
     p.ox = Math.cos(a) * r;
     p.oy = Math.sin(a) * r;
     p.spin = Math.random() * 2 - 1;
