@@ -39,7 +39,6 @@ import {
   layoutWallFrame,
   CRUISE_SPEED,
   DRAGON,
-  EMERGE_POINTS,
   HEAD_YAW,
   HEAD_RADIUS,
   MAX_PITCH,
@@ -285,22 +284,15 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   assert.equal(p.dragon?.spine.length, SPINE_POINTS * 3);
   assert.ok(p.dragon!.spine[SPINE_POINTS * 3 - 2] < 0, 'the body starts in the ground under the head');
 
-  // The rise: straight up to MIN_ALTITUDE, the keys doing nothing until then.
-  fly(p, 10, { my: 1, mx: 1, yaw: Math.PI / 2 });
+  // The rise: straight up on its own, head up, whatever the keys and the look, until the whole
+  // spine is out of the ground; then round toward the look.
+  fly(p, 10, { my: -1, mx: 1, yaw: Math.PI / 2 });
   assert.ok(p.pos.x === 0 && p.pos.z === 0 && p.pos.y > EYE_HEIGHT && p.pos.y < MIN_ALTITUDE, 'rising');
-  fly(p, 50, {});
-  assert.equal(p.pos.y, MIN_ALTITUDE);
-  assert.ok(p.pos.x === 0 && p.pos.z === 0 && p.dragon!.speed === 0, 'hovering over where it rose');
-
-  // Only forward flies: straight up, head up, whatever the look, until EMERGE_POINTS of the spine
-  // are out of the ground; then round toward the look.
-  fly(p, 30, { my: -1, mx: 1, yaw: Math.PI / 2 });
-  assert.ok(p.pos.x === 0 && p.pos.z === 0, 'back and sideways do nothing');
-  fly(p, 15, { my: 1, yaw: Math.PI / 2 });
-  assert.ok(p.pos.y > MIN_ALTITUDE + 1 && p.pos.x === 0 && !p.dragon!.risen, 'climbing straight up');
+  fly(p, 50, { my: -1, mx: 1, yaw: Math.PI / 2 });
+  assert.ok(p.pos.y > MIN_ALTITUDE + 1 && p.pos.x === 0 && p.pos.z === 0 && !p.dragon!.risen, 'climbing straight up');
   assert.deepEqual(p.dragon!.head, { x: 0, y: 1, z: 0 }, 'looking straight up');
-  fly(p, 60, { my: 1, yaw: Math.PI / 2 });
-  assert.ok(p.dragon!.risen && p.pos.y >= EMERGE_POINTS * SPINE_SPACING, `out at ${p.pos.y.toFixed(1)} m`);
+  fly(p, 120, { yaw: Math.PI / 2 });
+  assert.ok(p.dragon!.risen && p.pos.y >= SPINE_POINTS * SPINE_SPACING, `out at ${p.pos.y.toFixed(1)} m`);
   fly(p, 120, { my: 1, yaw: Math.PI / 2 });
   assert.ok(p.pos.x > 15 && Math.abs(p.pos.z) < 1e-9, `came round to +x: ${p.pos.x.toFixed(1)}`);
   assert.ok(Math.abs(p.dragon!.speed - CRUISE_SPEED) < 0.2, 'at cruise');
