@@ -53,24 +53,8 @@ const ROAR_SHUT = 0.5;
 const ROAR_SECONDS = 3;
 const CRY_SECONDS = 3.7;
 // The mouth: radians the jaw drops when open, and seconds it takes to open or shut.
-const JAW_OPEN = 0.7;
+const JAW_OPEN = 0.8;
 const JAW_EASE = 0.15;
-// Inside it, in the head bone's frame along the lip line from the hinge to the tip: the roof and
-// the floor of the mouth (a dark wedge each, as wide as the snout just inside its skin, this tall
-// above and below the lip line at the hinge end, and at the tip, and a little apart at the line so
-// they don't fight when the mouth is shut), a row of teeth either side of the roof, and the tongue
-// on the floor.
-const MOUTH_WIDTH = [0.9, 0.26];
-const MOUTH_ROOF = [0.3, 0.04];
-const MOUTH_FLOOR = [0.1, 0.06];
-const MOUTH_GAP = 0.015;
-const TEETH = 7;
-const TOOTH = 0.12; // long
-const TONGUE_WIDTH = [0.5, 0.16];
-const TONGUE = 0.08; // thick
-const MOUTH_DARK = [0.08, 0.1, 0.24];
-const TOOTH_WHITE = [0.95, 0.93, 0.85];
-const TONGUE_PINK = [0.85, 0.35, 0.45];
 // The breath: how many times the flamethrower's blocks, how many times their size, how much they
 // keep to the middle of the cone, and seconds it keeps pouring after the last tick that said so,
 // over a tick the sim ran without the rider's frame.
@@ -133,7 +117,6 @@ export class DragonAvatar implements Avatar {
   private skeleton: Skeleton | null = null;
   private head: Mesh | null = null;
   private sleeve: Mesh | null = null;
-  private mouthInside: Mesh | null = null;
   private hitFlash: HitFlash | null = null;
   private headless = false;
   private disposed = false;
@@ -214,14 +197,7 @@ export class DragonAvatar implements Avatar {
     this.sleeve.parent = this.root;
     this.sleeve.isPickable = false;
     this.sleeve.alwaysSelectAsActiveMesh = true;
-    this.mouthInside = new Mesh(`dragon-${this.id}-mouth-inside`, scene);
-    mouthData(headRest, this.hinge, this.mouth.position).applyToMesh(this.mouthInside);
-    this.mouthInside.material = mouthMaterial(engine);
-    this.mouthInside.skeleton = this.skeleton;
-    this.mouthInside.parent = this.root;
-    this.mouthInside.isPickable = false;
-    this.mouthInside.alwaysSelectAsActiveMesh = true;
-    for (const m of [this.head, this.sleeve, this.mouthInside]) m.setEnabled(!this.headless);
+    for (const m of [this.head, this.sleeve]) m.setEnabled(!this.headless);
   }
 
   update(p: RemotePlayer): void {
@@ -343,7 +319,7 @@ export class DragonAvatar implements Avatar {
   // Draws the body without the head: the rider's own view from its eyes.
   setHeadless(on: boolean): void {
     this.headless = on;
-    for (const m of [this.head, this.sleeve, this.mouthInside]) m?.setEnabled(!on);
+    for (const m of [this.head, this.sleeve]) m?.setEnabled(!on);
   }
 
   act(action: ItemAction): void {
@@ -374,99 +350,6 @@ export class DragonAvatar implements Avatar {
 }
 
 const SCRATCH = new Matrix();
-
-// The inside of the mouth takes its colours from its vertices, lit a little by itself so it reads
-// in the dark like the skin. Made once and shared.
-let mouthMat: StandardMaterial | null = null;
-function mouthMaterial(engine: Engine): StandardMaterial {
-  if (mouthMat) return mouthMat;
-  mouthMat = new StandardMaterial('dragon-mouth', engine.scene);
-  mouthMat.emissiveColor = new Color3(0.18, 0.18, 0.18);
-  mouthMat.specularColor = Color3.Black();
-  mouthMat.backFaceCulling = false;
-  return mouthMat;
-}
-
-// The inside of the mouth in the rest pose, the roof and teeth following the head bone and the
-// floor and tongue the jaw's. `hinge` and `tip` are in the head bone's frame (x right, y up, z
-// forward); the lip line runs between them.
-function mouthData(headRest: Matrix, hinge: Vector3, tip: Vector3): VertexData {
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const indices: number[] = [];
-  const bones: number[] = [];
-  const weights: number[] = [];
-  const slope = (tip.y - hinge.y) / (tip.z - hinge.z);
-  const lip = (z: number) => hinge.y + (z - hinge.z) * slope;
-  const vertex = (x: number, y: number, z: number, bone: number, rgb: number[]): number => {
-    const p = Vector3.TransformCoordinates(new Vector3(x, y, z), headRest);
-    positions.push(p.x, p.y, p.z);
-    colors.push(rgb[0], rgb[1], rgb[2], 1);
-    bones.push(bone, 0, 0, 0);
-    weights.push(1, 0, 0, 0);
-    return positions.length / 3 - 1;
-  };
-  // A wedge between two cross-sections, each centred on the lip line at `z`, `w` wide and running
-  // from `bottom` to `top` above it (negative is below).
-  const wedge = (
-    z0: number,
-    z1: number,
-    w: [number, number],
-    bottom: [number, number],
-    top: [number, number],
-    bone: number,
-    rgb: number[],
-  ) => {
-    const ring = (z: number, hw: number, b: number, t: number) => [
-      vertex(-hw, lip(z) + b, z, bone, rgb),
-      vertex(hw, lip(z) + b, z, bone, rgb),
-      vertex(hw, lip(z) + t, z, bone, rgb),
-      vertex(-hw, lip(z) + t, z, bone, rgb),
-    ];
-    const a = ring(z0, w[0] / 2, bottom[0], top[0]);
-    const b = ring(z1, w[1] / 2, bottom[1], top[1]);
-    for (let i = 0; i < 4; i++) {
-      const j = (i + 1) % 4;
-      indices.push(a[i], a[j], b[i], a[j], b[j], b[i]);
-    }
-    indices.push(a[0], a[2], a[1], a[0], a[3], a[2], b[0], b[1], b[2], b[0], b[2], b[3]);
-  };
-  const z0 = hinge.z + 0.08;
-  const z1 = tip.z - 0.12;
-  const width: [number, number] = [MOUTH_WIDTH[0], MOUTH_WIDTH[1]];
-  wedge(z0, z1, width, [MOUTH_GAP, MOUTH_GAP], [MOUTH_ROOF[0], MOUTH_ROOF[1]], 0, MOUTH_DARK);
-  wedge(z0, z1, width, [-MOUTH_FLOOR[0], -MOUTH_FLOOR[1]], [-MOUTH_GAP, -MOUTH_GAP], JAW, MOUTH_DARK);
-  wedge(
-    z0 + 0.1,
-    z1 - 0.06,
-    [TONGUE_WIDTH[0], TONGUE_WIDTH[1]],
-    [-0.02, -0.02],
-    [TONGUE, TONGUE * 0.5],
-    JAW,
-    TONGUE_PINK,
-  );
-  // Teeth: triangles hanging from the roof's edges, in a row each side, pointing down.
-  for (let i = 0; i < TEETH; i++) {
-    const z = z0 + 0.12 + ((z1 - z0 - 0.24) * (i + 0.5)) / TEETH;
-    const hw = (MOUTH_WIDTH[0] + ((MOUTH_WIDTH[1] - MOUTH_WIDTH[0]) * (z - z0)) / (z1 - z0)) / 2 - 0.02;
-    for (const side of [-1, 1]) {
-      const a = vertex(side * hw, lip(z) + MOUTH_GAP, z - 0.05, 0, TOOTH_WHITE);
-      const b = vertex(side * hw, lip(z) + MOUTH_GAP, z + 0.05, 0, TOOTH_WHITE);
-      const c = vertex(side * (hw - 0.04), lip(z) - TOOTH, z, 0, TOOTH_WHITE);
-      indices.push(a, b, c, a, c, b);
-    }
-  }
-  const data = new VertexData();
-  data.positions = positions;
-  data.colors = colors;
-  data.indices = indices;
-  data.matricesIndices = bones;
-  data.matricesWeights = weights;
-  const normals: number[] = [];
-  VertexData.ComputeNormals(positions, indices, normals);
-  data.normals = normals;
-  return data;
-}
 
 // Pale gold light: a soft disc with a brighter rim, drawn once and shared.
 let portalTexture: DynamicTexture | null = null;
