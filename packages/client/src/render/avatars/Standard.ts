@@ -22,7 +22,7 @@ export class StandardAvatar implements Avatar {
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
   private dead = false;
-  private readonly gait = new Gait(4.5);
+  private readonly gait = new Gait();
 
   constructor(
     engine: Engine,
@@ -92,7 +92,7 @@ export class StandardAvatar implements Avatar {
     this.shadow.position.y = 0.02;
   }
 
-  update(p: RemotePlayer): void {
+  update(p: RemotePlayer, step: number): void {
     this.hitFlash.update();
     const feetY = p.y - EYE_HEIGHT;
     const airborne = !p.grounded;
@@ -100,7 +100,7 @@ export class StandardAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
     this.head.rotation.x = p.pitch * 0.6;
 
-    this.gait.update(p.x, p.z, airborne);
+    this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.35 : Math.sin(phase) * effort * 0.7;
     this.legL.rotation.x = swing;

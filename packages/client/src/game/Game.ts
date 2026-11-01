@@ -652,6 +652,23 @@ export class Game {
       this.dead || this.hud.isChatOpen(),
     );
 
+    const stepLoops = this.footsteps.update([
+      {
+        id: this.myId,
+        pos: self.pos,
+        avatar: self.avatar,
+        grounded: !this.dead && isGrounded(self),
+        falling: -self.vy,
+        self: true,
+      },
+      ...sampled.players.map((rp) => ({
+        id: rp.id,
+        pos: { x: rp.x, y: rp.y, z: rp.z },
+        avatar: rp.avatar,
+        grounded: rp.grounded && !rp.dead,
+        self: false,
+      })),
+    ]);
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -666,7 +683,7 @@ export class Game {
         avatar = createAvatar(this.engine, rp);
         this.avatars.set(rp.id, avatar);
       }
-      avatar.update(rp);
+      avatar.update(rp, this.footsteps.phase(rp.id));
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
@@ -706,23 +723,6 @@ export class Game {
       this.hud.setCrosshairTarget(this.canHit);
     }
     this.sfx.listen(this.camera.position, this.input.yaw);
-    const stepLoops = this.footsteps.update([
-      {
-        id: this.myId,
-        pos: self.pos,
-        avatar: self.avatar,
-        grounded: !this.dead && isGrounded(self),
-        falling: -self.vy,
-        self: true,
-      },
-      ...sampled.players.map((rp) => ({
-        id: rp.id,
-        pos: { x: rp.x, y: rp.y, z: rp.z },
-        avatar: rp.avatar,
-        grounded: rp.grounded && !rp.dead,
-        self: false,
-      })),
-    ]);
     // Every dragon rises out of the ground with a cry (kept trying until the recording has arrived,
     // and heard again from the same player's next one); the nearest living one's theme plays from
     // its head.
@@ -782,26 +782,29 @@ export class Game {
       return;
     }
     own.setHeadless?.(!shown);
-    own.update({
-      id: self.id,
-      name: self.name,
-      color: self.color,
-      x: at.x,
-      y: at.y,
-      z: at.z,
-      yaw: this.aim.yaw,
-      pitch: this.aim.pitch,
-      reading: self.reading,
-      item: held?.id ?? null,
-      firing: self.firing,
-      gear: self.gear?.id ?? null,
-      thrusting: self.thrusting,
-      dead: this.dead,
-      avatar: self.avatar,
-      dragon: self.dragon,
-      bot: false,
-      grounded: isGrounded(self),
-    });
+    own.update(
+      {
+        id: self.id,
+        name: self.name,
+        color: self.color,
+        x: at.x,
+        y: at.y,
+        z: at.z,
+        yaw: this.aim.yaw,
+        pitch: this.aim.pitch,
+        reading: self.reading,
+        item: held?.id ?? null,
+        firing: self.firing,
+        gear: self.gear?.id ?? null,
+        thrusting: self.thrusting,
+        dead: this.dead,
+        avatar: self.avatar,
+        dragon: self.dragon,
+        bot: false,
+        grounded: isGrounded(self),
+      },
+      this.footsteps.phase(this.myId),
+    );
   }
 
   private updateHover(): void {

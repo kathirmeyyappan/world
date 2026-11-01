@@ -12,7 +12,6 @@ export const KRABS: BodySpec = {
   shadow: 1.5,
   // A scuttle: tiny quick steps, about sixteen a second at a full walk, two a cycle, as in his
   // scuttle loop (audio/Footsteps.ts), with the body rocking from side to side and the claws held up.
-  stride: 6.1,
   legSwing: 0.35,
   armSwing: 0.1,
   armsDown: 0.7,

@@ -10,7 +10,6 @@ export const MIKE: BodySpec = {
   model: MIKE_MODEL,
   texture: '/assets/textures/avatars/mike.png',
   shadow: 1.1,
-  stride: 6.5,
   legSwing: 0.7,
   armSwing: 0.45,
   bob: 0.03,

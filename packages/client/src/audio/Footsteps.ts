@@ -1,23 +1,15 @@
 // The sounds a body makes moving about: a step every stride covered on the ground (so a boosted
 // runner steps faster and a scoped one slower), a swoosh on leaving the ground going up, and on
 // touching down a landing as hard as the fall was fast. Worked out from each player's position and
-// whether they're grounded, frame to frame, so it's the same for everyone. A body's size sets its
-// stride and how heavy it sounds: Mike patters, Tung Tung Tung plods. SpongeBob's shoes squeak.
-import { GRAVITY, statureOf, type AvatarId, type Vec3 } from '@world/shared';
+// whether they're grounded, frame to frame, so it's the same for everyone. Each avatar's gait
+// (render/avatars/gaits.ts) sets its stride, what its steps are and how heavy it sounds, and paces
+// its limbs too (phase).
+import { GRAVITY, type AvatarId, type Vec3 } from '@world/shared';
+import { GAITS } from '../render/avatars/gaits';
 import type { Sfx, SoundId } from './Sfx';
 
-// A body's step sounds: the thuds, a different one each step, unless its avatar has its own, either
-// a bar played round in order or a loop that runs for as long as it moves along the ground.
-const STEPS: SoundId[] = ['step-1', 'step-2', 'step-3', 'step-4'];
-const OWN_STEPS: Partial<Record<AvatarId, { bar: SoundId[] } | { loop: SoundId }>> = {
-  spongebob: { bar: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'] }, // high, low, high, low
-  krabs: { loop: 'scuttle' },
-};
+const THUDS: SoundId[] = ['step-1', 'step-2', 'step-3', 'step-4']; // a different one each step
 const MOVING = 0.01; // metres along the ground in one frame that keep a step loop going
-const STRIDE = 2.6; // metres between the standard body's steps: about three a second at the 8 m/s walk
-// A bigger body steps and lands lower and longer: the sound's rate is its stature to this power
-// (Mike's about a third up, Tung Tung Tung's about a third down).
-const WEIGHT = -0.5;
 const JUMPED = 3; // metres moved in one frame that can only be a respawn or a correction
 // Your own movement plays at this share of its volume, under other people's, so theirs stand out.
 const SELF = 0.6;
@@ -35,6 +27,7 @@ interface Walker {
   stride: number; // metres between their steps, for the body they wear
   walked: number; // metres since the last step
   step: number; // the last step played, so the next differs
+  footfalls: number; // steps taken since they last landed: which foot is down
   liftedFrom: number | null; // height their feet left the ground at, until it's called a jump or not
   peak: number; // highest they've been this time in the air
   falling: number; // fastest downward speed this time in the air, m/s, when it's known
@@ -45,10 +38,11 @@ export class Footsteps {
 
   constructor(private readonly sfx: Sfx) {}
 
-  // How far along their stride a player is: 0 at a footfall, rising to 1 at the next.
+  // Where a player is in their stride: 0 at a footfall of one foot, 1 at the other's, and back to
+  // 0 at the first's again, so it runs 0 to 2 over a full swing of the legs.
   phase(id: string): number {
     const w = this.walkers.get(id);
-    return w ? w.walked / w.stride : 0;
+    return w ? (w.footfalls % 2) + w.walked / w.stride : 0;
   }
 
   // Everyone this frame: where they are, what they look like, whether they're on the ground, how
@@ -63,15 +57,17 @@ export class Footsteps {
     const loops: { key: string; id: SoundId; at: Vec3 | null }[] = [];
     for (const p of players) {
       seen.add(p.id);
-      const stature = statureOf(p.avatar);
+      const gait = GAITS[p.avatar];
+      if (!gait) continue;
       const w = this.walkers.get(p.id);
       if (!w) {
         this.walkers.set(p.id, {
           at: { ...p.pos },
           grounded: p.grounded,
-          stride: STRIDE * stature,
+          stride: gait.stride,
           walked: 0,
           step: -1,
+          footfalls: 0,
           liftedFrom: null,
           peak: p.pos.y,
           falling: 0,
@@ -80,8 +76,8 @@ export class Footsteps {
       }
       const at = p.self ? null : p.pos;
       const level = p.self ? SELF : 1;
-      const rate = Math.pow(stature, WEIGHT);
-      w.stride = STRIDE * stature;
+      const rate = gait.pitch;
+      w.stride = gait.stride;
       const across = Math.hypot(p.pos.x - w.at.x, p.pos.z - w.at.z);
       const down = w.at.y - p.pos.y;
       const wasGrounded = w.grounded;
@@ -108,17 +104,23 @@ export class Footsteps {
         const landing = LANDINGS.filter((l) => speed >= l.from).pop();
         if (landing) this.sfx.play(landing.sound, at, { level, rate });
         w.walked = 0;
+        w.footfalls = 0;
       }
-      const own = OWN_STEPS[p.avatar];
-      if (own && 'loop' in own && across > MOVING) loops.push({ key: p.id, id: own.loop, at });
+      const steps = gait.steps;
+      const loop = typeof steps === 'object' && 'loop' in steps ? steps.loop : null;
+      if (loop && across > MOVING) loops.push({ key: p.id, id: loop, at });
       w.walked += across;
       if (w.walked < w.stride) continue;
-      w.walked -= w.stride;
-      if (own && 'loop' in own) continue;
-      w.step = own
-        ? (w.step + 1) % own.bar.length
-        : (w.step + 1 + Math.floor(Math.random() * (STEPS.length - 1))) % STEPS.length;
-      this.sfx.play(own ? own.bar[w.step] : STEPS[w.step], at, { level, rate });
+      // A slow frame can cover more than one stride: every footfall counts, one sound plays.
+      const falls = Math.floor(w.walked / w.stride);
+      w.walked -= falls * w.stride;
+      w.footfalls += falls;
+      if (loop) continue;
+      const bar = typeof steps === 'object' && 'bar' in steps ? steps.bar : null;
+      w.step = bar
+        ? (w.step + 1) % bar.length
+        : (w.step + 1 + Math.floor(Math.random() * (THUDS.length - 1))) % THUDS.length;
+      this.sfx.play(bar ? bar[w.step] : THUDS[w.step], at, { level, rate });
     }
     for (const id of this.walkers.keys()) if (!seen.has(id)) this.walkers.delete(id);
     return loops;
