@@ -8,25 +8,12 @@
 // ground, where a portal of light lies open while any of the body is still down there. The model is
 // a few hundred kilobytes, fetched the first time one appears. Worn with /light-dragon; what shots
 // have to hit is the class's (sim/dragon.ts), not anything drawn here.
-import {
-  Bone,
-  Color3,
-  DynamicTexture,
-  Matrix,
-  Mesh,
-  MeshBuilder,
-  Quaternion,
-  Skeleton,
-  StandardMaterial,
-  Texture,
-  TransformNode,
-  Vector3,
-  VertexData,
-} from '@babylonjs/core';
-import { ITEMS, SPINE_POINTS, WORLD_STRUCTURES, lookDirection, type ItemAction } from '@world/shared';
+import { Bone, Matrix, Mesh, Quaternion, Skeleton, TransformNode, Vector3, VertexData } from '@babylonjs/core';
+import { ITEMS, SPINE_POINTS, WORLD_STRUCTURES, lookDirection, type ItemAction, type Vec3 } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { FlameJet } from '../FlameJet';
+import { Portal } from '../Portal';
 import type { Avatar } from './common';
 import { HitFlash } from './HitFlash';
 import { bytes, skinMaterial } from './skinned';
@@ -60,11 +47,6 @@ const JAW_EASE = 0.15;
 // over a tick the sim ran without the rider's frame.
 const BREATH = { density: 3, size: 1.6, core: 2.5 };
 const BREATH_HOLD = 0.2;
-// The portal: metres across, how far under the ground a spine point counts as still in it, and
-// seconds it takes to open or close.
-const PORTAL = 7;
-const PORTAL_DEPTH = 0.3;
-const PORTAL_FADE = 0.6;
 
 type DragonModel = typeof import('./dragonModel').DRAGON_MODEL;
 interface MeshData {
@@ -94,9 +76,7 @@ export class DragonAvatar implements Avatar {
   private readonly bones: TransformNode[] = [];
   private readonly mouth: TransformNode;
   private readonly jet: FlameJet;
-  private readonly portal: Mesh;
-  private readonly portalMaterial: StandardMaterial;
-  private portalOpen = 0; // 0 shut to 1 open
+  private readonly portal: Portal;
   private roaredAt = -Infinity;
   private roarSeconds = 0;
   private rose = false; // roared its way out of the ground
@@ -138,13 +118,7 @@ export class DragonAvatar implements Avatar {
       breath.fire.kind === 'cone' ? breath.fire.halfAngle : 0,
       BREATH,
     );
-    this.portal = MeshBuilder.CreateDisc(`dragon-${id}-portal`, { radius: PORTAL / 2, tessellation: 32 }, scene);
-    this.portal.rotation.x = Math.PI / 2;
-    this.portal.isPickable = false;
-    this.portalMaterial = portalMaterial(engine, `dragon-${id}-portal`);
-    this.portal.material = this.portalMaterial;
-    this.portal.setEnabled(false);
-    engine.glowLayer.addIncludedOnlyMesh(this.portal);
+    this.portal = new Portal(engine, `dragon-${id}-portal`);
     void loadModel().then((m) => this.build(engine, m));
   }
 
@@ -196,49 +170,31 @@ export class DragonAvatar implements Avatar {
       this.rose = true;
       this.roar(CRY_SECONDS);
     }
-    const look = d ? d.head : lookDirection(p.yaw, p.pitch);
-    let forward = new Vector3(look.x, look.y, look.z);
-    let up = Vector3.Up().subtract(forward.scale(forward.y));
-    // Pointing straight up or down (climbing out of the ground), the head has no lean to take its
-    // up from: its back faces away from the look, as it does just short of vertical.
-    if (up.lengthSquared() < 1e-6) up.set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw));
-    up.normalize();
-    const lift = this.dead ? 0 : this.roarLift(now);
-    if (lift > 0) {
-      forward = forward.scale(Math.cos(lift)).addInPlace(up.scale(Math.sin(lift)));
-      up = Vector3.Up().subtract(forward.scale(forward.y)).normalize();
-    }
-    this.place(0, this.at, up, forward);
+    const head = headFrame(d ? d.head : lookDirection(p.yaw, p.pitch), p.yaw, this.dead ? 0 : this.roarLift(now));
+    this.place(0, this.at, head.up, head.forward);
     if (!p.dead && p.firing && p.item === 'firebreath') this.breathUntil = now + BREATH_HOLD * 1000;
     const breathing = now < this.breathUntil;
-    this.updateJaw(now, dt, breathing, up, forward);
+    this.updateJaw(now, dt, breathing, head);
     const spine = d?.spine ?? [];
-    this.updatePortal(spine, dt);
-    const wave = ((performance.now() / 1000 / WAVE_SECONDS + this.phase) % 1) * 2 * Math.PI;
-    const neck = neckBones(this.at, forward, spine);
-    let last = this.at;
-    for (let i = 1; i <= SPINE_POINTS; i++) {
-      const k = (i - 1) * 3;
-      const next = k + 3 < spine.length ? new Vector3(spine[k + 3], spine[k + 4], spine[k + 5]) : null;
-      const here = new Vector3(spine[k], spine[k + 1], spine[k + 2]);
-      // Along the spine, from the point behind to the one ahead, or along the neck's curve.
-      const bend = i <= neck.length ? neck[i - 1] : null;
-      const f = bend?.forward ?? (next ? last.subtract(next) : last.subtract(here)).normalize();
+    this.portal.update(spine, WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y), this.dead, dt);
+    const wave = ((now / 1000 / WAVE_SECONDS + this.phase) % 1) * 2 * Math.PI;
+    let up = head.up;
+    spineFrames(this.at, head.forward, spine).forEach(({ at, forward }, n) => {
+      const i = n + 1;
       // The back stays up: the up carried along from the head, squared to each bone's forward.
-      up = up.subtract(f.scale(Vector3.Dot(f, up)));
-      if (up.lengthSquared() < 1e-6) up = Vector3.Cross(f, Vector3.Right());
+      up = up.subtract(forward.scale(Vector3.Dot(forward, up)));
+      if (up.lengthSquared() < 1e-6) up = Vector3.Cross(forward, Vector3.Right());
       up.normalize();
       const rise = p.dead ? 0 : WAVE * Math.min(1, i / WAVE_FROM) * Math.sin(wave - (i * 2 * Math.PI) / WAVE_BONES);
-      this.place(i, (bend?.at ?? here).add(up.scale(rise)), up, f);
-      last = here;
-    }
+      this.place(i, at.add(up.scale(rise)), up, forward);
+    });
     this.jet.set(breathing);
     this.jet.update(dt);
     this.root.setEnabled(true);
   }
 
   // The lower jaw hangs from its hinge in the head, dropped open to breathe or roar.
-  private updateJaw(now: number, dt: number, breathing: boolean, up: Vector3, forward: Vector3): void {
+  private updateJaw(now: number, dt: number, breathing: boolean, { up, forward }: Frame): void {
     const t = (now - this.roaredAt) / 1000;
     const want = !this.dead && (breathing || (t >= 0 && t < this.roarSeconds - ROAR_SHUT)) ? 1 : 0;
     this.jaw += (want - this.jaw) * Math.min(1, dt / JAW_EASE);
@@ -261,25 +217,6 @@ export class DragonAvatar implements Avatar {
     if (t < ROAR_RISE) return ROAR_LIFT * Math.sin((t / ROAR_RISE) * (Math.PI / 2));
     const s = (t - ROAR_RISE) / ROAR_SETTLE;
     return ROAR_LIFT * (1 - s * s * (3 - 2 * s));
-  }
-
-  // The portal lies where the body goes into the ground, open while any of it is still down there,
-  // turning slowly, and fades shut once the tail is out.
-  private updatePortal(spine: number[], dt: number): void {
-    const ground = WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y);
-    let under: number | null = null;
-    for (let i = 0; i < spine.length; i += 3)
-      if (spine[i + 1] < ground - PORTAL_DEPTH) {
-        under = i;
-        break;
-      }
-    const want = under === null || this.dead ? 0 : 1;
-    this.portalOpen = Math.max(0, Math.min(1, this.portalOpen + ((want ? 1 : -1) * dt) / PORTAL_FADE));
-    if (under !== null) this.portal.position.set(spine[under], ground + 0.04, spine[under + 2]);
-    this.portal.setEnabled(this.portalOpen > 0);
-    this.portalMaterial.alpha = this.portalOpen;
-    this.portal.rotation.y += dt * 0.5;
-    this.portal.scaling.setAll(0.6 + 0.4 * this.portalOpen);
   }
 
   // Puts bone i's node at a live frame.
@@ -318,7 +255,7 @@ export class DragonAvatar implements Avatar {
   dispose(): void {
     this.disposed = true;
     this.jet.dispose();
-    this.portal.dispose(false, true);
+    this.portal.dispose();
     this.root.dispose(false, true);
     this.skeleton?.dispose();
   }
@@ -330,56 +267,51 @@ export class DragonAvatar implements Avatar {
 
 const SCRATCH = new Matrix();
 
-// Pale gold light: a soft disc with a brighter rim, drawn once and shared.
-let portalTexture: DynamicTexture | null = null;
-function portalMaterial(engine: Engine, name: string): StandardMaterial {
-  const scene = engine.scene;
-  if (!portalTexture) {
-    const size = 128;
-    portalTexture = new DynamicTexture('portalTex', size, scene, false, Texture.BILINEAR_SAMPLINGMODE);
-    portalTexture.hasAlpha = true;
-    const ctx = portalTexture.getContext() as CanvasRenderingContext2D;
-    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0, 'rgba(255,250,220,0.85)');
-    g.addColorStop(0.55, 'rgba(255,230,150,0.45)');
-    g.addColorStop(0.82, 'rgba(255,240,190,0.95)');
-    g.addColorStop(0.9, 'rgba(255,215,120,0.6)');
-    g.addColorStop(1, 'rgba(255,215,120,0)');
-    ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    portalTexture.update();
-  }
-  const m = new StandardMaterial(name, scene);
-  m.diffuseTexture = portalTexture;
-  m.opacityTexture = portalTexture;
-  m.emissiveTexture = portalTexture;
-  m.emissiveColor = new Color3(1, 0.95, 0.75);
-  m.disableLighting = true;
-  m.backFaceCulling = false;
-  return m;
+// Which way a bone's back faces and which way it points.
+interface Frame {
+  up: Vector3;
+  forward: Vector3;
 }
 
-// The neck's bones, along a curve from the head, leaving it the way the head points, to the first
-// bone past the neck, arriving the way the spine runs there: the head's turn bends the neck, most
-// just behind the head and less each bone back, and the skin follows the bend.
-function neckBones(head: Vector3, forward: Vector3, spine: number[]): { at: Vector3; forward: Vector3 }[] {
-  const k = NECK_BONES * 3;
-  if (spine.length < k + 6) return [];
-  const end = new Vector3(spine[k], spine[k + 1], spine[k + 2]);
-  const endForward = new Vector3(spine[k - 3] - spine[k + 3], spine[k - 2] - spine[k + 4], spine[k - 1] - spine[k + 5]);
-  const length = Vector3.Distance(head, end);
-  const t0 = forward.scale(-length);
-  const t1 = endForward.normalize().scaleInPlace(-length);
-  const bones = [];
-  for (let i = 1; i <= NECK_BONES; i++) {
-    const t = i / (NECK_BONES + 1);
-    bones.push({
-      at: Vector3.Hermite(head, t0, end, t1, t),
-      forward: Vector3.Hermite1stDerivative(head, t0, end, t1, t).normalize().scaleInPlace(-1),
-    });
+// The head's frame for a look, lifted `lift` radians for a roar. Pointing straight up or down
+// (climbing out of the ground), the head has no lean to take its up from: its back faces away from
+// the look, as it does just short of vertical.
+function headFrame(look: Vec3, yaw: number, lift: number): Frame {
+  let forward = new Vector3(look.x, look.y, look.z);
+  let up = Vector3.Up().subtract(forward.scale(forward.y));
+  if (up.lengthSquared() < 1e-6) up.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+  up.normalize();
+  if (lift > 0) {
+    forward = forward.scale(Math.cos(lift)).addInPlace(up.scale(Math.sin(lift)));
+    up = Vector3.Up().subtract(forward.scale(forward.y)).normalize();
   }
-  return bones;
+  return { up, forward };
+}
+
+// Where each spine bone goes and which way it points, nearest the head first: along the spine
+// through its point, except the neck's, which lie on a curve from the head, leaving it the way the
+// head points and arriving the way the spine runs past the neck, so a turn of the head bends the
+// neck, most just behind the head and less each bone back, and the skin follows the bend.
+function spineFrames(head: Vector3, forward: Vector3, spine: readonly number[]): { at: Vector3; forward: Vector3 }[] {
+  const points = [head];
+  for (let k = 0; k + 2 < spine.length; k += 3) points.push(new Vector3(spine[k], spine[k + 1], spine[k + 2]));
+  // Along the spine at point i: from the point behind it to the one ahead.
+  const along = (i: number) => points[i - 1].subtract(points[Math.min(i + 1, points.length - 1)]).normalize();
+  const frames = points.slice(1).map((at, n) => ({ at, forward: along(n + 1) }));
+  const end = NECK_BONES + 1;
+  if (points.length > end) {
+    const length = Vector3.Distance(head, points[end]);
+    const t0 = forward.scale(-length);
+    const t1 = along(end).scaleInPlace(-length);
+    for (let i = 1; i <= NECK_BONES; i++) {
+      const t = i / end;
+      frames[i - 1] = {
+        at: Vector3.Hermite(head, t0, points[end], t1, t),
+        forward: Vector3.Hermite1stDerivative(head, t0, points[end], t1, t).normalize().scaleInPlace(-1),
+      };
+    }
+  }
+  return frames;
 }
 
 // Bone i's rest frame as a matrix: its right, up and forward axes and its position.
