@@ -1,6 +1,6 @@
 // An avatar whose head is its body: a trunk on two short legs with two arms and nothing else to
 // move (Mike Wazowski, SpongeBob), skinned over five bones from a model made by
-// scripts/monster-model.py. It walks with the arms swinging against the legs and the body bobbing, and the whole body tips with the look, since that is where the face is. A held item
+// scripts/avatar-model.py. It walks with the arms swinging against the legs and the body bobbing, and the whole body tips with the look, since that is where the face is. A held item
 // rides the right arm, which points forward to aim. It dies on its back with its limbs dropped.
 // Movement and items are everyone's; the hit capsule is the avatar's own (AVATARS).
 import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
