@@ -200,7 +200,7 @@ capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it 
 looks with a spine of points following it, kept 4 m up and too big for a door, its head turned
 toward the look only as far as the neck lets it, breathing a wide cone where the head points
 (`firebreath`, the look's own item) and roaring on A, S and D; a new one climbs straight out of the
-ground, head up, until most of its spine is out. Its rules and numbers are constants at the top of
+ground, head up, until its whole spine is out. Its rules and numbers are constants at the top of
 that file. `becomeAvatar` (`player.ts`) is the one way a player changes
 look: a new class is a new body at the same eye point, with hearts in proportion.
 
