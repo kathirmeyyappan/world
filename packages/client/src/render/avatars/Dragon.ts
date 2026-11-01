@@ -34,8 +34,8 @@ import { bytes, skinMaterial } from './skinned';
 const TEXTURE = '/assets/textures/avatars/light-dragon.png';
 const JAW = SPINE_POINTS + 1; // the lower jaw's bone, after the head's and the spine's
 const BONES = JAW + 1;
-// The neck: how many bones behind the head turn with it rather than along the spine, the first
-// almost all the way and each less than the last, so a turn of the head bends them evenly.
+// The neck: how many bones behind the head lie on a curve from the way the head points to the way
+// the spine runs, rather than on the spine itself, so a turn of the head bends them evenly.
 const NECK_BONES = 6;
 // The wave down the body: metres up and down at full size, bones per wavelength, seconds per
 // wave, and the bone by which it is at full size (none at the neck, so the head stays put).
@@ -231,27 +231,21 @@ export class DragonAvatar implements Avatar {
     const spine = d?.spine ?? [];
     this.updatePortal(spine, dt);
     const wave = ((performance.now() / 1000 / WAVE_SECONDS + this.phase) % 1) * 2 * Math.PI;
+    const neck = neckBones(this.at, forward, spine);
     let last = this.at;
     for (let i = 1; i <= SPINE_POINTS; i++) {
       const k = (i - 1) * 3;
       const next = k + 3 < spine.length ? new Vector3(spine[k + 3], spine[k + 4], spine[k + 5]) : null;
       const here = new Vector3(spine[k], spine[k + 1], spine[k + 2]);
-      // Along the spine, from the point behind to the one ahead; the neck leans toward the head.
-      const along = (next ? last.subtract(next) : last.subtract(here)).normalize();
-      const lean = i <= NECK_BONES ? 1 - i / (NECK_BONES + 1) : 0;
-      const f =
-        lean > 0
-          ? along
-              .scale(1 - lean)
-              .addInPlace(forward.scale(lean))
-              .normalize()
-          : along;
+      // Along the spine, from the point behind to the one ahead, or along the neck's curve.
+      const bend = i <= neck.length ? neck[i - 1] : null;
+      const f = bend?.forward ?? (next ? last.subtract(next) : last.subtract(here)).normalize();
       // The back stays up: the up carried along from the head, squared to each bone's forward.
       up = up.subtract(f.scale(Vector3.Dot(f, up)));
       if (up.lengthSquared() < 1e-6) up = Vector3.Cross(f, Vector3.Right());
       up.normalize();
       const rise = p.dead ? 0 : WAVE * Math.min(1, i / WAVE_FROM) * Math.sin(wave - (i * 2 * Math.PI) / WAVE_BONES);
-      this.place(i, here.add(up.scale(rise)), up, f);
+      this.place(i, (bend?.at ?? here).add(up.scale(rise)), up, f);
       last = here;
     }
     this.jet.set(breathing);
@@ -418,6 +412,62 @@ function sleeveData(frames: readonly number[]): VertexData {
   data.matricesIndices = bones;
   data.matricesWeights = weights;
   return data;
+}
+
+// The neck's bones, spaced evenly along a curve from the head, leaving it the way the head points,
+// to the first bone past the neck, arriving the way the spine runs there: a turn of the head bends
+// the neck and the skin follows the bend, where bones on the spine turned toward the head would
+// shear it. The curve is a cubic Hermite, measured along a fine sampling.
+function neckBones(head: Vector3, forward: Vector3, spine: number[]): { at: Vector3; forward: Vector3 }[] {
+  const k = NECK_BONES * 3;
+  if (spine.length < k + 6) return [];
+  const end = new Vector3(spine[k], spine[k + 1], spine[k + 2]);
+  const endForward = new Vector3(
+    spine[k - 3] - spine[k + 3],
+    spine[k - 2] - spine[k + 4],
+    spine[k - 1] - spine[k + 5],
+  ).normalize();
+  const length = Vector3.Distance(head, end);
+  const t0 = forward.scale(-length);
+  const t1 = endForward.scale(-length);
+  const steps = (NECK_BONES + 1) * 8;
+  const points: Vector3[] = [];
+  const tangents: Vector3[] = [];
+  const along = [0];
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    points.push(
+      head
+        .scale(2 * t3 - 3 * t2 + 1)
+        .addInPlace(t0.scale(t3 - 2 * t2 + t))
+        .addInPlace(end.scale(3 * t2 - 2 * t3))
+        .addInPlace(t1.scale(t3 - t2)),
+    );
+    tangents.push(
+      head
+        .scale(6 * t2 - 6 * t)
+        .addInPlace(t0.scale(3 * t2 - 4 * t + 1))
+        .addInPlace(end.scale(6 * t - 6 * t2))
+        .addInPlace(t1.scale(3 * t2 - 2 * t)),
+    );
+    if (s > 0) along.push(along[s - 1] + Vector3.Distance(points[s - 1], points[s]));
+  }
+  const bones: { at: Vector3; forward: Vector3 }[] = [];
+  let s = 0;
+  for (let i = 1; i <= NECK_BONES; i++) {
+    const want = (along[steps] * i) / (NECK_BONES + 1);
+    while (s < steps - 1 && along[s + 1] < want) s++;
+    const f = (want - along[s]) / (along[s + 1] - along[s] || 1);
+    bones.push({
+      at: Vector3.Lerp(points[s], points[s + 1], f),
+      forward: Vector3.Lerp(tangents[s], tangents[s + 1], f)
+        .normalize()
+        .scaleInPlace(-1),
+    });
+  }
+  return bones;
 }
 
 // Bone i's rest frame as a matrix: its right, up and forward axes and its position.
