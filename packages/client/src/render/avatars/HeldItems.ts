@@ -68,6 +68,12 @@ export class HeldItems {
     this.backOffset = backOffset.clone();
   }
 
+  // Draws the tap weapons `factor` times their size: the player's own, seen from the boom, where true
+  // size reads as a toy. The flamethrower keeps its size, its jet drawn from the nozzle at the item's range.
+  scaleWeapons(factor: number): void {
+    for (const [item, node] of this.weapons) if (ITEMS[item].actions.shoot?.mode === 'tap') node.scaling.setAll(factor);
+  }
+
   update({ item, firing, gear, thrusting }: Pick<RemotePlayer, 'item' | 'firing' | 'gear' | 'thrusting'>): void {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastNow) / 1000);

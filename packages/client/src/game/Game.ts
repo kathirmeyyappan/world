@@ -99,6 +99,7 @@ const MENU_SCROLL_PX = 80; // one arrow press or W/S on the commands menu
 // Your own shots play at this share of their volume: right at your ear, they'd drown out the rest.
 const OWN_SHOT = 0.7;
 const NEAR_MISS_DELAY = 0.1; // seconds after the shot that a near miss whizzes by (about 4 frames)
+const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size they read as toys
 // A roar comes back off the world: the same again, this much later and this much quieter.
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
@@ -358,7 +359,8 @@ export class Game {
     const cls = classOf(this.prediction!.state.avatar);
     const { boom } = VIEWS[cls.id];
     const scale = cls.id === 'walker' ? (this.stature ?? 1) : 1;
-    return { back: boom.back * scale, right: boom.right * scale, up: boom.up * scale };
+    // A small body is no narrower across the shoulders than its gun arm reaches.
+    return { back: boom.back * scale, right: boom.right * Math.max(1, scale), up: boom.up * scale };
   }
 
   private isBlocked(): boolean {
@@ -768,7 +770,10 @@ export class Game {
       avatar.dispose();
       avatar = null;
     }
-    if (!avatar) avatar = this.ownAvatar = createAvatar(this.engine, self);
+    if (!avatar) {
+      avatar = this.ownAvatar = createAvatar(this.engine, self);
+      avatar.scaleWeapons(OWN_WEAPON_SCALE);
+    }
     const own: Avatar = avatar;
     const shown = this.view.showsBody;
     if (!shown && !own.setHeadless) {

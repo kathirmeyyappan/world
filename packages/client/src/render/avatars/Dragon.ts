@@ -248,6 +248,8 @@ export class DragonAvatar implements Avatar {
 
   fire(): void {}
 
+  scaleWeapons(): void {}
+
   hide(): void {
     this.root.setEnabled(false);
   }

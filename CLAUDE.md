@@ -185,6 +185,21 @@ Cubes don't know about structures, and the minimap shows only the footprints in
 per floor above the ground), and with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the
 terrace, the sky bridge and the staircases. List a landmark's there when it's worth navigating by.
 
+## Avatars
+
+An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: name tag, command, eye
+height, hitbox) and a builder in `packages/client/src/render/avatars/` (`createAvatar`). A Sketchfab
+model goes through `packages/client/scripts/monster-model.py` into a `<name>Model.ts` and a texture
+atlas; a trunk on two arms and two legs is a `BodySpec` (`Body.ts`). Rebuild the bot map after
+adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
+numbers in the PR.
+
+Craft a character with love: look at it in every state before the PR, and put the shots in it.
+Standing, walking, holding and aiming each weapon, firing, hit, dead; from the front, the side and
+behind; and your own body in third person. The model's bind pose decides how the arms hang
+(`armsDown`) and where the palm is (`model.hand`), and a held gun has to sit in the hand with its
+barrel along the look.
+
 ## Player classes
 
 A class is what kind of body a player has (`packages/shared/src/sim/classes.ts`): every avatar names
