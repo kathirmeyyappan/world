@@ -40,12 +40,12 @@ SPINE_SPACING = 1.5
 TAIL = 1.5  # metres of tail past the last bone, rigid with it
 JAW_BONE = SPINE_POINTS + 1  # after the spine's bones
 BONES = JAW_BONE + 1
-# The lower jaw: the head's vertices under the lip line and ahead of the hinge, in the head bone's
-# frame (metres forward of and up from the eyes). The model's mouth is shut, so the line is a guess
-# at where the lips meet, and a band JAW_BLEND wide along it and at the hinge is shared with the head.
-JAW_HINGE = -0.25
-JAW_LIP = -0.34
-JAW_BLEND = 0.08
+# The lower jaw: the head's vertices under the lip line and ahead of the hinge. The model's mouth is
+# shut, so the line is a guess at where the lips meet: from the hinge (metres forward of and up from
+# the eyes, in the head bone's frame, below and behind the eye) straight to the snout's tip. A band
+# JAW_BLEND wide along it and at the hinge is shared with the head.
+JAW_HINGE = (-0.5, -0.38)
+JAW_BLEND = 0.05
 
 RIGID_PARTS = ("Head", "Eyes", "Eyeashes", "Horns")  # one piece with the head bone
 HEAD_MESH = (*RIGID_PARTS, "Mane")  # round the head, so hidden with it; the mane's roots follow the neck
@@ -132,10 +132,16 @@ def main(glb: str) -> None:
     # Where along the curve each vertex sits, and so which bones it follows.
     spines = next(p for p in parts if p["group"] == "Spines")
     frames = bone_frames(curve, spines["positions"])
+    # The mouth: the lower jaw's tip, the farthest forward the head goes below the eyes.
+    head = next(p for p in parts if p["group"] == "Head")
+    forward = frames[0, 9:12]
+    low = head["positions"][head["positions"][:, 1] < 0]
+    mouth = low[np.argmax(low @ forward)]
+    print("mouth", np.round(mouth, 2))
     for part in parts:
         if part["group"] in RIGID_PARTS:
             part["bones"] = np.zeros((len(part["positions"]), BONES))
-            jaw = jaw_share(part["positions"], frames[0]) if part["group"] == "Head" else 0
+            jaw = jaw_share(part["positions"], frames[0], mouth) if part["group"] == "Head" else 0
             part["bones"][:, 0] = 1 - jaw
             part["bones"][:, JAW_BONE] = jaw
             continue
@@ -150,17 +156,7 @@ def main(glb: str) -> None:
     for i in (0, 1, 2, 5, 10, 15, 20, JAW_BONE):
         f = frames[i]
         print(f"bone {i:2d} at {np.round(f[:3], 2)} up {np.round(f[6:9], 2)} forward {np.round(f[9:12], 2)}")
-    head_part = next(p for p in parts if p["group"] == "Head")
-    print(
-        "head spans", np.round(head_part["positions"].min(axis=0), 2), np.round(head_part["positions"].max(axis=0), 2)
-    )
-
-    # The mouth: the lower jaw's tip, the farthest forward the head goes below the eyes.
-    head = next(p for p in parts if p["group"] == "Head")
-    forward = frames[0, 9:12]
-    low = head["positions"][head["positions"][:, 1] < 0]
-    mouth = low[np.argmax(low @ forward)]
-    print("mouth", np.round(mouth, 2))
+    print("head spans", np.round(head["positions"].min(axis=0), 2), np.round(head["positions"].max(axis=0), 2))
 
     total = sum(len(p["triangles"]) for p in parts)
     for group, budget in BUDGET.items():
@@ -298,13 +294,16 @@ def nearest(points: np.ndarray, curve: np.ndarray) -> np.ndarray:
     return found
 
 
-def jaw_share(positions: np.ndarray, head: np.ndarray) -> np.ndarray:
+def jaw_share(positions: np.ndarray, head: np.ndarray, mouth: np.ndarray) -> np.ndarray:
     """How much of each vertex the lower jaw's bone carries: all of it under the lip line and ahead
     of the hinge, none above or behind, fading across JAW_BLEND either side of both."""
     forward = (positions - head[:3]) @ head[9:12]
     up = (positions - head[:3]) @ head[6:9]
-    under = np.clip((JAW_LIP + JAW_BLEND / 2 - up) / JAW_BLEND, 0, 1)
-    ahead = np.clip((forward - JAW_HINGE + JAW_BLEND / 2) / JAW_BLEND, 0, 1)
+    tip_forward, tip_up = (mouth - head[:3]) @ head[9:12], (mouth - head[:3]) @ head[6:9]
+    hinge_forward, hinge_up = JAW_HINGE
+    lip = hinge_up + (forward - hinge_forward) * (tip_up - hinge_up) / (tip_forward - hinge_forward)
+    under = np.clip((lip + JAW_BLEND / 2 - up) / JAW_BLEND, 0, 1)
+    ahead = np.clip((forward - hinge_forward + JAW_BLEND / 2) / JAW_BLEND, 0, 1)
     return under * ahead
 
 
@@ -332,7 +331,7 @@ def bone_frames(curve: np.ndarray, spines: np.ndarray) -> np.ndarray:
         frames.append(np.concatenate([curve[at], right, up, forward]))
     head = frames[0]
     jaw = head.copy()
-    jaw[:3] = head[:3] + head[9:12] * JAW_HINGE + head[6:9] * JAW_LIP
+    jaw[:3] = head[:3] + head[9:12] * JAW_HINGE[0] + head[6:9] * JAW_HINGE[1]
     frames.append(jaw)
     return np.array(frames)
 
