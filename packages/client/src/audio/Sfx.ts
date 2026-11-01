@@ -41,7 +41,7 @@ interface SoundSpec {
   volume: number; // up close
   loop?: boolean;
   intro?: string; // played once first, ending on the sample the loop starts on
-  swell?: number; // seconds a loop takes to rise from silence to its volume (FADE if not given)
+  swell?: number; // seconds it takes to rise from silence to its volume (a loop FADE, a one-shot ATTACK)
   lazy?: boolean; // fetched the first time it's wanted, not up front: a big one few will hear
 }
 
@@ -70,13 +70,14 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing
-  // A dragon's (the light dragon's own cries): its roars carry across the whole world, as does the
-  // cry it rises out of the ground with; its theme plays from its head, soft a way off.
-  'roar-1': { file: 'roar-1.mp3', half: 45, volume: 0.5 },
-  'roar-2': { file: 'roar-2.mp3', half: 45, volume: 0.5 },
-  'roar-3': { file: 'roar-3.mp3', half: 45, volume: 0.5 },
-  'dragon-cry': { file: 'dragon-cry.mp3', half: 45, volume: 0.5 },
-  'dragon-theme': { file: 'dragon-theme.mp3', half: 25, volume: 0.22, loop: true, swell: 2.5, lazy: true },
+  // A dragon's (the light dragon's own cries): its roars carry across the whole world, faint from
+  // the far side, as does the cry it rises out of the ground with; its theme plays from its head,
+  // soft a way off and gone before the far side (nothing in the world is 300 m from anything).
+  'roar-1': { file: 'roar-1.mp3', half: 60, volume: 0.35 },
+  'roar-2': { file: 'roar-2.mp3', half: 60, volume: 0.35 },
+  'roar-3': { file: 'roar-3.mp3', half: 60, volume: 0.35 },
+  'dragon-cry': { file: 'dragon-cry.mp3', half: 60, volume: 0.35, swell: 0.3 },
+  'dragon-theme': { file: 'dragon-theme.mp3', half: 25, reach: 300, volume: 0.22, loop: true, swell: 2.5, lazy: true },
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
@@ -118,6 +119,9 @@ export function loopsOf(p: {
 }
 
 const FADE = 0.04; // seconds a loop takes to come in or go out, so it doesn't click
+// Seconds a one-shot takes to come in: enough for the limiter to catch a loud one's first wave
+// rather than letting it through hot, too short to hear as a fade.
+const ATTACK = 0.005;
 // Seconds a loop keeps going once it's no longer wanted. Another player's firing and thrusting
 // drop out for a tick whenever their input arrives late, which would otherwise cut the loop and
 // restart it (and the flamethrower's ignition) every time.
@@ -197,7 +201,10 @@ export class Sfx {
     if (!this.ctx || !buffer) return false;
     if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
     const t = this.ctx.currentTime + (o.delay ?? 0);
-    const voice = this.voice(id, at, o.level ?? 1);
+    const spec = SOUNDS[id];
+    const voice = this.voice(id, at, 0);
+    voice.gain.gain.setValueAtTime(0, t);
+    voice.gain.gain.linearRampToValueAtTime(spec.volume * (o.level ?? 1), t + (spec.swell ?? ATTACK));
     const src = new AudioBufferSourceNode(this.ctx, { buffer, playbackRate: o.rate ?? 1 });
     src.connect(voice.gain);
     src.start(t);
