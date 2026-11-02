@@ -40,6 +40,7 @@ import {
   CRUISE_SPEED,
   DRAGON,
   HEAD_YAW,
+  BODY_RADIUS,
   HEAD_RADIUS,
   MAX_PITCH,
   MIN_ALTITUDE,
@@ -372,6 +373,29 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
     Math.abs(worldDistance(p.pos.x, p.pos.z) + PLAYER_PADDING) < 1e-6,
     `on the edge: ${p.pos.x.toFixed(1)}, ${p.pos.z.toFixed(1)}`,
   );
+});
+
+test('a dead dragon drapes over an edge, its body a link apart, rather than stretching down to the ground', () => {
+  // A ledge 20 m high under the head and the first two spine points; the rest of the body is out
+  // over the void, 30 m up.
+  const ledge = new Structures([{ kind: 'box', x: -20, z: 0, w: 50, d: 20, h: 20 }]);
+  const p = createPlayer('f', 'f', '#fff', { x: 0, y: 30, z: 0 });
+  becomeAvatar(p, 'light-dragon');
+  p.dragon!.risen = true;
+  p.dragon!.spine = Array.from({ length: SPINE_POINTS * 3 }, (_, k) =>
+    k % 3 === 0 ? (k / 3 + 1) * SPINE_SPACING : k % 3 === 1 ? 30 : 0,
+  );
+  p.dead = true;
+  for (let i = 0; i < 300; i++) stepPlayer(p, frame(p.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, ledge);
+  const spine = p.dragon!.spine;
+  assert.equal(p.pos.y, 20 + HEAD_RADIUS, 'the head rests on the ledge');
+  assert.equal(spine[1], 20 + BODY_RADIUS, 'and so does the body over it');
+  for (let i = 0; i < spine.length; i += 3) {
+    const [lx, ly, lz] = i === 0 ? [p.pos.x, p.pos.y, p.pos.z] : spine.slice(i - 3, i);
+    assert.ok(Math.hypot(spine[i] - lx, spine[i + 1] - ly, spine[i + 2] - lz) <= SPINE_SPACING + 0.01, 'a link apart');
+  }
+  assert.equal(spine[spine.length - 2], BODY_RADIUS, 'the tail lies on the ground');
+  assert.ok(spine[10] > BODY_RADIUS + 1 && spine[10] < 20, `the body hangs between: point 3 is ${spine[10]} m up`);
 });
 
 test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {
