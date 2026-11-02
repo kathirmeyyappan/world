@@ -7,7 +7,6 @@ import { SPONGEBOB_MODEL } from './spongebobModel';
 export const SPONGEBOB: BodySpec = {
   kind: 'spongebob',
   model: SPONGEBOB_MODEL,
-  texture: '/assets/textures/avatars/spongebob.png',
   shadow: 1.3,
   legSwing: 0.6,
   armSwing: 0.5,

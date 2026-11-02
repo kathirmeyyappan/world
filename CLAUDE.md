@@ -190,7 +190,8 @@ terrace, the sky bridge and the staircases. List a landmark's there when it's wo
 An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: name tag, command, eye
 height, hitbox) and a builder in `packages/client/src/render/avatars/` (`createAvatar`). A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
-atlas; a trunk on two arms and two legs is a `BodySpec` (`Body.ts`). Rebuild the bot map after
+atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
+it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 

@@ -13,6 +13,7 @@ import {
   Vector3,
   VertexData,
 } from '@babylonjs/core';
+import type { AvatarId } from '@world/shared';
 import type { Engine } from '../Engine';
 
 const GLOW = 0.3; // how much the skin lights itself, so it reads in the dark like the other avatars
@@ -44,7 +45,7 @@ export class SkinnedBody<B extends string> {
     engine: Engine,
     name: string,
     model: SkinnedModel<B>,
-    texture: string,
+    avatar: AvatarId,
     parents: Readonly<Record<B, B | null>>,
     root: TransformNode,
   ) {
@@ -67,7 +68,7 @@ export class SkinnedBody<B extends string> {
       this.parts.set(name, { node, pivot });
     });
 
-    this.material = skinMaterial(scene, name, texture);
+    this.material = skinMaterial(scene, name, avatar);
     this.mesh = new Mesh(`${name}-mesh`, scene);
     vertexData(model).applyToMesh(this.mesh);
     this.mesh.material = this.material;
@@ -98,10 +99,17 @@ export class SkinnedBody<B extends string> {
   }
 }
 
-// The model's texture, lit, with a little of itself as glow. glTF texture coordinates run down the
-// image, so it isn't flipped on load. Sampled nearest like the world's textures.
-export function skinMaterial(scene: Engine['scene'], name: string, texture: string): StandardMaterial {
-  const image = new Texture(texture, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
+// An avatar's atlas (public/assets/textures/avatars/<id>.png), sampled nearest like the world's
+// textures; glTF texture coordinates run down the image, so it isn't flipped on load. Fetched once a
+// page: Babylon hands later askers the texture already loaded, so a look whose atlas came in at
+// startup (preloadAvatars) goes on without a wait.
+export function skinTexture(scene: Engine['scene'], avatar: AvatarId): Texture {
+  return new Texture(`/assets/textures/avatars/${avatar}.png`, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
+}
+
+// The model's texture, lit, with a little of itself as glow.
+export function skinMaterial(scene: Engine['scene'], name: string, avatar: AvatarId): StandardMaterial {
+  const image = skinTexture(scene, avatar);
   const material = new StandardMaterial(`${name}-skin`, scene);
   material.diffuseTexture = image;
   material.emissiveTexture = image;

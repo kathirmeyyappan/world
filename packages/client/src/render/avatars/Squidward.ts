@@ -16,7 +16,6 @@ import { HitFlash } from './HitFlash';
 import { SkinnedBody } from './skinned';
 import { SQUIDWARD_MODEL } from './squidwardModel';
 
-const TEXTURE = '/assets/textures/avatars/squidward.png';
 const LEG_SWING = 0.3; // radians each way a tentacle swings from the hip at a full-speed walk
 // The lower half of a tentacle swings this far behind the upper in the stride (radians of it) and
 // this much further: the leg bends as it goes, and the foot flops along after it.
@@ -80,7 +79,7 @@ export class SquidwardAvatar implements Avatar {
     this.base = new TransformNode(`avatar-body-${id}`, scene);
     this.base.parent = this.root;
 
-    this.skin = new SkinnedBody(engine, `squidward-${id}`, SQUIDWARD_MODEL, TEXTURE, PARENTS, this.base);
+    this.skin = new SkinnedBody(engine, `squidward-${id}`, SQUIDWARD_MODEL, 'squidward', PARENTS, this.base);
     this.head = this.skin.node('head');
     this.armL = this.skin.node('armL');
     this.armR = this.skin.node('armR');

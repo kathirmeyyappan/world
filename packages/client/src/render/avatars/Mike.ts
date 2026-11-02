@@ -8,7 +8,6 @@ import { MIKE_MODEL } from './mikeModel';
 export const MIKE: BodySpec = {
   kind: 'mike',
   model: MIKE_MODEL,
-  texture: '/assets/textures/avatars/mike.png',
   shadow: 1.1,
   legSwing: 0.7,
   armSwing: 0.45,

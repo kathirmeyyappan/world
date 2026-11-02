@@ -45,7 +45,7 @@ import { IS_TOUCH } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, preloadDragonModel, StandardAvatar, type Avatar } from '../render/avatars';
+import { createAvatar, preloadAvatars, StandardAvatar, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -180,7 +180,7 @@ export class Game {
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list);
-    preloadDragonModel();
+    preloadAvatars(this.engine);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = 0.1;

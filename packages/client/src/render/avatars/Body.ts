@@ -25,7 +25,6 @@ const PARENTS: Record<BodyBone, BodyBone | null> = {
 export interface BodySpec {
   kind: AvatarId;
   model: SkinnedModel<BodyBone>;
-  texture: string;
   shadow: number; // metres across
   legSwing: number; // radians each way at a full-speed walk
   armSwing: number;
@@ -72,7 +71,7 @@ export class BodyAvatar implements Avatar {
     this.base = new TransformNode(`avatar-body-${id}`, scene);
     this.base.parent = this.root;
 
-    this.skin = new SkinnedBody(engine, `${spec.kind}-${id}`, spec.model, spec.texture, PARENTS, this.base);
+    this.skin = new SkinnedBody(engine, `${spec.kind}-${id}`, spec.model, spec.kind, PARENTS, this.base);
     this.body = this.skin.node('body');
     this.armL = this.skin.node('armL');
     this.armR = this.skin.node('armR');

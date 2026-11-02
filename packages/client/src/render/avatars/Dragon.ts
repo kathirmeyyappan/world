@@ -18,7 +18,6 @@ import type { Avatar } from './common';
 import { HitFlash } from './HitFlash';
 import { bytes, skinMaterial } from './skinned';
 
-const TEXTURE = '/assets/textures/avatars/light-dragon.png';
 const JAW = SPINE_POINTS + 1; // the lower jaw's bone, after the head's and the spine's
 const BONES = JAW + 1;
 // The neck: how many bones behind the head lie on a curve from the way the head points to the way
@@ -59,15 +58,10 @@ interface MeshData {
 }
 let model: Promise<DragonModel> | null = null;
 
-function loadModel(): Promise<DragonModel> {
+// The model, a chunk of its own fetched once: at startup (preloadAvatars), so the first dragon anyone
+// sees rises with its skin on rather than a few seconds after.
+export function loadDragonModel(): Promise<DragonModel> {
   return (model ??= import('./dragonModel').then((m) => m.DRAGON_MODEL));
-}
-
-// Fetches the model once the page has nothing better to do, so the first dragon anyone sees rises
-// with its skin on rather than a few seconds after.
-export function preloadDragonModel(): void {
-  const idle = window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 3000));
-  idle(() => void loadModel());
 }
 
 export class DragonAvatar implements Avatar {
@@ -119,7 +113,7 @@ export class DragonAvatar implements Avatar {
       BREATH,
     );
     this.portal = new Portal(engine, `dragon-${id}-portal`);
-    void loadModel().then((m) => this.build(engine, m));
+    void loadDragonModel().then((m) => this.build(engine, m));
   }
 
   // The skin, once the model has arrived: every bone's rest frame is its bind pose, so a bone's
@@ -138,7 +132,7 @@ export class DragonAvatar implements Avatar {
     const toHead = Matrix.Invert(headRest);
     this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth), toHead);
     this.hinge = Vector3.TransformCoordinates(frameMatrix(m.frames, JAW).getTranslation(), toHead);
-    const material = skinMaterial(scene, `dragon-${this.id}`, TEXTURE);
+    const material = skinMaterial(scene, `dragon-${this.id}`, 'light-dragon');
     material.backFaceCulling = false; // plates, strands and fins are open shells, seen from both sides
     this.hitFlash = new HitFlash([material]);
     const mesh = (name: string, data: MeshData) => {
