@@ -13,7 +13,7 @@
 import type { ClassSpec, HitShape, Sphere } from './classes';
 import type { Body, Structures } from './collision';
 import type { Shooter, Target } from './combat';
-import { EYE_HEIGHT, GRAVITY, TICK_RATE } from './constants';
+import { EYE_HEIGHT, TICK_RATE } from './constants';
 import { lookDirection } from './look';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { worldReach, type WorldPart } from './world';
@@ -33,6 +33,7 @@ const RISE_SPEED = 3.75; // m/s a new dragon's head comes out of the ground at
 const CLIMB_SPEED = 7.5; // m/s the head lifts at where the ground under it rises, to keep MIN_ALTITUDE
 const GROUND_SAMPLES = 8; // spots round the head's edge the ground is read at, besides its centre
 const SINK_SPEED = 6; // m/s a dead body's points settle onto what's under them at
+const RELAX_PASSES = 4; // times a tick a dead body's links are pulled back to length, each way twice
 const ROAR_SECONDS = 3; // one roar at a time
 const CORPSE_HEARTS_EVERY = 5; // spine points between the hearts a dead one leaves, after the one at its head
 
@@ -230,21 +231,44 @@ function neckOf(d: DragonState, head: Vec3): Vec3 {
   return len > 1e-6 ? { x: x / len, y: y / len, z: z / len } : d.dir;
 }
 
-// Dead: the head drops and comes to rest on whatever is under it, and the body's points sink onto
-// what's under each of them, so it drapes over edges.
+// Dead: the head and the body's points sink at SINK_SPEED, each until it rests on whatever is under
+// it. A link stretched past SPINE_SPACING, where one end sank past an edge the other rests on, pulls
+// the hanging end back up, so the body drapes over the edge and hangs where nothing is under it.
 function settle(p: PlayerState, d: DragonState, dt: number, structures: Structures): void {
-  const head = p.pos;
-  const top = structures.groundAt(head.x, head.z, head.y);
-  p.vy -= GRAVITY * dt;
-  head.y += p.vy * dt;
-  if (head.y < top + HEAD_RADIUS) {
-    head.y = top + HEAD_RADIUS;
-    p.vy = 0;
+  const points: Vec3[] = [p.pos];
+  for (let i = 0; i < d.spine.length; i += 3) points.push({ x: d.spine[i], y: d.spine[i + 1], z: d.spine[i + 2] });
+  const rests = points.map((q, i) => structures.groundAt(q.x, q.z, q.y) + (i === 0 ? HEAD_RADIUS : BODY_RADIUS));
+  p.vy = 0;
+  for (let i = 0; i < points.length; i++) points[i].y = Math.max(rests[i], points[i].y - SINK_SPEED * dt);
+  // A stretched link pulls its lower end up toward its upper one (level, they share the pull): a
+  // body on a ledge holds against the part hanging over the edge, the part of a hanging body that
+  // reached the ground gathers under it, and the neck closes up over the head's deeper rest. A pull
+  // stretches the next link along, so the links are gone over from the head and from the tail by
+  // turns, which settles a body hanging from either end.
+  for (let pass = 0; pass < RELAX_PASSES; pass++) {
+    for (let n = 1; n < points.length; n++) {
+      const i = pass % 2 === 0 ? n : points.length - n;
+      const a = points[i - 1];
+      const b = points[i];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dz = b.z - a.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist <= SPINE_SPACING) continue;
+      const ka = dy > 0 ? 1 : dy < 0 ? 0 : 0.5;
+      const pull = (dist - SPINE_SPACING) / dist;
+      a.x += dx * pull * ka;
+      a.y += dy * pull * ka;
+      a.z += dz * pull * ka;
+      b.x -= dx * pull * (1 - ka);
+      b.y -= dy * pull * (1 - ka);
+      b.z -= dz * pull * (1 - ka);
+    }
   }
-  const spine = d.spine;
-  for (let i = 1; i < spine.length; i += 3) {
-    const rest = structures.groundAt(spine[i - 1], spine[i + 1], spine[i]) + BODY_RADIUS;
-    if (spine[i] > rest) spine[i] = round(Math.max(rest, spine[i] - SINK_SPEED * dt));
+  for (let i = 1; i < points.length; i++) {
+    d.spine[(i - 1) * 3] = round(points[i].x);
+    d.spine[(i - 1) * 3 + 1] = round(points[i].y);
+    d.spine[(i - 1) * 3 + 2] = round(points[i].z);
   }
 }
 
