@@ -124,6 +124,7 @@ export class Game {
   private aim = { yaw: 0, pitch: 0 }; // the look sent this frame: the camera's, or in third person the eyes' at the crosshair's target
   private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
   private classId: PlayerClass | null = null; // the class the player was last seen as
+  private wearing: string | null = null; // the avatar and item the player was last seen with, for dropping the scope
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
@@ -604,6 +605,12 @@ export class Game {
       this.hud.setKeys(cls);
       this.environment.setBounds(cls === 'dragon' ? 'sky' : 'ground');
       this.classId = cls;
+    }
+    // A new look or a new item in hand takes the scope with it, as death does.
+    const wearing = `${self.avatar} ${self.item?.id ?? ''}`;
+    if (wearing !== this.wearing) {
+      this.wearing = wearing;
+      this.setScoped(false);
     }
     const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
     if (!this.scoped) this.camera.fov = this.wornFov();
