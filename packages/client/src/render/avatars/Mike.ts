@@ -1,5 +1,5 @@
 // Mike Wazowski (Monsters, Inc.): a 1.4 m green ball with one eye, on two short legs, from
-// Guilherme Navarro's low-poly model (mikeModel.ts, made by scripts/monster-model.py), a Body
+// Guilherme Navarro's low-poly model (mikeModel.ts, made by scripts/avatar-model.py), a Body
 // (Body.ts): the ball is head and body in one. Worn with /mike or /wazowski; its hit capsule is
 // AVATARS.mike.hitbox.
 import type { BodySpec } from './Body';

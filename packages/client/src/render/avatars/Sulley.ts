@@ -1,5 +1,5 @@
 // Sulley (Monsters, Inc.): 2.6 m of teal fur with purple spots, from Guilherme Navarro's low-poly
-// model (sulleyModel.ts, made by scripts/monster-model.py), skinned over eight bones: hips, chest,
+// model (sulleyModel.ts, made by scripts/avatar-model.py), skinned over eight bones: hips, chest,
 // head, the arms, the legs and the tail. It lumbers: short legs stride, the long arms swing against
 // them, the chest rolls, the tail sways on its own, and the head follows the look. A held item rides
 // the right arm, which points forward to aim. It dies flat on its back with the tail out to one side.

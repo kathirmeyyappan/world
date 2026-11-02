@@ -1,5 +1,5 @@
 // Patrick Star: a 2.85 m pink starfish in flowered shorts, one and a half SpongeBobs as on the show,
-// from NickBob's Fortnite model (patrickModel.ts, made by scripts/monster-model.py), a Body
+// from NickBob's Fortnite model (patrickModel.ts, made by scripts/avatar-model.py), a Body
 // (Body.ts): the cone is head and body in one. Worn with /patrick; its hit capsule is
 // AVATARS.patrick.hitbox.
 import type { BodySpec } from './Body';

@@ -1,5 +1,5 @@
 // SpongeBob SquarePants: a 1.9 m yellow sponge in square pants on thin legs, from Jamessmartguy's
-// low-poly model (spongebobModel.ts, made by scripts/monster-model.py), a Body (Body.ts): the
+// low-poly model (spongebobModel.ts, made by scripts/avatar-model.py), a Body (Body.ts): the
 // sponge is head and body in one. Worn with /spongebob; its hit capsule is AVATARS.spongebob.hitbox.
 import type { BodySpec } from './Body';
 import { SPONGEBOB_MODEL } from './spongebobModel';

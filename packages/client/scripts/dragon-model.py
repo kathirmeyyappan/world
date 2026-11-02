@@ -15,7 +15,7 @@ head bone alone, so the head turns in one piece, except the lower jaw, which get
 at its hinge so the mouth can open. The head and the mane round it are a mesh of their
 own, hidden for its rider's view from the eyes, and the inside of the mouth a third, drawn only
 while the jaw is open. Each part is decimated to its share of the budget with its open edges kept, the textures
-are packed into one atlas, and it writes the meshes as monster-model.py does, with the bones' rest
+are packed into one atlas, and it writes the meshes as avatar-model.py does, with the bones' rest
 frames and where the mouth is (the breath starts there), in the dragon's frame: metres, the eyes at
 the origin, mirrored in x like the other models.
 """
@@ -117,7 +117,7 @@ def main(glb: str) -> None:
     body = next(p for p in parts if p["group"] == "Body")
     curve = smoothed(centreline(body, eyes))
 
-    # The dragon's frame: metres, the eyes at the origin, x mirrored (see monster-model.py), the
+    # The dragon's frame: metres, the eyes at the origin, x mirrored (see avatar-model.py), the
     # spine and tail just covering the curve.
     scale = (SPINE_POINTS * SPINE_SPACING + TAIL) / np.linalg.norm(np.diff(curve, axis=0), axis=1).sum()
 
