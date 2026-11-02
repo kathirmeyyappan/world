@@ -8,7 +8,6 @@ import { KRABS_MODEL } from './krabsModel';
 export const KRABS: BodySpec = {
   kind: 'krabs',
   model: KRABS_MODEL,
-  texture: '/assets/textures/avatars/krabs.png',
   shadow: 1.5,
   // A scuttle: tiny quick steps, about sixteen a second at a full walk, two a cycle, as in his
   // scuttle loop (audio/Footsteps.ts), with the body rocking from side to side and the claws held up.

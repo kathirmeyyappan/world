@@ -15,7 +15,6 @@ import { HitFlash } from './HitFlash';
 import { SkinnedBody } from './skinned';
 import { SQUIDWARD_MODEL } from './squidwardModel';
 
-const TEXTURE = '/assets/textures/avatars/squidward.png';
 // Radians each way at a full-speed walk: the tentacles are long and stiff, so any more than a
 // shuffle splays them out under him.
 const LEG_SWING = 0.12;
@@ -73,7 +72,7 @@ export class SquidwardAvatar implements Avatar {
     this.base = new TransformNode(`avatar-body-${id}`, scene);
     this.base.parent = this.root;
 
-    this.skin = new SkinnedBody(engine, `squidward-${id}`, SQUIDWARD_MODEL, TEXTURE, PARENTS, this.base);
+    this.skin = new SkinnedBody(engine, `squidward-${id}`, SQUIDWARD_MODEL, 'squidward', PARENTS, this.base);
     this.head = this.skin.node('head');
     this.armL = this.skin.node('armL');
     this.armR = this.skin.node('armR');

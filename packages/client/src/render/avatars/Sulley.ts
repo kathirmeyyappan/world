@@ -14,7 +14,6 @@ import { HitFlash } from './HitFlash';
 import { SkinnedBody } from './skinned';
 import { SULLEY_MODEL } from './sulleyModel';
 
-const TEXTURE = '/assets/textures/avatars/sulley.png';
 const LEG_SWING = 0.7; // radians each way at a full-speed walk
 const ARM_SWING = 0.3;
 const ROLL = 0.06; // radians the chest rolls side to side with each stride
@@ -68,7 +67,7 @@ export class SulleyAvatar implements Avatar {
     this.body = new TransformNode(`avatar-body-${id}`, scene);
     this.body.parent = this.root;
 
-    this.skin = new SkinnedBody(engine, `sulley-${id}`, SULLEY_MODEL, TEXTURE, PARENTS, this.body);
+    this.skin = new SkinnedBody(engine, `sulley-${id}`, SULLEY_MODEL, 'sulley', PARENTS, this.body);
     this.chest = this.skin.node('chest');
     this.head = this.skin.node('head');
     this.armL = this.skin.node('armL');
