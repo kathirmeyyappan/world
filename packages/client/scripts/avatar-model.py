@@ -54,14 +54,26 @@ class Piece:
 
 
 @dataclass(frozen=True)
+class Lower:
+    """The lower part of another bone's piece, for a limb that bends: from `share` of the way up it
+    on down, fading in over `blend` of its height so the skin bends there rather than tearing. It
+    swings from the top of itself, like a piece."""
+
+    of: str
+    share: float = 0.5
+    blend: float = 0.2
+
+
+@dataclass(frozen=True)
 class Model:
     title: str  # the model's name on Sketchfab
     author: str
     height: float  # metres, feet to the top of the head
-    # The avatar's bones and the rig joint each takes the subtree of, or the piece of a node's mesh
-    # it is. The first is the root: its joint is only its pivot, and it takes every joint no other
-    # bone does. The order is the bone index the vertices refer to; the avatar parents them.
-    bones: tuple[tuple[str, Joint | Piece], ...]
+    # The avatar's bones and the rig joint each takes the subtree of, the piece of a node's mesh it
+    # is, or the lower part of a piece it is. The first is the root: its joint is only its pivot, and
+    # it takes every joint no other bone does. The order is the bone index the vertices refer to;
+    # the avatar parents them.
+    bones: tuple[tuple[str, Joint | Piece | Lower], ...]
     torso: tuple[str, ...]  # the bones whose vertices are the trunk, for finding the back
     # The right hand and finger roots: a held item goes at their middle. Or the bone that is the
     # right arm, whose far end is the hand.
@@ -77,7 +89,7 @@ class Model:
     open_shells_too: bool = False
     texture_size: int = 512  # px: a bigger texture is scaled down to this on its long side
     # Bones that swing from the top of their own geometry rather than from their joint: a stub leg
-    # whose node sits partway down it. A piece always does.
+    # whose node sits partway down it. A piece and a lower part always do.
     hinges: tuple[str, ...] = ()
     # Bones that turn on the bottom of their own geometry: a head whose node is at its middle.
     necks: tuple[str, ...] = ()
@@ -164,8 +176,9 @@ MODELS = {
     ),
     # Not skinned: rigid parts on a tree of nodes named for their shapes. The head (with the eyes
     # under it) is node 5, the shirt 10 and its collar 13; the four legs are one mesh on node 16 and
-    # both arms one on node 19, so those bones are the pieces of them. Every part is an open shell,
-    # with its rim inside the part it meets.
+    # both arms one on node 19, so those bones are the pieces of them, and each tentacle's lower half
+    # is a bone of its own so it bends. Every part is an open shell, with its rim inside the part it
+    # meets.
     "squidward": Model(
         "Squidward Tentacles",
         "Super Tablé",
@@ -179,6 +192,10 @@ MODELS = {
             ("legFR", Piece(16, x=1, z=1)),
             ("legBL", Piece(16, x=-1, z=-1)),
             ("legBR", Piece(16, x=1, z=-1)),
+            ("footFL", Lower("legFL")),
+            ("footFR", Lower("legFR")),
+            ("footBL", Lower("legBL")),
+            ("footBR", Lower("legBR")),
         ),
         ("body",),
         "armR",
@@ -230,11 +247,17 @@ def main(name: str, glb: str) -> None:
 
     # Fold the rig onto the avatar's bones: a joint belongs to the first bone whose subtree holds it,
     # else to the root bone; a piece's bone takes it from whichever bone has its node.
-    takes = {joint(ref): i for i, (_, ref) in enumerate(model.bones[1:], start=1) if not isinstance(ref, Piece)}
+    bone_names = [bone for bone, _ in model.bones]
+    takes = {
+        joint(ref): i for i, (_, ref) in enumerate(model.bones[1:], start=1) if not isinstance(ref, (Piece, Lower))
+    }
     pieces: dict[int, list[tuple[int, Piece]]] = {}  # a joint's pieces, with their bones
+    lowers: dict[int, list[tuple[int, Lower]]] = {}  # a piece's bone's lower parts, with their bones
     for i, (_, ref) in enumerate(model.bones):
         if isinstance(ref, Piece):
             pieces.setdefault(joint(ref.node), []).append((i, ref))
+        elif isinstance(ref, Lower):
+            lowers.setdefault(bone_names.index(ref.of), []).append((i, ref))
     root = joint(model.bones[0][1])
     hip = transform(joints[root])[:3, 3]
 
@@ -292,6 +315,13 @@ def main(name: str, glb: str) -> None:
                 assert len(bones) == 1, f"node {index}: a piece at x {x:.2f}, z {-z:.2f} is {len(bones)} bones"
                 folded[vertices] = 0
                 folded[vertices, bones[0]] = 1
+                for i, lower in lowers.get(bones[0], []):
+                    ys = posed[vertices, 1]
+                    height = ys.max() - ys.min()
+                    cut = ys.min() + lower.share * height
+                    share = np.clip((cut + (lower.blend * height) / 2 - ys) / (lower.blend * height), 0, 1)
+                    folded[vertices, i] = share
+                    folded[vertices, bones[0]] -= share
             parts.append(
                 {
                     "positions": posed,
@@ -347,14 +377,15 @@ def main(name: str, glb: str) -> None:
     quantised[:, 0] += 255 - quantised.sum(axis=1)  # the rounding error goes on the biggest weight
     print("bones per vertex:", np.bincount((bone_weights > 0.002).sum(axis=1))[1:])
 
-    bone_names = [bone for bone, _ in model.bones]
     pivots = {
-        bone: avatar(transform(joints[joint(ref)])[:3, 3])[0] for bone, ref in model.bones if not isinstance(ref, Piece)
+        bone: avatar(transform(joints[joint(ref)])[:3, 3])[0]
+        for bone, ref in model.bones
+        if not isinstance(ref, (Piece, Lower))
     }
-    # A hinge or a piece swings from the middle of the top of its own geometry, a neck turns on the
-    # middle of the bottom of its: the band within a twentieth of its height of that end.
+    # A hinge, a piece or a lower part swings from the middle of the top of its own geometry, a neck
+    # turns on the middle of the bottom of its: the band within a twentieth of its height of that end.
     for bone, ref in model.bones:
-        if bone not in model.hinges and bone not in model.necks and not isinstance(ref, Piece):
+        if bone not in model.hinges and bone not in model.necks and not isinstance(ref, (Piece, Lower)):
             continue
         own = posed[order[:, 0] == bone_names.index(bone)]
         top, bottom = own[:, 1].max(), own[:, 1].min()
