@@ -1,11 +1,12 @@
 // Squidward Tentacles: a 3.2 m octopus in a brown shirt, from Super Tablé's model
-// (squidwardModel.ts, made by scripts/avatar-model.py), skinned over eight bones: the body, the
-// head, the arms and four tentacle legs. He walks as on the show: the two tentacles of a side move
-// as one, left and right in turn like a pair of legs, each side's landing a plop (gaits.ts); the
-// arms swing gently against them, the body bobs and rocks a little, and the head turns with the
-// look. A held item rides the right arm, which points forward to aim. He dies
-// on his back with his limbs dropped. Worn with /squidward; his hit capsule is
-// AVATARS.squidward.hitbox, movement and items are everyone's.
+// (squidwardModel.ts, made by scripts/avatar-model.py), skinned over twelve bones: the body, the
+// head, the arms and four tentacle legs, each in two halves so it bends. He walks as on the show:
+// the two tentacles of a side move as one, left and right in turn like a pair of legs, each bending
+// as it swings with its foot flopping along behind, and each side's landing a plop (gaits.ts); the
+// arms swing against them, the body bobs and rocks, and the head turns with the look. A held item
+// rides the right arm, which points forward to aim. He dies on his back with his limbs dropped.
+// Worn with /squidward; his hit capsule is AVATARS.squidward.hitbox, movement and items are
+// everyone's.
 import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
@@ -16,12 +17,14 @@ import { SkinnedBody } from './skinned';
 import { SQUIDWARD_MODEL } from './squidwardModel';
 
 const TEXTURE = '/assets/textures/avatars/squidward.png';
-// Radians each way at a full-speed walk: the tentacles are long and stiff, so any more than a
-// shuffle splays them out under him.
-const LEG_SWING = 0.12;
-const ARM_SWING = 0.08;
-const BOB = 0.04; // metres the body rises mid-stride
-const SWAY = 0.03; // radians the body rocks to each side with the stride
+const LEG_SWING = 0.3; // radians each way a tentacle swings from the hip at a full-speed walk
+// The lower half of a tentacle swings this far behind the upper in the stride (radians of it) and
+// this much further: the leg bends as it goes, and the foot flops along after it.
+const FOOT_LAG = 1.0;
+const FOOT_GAIN = 1.4;
+const ARM_SWING = 0.2;
+const BOB = 0.05; // metres the body rises mid-stride
+const SWAY = 0.05; // radians the body rocks to each side with the stride
 const HEAD_FOLLOW = 0.6; // how much of the look's pitch the head takes
 // Lying on his back: radians the legs and arms drop toward the ground and the head tips back.
 const DEAD_LEGS = 1.0;
@@ -38,13 +41,17 @@ const PARENTS: Record<Bone, Bone | null> = {
   legFR: 'body',
   legBL: 'body',
   legBR: 'body',
+  footFL: 'legFL',
+  footFR: 'legFR',
+  footBL: 'legBL',
+  footBR: 'legBR',
 };
 // The left pair swings with the stride, the right pair against it; the two of a side never part.
-const LEGS: { bone: Bone; side: 1 | -1 }[] = [
-  { bone: 'legFL', side: 1 },
-  { bone: 'legBL', side: 1 },
-  { bone: 'legFR', side: -1 },
-  { bone: 'legBR', side: -1 },
+const LEGS: { leg: Bone; foot: Bone; side: 1 | -1 }[] = [
+  { leg: 'legFL', foot: 'footFL', side: 1 },
+  { leg: 'legBL', foot: 'footBL', side: 1 },
+  { leg: 'legFR', foot: 'footFR', side: -1 },
+  { leg: 'legBR', foot: 'footBR', side: -1 },
 ];
 
 export class SquidwardAvatar implements Avatar {
@@ -55,7 +62,7 @@ export class SquidwardAvatar implements Avatar {
   private readonly head: TransformNode;
   private readonly armL: TransformNode;
   private readonly armR: TransformNode;
-  private readonly legs: { node: TransformNode; side: 1 | -1 }[];
+  private readonly legs: { leg: TransformNode; foot: TransformNode; side: 1 | -1 }[];
   private readonly grip: TransformNode; // the right hand, turned so a held item's barrel runs along the look
   private readonly reach: Vector3; // which way the arm hangs from the shoulder in the model
   private readonly shadow: Mesh;
@@ -77,7 +84,7 @@ export class SquidwardAvatar implements Avatar {
     this.head = this.skin.node('head');
     this.armL = this.skin.node('armL');
     this.armR = this.skin.node('armR');
-    this.legs = LEGS.map(({ bone, side }) => ({ node: this.skin.node(bone), side }));
+    this.legs = LEGS.map(({ leg, foot, side }) => ({ leg: this.skin.node(leg), foot: this.skin.node(foot), side }));
     // Every part is an open shell: under the collar and up the sleeves you look into other parts.
     this.skin.material.backFaceCulling = false;
     this.skin.material.twoSidedLighting = true;
@@ -111,13 +118,17 @@ export class SquidwardAvatar implements Avatar {
 
     this.gait.update(p.x, p.z, airborne, step);
     const { phase, effort } = this.gait;
-    const swing = airborne ? 0.1 : Math.sin(phase) * effort * LEG_SWING;
-    for (const { node, side } of this.legs) node.rotation.x = side * swing;
-    this.armL.rotation.x = (-swing * ARM_SWING) / LEG_SWING;
+    const swing = (lag: number) => (airborne ? 0.15 : Math.sin(phase - lag) * effort * LEG_SWING);
+    for (const { leg, foot, side } of this.legs) {
+      leg.rotation.x = side * swing(0);
+      foot.rotation.x = side * swing(FOOT_LAG) * FOOT_GAIN - leg.rotation.x;
+    }
+    const arms = (swing(0) * ARM_SWING) / LEG_SWING;
+    this.armL.rotation.x = -arms;
     if (p.item && !p.dead) aimArm(this.armR, this.grip, this.reach, p.pitch);
     else {
       this.armR.rotationQuaternion = null;
-      this.armR.rotation.x = (swing * ARM_SWING) / LEG_SWING;
+      this.armR.rotation.x = arms;
     }
     this.base.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * BOB * effort;
     this.base.rotation.z = airborne ? 0 : Math.sin(phase) * SWAY * effort;
@@ -132,7 +143,10 @@ export class SquidwardAvatar implements Avatar {
     }
     if (p.dead) {
       this.base.rotation.z = 0;
-      for (const { node } of this.legs) node.rotation.x = DEAD_LEGS;
+      for (const { leg, foot } of this.legs) {
+        leg.rotation.x = DEAD_LEGS;
+        foot.rotation.x = 0;
+      }
       this.armR.rotationQuaternion = null;
       this.armL.rotation.x = this.armR.rotation.x = DEAD_ARMS;
       this.head.rotation.x = DEAD_HEAD;
