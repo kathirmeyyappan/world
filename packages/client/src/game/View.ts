@@ -35,8 +35,8 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
 const SKIN = 0.25; // metres the camera keeps off a wall the boom runs into
 const FLOOR = 0.15; // metres the camera keeps above the ground when the boom dips under it
 // The eyes aim at what the crosshair is on, or a point this far out when nothing is nearer, and no
-// nearer than CONVERGE_MIN: the look sent is also what the movement keys are relative to, and a
-// wall at the nose must not swing it round.
+// nearer than CONVERGE_MIN ahead of the eyes: the look sent is also what the movement keys are
+// relative to, and a wall at the nose must not swing it round.
 const CONVERGE_FAR = 60;
 const CONVERGE_MIN = 5;
 const EASE = 0.25; // seconds the boom takes to go out or come in, as the eyes take to rise for a new look
@@ -130,7 +130,10 @@ export class View {
   ): { yaw: number; pitch: number } {
     if (this.reach === 0) return { yaw, pitch };
     const d = lookDirection(yaw, pitch);
-    const t = Math.max(CONVERGE_MIN, reach(camera, d, targets, CONVERGE_FAR, selfId, structures));
+    // The camera sits behind the eyes, a tall body's further back than CONVERGE_MIN, and off to the
+    // side of them: a point nearer the eyes than that would be well off to the side too.
+    const behind = (eyes.x - camera.x) * d.x + (eyes.y - camera.y) * d.y + (eyes.z - camera.z) * d.z;
+    const t = Math.max(Math.max(0, behind) + CONVERGE_MIN, reach(camera, d, targets, CONVERGE_FAR, selfId, structures));
     const dx = camera.x + d.x * t - eyes.x;
     const dy = camera.y + d.y * t - eyes.y;
     const dz = camera.z + d.z * t - eyes.z;
