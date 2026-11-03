@@ -1,5 +1,5 @@
 // Murals hung round the inside of Tung Tung Tower's floors (sim/wallFrames.ts), each floor's again
-// in the building that is that floor on its own (content/buildings.ts), where they hang just the
+// in every building that is that floor on its own (content/buildings.ts), where they hang just the
 // same. Each is an angle in degrees round from the main entrance (to your right as you stand in the
 // middle facing it), a height in metres, and what it shows; the width follows from the picture, and
 // every one is centred halfway up its storey (10 m up). The layout throws if one doesn't fit, comes
