@@ -506,7 +506,7 @@ test('flamethrower: hold to spray a 20 m cone, 0.5 hearts every 5 ticks, on a 7.
   assert.ok(Math.abs(alice.item!.fuel! - 7.5) < 1e-6, 'full at 25 s, no further');
 });
 
-test('ice blower: a touch freezes for 3 s from the last one; the frozen act on nothing and take double damage', () => {
+test('ice blower: the touch that freezes costs a heart, later ones only keep the freeze; the frozen act on nothing and take double damage', () => {
   const room = new Room('ice', { seed: 9 });
   const a = link();
   const ida = room.join('alice', a)!;
@@ -519,7 +519,7 @@ test('ice blower: a touch freezes for 3 s from the last one; the frozen act on n
   room.receive(ida, { t: 'chat', text: '/ib' });
   assert.deepEqual(alice.item, { id: 'ice-blower', locked: false, fuel: 7.5 });
   hold(room, ida, 30);
-  assert.equal(bob.hearts, MAX_HEARTS - 1.5, 'frozen from the first touch, each burns a quarter heart');
+  assert.equal(bob.hearts, MAX_HEARTS - ITEMS['ice-blower'].damage, 'the first touch costs a heart, the rest nothing');
   assert.ok(bob.frozen > FREEZE_SECONDS - 10 * TICK_DT, 'the freeze restarts at every touch');
 
   press(room, idb);
