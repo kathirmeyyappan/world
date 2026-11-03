@@ -646,7 +646,7 @@ export class Game {
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
-    this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null);
+    this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null, self.avatar);
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
     this.hud.setItemHint(

@@ -96,6 +96,7 @@ export class SquidwardAvatar implements Avatar {
     this.items = new HeldItems(
       engine,
       `squidward-${id}`,
+      'squidward',
       this.grip,
       Vector3.Zero(),
       this.skin.node('body'),

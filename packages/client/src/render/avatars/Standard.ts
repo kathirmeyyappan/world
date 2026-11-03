@@ -81,6 +81,7 @@ export class StandardAvatar implements Avatar {
     this.items = new HeldItems(
       engine,
       `avatar-${id}`,
+      'standard',
       this.armR,
       new Vector3(0, -0.32, 0.04),
       this.body,

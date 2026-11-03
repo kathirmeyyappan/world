@@ -109,7 +109,15 @@ export class SahurAvatar implements Avatar {
     this.hand = new TransformNode(`sahur-hand-${id}`, scene);
     this.hand.parent = this.log;
     this.hand.position.set(model.hand[0], model.hand[1] - hip, model.hand[2]);
-    this.items = new HeldItems(engine, `sahur-${id}`, this.hand, Vector3.Zero(), this.log, new Vector3(0, 1.0, -0.4));
+    this.items = new HeldItems(
+      engine,
+      `sahur-${id}`,
+      'sahur',
+      this.hand,
+      Vector3.Zero(),
+      this.log,
+      new Vector3(0, 1.0, -0.4),
+    );
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.3);
     this.shadow.parent = this.root;
