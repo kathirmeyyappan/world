@@ -5,7 +5,7 @@
 // weapon. Adding a weapon means adding a row here, a shape in the client's Weapons.ts (a hold weapon
 // with an element gets a tank and a jet in that element's colours too), a sound in the client's
 // ITEM_SOUNDS, and nothing on the wire: every item action travels inside the input frame.
-import { FREEZE_SECONDS, TICK_RATE } from './constants';
+import { CHILL_SECONDS, TICK_RATE } from './constants';
 import { HEADSHOT_MULTIPLIER } from './health';
 
 export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebreath';
@@ -28,7 +28,7 @@ export interface ActionSpec {
 export type FireShape = { kind: 'hitscan' } | { kind: 'cone'; halfAngle: number };
 
 // What a hold weapon sprays: the client's jet in the element's colours, and what a hit does besides
-// its damage (ice freezes, constants.ts).
+// its damage (ice chills, constants.ts).
 export type Element = 'fire' | 'ice';
 
 export interface ItemSpec {
@@ -89,13 +89,12 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     own: false,
     blurb: 'equip a flamethrower',
   },
-  // The flamethrower's twin, spraying ice: a touch freezes for FREEZE_SECONDS (constants.ts) and
-  // costs `damage` once; touching the frozen keeps them frozen and costs nothing more. What's
-  // frozen takes double from other weapons (health.ts).
+  // The flamethrower's twin, spraying ice at half its burn: a touch also chills for CHILL_SECONDS
+  // (constants.ts).
   'ice-blower': {
     id: 'ice-blower',
     range: 20,
-    damage: 1,
+    damage: 0.25,
     cooldownTicks: 5,
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
@@ -193,16 +192,14 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
   'roar-3': () => ' to roar',
 };
 
-// "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1": the numbers that matter, for
-// the hint bar. Derived from the spec so it can't drift from what the Room does: an ice item's
-// damage lands once, on the touch that freezes.
+// "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1, chills 5s": the numbers that
+// matter, for the hint bar. Derived from the spec so it can't drift from what the Room does.
 export function itemStats(id: ItemId): string {
   const spec = ITEMS[id];
   const parts = [`range: ${spec.range}m`];
-  if (spec.element === 'ice') parts.push(`freezes ${FREEZE_SECONDS}s for ${spec.damage}`);
-  else if (spec.actions.shoot?.mode === 'hold')
-    parts.push(`dps: ${round((spec.damage * TICK_RATE) / spec.cooldownTicks)}`);
+  if (spec.actions.shoot?.mode === 'hold') parts.push(`dps: ${round((spec.damage * TICK_RATE) / spec.cooldownTicks)}`);
   else parts.push(`dmg: ${spec.damage}${spec.fire.kind === 'hitscan' ? ` (headshot ${HEADSHOT_MULTIPLIER}x)` : ''}`);
+  if (spec.element === 'ice') parts.push(`chills ${CHILL_SECONDS}s`);
   return parts.join(', ');
 }
 

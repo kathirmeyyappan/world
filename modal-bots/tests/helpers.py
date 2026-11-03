@@ -21,7 +21,6 @@ def player(
         "lastSeq": 0,
         "reading": None,
         "boost": 0,
-        "frozen": 0,
         "chilled": 0,
         "item": None,
         "gear": None,

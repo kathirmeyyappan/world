@@ -242,11 +242,9 @@ actions and their keys, the shape of its fire, its `element` and its tank), a sh
 gets its tank on the back and its jet at the nozzle from that alone, on every avatar and in the
 viewmodel (`render/Jet.ts`: blocks of fire, or for ice the "+" crystals of a corpse's poof, drawn as
 one particle system). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`):
-ice freezes for `FREEZE_SECONDS` from the last touch (`sim/constants.ts`), costing the item's damage
-on the touch that freezes and nothing on the touches that keep it going; a frozen player's
-frames do nothing while they take `FROZEN_DAMAGE_MULTIPLIER` from other weapons (on top of a
-headshot's), then walk chilled for `CHILL_SECONDS`; both count down in `stepPlayer`, so prediction agrees. On the client
-`HitFlash` frosts a frozen body over, and `ui/Condition.ts` shows the frozen player the counters
+ice chills for `CHILL_SECONDS` from the last touch (`sim/constants.ts`), a walk at
+`CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees. On the client
+`HitFlash` frosts a chilled body over, and `ui/Condition.ts` shows the chilled player the counter
 with the view frosted.
 
 ## Adding a Modal bot

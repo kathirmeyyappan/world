@@ -21,8 +21,7 @@ export interface PlayerState {
   lastSeq: number;
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal
-  frozen: number; // seconds of being frozen solid left (an ice hit, constants.ts): no input lands, double damage
-  chilled: number; // seconds of the slow walk after a freeze left
+  chilled: number; // seconds of the slow walk left (an ice hit, constants.ts)
   item: ItemState | null; // the weapon they're holding, if any
   gear: GearState | null; // what they're wearing beside it, if anything (sim/gear.ts)
   scoped: boolean; // aiming down the sniper's scope (reported by the client, kept here so everyone sees it)

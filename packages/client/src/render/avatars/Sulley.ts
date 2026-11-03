@@ -94,7 +94,7 @@ export class SulleyAvatar implements Avatar {
   }
 
   update(p: RemotePlayer, step: number): void {
-    this.hitFlash.update(p.frozen);
+    this.hitFlash.update(p.chilled);
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);

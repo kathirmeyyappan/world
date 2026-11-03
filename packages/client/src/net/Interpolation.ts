@@ -34,7 +34,7 @@ export interface RemotePlayer {
   firing: boolean;
   gear: GearId | null;
   thrusting: boolean;
-  frozen: boolean; // frozen solid by an ice hit (sim/constants.ts): frosted over, moving only as it falls
+  chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
   dead: boolean;
   avatar: AvatarId;
   dragon: DragonState | null; // a dragon's body, its spine drawn between snapshots like the head
@@ -112,7 +112,7 @@ export class Interpolation {
         firing: b.firing,
         gear: b.gear?.id ?? null,
         thrusting: b.thrusting,
-        frozen: b.frozen > 0,
+        chilled: b.chilled > 0,
         dead: b.dead,
         avatar: b.avatar,
         dragon: b.dragon && {

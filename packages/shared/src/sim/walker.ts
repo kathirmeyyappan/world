@@ -60,8 +60,8 @@ export function stepWalker(
   shape: WorldPart[],
   structures: Structures,
 ): number {
-  // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; so
-  // does the chill after a freeze, a little.
+  // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; an
+  // ice hit's chill slows it too.
   const speed =
     MOVE_SPEED *
     (p.boost > 0 ? SPEEDY_MULTIPLIER : 1) *

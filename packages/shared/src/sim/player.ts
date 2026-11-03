@@ -1,7 +1,7 @@
 // A player's tick: the look and item every class shares, then the movement of its class
 // (classes.ts). Runs identically on the server (authoritative) and the client (prediction), so it
 // must stay pure: no Babylon, no DOM, no time reads.
-import { CHILL_SECONDS, MAX_PITCH } from './constants';
+import { MAX_PITCH } from './constants';
 import { AVATARS, avatarFor, type AvatarId } from './avatars';
 import { classOf } from './classes';
 import type { Structures } from './collision';
@@ -23,7 +23,6 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     lastSeq: 0,
     reading: null,
     boost: 0,
-    frozen: 0,
     chilled: 0,
     item: ownItem(avatar, name),
     gear: null,
@@ -115,21 +114,15 @@ export function stepPlayer(
   shape: WorldPart[] = WORLD_SHAPE,
   structures: Structures = WORLD_STRUCTURES,
 ): number {
-  // Frozen, nothing of the frame lands: the body keeps its look, moves only as physics moves it, and
-  // holds nothing down; the frame still counts as seen.
-  const frame = p.frozen > 0 ? null : input;
-  if (input) p.lastSeq = input.seq;
-  if (frame) {
-    p.yaw = frame.yaw;
-    p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, frame.pitch));
-    p.reading = frame.reading;
+  if (input) {
+    p.lastSeq = input.seq;
+    p.yaw = input.yaw;
+    p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
+    p.reading = input.reading;
   }
-  stepItem(p, frame, dt);
-  const landing = classOf(p.avatar).step(p, frame, dt, shape, structures);
+  stepItem(p, input, dt);
+  const landing = classOf(p.avatar).step(p, input, dt, shape, structures);
   p.boost = Math.max(0, p.boost - dt);
-  if (p.frozen > 0) {
-    p.frozen = Math.max(0, p.frozen - dt);
-    if (p.frozen === 0) p.chilled = CHILL_SECONDS;
-  } else p.chilled = Math.max(0, p.chilled - dt);
+  p.chilled = Math.max(0, p.chilled - dt);
   return landing;
 }

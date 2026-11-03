@@ -21,7 +21,6 @@ class FakeConnection:
             last_seq=7,
             reading=None,
             boost=0,
-            frozen=0,
             chilled=0,
             item=None,
             gear=None,
