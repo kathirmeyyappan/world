@@ -115,7 +115,7 @@ export class SahurAvatar implements Avatar {
   }
 
   update(p: RemotePlayer, step: number): void {
-    this.hitFlash.update();
+    this.hitFlash.update(p.frozen);
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
     const hip = SAHUR_MODEL.parts.body.pivot[1];

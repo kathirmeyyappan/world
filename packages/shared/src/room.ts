@@ -20,6 +20,7 @@ import {
   MAX_BOTS,
   MAX_PLAYERS,
   DEATH_SCREEN_SECONDS,
+  FREEZE_SECONDS,
   NAMED_COLORS,
   PLAYER_COLORS,
   PLAYER_PADDING,
@@ -300,8 +301,9 @@ export class Room {
     const me = seat.state;
     const pressed = (action: ItemAction) => frame.actions.includes(action) && !seat.held.includes(action);
     const cls = classOf(me.avatar);
+    const frozen = me.frozen > 0;
     for (const action of Object.keys(cls.actions) as ItemAction[])
-      if (pressed(action) && !me.dead && this.tick - seat.lastActTick >= cls.actionTicks) {
+      if (pressed(action) && !me.dead && !frozen && this.tick - seat.lastActTick >= cls.actionTicks) {
         seat.lastActTick = this.tick;
         this.broadcast({ t: 'action', id: me.id, action });
       }
@@ -309,7 +311,7 @@ export class Room {
     seat.held = frame.actions;
     const spec = me.item && ITEMS[me.item.id];
     const shoot = spec?.actions.shoot;
-    if (!spec || !shoot || me.dead) return;
+    if (!spec || !shoot || me.dead || frozen) return;
     const wants = shoot.mode === 'hold' ? me.firing : shot && (!spec.fireNeedsScope || me.scoped);
     if (!wants || this.tick - seat.lastShotTick < spec.cooldownTicks) return;
     seat.lastShotTick = this.tick;
@@ -328,8 +330,12 @@ export class Room {
         player: p,
       };
     });
-    for (const hit of resolveFire(spec, me, targets, this.structures))
-      this.damage(hit.target.player, damageFor(spec, hit.headshot), { shooter: seat, headshot: hit.headshot });
+    for (const hit of resolveFire(spec, me, targets, this.structures)) {
+      const victim = hit.target.player;
+      // Ice freezes on touch, and what's frozen takes double: the touch that froze them included.
+      if (spec.element === 'ice') victim.frozen = FREEZE_SECONDS;
+      this.damage(victim, damageFor(spec, hit.headshot, victim.frozen > 0), { shooter: seat, headshot: hit.headshot });
+    }
   }
 
   // Takes hearts off `victim`, for a shot by `by.shooter` or, with no `by`, a fall, and kills them

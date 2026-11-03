@@ -156,7 +156,7 @@ export class DragonAvatar implements Avatar {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastNow) / 1000);
     this.lastNow = now;
-    this.hitFlash?.update();
+    this.hitFlash?.update(p.frozen);
     this.dead = p.dead;
     this.at.set(p.x, p.y, p.z);
     const d = p.dragon;

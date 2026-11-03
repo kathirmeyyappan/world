@@ -8,6 +8,7 @@ import type { ItemSpec } from './items';
 
 export const MAX_HEARTS = 10;
 export const HEADSHOT_MULTIPLIER = 2.5;
+export const FROZEN_DAMAGE_MULTIPLIER = 2; // on top of a headshot's, while the victim is frozen (constants.ts)
 export const REGEN_SECONDS = 7;
 
 // Headroom above the eyes: the top of the body that walks, for ceilings and doorways.
@@ -48,8 +49,8 @@ export function fallDamage(speed: number): number {
   return Math.min(MAX_HEARTS, Math.floor(hearts / FALL_DAMAGE_STEP) * FALL_DAMAGE_STEP);
 }
 
-export function damageFor(spec: Pick<ItemSpec, 'damage'>, headshot: boolean): number {
-  return headshot ? spec.damage * HEADSHOT_MULTIPLIER : spec.damage;
+export function damageFor(spec: Pick<ItemSpec, 'damage'>, headshot: boolean, frozen = false): number {
+  return spec.damage * (headshot ? HEADSHOT_MULTIPLIER : 1) * (frozen ? FROZEN_DAMAGE_MULTIPLIER : 1);
 }
 
 // Takes `damage` hearts off, never below zero. Returns whether that killed them.

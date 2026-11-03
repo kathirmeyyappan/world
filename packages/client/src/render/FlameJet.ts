@@ -1,9 +1,10 @@
 // A flamethrower's spray: a stream of glowing blocks that fly out along the parent's +z,
 // spreading into a cone and cooling from yellow to red as they go; a dragon's breath is the same
 // with many more blocks, bigger, and crowded toward the middle of the cone. Cosmetic only; the
-// server decides who burns. One instance per muzzle (viewmodel or avatar).
+// server decides who burns. One instance per muzzle (viewmodel or avatar), made by Jet.ts.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode } from '@babylonjs/core';
 import type { Engine } from './Engine';
+import type { Jet } from './Jet';
 
 const COUNT = 16; // blocks in a jet of BASE_LENGTH or shorter; longer ones get more
 const FLIGHT_SECONDS = 0.35;
@@ -18,7 +19,7 @@ interface Particle {
   spin: number;
 }
 
-export class FlameJet {
+export class FlameJet implements Jet {
   private readonly particles: Particle[] = [];
   private readonly growth: number; // how much a block grows on its way out, in metres
   private readonly start: number; // how big a block leaves the nozzle, in metres

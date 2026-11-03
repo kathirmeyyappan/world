@@ -2,21 +2,22 @@
 // the same shape sits in the camera's bottom-right for the local player and in the right hand of
 // other players' avatars. Recoil and muzzle flash are viewmodel-only.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3, type Camera } from '@babylonjs/core';
-import { ITEMS, ITEM_IDS, type ItemId } from '@world/shared';
+import { ITEMS, ITEM_IDS, type Element, type ItemId } from '@world/shared';
 import type { Engine } from './Engine';
-import { FlameJet } from './FlameJet';
+import { coneAngle, createJet, type Jet } from './Jet';
 
 type Scene = Engine['scene'];
 
 const REST = new Vector3(0.3, -0.24, 0.6);
+const SCALE = 0.75; // the viewmodel's size, drawn under the camera
 export const FLASH_SECONDS = 0.06;
 const RECOIL_HALF_LIFE = 0.05;
 
 interface Palette {
   metal: StandardMaterial;
   grip: StandardMaterial;
-  tank: StandardMaterial;
   hose: StandardMaterial;
+  tanks: Record<Element, StandardMaterial>; // a hold weapon's tank and nozzle, in its element's colour
 }
 
 export function weaponPalette(scene: Scene, name: string): Palette {
@@ -30,8 +31,11 @@ export function weaponPalette(scene: Scene, name: string): Palette {
   return {
     metal: mat('metal', new Color3(0.16, 0.17, 0.2), new Color3(0.05, 0.05, 0.07)),
     grip: mat('grip', new Color3(0.3, 0.18, 0.12)),
-    tank: mat('tank', new Color3(0.62, 0.12, 0.1), new Color3(0.12, 0.02, 0.02)),
     hose: mat('hose', new Color3(0.1, 0.1, 0.12)),
+    tanks: {
+      fire: mat('tank-fire', new Color3(0.62, 0.12, 0.1), new Color3(0.12, 0.02, 0.02)),
+      ice: mat('tank-ice', new Color3(0.6, 0.82, 0.95), new Color3(0.12, 0.2, 0.26)),
+    },
   };
 }
 
@@ -67,21 +71,34 @@ export function buildWeapon(
       part('grip', 0.06, 0.12, 0.06, pal.grip, 0, -0.07, 0.02);
       return new Vector3(0, 0.045, 0.9);
     case 'flamethrower':
-      // The wand: a fat tube with a flared nozzle, a grip, and a hose running back to the tank.
+    case 'ice-blower': {
+      // The wand: a fat tube with a flared nozzle in its tank's colour, a grip, and a hose running
+      // back to the tank; a pilot light at the flamethrower's tip, a frosted collar round the ice
+      // blower's tube.
+      const tank = pal.tanks[ITEMS[id].element!];
       part('tube', 0.09, 0.09, 0.42, pal.metal, 0, 0.03, 0.18);
-      part('nozzle', 0.13, 0.13, 0.1, pal.tank, 0, 0.03, 0.42);
-      part('pilot', 0.05, 0.05, 0.04, pal.grip, 0, 0.03, 0.49);
+      part('nozzle', 0.13, 0.13, 0.1, tank, 0, 0.03, 0.42);
+      if (id === 'flamethrower') part('pilot', 0.05, 0.05, 0.04, pal.grip, 0, 0.03, 0.49);
+      else part('collar', 0.12, 0.12, 0.07, tank, 0, 0.03, 0.2);
       part('grip', 0.06, 0.13, 0.07, pal.grip, 0, -0.06, 0.02);
       part('hose1', 0.05, 0.05, 0.16, pal.hose, 0, 0.03, -0.1);
       part('hose2', 0.05, 0.14, 0.05, pal.hose, 0, -0.03, -0.2);
       return new Vector3(0, 0.03, 0.5);
+    }
     case 'firebreath':
       return null;
   }
 }
 
-// The flamethrower's backpack: two tanks and a frame, worn on the back while holding it.
-export function buildTank(scene: Scene, name: string, parent: TransformNode, pal: Palette): TransformNode {
+// A hold weapon's backpack: two tanks in its element's colour and a frame, worn on the back while
+// holding it.
+export function buildTank(
+  scene: Scene,
+  name: string,
+  parent: TransformNode,
+  pal: Palette,
+  element: Element,
+): TransformNode {
   const node = new TransformNode(`${name}-tank`, scene);
   node.parent = parent;
   const part = (n: string, w: number, h: number, d: number, mat: StandardMaterial, x: number, y: number, z: number) => {
@@ -91,8 +108,8 @@ export function buildTank(scene: Scene, name: string, parent: TransformNode, pal
     m.position.set(x, y, z);
     m.isPickable = false;
   };
-  part('left', 0.18, 0.62, 0.18, pal.tank, -0.12, 0, 0);
-  part('right', 0.18, 0.62, 0.18, pal.tank, 0.12, 0, 0);
+  part('left', 0.18, 0.62, 0.18, pal.tanks[element], -0.12, 0, 0);
+  part('right', 0.18, 0.62, 0.18, pal.tanks[element], 0.12, 0, 0);
   part('capL', 0.1, 0.06, 0.1, pal.metal, -0.12, 0.34, 0);
   part('capR', 0.1, 0.06, 0.1, pal.metal, 0.12, 0.34, 0);
   part('frame', 0.44, 0.08, 0.06, pal.metal, 0, -0.2, -0.1);
@@ -123,12 +140,9 @@ export function buildFlash(engine: Engine, name: string, parent: TransformNode, 
   return flash;
 }
 
-const FLAME_HALF_ANGLE = ITEMS.flamethrower.fire.kind === 'cone' ? ITEMS.flamethrower.fire.halfAngle : 0;
-
 export class Viewmodel {
   private readonly root: TransformNode;
-  private readonly shapes = new Map<ItemId, { node: TransformNode; flash: Mesh }>();
-  private readonly jet!: FlameJet; // assigned in the loop below, for the flamethrower
+  private readonly shapes = new Map<ItemId, { node: TransformNode; flash: Mesh; jet: Jet | null }>();
   private current: ItemId | null = null;
   private recoil = 0;
   private flashLeft = 0;
@@ -138,7 +152,7 @@ export class Viewmodel {
     this.root = new TransformNode('viewmodel', scene);
     this.root.parent = camera;
     this.root.position.copyFrom(REST);
-    this.root.scaling.setAll(0.75);
+    this.root.scaling.setAll(SCALE);
 
     const pal = weaponPalette(scene, 'viewmodel');
     for (const id of ITEM_IDS) {
@@ -149,16 +163,18 @@ export class Viewmodel {
         node.dispose();
         continue;
       }
-      if (id === 'flamethrower') {
-        const nozzle = new TransformNode('viewmodel-nozzle', scene);
+      const spec = ITEMS[id];
+      let jet: Jet | null = null;
+      if (spec.element) {
+        const nozzle = new TransformNode(`viewmodel-${id}-nozzle`, scene);
         nozzle.parent = node;
         nozzle.position.copyFrom(muzzle);
         // The root is scaled down, so the jet is stretched to still reach the item's range.
-        this.jet = new FlameJet(engine, 'viewmodel', nozzle, ITEMS.flamethrower.range / 0.75, FLAME_HALF_ANGLE);
+        jet = createJet(engine, `viewmodel-${id}`, nozzle, spec.element, spec.range / SCALE, coneAngle(spec));
       }
       const flash = buildFlash(engine, `viewmodel-${id}`, node, muzzle);
       node.setEnabled(false);
-      this.shapes.set(id, { node, flash });
+      this.shapes.set(id, { node, flash, jet });
     }
   }
 
@@ -172,9 +188,9 @@ export class Viewmodel {
     this.current = id;
   }
 
-  // Hold weapons: the jet is on while the sim says we're firing.
+  // Hold weapons: the held one's jet is on while the sim says we're firing.
   setFiring(on: boolean): void {
-    this.jet.set(on && this.current === 'flamethrower');
+    for (const [id, s] of this.shapes) s.jet?.set(on && id === this.current);
   }
 
   fire(): void {
@@ -187,7 +203,7 @@ export class Viewmodel {
   }
 
   update(dt: number): void {
-    this.jet.update(dt);
+    for (const s of this.shapes.values()) s.jet?.update(dt);
     if (this.recoil > 0) {
       this.recoil *= Math.pow(0.5, dt / RECOIL_HALF_LIFE);
       if (this.recoil < 0.01) this.recoil = 0;

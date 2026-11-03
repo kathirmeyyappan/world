@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import {
   CUBE_IDS,
   EYE_HEIGHT,
+  FREEZE_SECONDS,
+  FROZEN_DAMAGE_MULTIPLIER,
   HEADSHOT_MULTIPLIER,
   ITEMS,
   MAX_HEARTS,
@@ -35,15 +37,15 @@ function link() {
 }
 
 let seq = 1000;
-function frame(pitch: number, actions: ItemAction[]): InputFrame {
-  return { seq: seq++, mx: 0, my: 0, yaw: 0, pitch, jump: false, reading: null, actions };
+function frame(pitch: number, actions: ItemAction[], yaw = 0): InputFrame {
+  return { seq: seq++, mx: 0, my: 0, yaw, pitch, jump: false, reading: null, actions };
 }
 
 // One press of the shoot action: a tick with it held, then a tick released.
-function press(room: Room, id: string, pitch = 0, scoped = false): void {
-  room.receive(id, { t: 'input', f: frame(pitch, scoped ? ['scope', 'shoot'] : ['shoot']) });
+function press(room: Room, id: string, pitch = 0, scoped = false, yaw = 0): void {
+  room.receive(id, { t: 'input', f: frame(pitch, scoped ? ['scope', 'shoot'] : ['shoot'], yaw) });
   room.step();
-  room.receive(id, { t: 'input', f: frame(pitch, scoped ? ['scope'] : []) });
+  room.receive(id, { t: 'input', f: frame(pitch, scoped ? ['scope'] : [], yaw) });
   room.step();
 }
 
@@ -502,6 +504,33 @@ test('flamethrower: hold to spray a 20 m cone, 0.5 hearts every 5 ticks, on a 7.
   assert.ok(Math.abs(alice.item!.fuel! - 3.75) < 1e-6, '12.5 s off the trigger refills half');
   hold(room, ida, 30 * 13, false);
   assert.ok(Math.abs(alice.item!.fuel! - 7.5) < 1e-6, 'full at 25 s, no further');
+});
+
+test('ice blower: a touch freezes for 3 s from the last one; the frozen act on nothing and take double damage', () => {
+  const room = new Room('ice', { seed: 9 });
+  const a = link();
+  const ida = room.join('alice', a)!;
+  const idb = room.join('GUNbob', link())!;
+  const idc = room.join('GUNcarol', link())!;
+  const [alice, bob, carol] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
+  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 6 };
+  carol.pos = { x: bob.pos.x, y: bob.pos.y, z: alice.pos.z + 22 }; // past the ice's reach, to shoot bob facing back
+
+  room.receive(ida, { t: 'chat', text: '/ib' });
+  assert.deepEqual(alice.item, { id: 'ice-blower', locked: false, fuel: 7.5 });
+  hold(room, ida, 30);
+  assert.equal(bob.hearts, MAX_HEARTS - 3, "frozen from the first touch, each burns like the flamethrower's");
+  assert.ok(bob.frozen > FREEZE_SECONDS - 10 * TICK_DT, 'the freeze restarts at every touch');
+
+  press(room, idb);
+  assert.ok(!a.inbox.some((m) => m.t === 'shot' && m.id === idb), 'frozen: the trigger does nothing');
+  press(room, idc, 0, false, Math.PI);
+  const damage = ITEMS.gun.damage * HEADSHOT_MULTIPLIER * FROZEN_DAMAGE_MULTIPLIER;
+  assert.ok(
+    a.inbox.some((m) => m.t === 'hit' && m.victim === idb && m.headshot && m.damage === damage),
+    '2 x 2.5 x 2',
+  );
+  assert.ok(bob.dead, 'a frozen headshot by a gun is a kill');
 });
 
 test('a tap weapon fires once per press however long the key is held', () => {

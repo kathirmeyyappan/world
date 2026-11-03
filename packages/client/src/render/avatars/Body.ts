@@ -103,7 +103,7 @@ export class BodyAvatar implements Avatar {
 
   update(p: RemotePlayer, step: number): void {
     const { legSwing, armSwing, armsDown = 0, bob, sway = 0, follow, model } = this.spec;
-    this.hitFlash.update();
+    this.hitFlash.update(p.frozen);
     const feetY = p.y - 1.7;
     const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);

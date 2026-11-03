@@ -23,6 +23,13 @@ export const SPEEDY_SECONDS = 20;
 // Aiming down a scope: walking at this fraction of the speed, and no jumping.
 export const SCOPED_SPEED_MULTIPLIER = 0.3;
 
+// Iced (items.ts, an item whose element is ice): frozen solid for FREEZE_SECONDS from the last touch,
+// taking no input and double damage (health.ts), then chilled for CHILL_SECONDS, walking at this
+// fraction of the speed. Both counted down by the sim so prediction matches.
+export const FREEZE_SECONDS = 3;
+export const CHILL_SECONDS = 5;
+export const CHILLED_SPEED_MULTIPLIER = 0.7;
+
 // Shooting: hits are resolved on the server against each avatar's hit capsule (sim/avatars.ts).
 // Ranges and cooldowns are per item, in items.ts.
 export const DEATH_SCREEN_SECONDS = 10;
