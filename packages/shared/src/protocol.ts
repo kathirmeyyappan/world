@@ -33,6 +33,7 @@ export type ServerMessage =
       players: PlayerState[];
       cubes: CubeSnapshot[];
       pickups: PickupSnapshot[];
+      doors: { id: string; open: boolean }[]; // every door (sim/doors.ts) and which way it stands
     }
   | { t: 'snap'; tick: number; players: PlayerState[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[] }
   | { t: 'join'; p: PlayerState }
@@ -41,6 +42,7 @@ export type ServerMessage =
   | { t: 'system'; text: string } // greyed-out line: command results, notices
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
   | { t: 'action'; id: string; action: ItemAction } // someone did one of their class's actions (a dragon's roar); clients play it
+  | { t: 'door'; id: string; open: boolean; by: string } // someone swung a door; clients swing theirs
   // Hearts came off: a shot landed, or with no shooter, a fall.
   | { t: 'hit'; shooter: string | null; victim: string; damage: number; headshot: boolean; hearts: number }
   | { t: 'kill'; shooter: string; victim: string; item: ItemId; headshot: boolean } // clients announce it
@@ -63,6 +65,7 @@ export function isClientMessage(v: unknown): v is ClientMessage {
         isNum(f.pitch) &&
         typeof f.jump === 'boolean' &&
         (f.reading === null || typeof f.reading === 'string') &&
+        (f.use === undefined || f.use === null || typeof f.use === 'string') &&
         Array.isArray(f.actions) &&
         f.actions.every(isItemAction) &&
         (f.view === undefined || isNum(f.view))

@@ -31,7 +31,12 @@ import type { Region } from './regions';
 import { createRng, hashSeed } from './rng';
 import { surfaceOf, type Structure } from './structures';
 import type { Vec3 } from './types';
-import { WORLD_SHAPE, WORLD_STRUCTURES, worldBounds, worldDistance, type Disc } from './world';
+import { STRUCTURES } from '../content/structures';
+import { Structures } from './collision';
+import { WORLD_SHAPE, worldBounds, worldDistance, type Disc } from './world';
+
+// The world without its doors (doors.ts): bots can't open them, so they walk as if every one stood open.
+const MAP_STRUCTURES = new Structures(STRUCTURES.filter((s) => !s.door));
 
 const SPACING = 1; // metres between grid columns: under a doorway's clear width (1.2 m less a body)
 const WALL_CLEARANCE = 0.05; // metres a node's body may be pushed by a wall before it doesn't count
@@ -107,7 +112,7 @@ function eyes(): Record<string, number> {
 
 // The structures without their looks, which nothing here depends on.
 function shapes(): Structure[] {
-  return WORLD_STRUCTURES.list.map(({ material: _m, color: _c, ...shape }) => shape);
+  return MAP_STRUCTURES.list.map(({ material: _m, color: _c, ...shape }) => shape);
 }
 
 export function buildBotMap(): BotMap {
@@ -168,13 +173,13 @@ function walkableNodes(): Vec3[] {
   for (let x = Math.ceil(b.minX / SPACING) * SPACING; x <= b.maxX; x += SPACING) {
     for (let z = Math.ceil(b.minZ / SPACING) * SPACING; z <= b.maxZ; z += SPACING) {
       if (worldDistance(x, z) > -PLAYER_PADDING) continue;
-      const heights = new Set([0, ...WORLD_STRUCTURES.list.flatMap((s) => topAt(s, x, z))]);
+      const heights = new Set([0, ...MAP_STRUCTURES.list.flatMap((s) => topAt(s, x, z))]);
       for (const y of heights) {
-        if (Math.abs(WORLD_STRUCTURES.groundAt(x, z, y + STEP_UP) - y) > 1e-9) continue;
-        const ceiling = WORLD_STRUCTURES.ceilingAt(x, z, y + 1e-6);
+        if (Math.abs(MAP_STRUCTURES.groundAt(x, z, y + STEP_UP) - y) > 1e-9) continue;
+        const ceiling = MAP_STRUCTURES.ceilingAt(x, z, y + 1e-6);
         if (ceiling < y + EYE_HEIGHT + CAPSULE_TOP) continue;
         const pos = { x, y: y + EYE_HEIGHT, z };
-        WORLD_STRUCTURES.move(pos, 0, 0, { head: pos.y + CAPSULE_TOP, reach: y + STEP_UP, radius: PLAYER_RADIUS });
+        MAP_STRUCTURES.move(pos, 0, 0, { head: pos.y + CAPSULE_TOP, reach: y + STEP_UP, radius: PLAYER_RADIUS });
         if (Math.hypot(pos.x - x, pos.z - z) > WALL_CLEARANCE) continue;
         nodes.push({ x, y, z });
       }
@@ -239,7 +244,7 @@ function lookouts(nodes: Vec3[], edges: number[][], jumps: number[][]): number[]
     let open = 0;
     for (let k = 0; k < LOOKOUT_LINES; k++) {
       const a = (k / LOOKOUT_LINES) * 2 * Math.PI;
-      if (WORLD_STRUCTURES.raycast(eye, { x: Math.sin(a), y: 0, z: Math.cos(a) }, LOOKOUT_RANGE) === Infinity) open++;
+      if (MAP_STRUCTURES.raycast(eye, { x: Math.sin(a), y: 0, z: Math.cos(a) }, LOOKOUT_RANGE) === Infinity) open++;
     }
     return open >= LOOKOUT_OPEN ? [i] : [];
   });
@@ -253,14 +258,14 @@ function placeOf(n: Vec3): LookoutPlace {
 // Eye-to-eye segments between nodes on or around the structures, half of them blocked.
 function sightChecks(nodes: Vec3[]): number[][] {
   const rng = createRng(1);
-  const near = nodes.filter((n) => n.y > 0 || WORLD_STRUCTURES.groundAt(n.x, n.z, Infinity) > 0);
+  const near = nodes.filter((n) => n.y > 0 || MAP_STRUCTURES.groundAt(n.x, n.z, Infinity) > 0);
   const checks: number[][] = [];
   const counts = [0, 0];
   while (checks.length < SIGHT_CHECKS) {
     const [a, b] = [0, 1].map(() => near[Math.floor(rng() * near.length)]);
     const from = { x: a.x, y: a.y + EYE_HEIGHT, z: a.z };
     const to = { x: b.x, y: b.y + EYE_HEIGHT, z: b.z };
-    const clear = WORLD_STRUCTURES.clear(from, to) ? 1 : 0;
+    const clear = MAP_STRUCTURES.clear(from, to) ? 1 : 0;
     if (counts[clear] >= SIGHT_CHECKS / 2) continue;
     counts[clear]++;
     checks.push([from.x, from.y, from.z, to.x, to.y, to.z, clear]);

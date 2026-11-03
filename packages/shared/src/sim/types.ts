@@ -45,6 +45,7 @@ export interface InputFrame {
   pitch: number;
   jump: boolean;
   reading: string | null;
+  use?: string | null; // the door clicked this tick (sim/doors.ts), if any
   actions: ItemAction[]; // item and class actions held this tick (tap ones on the press, toggles while on)
   view?: number; // server tick the player was seeing others at; shots are judged there (rewind.ts)
 }

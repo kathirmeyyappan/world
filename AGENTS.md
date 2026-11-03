@@ -373,13 +373,15 @@ wire: server and client both build the world from that file.
 - A landmark gets its own content file exporting its list (Tung Tung Tower is `content/tower.ts`,
   `TUNG_TUNG_TOWER`), with its dimensions as named constants at the top and a comment per group of
   pieces; `content/structures.ts` just spreads the landmarks together. Tung Tung Tower and Buildings
-  1 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
+  2 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
   floors (each one's doors and where its flight starts), stacked from the ground and turned to face
   the way in. The tower stacks all four and a building stands one of them alone (Building 2 the
   ground floor, Building 3 the first), so a floor is the same room in both, stair and murals alike;
-  change a floor there and both follow. Buildings 1 and 4 stand a bare keep until they get
-  structures of their own. The terrace (`content/terrace.ts`)
-  is reached from all of them: the tower's sky bridge, and a staircase from each building's roof. A piece you'll reuse (a
+  change a floor there and both follow. Building 4 stands a bare keep until it gets a structure of
+  its own. Building 1 is SpongeBob's house (`content/pineapple.ts`), a model the client draws (see
+  Models below) on a dune of sand, collided with through hidden pieces stood inside its skin, its
+  front room furnished from boxes. The terrace (`content/terrace.ts`) is reached from the keeps:
+  the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
@@ -400,10 +402,11 @@ wire: server and client both build the world from that file.
   the hole has to cover the stretch where the stair is within about 2.7 m of the floor above.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
-- Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`; each is a
-  painter in `packages/client/src/render/structureMaterials.ts`, and a new one is another painter
-  there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so they look
-  the same inside and out; don't reach for lights.
+- Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`; each
+  is a painter in `packages/client/src/render/structureMaterials.ts`, and a new one is another
+  painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
+  they look the same inside and out; don't reach for lights. `hidden` pieces are collided with but
+  never drawn: the shape of something the client draws its own way.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
   flicker shows wherever they paint different pixels. Structure textures are mapped from the world
   origin, so pieces of one look (with `worldTop` for their tops) paint identical pixels there, which
@@ -413,9 +416,38 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 5,747 pieces render as
-  86 meshes (about 15 in view at once), and a world-spanning raycast costs about 90 µs. Check both numbers in the PR when a
-  landmark adds a lot.
+  so draw calls stay in the tens however many pieces there are. The world's 5,348 pieces (4,902
+  drawn) render as 82 meshes (about 15 in view at once), and a world-spanning raycast costs about
+  90 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
+  through `render/Loader.ts` (see Models below).
+
+### Models and doors
+
+A landmark too shapely for boxes is a model: a mesh the client draws from files in
+`packages/client/public/assets/models/` and textures in `public/assets/textures/models/`, written by
+a script in `packages/client/scripts/` (`house-model.py` makes the pineapple from a Sketchfab GLB:
+cut, thickened, papered inside, its door a part of its own) along with a profile of its shape for
+the sim (`content/pineappleProfile.ts`). The sim never sees a mesh: the content stands `hidden`
+structures inside it (`content/pineapple.ts`: rings of wall following the shell, slabs above the
+ceiling, a floor) and the renderer skips them, so what you bump into is the content's to keep true
+to the model. `render/models/Models.ts` fetches each part and hangs it where the content's
+placement says.
+
+Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
+somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
+and each frame the nearest thing not yet begun is begun, so the player is in the world at once and
+it fills in round them nearest first, the far side within a second or two. Nothing waits on
+distance (a scope sees the far side as sharp as the near); the loader only sets the order. Register
+a new model or any big build with it rather than loading it in the constructor.
+
+A door (`sim/doors.ts`) is a slab on a hinge, shut or swung open, kept by the Room for everyone:
+`doorPieces` makes its two hidden structures (where it stands shut, where it stands open), each
+marked with the door and its state, and `Structures.setDoor` turns them on and off, so collision
+and line of sight follow the door and prediction agrees. A click on a door within `DOOR_REACH`
+sends `InputFrame.use`; the Room checks the look reaches that door, swings it, and broadcasts
+`door`, which clients apply to their `WORLD_STRUCTURES` and to the model's door node (the swing
+plays over `DOOR_SWING_SECONDS`). Bots' map leaves doors out, so they walk as if every door stood
+open. A Room keeps its own `Structures` for this; the client's `WORLD_STRUCTURES` is its page's.
 
 ### Wall frames
 

@@ -11,6 +11,8 @@ import {
   TICK_DT,
   WALL_FRAMES,
   WORLD_SHAPE,
+  DOOR_REACH,
+  lookVector,
   WORLD_STRUCTURES,
   actionForKey,
   actionHelp,
@@ -49,6 +51,8 @@ import { createAvatar, preloadAvatars, StandardAvatar, type Avatar } from '../re
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { Loader } from '../render/Loader';
+import { Models } from '../render/models/Models';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
 import { poof } from '../render/Poof';
@@ -108,6 +112,10 @@ const ECHO_LEVEL = 0.3;
 export class Game {
   private readonly engine: Engine;
   private readonly environment: Environment;
+  private readonly loader = new Loader(); // streams the world in round the player
+  private readonly models: Models;
+  private hoveredDoor: string | null = null; // the door under the crosshair within reach (sim/doors.ts)
+  private useDoor: string | null = null; // a door clicked since the last input frame
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
@@ -181,7 +189,8 @@ export class Game {
     const canvas = canvasEl;
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
-    buildStructures(this.engine, WORLD_STRUCTURES.list);
+    buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
+    this.models = new Models(this.engine, this.loader);
     preloadAvatars(this.engine);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
@@ -281,7 +290,11 @@ export class Game {
   // release. Scope is the local toggle, reported while on so the server's state follows it.
   private itemActions(): ItemAction[] {
     const mouse = this.input.fireHeld;
-    if (mouse && !this.mouseWasHeld) this.mouseFiring = !this.hovered;
+    if (mouse && !this.mouseWasHeld) {
+      // A press on a door uses it, and one on a cube selects it; neither is a shot.
+      if (this.hoveredDoor) this.useDoor = this.hoveredDoor;
+      this.mouseFiring = !this.hovered && !this.hoveredDoor;
+    }
     if (!mouse) this.mouseFiring = false;
     this.mouseWasHeld = mouse;
 
@@ -390,6 +403,10 @@ export class Game {
         this.interp.push(m, now);
         this.hud.setSelf(m.id);
         this.hud.setPlayers(m.players);
+        for (const door of m.doors) {
+          WORLD_STRUCTURES.setDoor(door.id, door.open);
+          this.models.setDoor(door.id, door.open, false);
+        }
         for (const p of m.players) if (p.id !== m.id) this.addAvatar(p);
         this.hud.system(
           IS_TOUCH
@@ -440,6 +457,10 @@ export class Game {
         return;
       case 'shot':
         if (m.id !== this.myId) this.pendingShots.push({ shooter: m.id, hitMe: false });
+        return;
+      case 'door':
+        WORLD_STRUCTURES.setDoor(m.id, m.open);
+        this.models.setDoor(m.id, m.open);
         return;
       case 'action': {
         const sound = ACTION_SOUNDS[m.action];
@@ -585,6 +606,8 @@ export class Game {
       );
       frame.yaw = this.aim.yaw;
       frame.pitch = this.aim.pitch;
+      frame.use = this.useDoor;
+      this.useDoor = null;
       this.stepEase -= this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
@@ -709,6 +732,8 @@ export class Game {
       cubes: sampled.cubes,
     });
 
+    this.loader.update(p.x, p.z);
+    this.models.update();
     this.updateHover();
     // Red crosshair when a shot from here would land: same maths the server will run.
     const me = this.prediction.state;
@@ -819,6 +844,13 @@ export class Game {
   }
 
   private updateHover(): void {
+    // A door in reach of the look is used by a click; say so when the crosshair lands on one.
+    const me = this.prediction?.state;
+    const door =
+      me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch), DOOR_REACH) : null;
+    if (door && door !== this.hoveredDoor)
+      this.hitNotice.note(WORLD_STRUCTURES.isOpen(door) ? 'click to shut the door' : 'click to open the door');
+    this.hoveredDoor = door;
     let nextCube: CubeMesh | null = null;
     let nextSky: SkyObject | null = null;
     let nextFrame: HungFrame | null = null;

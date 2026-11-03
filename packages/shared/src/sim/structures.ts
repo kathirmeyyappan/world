@@ -18,10 +18,12 @@ export interface Footprint {
   yaw?: number;
   material?: StructureMaterial; // a pixel texture (the client's render/structureMaterials.ts)
   color?: string; // flat CSS colour when there's no material; each kind has a default
+  door?: { id: string; open: boolean }; // a door's slab (doors.ts): stands only while the door is open or shut as `open` says
+  hidden?: boolean; // collided with but never drawn: the shape of something the client draws its own way (a model)
 }
 
 // Surface looks the renderer knows how to paint.
-export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone';
+export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand';
 
 // A solid block: walls, buildings, platforms, pillars.
 export interface Box extends Footprint {
@@ -209,8 +211,9 @@ export function roundWall(opts: {
   gaps?: { angle: number; bottom: number; top: number; width?: number }[];
   material?: StructureMaterial;
   color?: string;
+  hidden?: boolean;
 }): Box[] {
-  const { x, z, r, h, thickness, y = 0, segments = 32, gaps = [], material, color } = opts;
+  const { x, z, r, h, thickness, y = 0, segments = 32, gaps = [], material, color, hidden } = opts;
   const step = (2 * Math.PI) / segments;
   const pieces: Box[] = [];
   for (let i = 0; i < segments; i++) {
@@ -239,13 +242,13 @@ export function roundWall(opts: {
       spans.push([from, g.bottom]);
       from = g.top;
       if (g.from > -step / 2 + 1e-6)
-        pieces.push({ ...wall(a, along(g.from), g.top - g.bottom, thickness, g.bottom), material, color });
+        pieces.push({ ...wall(a, along(g.from), g.top - g.bottom, thickness, g.bottom), material, color, hidden });
       if (g.to < step / 2 - 1e-6)
-        pieces.push({ ...wall(along(g.to), b, g.top - g.bottom, thickness, g.bottom), material, color });
+        pieces.push({ ...wall(along(g.to), b, g.top - g.bottom, thickness, g.bottom), material, color, hidden });
     }
     spans.push([from, y + h]);
     for (const [lo, hi] of spans)
-      if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color });
+      if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color, hidden });
   }
   return pieces;
 }
@@ -342,9 +345,10 @@ export function roundFloor(opts: {
   chord?: number;
   material?: StructureMaterial;
   color?: string;
+  hidden?: boolean;
 }): Box[] {
-  const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color } = opts;
-  const slab = { y: y - thickness, h: thickness, material, color };
+  const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color, hidden } = opts;
+  const slab = { y: y - thickness, h: thickness, material, color, hidden };
   const edge = hole?.inner ?? inner ?? r / 2; // where the outer ring (the one a hole is cut from) begins
   const core = edge / 2; // the middle square's half side: its corners stay inside `edge`
   const pieces: Box[] =
