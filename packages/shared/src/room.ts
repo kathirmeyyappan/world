@@ -332,9 +332,14 @@ export class Room {
     });
     for (const hit of resolveFire(spec, me, targets, this.structures)) {
       const victim = hit.target.player;
-      // Ice freezes on touch, and what's frozen takes double: the touch that froze them included.
-      if (spec.element === 'ice') victim.frozen = FREEZE_SECONDS;
-      this.damage(victim, damageFor(spec, hit.headshot, victim.frozen > 0), { shooter: seat, headshot: hit.headshot });
+      const frozen = victim.frozen > 0;
+      // Ice freezes on touch and keeps the freeze going, but only the touch that freezes hurts;
+      // what's frozen takes double from everything else.
+      if (spec.element === 'ice') {
+        victim.frozen = FREEZE_SECONDS;
+        if (frozen) continue;
+      }
+      this.damage(victim, damageFor(spec, hit.headshot, frozen), { shooter: seat, headshot: hit.headshot });
     }
   }
 

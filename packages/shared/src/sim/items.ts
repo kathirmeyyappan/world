@@ -6,7 +6,7 @@
 // with an element gets a tank and a jet in that element's colours too), a sound in the client's
 // ITEM_SOUNDS, and nothing on the wire: every item action travels inside the input frame.
 import { FREEZE_SECONDS, TICK_RATE } from './constants';
-import { FROZEN_DAMAGE_MULTIPLIER, HEADSHOT_MULTIPLIER } from './health';
+import { HEADSHOT_MULTIPLIER } from './health';
 
 export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebreath';
 
@@ -90,11 +90,12 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     blurb: 'equip a flamethrower',
   },
   // The flamethrower's twin, spraying ice: a touch freezes for FREEZE_SECONDS (constants.ts) and
-  // burns double on the frozen, so each tick takes a quarter heart, half the flame's.
+  // costs `damage` once; touching the frozen keeps them frozen and costs nothing more. What's
+  // frozen takes double from other weapons (health.ts).
   'ice-blower': {
     id: 'ice-blower',
     range: 20,
-    damage: 0.125,
+    damage: 1,
     cooldownTicks: 5,
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
@@ -194,14 +195,14 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1": the numbers that matter, for
 // the hint bar. Derived from the spec so it can't drift from what the Room does: an ice item's
-// touch freezes before it burns, so every one lands double.
+// damage lands once, on the touch that freezes.
 export function itemStats(id: ItemId): string {
   const spec = ITEMS[id];
   const parts = [`range: ${spec.range}m`];
-  const burn = spec.damage * (spec.element === 'ice' ? FROZEN_DAMAGE_MULTIPLIER : 1);
-  if (spec.actions.shoot?.mode === 'hold') parts.push(`dps: ${round((burn * TICK_RATE) / spec.cooldownTicks)}`);
+  if (spec.element === 'ice') parts.push(`freezes ${FREEZE_SECONDS}s for ${spec.damage}`);
+  else if (spec.actions.shoot?.mode === 'hold')
+    parts.push(`dps: ${round((spec.damage * TICK_RATE) / spec.cooldownTicks)}`);
   else parts.push(`dmg: ${spec.damage}${spec.fire.kind === 'hitscan' ? ` (headshot ${HEADSHOT_MULTIPLIER}x)` : ''}`);
-  if (spec.element === 'ice') parts.push(`freezes ${FREEZE_SECONDS}s`);
   return parts.join(', ');
 }
 
