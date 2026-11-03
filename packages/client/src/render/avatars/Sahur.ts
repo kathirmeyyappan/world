@@ -21,6 +21,7 @@ const STARE_OUT = 0.06; // radians each eye turns outward: the gaze never quite 
 const CREASE_DARKEN = 0.6; // how much of the skin's colour the deepest crease loses
 const LIE_HEIGHT = 0.28; // metres the fallen log's centre line sits above the ground (its half-depth)
 const TWITCH_EVERY_MS = 4300; // roughly; each avatar's twitches are offset by its id
+const LEAN = 0.12; // how much of the look's pitch the log leans by
 
 // Skin by height, in metres above the feet: orange-brown on the body, yellow on the head.
 const SKIN = [
@@ -40,6 +41,7 @@ export class SahurAvatar implements Avatar {
   private readonly legL: TransformNode;
   private readonly legR: TransformNode;
   private readonly bat: Mesh;
+  private readonly hand: TransformNode; // the right hand, turned so a held item's barrel runs along the look
   private readonly shadow: Mesh;
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
@@ -104,10 +106,10 @@ export class SahurAvatar implements Avatar {
     }
 
     // A held item goes in the right hand instead of the bat; the flamethrower's tank rides on the back.
-    const hand = new TransformNode(`sahur-hand-${id}`, scene);
-    hand.parent = this.log;
-    hand.position.set(model.hand[0], model.hand[1] - hip, model.hand[2]);
-    this.items = new HeldItems(engine, `sahur-${id}`, hand, Vector3.Zero(), this.log, new Vector3(0, 1.0, -0.4));
+    this.hand = new TransformNode(`sahur-hand-${id}`, scene);
+    this.hand.parent = this.log;
+    this.hand.position.set(model.hand[0], model.hand[1] - hip, model.hand[2]);
+    this.items = new HeldItems(engine, `sahur-${id}`, this.hand, Vector3.Zero(), this.log, new Vector3(0, 1.0, -0.4));
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.3);
     this.shadow.parent = this.root;
@@ -134,7 +136,9 @@ export class SahurAvatar implements Avatar {
     const now = performance.now();
     const sinceTwitch = (now + this.twitchOffset) % TWITCH_EVERY_MS;
     const twitch = sinceTwitch < 140 ? Math.sin((sinceTwitch / 140) * Math.PI) * 0.12 : 0;
-    this.log.rotation.set(p.pitch * 0.12, 0, Math.sin(now / 1700 + this.twitchOffset) * 0.03 + twitch);
+    this.log.rotation.set(p.pitch * LEAN, 0, Math.sin(now / 1700 + this.twitchOffset) * 0.03 + twitch);
+    // The hand's -y is the barrel: forward from hanging, and up or down with the rest of the pitch.
+    this.hand.rotation.x = -Math.PI / 2 + p.pitch * (1 - LEAN);
 
     this.bat.setEnabled(!p.item);
     this.items.update(p);
