@@ -106,6 +106,7 @@ export class ElizabethAvatar implements Avatar {
     this.items = new HeldItems(
       engine,
       `eliz-${id}`,
+      'elizabeth',
       this.flipperR,
       new Vector3(0.02, -0.32, 0.04),
       this.body,

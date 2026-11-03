@@ -90,6 +90,7 @@ export class BodyAvatar implements Avatar {
     this.items = new HeldItems(
       engine,
       `${spec.kind}-${id}`,
+      spec.kind,
       this.grip,
       Vector3.Zero(),
       this.body,

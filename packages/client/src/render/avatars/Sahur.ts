@@ -1,11 +1,13 @@
 // Tung Tung Tung Sahur: a 3.2 m wooden log with a face (60% taller than everyone else), built from a
 // sculpt of the character decimated to a few thousand triangles (sahurModel.ts, made by
 // scripts/sahur-model.py). The sculpt comes in parts the avatar moves on their own: the body with its
-// arms, the bat in the right hand, and each leg. The skin shades from orange-brown at the hips to
-// yellow at the top of the head, and the eyes are the avatar's own: white balls that are mostly
-// pupil, staring fixed and a little wall-eyed. It walks stiff-legged, twitches its head now and then,
-// and dies flat on its back. Worn with /tung; its hit capsule is as tall as it is
-// (AVATARS.sahur.hitbox), movement and items are everyone's, and a held item replaces the bat.
+// left arm, the right arm, the bat in its hand, and each leg. The skin shades from orange-brown at the
+// hips to yellow at the top of the head, and the eyes are the avatar's own: white balls that are
+// mostly pupil, staring fixed and a little wall-eyed. It walks stiff-legged, twitches its head now and
+// then, and dies flat on its back. Worn with /tung; its hit capsule is as tall as it is
+// (AVATARS.sahur.hitbox), movement and items are everyone's, and a held item replaces the bat. The
+// sculpt's right arm is cut from the log as a part of its own, so holding an item it comes up from
+// the shoulder, elbow bent, the item in its fist pointed along the look, like a stick-up.
 import { Color3, Mesh, MeshBuilder, TransformNode, Vector3, VertexData, type StandardMaterial } from '@babylonjs/core';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
@@ -22,6 +24,7 @@ const CREASE_DARKEN = 0.6; // how much of the skin's colour the deepest crease l
 const LIE_HEIGHT = 0.28; // metres the fallen log's centre line sits above the ground (its half-depth)
 const TWITCH_EVERY_MS = 4300; // roughly; each avatar's twitches are offset by its id
 const LEAN = 0.12; // how much of the look's pitch the log leans by
+const RAISE = Math.PI / 3; // radians the right arm swings up from hanging to hold an item out
 
 // Skin by height, in metres above the feet: orange-brown on the body, yellow on the head.
 const SKIN = [
@@ -41,7 +44,7 @@ export class SahurAvatar implements Avatar {
   private readonly legL: TransformNode;
   private readonly legR: TransformNode;
   private readonly bat: Mesh;
-  private readonly hand: TransformNode; // the right hand, turned so a held item's barrel runs along the look
+  private readonly arm: TransformNode; // the right arm, turning at the shoulder
   private readonly shadow: Mesh;
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
@@ -86,6 +89,7 @@ export class SahurAvatar implements Avatar {
     this.legL = part('legL', this.body, origin, skin).node;
     this.legR = part('legR', this.body, origin, skin).node;
     this.bat = part('bat', this.log, model.parts.body.pivot, batMat).mesh;
+    this.arm = part('armR', this.log, model.parts.body.pivot, skin).node;
 
     // Eyes: a white ball in each of the sculpt's sockets, the front mostly pupil, fixed and turned a
     // little outward.
@@ -105,11 +109,22 @@ export class SahurAvatar implements Avatar {
       pupil.isPickable = false;
     }
 
-    // A held item goes in the right hand instead of the bat; the flamethrower's tank rides on the back.
-    this.hand = new TransformNode(`sahur-hand-${id}`, scene);
-    this.hand.parent = this.log;
-    this.hand.position.set(model.hand[0], model.hand[1] - hip, model.hand[2]);
-    this.items = new HeldItems(engine, `sahur-${id}`, this.hand, Vector3.Zero(), this.log, new Vector3(0, 1.0, -0.4));
+    // A held item goes in the fist instead of the bat, its barrel (the hand's -y) pointing forward once
+    // the arm is raised; the flamethrower's tank rides on the back.
+    const hand = new TransformNode(`sahur-hand-${id}`, scene);
+    hand.parent = this.arm;
+    const { pivot: shoulder } = model.parts.armR;
+    hand.position.set(model.hand[0] - shoulder[0], model.hand[1] - shoulder[1], model.hand[2] - shoulder[2]);
+    hand.rotation.x = RAISE - Math.PI / 2;
+    this.items = new HeldItems(
+      engine,
+      `sahur-${id}`,
+      'sahur',
+      hand,
+      Vector3.Zero(),
+      this.log,
+      new Vector3(0, 1.0, -0.4),
+    );
 
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.3);
     this.shadow.parent = this.root;
@@ -137,8 +152,9 @@ export class SahurAvatar implements Avatar {
     const sinceTwitch = (now + this.twitchOffset) % TWITCH_EVERY_MS;
     const twitch = sinceTwitch < 140 ? Math.sin((sinceTwitch / 140) * Math.PI) * 0.12 : 0;
     this.log.rotation.set(p.pitch * LEAN, 0, Math.sin(now / 1700 + this.twitchOffset) * 0.03 + twitch);
-    // The hand's -y is the barrel: forward from hanging, and up or down with the rest of the pitch.
-    this.hand.rotation.x = -Math.PI / 2 + p.pitch * (1 - LEAN);
+    // Holding something, the arm swings up and follows the look's pitch (less the little the log
+    // already leans); otherwise it hangs as sculpted, its fist on the bat.
+    this.arm.rotation.x = p.item && !p.dead ? -RAISE + p.pitch * (1 - LEAN) : 0;
 
     this.bat.setEnabled(!p.item);
     this.items.update(p);

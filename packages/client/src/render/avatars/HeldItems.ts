@@ -4,12 +4,12 @@
 // with the tank behind it when they have both. Shared by every avatar type so a new item is added
 // here once.
 import { TransformNode, Vector3, type Mesh } from '@babylonjs/core';
-import { ITEMS, ITEM_IDS, type ItemId } from '@world/shared';
+import { ITEMS, ITEM_IDS, type AvatarId, type ItemId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { WornGear } from '../Gear';
 import { coneAngle, createJet, type Jet } from '../Jet';
-import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, weaponPalette } from '../Weapons';
+import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, holdRoll, weaponPalette } from '../Weapons';
 
 export class HeldItems {
   private readonly weapons = new Map<ItemId, TransformNode>();
@@ -23,10 +23,12 @@ export class HeldItems {
   private lastNow = performance.now();
 
   // `hand` points the barrel along its local -y when raised (see the avatars), so the shapes,
-  // built barrel-along-+z, are turned 90 degrees inside it.
+  // built barrel-along-+z, are turned 90 degrees inside it, and rolled about the barrel as `avatar`
+  // holds each.
   constructor(
     engine: Engine,
     name: string,
+    avatar: AvatarId,
     hand: TransformNode,
     handOffset: Vector3,
     back: TransformNode,
@@ -38,7 +40,7 @@ export class HeldItems {
       const node = new TransformNode(`${name}-${item}`, scene);
       node.parent = hand;
       node.position.copyFrom(handOffset);
-      node.rotation.x = Math.PI / 2;
+      node.rotation.set(Math.PI / 2, 0, holdRoll(avatar, item));
       const muzzle = buildWeapon(scene, `${name}-${item}`, item, node, pal);
       if (!muzzle) {
         node.dispose();

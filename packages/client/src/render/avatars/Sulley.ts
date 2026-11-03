@@ -81,6 +81,7 @@ export class SulleyAvatar implements Avatar {
     this.items = new HeldItems(
       engine,
       `sulley-${id}`,
+      'sulley',
       this.armR,
       this.skin.offset('armR', SULLEY_MODEL.hand),
       this.chest,

@@ -2,13 +2,22 @@
 // the same shape sits in the camera's bottom-right for the local player and in the right hand of
 // other players' avatars. Recoil and muzzle flash are viewmodel-only.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3, type Camera } from '@babylonjs/core';
-import { ITEMS, ITEM_IDS, type Element, type ItemId } from '@world/shared';
+import { ITEMS, ITEM_IDS, type AvatarId, type Element, type ItemId } from '@world/shared';
 import type { Engine } from './Engine';
 import { coneAngle, createJet, type Jet } from './Jet';
 
 type Scene = Engine['scene'];
 
 const REST = new Vector3(0.3, -0.24, 0.6);
+// How an avatar holds a weapon: rolled this far about its barrel, in its hand and in its wearer's
+// viewmodel alike. Tung holds the gun on its side, gangsta style; everything else sits upright.
+const HOLD_ROLL: Partial<Record<AvatarId, Partial<Record<ItemId, number>>>> = {
+  sahur: { gun: Math.PI / 2 },
+};
+
+export function holdRoll(avatar: AvatarId, item: ItemId): number {
+  return HOLD_ROLL[avatar]?.[item] ?? 0;
+}
 const SCALE = 0.75; // the viewmodel's size, drawn under the camera
 export const FLASH_SECONDS = 0.06;
 const RECOIL_HALF_LIFE = 0.05;
@@ -178,10 +187,11 @@ export class Viewmodel {
     }
   }
 
-  // Show this item (or nothing). Hidden while scoped: the scope overlay is the view; an item with no
-  // shape in hand shows as nothing.
-  show(id: ItemId | null): void {
+  // Show this item (or nothing), held as `avatar` holds it. Hidden while scoped: the scope overlay is
+  // the view; an item with no shape in hand shows as nothing.
+  show(id: ItemId | null, avatar: AvatarId): void {
     if (id && !this.shapes.has(id)) id = null;
+    if (id) this.shapes.get(id)!.node.rotation.z = holdRoll(avatar, id);
     if (id === this.current) return;
     if (this.current) this.shapes.get(this.current)!.node.setEnabled(false);
     if (id) this.shapes.get(id)!.node.setEnabled(true);
