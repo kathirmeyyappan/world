@@ -2,12 +2,13 @@
 // name carries a weapon's tag, in which case they spawn holding it for good and can never swap. A
 // look may come with one of its own instead (AvatarSpec.item: a dragon's breath), held for good
 // while it's worn. Gear (sim/gear.ts) is the other kind of item, worn in its own slot beside the
-// weapon. Adding a weapon means adding a row here, a shape in the client's Weapons.ts, and nothing
-// on the wire: every item action travels inside the input frame.
-import { TICK_RATE } from './constants';
-import { HEADSHOT_MULTIPLIER } from './health';
+// weapon. Adding a weapon means adding a row here, a shape in the client's Weapons.ts (a hold weapon
+// with an element gets a tank and a jet in that element's colours too), a sound in the client's
+// ITEM_SOUNDS, and nothing on the wire: every item action travels inside the input frame.
+import { FREEZE_SECONDS, TICK_RATE } from './constants';
+import { FROZEN_DAMAGE_MULTIPLIER, HEADSHOT_MULTIPLIER } from './health';
 
-export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'firebreath';
+export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebreath';
 
 // Things an item, or a player's class (classes.ts), can do. Each is bound to a key on the client and
 // reported in InputFrame.actions:
@@ -26,8 +27,9 @@ export interface ActionSpec {
 // player inside the cone, flat damage.
 export type FireShape = { kind: 'hitscan' } | { kind: 'cone'; halfAngle: number };
 
-// What a hold weapon sprays, for the client's jet: the same sprites in another element's colours.
-export type Element = 'fire';
+// What a hold weapon sprays: the client's jet in the element's colours, and what a hit does besides
+// its damage (ice freezes, constants.ts).
+export type Element = 'fire' | 'ice';
 
 export interface ItemSpec {
   id: ItemId;
@@ -86,6 +88,22 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     nameTag: 'FLAMETHROWER',
     own: false,
     blurb: 'equip a flamethrower',
+  },
+  // The flamethrower's twin, spraying ice: a touch freezes for FREEZE_SECONDS (constants.ts), and a
+  // frozen player takes double damage, so its own burn is half the flame's.
+  'ice-blower': {
+    id: 'ice-blower',
+    range: 20,
+    damage: 0.25,
+    cooldownTicks: 5,
+    actions: { shoot: { key: 'KeyK', mode: 'hold' } },
+    fire: { kind: 'cone', halfAngle: Math.PI / 8 },
+    element: 'ice',
+    fireNeedsScope: false,
+    fuelSeconds: 7.5,
+    nameTag: 'ICEBLOWER',
+    own: false,
+    blurb: 'equip an ice blower',
   },
   // A dragon's: the flamethrower's burn and tank from a mouth, in a cone four times as wide.
   firebreath: {
@@ -175,12 +193,15 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
 };
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1": the numbers that matter, for
-// the hint bar. Derived from the spec so it can't drift from what the Room does.
+// the hint bar. Derived from the spec so it can't drift from what the Room does: an ice item's
+// touch freezes before it burns, so every one lands double.
 export function itemStats(id: ItemId): string {
   const spec = ITEMS[id];
   const parts = [`range: ${spec.range}m`];
-  if (spec.actions.shoot?.mode === 'hold') parts.push(`dps: ${round((spec.damage * TICK_RATE) / spec.cooldownTicks)}`);
+  const burn = spec.damage * (spec.element === 'ice' ? FROZEN_DAMAGE_MULTIPLIER : 1);
+  if (spec.actions.shoot?.mode === 'hold') parts.push(`dps: ${round((burn * TICK_RATE) / spec.cooldownTicks)}`);
   else parts.push(`dmg: ${spec.damage}${spec.fire.kind === 'hitscan' ? ` (headshot ${HEADSHOT_MULTIPLIER}x)` : ''}`);
+  if (spec.element === 'ice') parts.push(`freezes ${FREEZE_SECONDS}s`);
   return parts.join(', ');
 }
 

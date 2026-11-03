@@ -5,6 +5,7 @@
 import { AVATARS } from './avatars';
 import type { ClassSpec } from './classes';
 import {
+  CHILLED_SPEED_MULTIPLIER,
   EYE_HEIGHT,
   GRAVITY,
   JUMP_VELOCITY,
@@ -59,8 +60,13 @@ export function stepWalker(
   shape: WorldPart[],
   structures: Structures,
 ): number {
-  // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground.
-  const speed = MOVE_SPEED * (p.boost > 0 ? SPEEDY_MULTIPLIER : 1) * (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1);
+  // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; so
+  // does the chill after a freeze, a little.
+  const speed =
+    MOVE_SPEED *
+    (p.boost > 0 ? SPEEDY_MULTIPLIER : 1) *
+    (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
+    (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
   if (input?.jump && grounded && !p.dead && !p.scoped) p.vy = JUMP_VELOCITY;
   const push = stepGear(p, input ? input.actions : [], grounded, dt);

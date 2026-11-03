@@ -59,6 +59,7 @@ import { AreaTitle } from '../ui/AreaTitle';
 import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
+import { Condition } from '../ui/Condition';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { Fuel } from '../ui/Fuel';
@@ -137,6 +138,7 @@ export class Game {
   private readonly hearts = new Hearts();
   private readonly fuel = new Fuel();
   private readonly gearHud = new GearHud();
+  private readonly condition = new Condition();
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
@@ -654,6 +656,7 @@ export class Game {
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
     this.gearHud.set(this.dead ? null : self.gear);
+    this.condition.set(this.dead ? 0 : self.frozen, this.dead ? 0 : self.chilled);
     this.commandHint.update(
       !!held || !!self.gear || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened,
       this.dead || this.hud.isChatOpen(),
@@ -712,6 +715,7 @@ export class Game {
     const hit =
       !!held &&
       !this.dead &&
+      me.frozen === 0 &&
       this.canFire() &&
       resolveFire(
         ITEMS[held.id],
@@ -804,6 +808,7 @@ export class Game {
         firing: self.firing,
         gear: self.gear?.id ?? null,
         thrusting: self.thrusting,
+        frozen: self.frozen > 0,
         dead: this.dead,
         avatar: self.avatar,
         dragon: self.dragon,

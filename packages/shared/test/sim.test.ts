@@ -4,7 +4,10 @@ import { test } from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { botMapSource, type BotMap } from '../src/sim/botMap';
 import {
+  CHILL_SECONDS,
+  CHILLED_SPEED_MULTIPLIER,
   EYE_HEIGHT,
+  FREEZE_SECONDS,
   GEAR,
   JUMP_VELOCITY,
   SCOPED_SPEED_MULTIPLIER,
@@ -165,7 +168,7 @@ test("pickups drift about their own areas, never leaving them or crossing a ring
   }
 });
 
-test('/speedy boost multiplies movement and wears off; a scope slows it and stops jumps', () => {
+test('/speedy boost multiplies movement and wears off; a scope slows it and stops jumps; a freeze stops all, then chills', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   p.boost = SPEEDY_SECONDS;
   stepPlayer(p, frame(1, { my: 1 }), 1, WORLD_SHAPE);
@@ -182,6 +185,20 @@ test('/speedy boost multiplies movement and wears off; a scope slows it and stop
   stepPlayer(p, frame(100, { my: 1, jump: true, actions: ['scope'] }), 0.1, WORLD_SHAPE);
   assert.ok(Math.abs(p.pos.z - at - 0.8 * SCOPED_SPEED_MULTIPLIER) < 1e-9, 'scoped walk');
   assert.equal(p.vy, 0, 'no jump while scoped');
+
+  // Frozen (an ice hit): no key does anything for FREEZE_SECONDS, then CHILL_SECONDS at 70%.
+  p.frozen = FREEZE_SECONDS;
+  const stuck = p.pos.z;
+  stepPlayer(p, frame(101, { my: 1, jump: true }), 1, WORLD_SHAPE);
+  assert.equal(p.pos.z, stuck, 'no walking while frozen');
+  assert.equal(p.vy, 0, 'no jumping either');
+  for (let i = 102; i < 102 + FREEZE_SECONDS - 1; i++) stepPlayer(p, frame(i, { my: 1 }), 1, WORLD_SHAPE);
+  assert.equal(p.frozen, 0);
+  assert.equal(p.chilled, CHILL_SECONDS, 'thawed: the chill starts');
+  stepPlayer(p, frame(110, { my: 1 }), 1, WORLD_SHAPE);
+  assert.ok(Math.abs(p.pos.z - stuck - 8 * CHILLED_SPEED_MULTIPLIER) < 1e-9, 'a chilled second of walking');
+  for (let i = 111; i < 111 + CHILL_SECONDS - 1; i++) stepPlayer(p, frame(i, { my: 0 }), 1, WORLD_SHAPE);
+  assert.equal(p.chilled, 0, 'and it wears off');
 });
 
 test('a landing hurts by its speed: free under a 15 m drop, every heart at 80 m, linear between; a jetpack lifts and brakes', () => {

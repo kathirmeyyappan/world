@@ -93,7 +93,7 @@ export class StandardAvatar implements Avatar {
   }
 
   update(p: RemotePlayer, step: number): void {
-    this.hitFlash.update();
+    this.hitFlash.update(p.frozen);
     const feetY = p.y - EYE_HEIGHT;
     const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);

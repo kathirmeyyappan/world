@@ -1,21 +1,22 @@
 // What an avatar carries: every weapon's shape under the hand node (one enabled at a time) with a
-// muzzle flash for its shots, the flamethrower's tank on the back, and its jet at the nozzle while the player is firing; and the
-// gear they wear (render/Gear.ts) on the back, with the tank behind it when they have both. Shared
-// by every avatar type so a new item is added here once.
+// muzzle flash for its shots, and for a hold weapon its tank on the back and its jet at the nozzle
+// while the player is firing (render/Jet.ts); and the gear they wear (render/Gear.ts) on the back,
+// with the tank behind it when they have both. Shared by every avatar type so a new item is added
+// here once.
 import { TransformNode, Vector3, type Mesh } from '@babylonjs/core';
 import { ITEMS, ITEM_IDS, type ItemId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { FlameJet } from '../FlameJet';
 import { WornGear } from '../Gear';
+import { coneAngle, createJet, type Jet } from '../Jet';
 import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, weaponPalette } from '../Weapons';
 
 export class HeldItems {
   private readonly weapons = new Map<ItemId, TransformNode>();
   private readonly flashes = new Map<ItemId, Mesh>();
+  private readonly tanks = new Map<ItemId, TransformNode>(); // the hold weapons', on the back
+  private readonly jets = new Map<ItemId, Jet>(); // and at their nozzles
   private flashLeft = 0;
-  private readonly tank: TransformNode;
-  private readonly jet: FlameJet;
   private readonly gear: WornGear;
   private readonly backOffset: Vector3;
   private held: ItemId | null = null;
@@ -33,7 +34,6 @@ export class HeldItems {
   ) {
     const scene = engine.scene;
     const pal = weaponPalette(scene, `${name}-weapon`);
-    let nozzle: TransformNode | null = null;
     for (const item of ITEM_IDS) {
       const node = new TransformNode(`${name}-${item}`, scene);
       node.parent = hand;
@@ -44,32 +44,26 @@ export class HeldItems {
         node.dispose();
         continue;
       }
-      if (item === 'flamethrower') {
-        nozzle = new TransformNode(`${name}-nozzle`, scene);
-        nozzle.parent = node;
-        nozzle.position.copyFrom(muzzle);
-      }
       node.setEnabled(false);
       this.weapons.set(item, node);
       this.flashes.set(item, buildFlash(engine, `${name}-${item}`, node, muzzle));
+      const spec = ITEMS[item];
+      if (!spec.element) continue;
+      const nozzle = new TransformNode(`${name}-${item}-nozzle`, scene);
+      nozzle.parent = node;
+      nozzle.position.copyFrom(muzzle);
+      this.jets.set(item, createJet(engine, `${name}-${item}`, nozzle, spec.element, spec.range, coneAngle(spec)));
+      const tank = buildTank(scene, `${name}-${item}`, back, pal, spec.element);
+      tank.position.copyFrom(backOffset);
+      tank.setEnabled(false);
+      this.tanks.set(item, tank);
     }
-    this.tank = buildTank(scene, name, back, pal);
-    this.tank.position.copyFrom(backOffset);
-    this.tank.setEnabled(false);
-    const flame = ITEMS.flamethrower.fire;
-    this.jet = new FlameJet(
-      engine,
-      name,
-      nozzle!,
-      ITEMS.flamethrower.range,
-      flame.kind === 'cone' ? flame.halfAngle : 0,
-    );
     this.gear = new WornGear(engine, name, back, backOffset);
     this.backOffset = backOffset.clone();
   }
 
   // Draws the tap weapons `factor` times their size: the player's own, seen from the boom, where true
-  // size reads as a toy. The flamethrower keeps its size, its jet drawn from the nozzle at the item's range.
+  // size reads as a toy. A hold weapon keeps its size, its jet drawn from the nozzle at the item's range.
   scaleWeapons(factor: number): void {
     for (const [item, node] of this.weapons) if (ITEMS[item].actions.shoot?.mode === 'tap') node.scaling.setAll(factor);
   }
@@ -79,15 +73,23 @@ export class HeldItems {
     const dt = Math.min(0.1, (now - this.lastNow) / 1000);
     this.lastNow = now;
     this.gear.update(gear, thrusting, dt);
-    this.tank.position.z = this.backOffset.z - this.gear.depth;
     if (item !== this.held) {
-      if (this.held) this.weapons.get(this.held)?.setEnabled(false);
-      if (item) this.weapons.get(item)?.setEnabled(true);
-      this.tank.setEnabled(item === 'flamethrower');
+      if (this.held) {
+        this.weapons.get(this.held)?.setEnabled(false);
+        this.tanks.get(this.held)?.setEnabled(false);
+      }
+      if (item) {
+        this.weapons.get(item)?.setEnabled(true);
+        this.tanks.get(item)?.setEnabled(true);
+      }
       this.held = item;
     }
-    this.jet.set(firing && item === 'flamethrower');
-    this.jet.update(dt);
+    const tank = item && this.tanks.get(item);
+    if (tank) tank.position.z = this.backOffset.z - this.gear.depth;
+    for (const [id, jet] of this.jets) {
+      jet.set(firing && item === id);
+      jet.update(dt);
+    }
     if (this.flashLeft > 0) {
       this.flashLeft -= dt;
       if (this.flashLeft <= 0) for (const flash of this.flashes.values()) flash.setEnabled(false);

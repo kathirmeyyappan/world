@@ -14,6 +14,7 @@ export type SoundId =
   | 'whiz-2'
   | 'whiz-3'
   | 'flame'
+  | 'ice'
   | 'jet'
   | 'step-1'
   | 'step-2'
@@ -50,7 +51,7 @@ interface SoundSpec {
 }
 
 // Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
-// Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, jetpack, then the body's own
+// Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, ice blower, jetpack, then the body's own
 // sounds (landings, footsteps, the jump swoosh). The jet recording is denser than the flame's, so it
 // needs the lower volume to come out quieter.
 const SOUNDS: Record<SoundId, SoundSpec> = {
@@ -60,6 +61,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'whiz-2': { file: 'whiz-2.mp3', half: 4, reach: 20, volume: 0.3 },
   'whiz-3': { file: 'whiz-3.mp3', half: 4, reach: 20, volume: 0.3 },
   flame: { file: 'flame.wav', intro: 'flame-start.wav', half: 4, reach: 25, volume: 0.12, loop: true },
+  ice: { file: 'ice.wav', half: 4, reach: 25, volume: 0.1, loop: true },
   jet: { file: 'jet.wav', half: 4, reach: 25, volume: 0.06, loop: true, swell: 0.8 },
   'step-1': { file: 'step-1.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-2': { file: 'step-2.mp3', half: 6, reach: 30, volume: 0.08 },
@@ -98,6 +100,7 @@ export const ITEM_SOUNDS: Record<
   gun: { shot: 'gun' },
   sniper: { shot: 'sniper', nearMiss: { within: 20, sounds: ['whiz-1', 'whiz-2', 'whiz-3'] } },
   flamethrower: { firing: 'flame' },
+  'ice-blower': { firing: 'ice' },
   firebreath: { firing: 'flame' },
 };
 
