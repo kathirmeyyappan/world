@@ -9,6 +9,9 @@ import { coneAngle, createJet, type Jet } from './Jet';
 type Scene = Engine['scene'];
 
 const REST = new Vector3(0.3, -0.24, 0.6);
+// How a weapon is held: rolled this far about its barrel, in the hand and in the viewmodel alike.
+// The gun goes on its side, gangsta style; the rest sit upright.
+export const HOLD_ROLL: Partial<Record<ItemId, number>> = { gun: Math.PI / 2 };
 const SCALE = 0.75; // the viewmodel's size, drawn under the camera
 export const FLASH_SECONDS = 0.06;
 const RECOIL_HALF_LIFE = 0.05;
@@ -158,6 +161,7 @@ export class Viewmodel {
     for (const id of ITEM_IDS) {
       const node = new TransformNode(`viewmodel-${id}`, scene);
       node.parent = this.root;
+      node.rotation.z = HOLD_ROLL[id] ?? 0;
       const muzzle = buildWeapon(scene, `viewmodel-${id}`, id, node, pal);
       if (!muzzle) {
         node.dispose();

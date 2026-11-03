@@ -9,7 +9,7 @@ import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { WornGear } from '../Gear';
 import { coneAngle, createJet, type Jet } from '../Jet';
-import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, weaponPalette } from '../Weapons';
+import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, HOLD_ROLL, weaponPalette } from '../Weapons';
 
 export class HeldItems {
   private readonly weapons = new Map<ItemId, TransformNode>();
@@ -23,7 +23,8 @@ export class HeldItems {
   private lastNow = performance.now();
 
   // `hand` points the barrel along its local -y when raised (see the avatars), so the shapes,
-  // built barrel-along-+z, are turned 90 degrees inside it.
+  // built barrel-along-+z, are turned 90 degrees inside it, and rolled about the barrel as each is
+  // held.
   constructor(
     engine: Engine,
     name: string,
@@ -38,7 +39,7 @@ export class HeldItems {
       const node = new TransformNode(`${name}-${item}`, scene);
       node.parent = hand;
       node.position.copyFrom(handOffset);
-      node.rotation.x = Math.PI / 2;
+      node.rotation.set(Math.PI / 2, 0, HOLD_ROLL[item] ?? 0);
       const muzzle = buildWeapon(scene, `${name}-${item}`, item, node, pal);
       if (!muzzle) {
         node.dispose();
