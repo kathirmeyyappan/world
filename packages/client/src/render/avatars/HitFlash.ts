@@ -65,10 +65,10 @@ export class HitFlash {
   }
 }
 
-// The crust, laid over a pixel once the material has shaded it: `frost` (0 to 1) of the way to the
-// colour dimmed and blued, white where a crystal is. The crystals are cells of two sizes, each
-// chosen by a hash of where the pixel is in the world, which stays put as long as a frozen body
-// does; so no texture, no UVs, and nothing but one comparison while thawed.
+// The frost, laid over a pixel once the material has shaded it: `frost` (0 to 1) of the way to the
+// colour paled a little, and to ice where a patch of it is. The patches are cells of two sizes,
+// each chosen by a hash of where the pixel is in the world, which stays put as long as a frozen
+// body does; so no texture, no UVs, and nothing but one comparison while thawed.
 class FrostPlugin extends MaterialPluginBase {
   frost = 0;
 
@@ -101,13 +101,13 @@ class FrostPlugin extends MaterialPluginBase {
       CUSTOM_FRAGMENT_MAIN_END: `
         #ifdef FROST
         if (frost > 0.0) {
-          vec3 small = floor(vPositionW * 24.0);
-          vec3 big = floor(vPositionW * 7.0);
-          float a = fract(sin(dot(small, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-          float b = fract(sin(dot(big, vec3(39.3468, 11.135, 83.155))) * 24634.6345);
-          float crystal = max(step(0.68, a), 0.85 * step(0.8, b));
-          vec3 iced = gl_FragColor.rgb * vec3(0.5, 0.68, 0.92);
-          gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(iced, vec3(0.93, 0.97, 1.0), crystal), frost);
+          vec3 big = floor(vPositionW * 4.0);
+          vec3 small = floor(vPositionW * 10.0);
+          float a = fract(sin(dot(big, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+          float b = fract(sin(dot(small, vec3(39.3468, 11.135, 83.155))) * 24634.6345);
+          float ice = max(step(0.86, a), step(0.96, b));
+          vec3 paled = mix(gl_FragColor.rgb, vec3(0.92, 0.96, 1.0), 0.3);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(paled, vec3(0.9, 0.96, 1.0), ice), frost);
         }
         #endif
       `,

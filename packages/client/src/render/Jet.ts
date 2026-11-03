@@ -1,8 +1,8 @@
 // What a hold weapon sprays from its nozzle, by its element (ItemSpec.element): the flamethrower's
 // blocks of fire (FlameJet.ts), or the ice blower's crystals, the "+"s of a corpse's poof (Poof.ts)
-// flying out white and fading to blue. Cosmetic only; the server decides who burns or freezes. One
-// per nozzle (viewmodel or avatar), running along its parent's +z.
-import { Color4, Mesh, ParticleSystem, Vector3, type TransformNode } from '@babylonjs/core';
+// flying out white and fading to blue in a glowing mist. Cosmetic only; the server decides who
+// burns or freezes. One per nozzle (viewmodel or avatar), running along its parent's +z.
+import { Color4, DynamicTexture, Mesh, ParticleSystem, Texture, Vector3, type TransformNode } from '@babylonjs/core';
 import type { Element, ItemSpec } from '@world/shared';
 import type { Engine } from './Engine';
 import { FlameJet } from './FlameJet';
@@ -37,58 +37,91 @@ const FLIGHT_SECONDS = 0.35;
 const BASE_LENGTH = 10;
 const START_SIZE = 0.16; // metres across as a crystal leaves the nozzle
 const GROWTH = 0.6; // metres it grows on the way out of a jet of BASE_LENGTH
+const MIST_START = 0.1; // the same for the puffs of mist round the crystals: small at the nozzle, which is right under the rider's eyes
+const MIST_GROWTH = 1.2;
+const MIST_PIXELS = 32; // across a puff's sprite, a soft disc
 
-// The crystals are one particle system, drawn in one call, kept in the nozzle's own space so the
-// whole spray swings with the hand like the flame does. Off, it stops emitting and the last ones
-// fly out.
+// The crystals and the mist are a particle system each, drawn in a call each, kept in the nozzle's
+// own space so the whole spray swings with the hand like the flame does. Both add their light to
+// what's behind them, so the spray glows. Off, they stop emitting and the last ones fly out.
 class IceJet implements Jet {
-  private readonly system: ParticleSystem;
+  private readonly systems: ParticleSystem[];
   private on = false;
 
   constructor(engine: Engine, name: string, parent: TransformNode, length: number, halfAngle: number) {
     const scene = engine.scene;
     const stretch = Math.max(1, length / BASE_LENGTH);
-    // The system follows a mesh: an empty one at the nozzle, whose disposal takes the system with it.
+    // The systems follow a mesh: an empty one at the nozzle, whose disposal takes them with it.
     const emitter = new Mesh(`${name}-ice`, scene);
     emitter.parent = parent;
     emitter.isPickable = false;
     const count = Math.ceil(COUNT * stretch);
-    const ps = new ParticleSystem(`${name}-ice`, count + 4, scene);
-    plusSprites(engine, ps, 2); // white and light grey, under the tint
-    ps.emitter = emitter;
-    ps.isLocal = true;
-    ps.blendMode = ParticleSystem.BLENDMODE_STANDARD;
-    ps.applyFog = false;
-    ps.updateSpeed = 1 / 60; // so lifetimes are seconds and powers metres per second
     const spread = Math.tan(halfAngle);
-    ps.createBoxEmitter(
-      new Vector3(-spread, -spread, 1),
-      new Vector3(spread, spread, 1),
-      Vector3.Zero(),
-      Vector3.Zero(),
-    );
-    ps.minEmitPower = ps.maxEmitPower = length / FLIGHT_SECONDS;
-    ps.minLifeTime = ps.maxLifeTime = FLIGHT_SECONDS;
-    ps.emitRate = count / FLIGHT_SECONDS;
-    ps.addSizeGradient(0, START_SIZE);
-    ps.addSizeGradient(1, START_SIZE + GROWTH * stretch);
-    // white at the nozzle, pale blue in the middle, blue and fading at the end
-    ps.addColorGradient(0, new Color4(1, 1, 1, 1));
-    ps.addColorGradient(0.5, new Color4(0.78, 0.92, 1, 0.9));
-    ps.addColorGradient(1, new Color4(0.45, 0.72, 1, 0));
-    this.system = ps;
+    const system = (kind: string) => {
+      const ps = new ParticleSystem(`${name}-ice-${kind}`, count + 4, scene);
+      ps.emitter = emitter;
+      ps.isLocal = true;
+      ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+      ps.applyFog = false;
+      ps.updateSpeed = 1 / 60; // so lifetimes are seconds and powers metres per second
+      ps.createBoxEmitter(
+        new Vector3(-spread, -spread, 1),
+        new Vector3(spread, spread, 1),
+        Vector3.Zero(),
+        Vector3.Zero(),
+      );
+      ps.minEmitPower = ps.maxEmitPower = length / FLIGHT_SECONDS;
+      ps.minLifeTime = ps.maxLifeTime = FLIGHT_SECONDS;
+      ps.emitRate = count / FLIGHT_SECONDS;
+      return ps;
+    };
+    const crystals = system('crystals');
+    plusSprites(engine, crystals, 2); // white and light grey, under the tint
+    crystals.addSizeGradient(0, START_SIZE);
+    crystals.addSizeGradient(1, START_SIZE + GROWTH * stretch);
+    // white at the nozzle, sky blue in the middle, blue and fading at the end
+    crystals.addColorGradient(0, new Color4(1, 1, 1, 1));
+    crystals.addColorGradient(0.4, new Color4(0.6, 0.85, 1, 0.9));
+    crystals.addColorGradient(1, new Color4(0.3, 0.6, 1, 0));
+    const mist = system('mist');
+    mist.particleTexture = mistSprite(engine);
+    mist.addSizeGradient(0, MIST_START);
+    mist.addSizeGradient(1, MIST_START + MIST_GROWTH * stretch);
+    mist.addColorGradient(0, new Color4(0.85, 0.95, 1, 0.35));
+    mist.addColorGradient(0.6, new Color4(0.55, 0.8, 1, 0.3));
+    mist.addColorGradient(1, new Color4(0.3, 0.6, 1, 0));
+    this.systems = [crystals, mist];
   }
 
   set(on: boolean): void {
     if (on === this.on) return;
     this.on = on;
-    if (on) this.system.start();
-    else this.system.stop();
+    for (const ps of this.systems) {
+      if (on) ps.start();
+      else ps.stop();
+    }
   }
 
-  update(): void {} // the scene animates it
+  update(): void {} // the scene animates them
 
   dispose(): void {
-    this.system.dispose();
+    for (const ps of this.systems) ps.dispose();
   }
+}
+
+// A puff's sprite: a disc fading out to its edge, the system's own (disposed with it).
+function mistSprite(engine: Engine): DynamicTexture {
+  const tex = new DynamicTexture('iceMist', MIST_PIXELS, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
+  tex.hasAlpha = true;
+  const ctx = tex.getContext() as CanvasRenderingContext2D;
+  const mid = MIST_PIXELS / 2;
+  const fade = ctx.createRadialGradient(mid, mid, 0, mid, mid, mid);
+  fade.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  fade.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
+  fade.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.clearRect(0, 0, MIST_PIXELS, MIST_PIXELS);
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, MIST_PIXELS, MIST_PIXELS);
+  tex.update();
+  return tex;
 }
