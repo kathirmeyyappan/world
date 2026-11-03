@@ -74,14 +74,15 @@ wire: server and client both build the world from that file.
   pieces; `content/structures.ts` just spreads the landmarks together. Tung Tung Tower and Buildings
   1 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
   floors (each one's doors and where its flight starts), stacked from the ground and turned to face
-  the way in. The tower stacks all four and each building stands one of them alone, so a floor is
-  the same room in both; change a floor there and both follow. The terrace (`content/terrace.ts`)
+  the way in. The tower stacks all four and each building stands one of them alone (Buildings 1 and
+  2 the ground floor and the first, murals and all; 3 and 4 the same two bare, for the time being),
+  so a floor is the same room in both; change a floor there and both follow. The terrace (`content/terrace.ts`)
   is reached from all of them: the tower's sky bridge, and a staircase from each building's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
   (r 30 at x 112) and the bridge between them, the four buildings' grounds and paths (the annex
-  and that bridge turned round the main disc to 90°, 150°, 210° and 270°), and an arc through all
+  and that bridge turned round the main disc to 150°, 210°, 90° and 270°, Building 1 first), and an arc through all
   four grounds, twice a path's width. A part is a disc, a straight `bridge` or a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump

@@ -7,8 +7,9 @@ export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung T
 export const FLOOR_BRIDGE: Bridge = { kind: 'bridge', ax: 40, az: 0, bx: 92, bz: 0, halfWidth: 4 };
 
 // Buildings 1 to 4's grounds and paths: the annex and the floor bridge turned round the main disc's
-// middle to these bearings (degrees from +x toward +z), round its far side from the tower.
-const BUILDING_BEARINGS = [90, 150, 210, 270];
+// middle to these bearings (degrees from +x toward +z), round its far side from the tower. Building
+// 1 first: the two across the disc from the tower, then the one at 90° and the one at 270°.
+const BUILDING_BEARINGS = [150, 210, 90, 270];
 const turned = (deg: number, x: number, z: number) => {
   const a = (deg * Math.PI) / 180;
   return { x: x * Math.cos(a) - z * Math.sin(a), z: x * Math.sin(a) + z * Math.cos(a) };
