@@ -519,7 +519,7 @@ test('ice blower: a touch freezes for 3 s from the last one; the frozen act on n
   room.receive(ida, { t: 'chat', text: '/ib' });
   assert.deepEqual(alice.item, { id: 'ice-blower', locked: false, fuel: 7.5 });
   hold(room, ida, 30);
-  assert.equal(bob.hearts, MAX_HEARTS - 3, "frozen from the first touch, each burns like the flamethrower's");
+  assert.equal(bob.hearts, MAX_HEARTS - 1.5, 'frozen from the first touch, each burns a quarter heart');
   assert.ok(bob.frozen > FREEZE_SECONDS - 10 * TICK_DT, 'the freeze restarts at every touch');
 
   press(room, idb);

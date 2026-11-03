@@ -89,12 +89,12 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     own: false,
     blurb: 'equip a flamethrower',
   },
-  // The flamethrower's twin, spraying ice: a touch freezes for FREEZE_SECONDS (constants.ts), and a
-  // frozen player takes double damage, so its own burn is half the flame's.
+  // The flamethrower's twin, spraying ice: a touch freezes for FREEZE_SECONDS (constants.ts) and
+  // burns double on the frozen, so each tick takes a quarter heart, half the flame's.
   'ice-blower': {
     id: 'ice-blower',
     range: 20,
-    damage: 0.25,
+    damage: 0.125,
     cooldownTicks: 5,
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
