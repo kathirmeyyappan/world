@@ -45,7 +45,6 @@ class Player:
     last_seq: int
     reading: str | None
     boost: float
-    frozen: float
     chilled: float
     item: Item | None
     gear: Gear | None
@@ -164,7 +163,6 @@ def player(data: Mapping[str, Any]) -> Player:
         last_seq=data["lastSeq"],
         reading=data["reading"],
         boost=data["boost"],
-        frozen=data["frozen"],
         chilled=data["chilled"],
         item=None if item_data is None else _pick(Item, item_data),
         gear=None if gear_data is None else _pick(Gear, gear_data),

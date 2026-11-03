@@ -584,8 +584,8 @@ body {
   transition: opacity 0.35s ease-out;
 }
 
-/* Frozen solid: the view frosted over, white-blue from the edges in with the glass fogged thickest in
-   the corners and a fine grain of crystals, clear in the middle; thinned to a rim while chilled after. */
+/* Chilled: the view frosted over, white-blue from the edges in with the glass fogged thickest in the
+   corners and a fine grain of crystals, clear in the middle. */
 #frost {
   position: fixed;
   inset: 0;
@@ -611,15 +611,12 @@ body {
   mask-image: radial-gradient(ellipse at center, transparent 18%, #000 64%);
   -webkit-mask-image: radial-gradient(ellipse at center, transparent 18%, #000 64%);
 }
-#frost.frozen {
+#frost.chilled {
   opacity: 1;
   transition: opacity 0.15s;
 }
-#frost.chilled {
-  opacity: 0.4;
-}
 
-/* "FROZEN 2.4s" under the hearts, then "CHILLED 4.1s" dimmer. */
+/* "CHILLED 4.1s" under the hearts. */
 #condition {
   position: fixed;
   top: 86px;
@@ -636,11 +633,6 @@ body {
   border: 2px solid rgba(159, 212, 255, 0.85);
   box-shadow: 3px 3px 0 #000;
 }
-#condition.chilled {
-  color: rgba(232, 246, 255, 0.7);
-  border-color: rgba(159, 212, 255, 0.45);
-}
-
 /* "hit bob -2" under the crosshair. */
 #hit-notice {
   position: fixed;

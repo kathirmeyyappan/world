@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  CHILL_SECONDS,
   CUBE_IDS,
   EYE_HEIGHT,
-  FREEZE_SECONDS,
-  FROZEN_DAMAGE_MULTIPLIER,
   HEADSHOT_MULTIPLIER,
   ITEMS,
   MAX_HEARTS,
@@ -506,31 +505,28 @@ test('flamethrower: hold to spray a 20 m cone, 0.5 hearts every 5 ticks, on a 7.
   assert.ok(Math.abs(alice.item!.fuel! - 7.5) < 1e-6, 'full at 25 s, no further');
 });
 
-test('ice blower: the touch that freezes costs a heart, later ones only keep the freeze; the frozen act on nothing and take double damage', () => {
+test('ice blower: every touch costs a quarter heart and chills from the last one; the chilled still act', () => {
   const room = new Room('ice', { seed: 9 });
   const a = link();
   const ida = room.join('alice', a)!;
   const idb = room.join('GUNbob', link())!;
-  const idc = room.join('GUNcarol', link())!;
-  const [alice, bob, carol] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
+  const [alice, bob] = [ida, idb].map((id) => room.players.find((p) => p.id === id)!);
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 6 };
-  carol.pos = { x: bob.pos.x, y: bob.pos.y, z: alice.pos.z + 22 }; // past the ice's reach, to shoot bob facing back
 
   room.receive(ida, { t: 'chat', text: '/ib' });
   assert.deepEqual(alice.item, { id: 'ice-blower', locked: false, fuel: 7.5 });
   hold(room, ida, 30);
-  assert.equal(bob.hearts, MAX_HEARTS - ITEMS['ice-blower'].damage, 'the first touch costs a heart, the rest nothing');
-  assert.ok(bob.frozen > FREEZE_SECONDS - 10 * TICK_DT, 'the freeze restarts at every touch');
+  const { damage } = ITEMS['ice-blower'];
+  const touches = a.inbox.filter((m) => m.t === 'hit' && m.victim === idb && m.damage === damage).length;
+  assert.ok(touches >= 5, 'a touch every cooldown');
+  assert.equal(bob.hearts, MAX_HEARTS - touches * damage, 'a quarter heart each, nothing more');
+  assert.ok(bob.chilled > CHILL_SECONDS - 10 * TICK_DT, 'the chill restarts at every touch');
 
   press(room, idb);
-  assert.ok(!a.inbox.some((m) => m.t === 'shot' && m.id === idb), 'frozen: the trigger does nothing');
-  press(room, idc, 0, false, Math.PI);
-  const damage = ITEMS.gun.damage * HEADSHOT_MULTIPLIER * FROZEN_DAMAGE_MULTIPLIER;
   assert.ok(
-    a.inbox.some((m) => m.t === 'hit' && m.victim === idb && m.headshot && m.damage === damage),
-    '2 x 2.5 x 2',
+    a.inbox.some((m) => m.t === 'shot' && m.id === idb),
+    'chilled: the trigger still works',
   );
-  assert.ok(bob.dead, 'a frozen headshot by a gun is a kill');
 });
 
 test('a tap weapon fires once per press however long the key is held', () => {

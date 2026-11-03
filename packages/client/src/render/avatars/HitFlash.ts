@@ -1,7 +1,7 @@
 // Tints an avatar's materials: red for a moment when it takes a hit, and frosted over for as long as
-// it is frozen (an ice hit, sim/constants.ts), dimmed and blued under a crust of ice crystals.
+// it is chilled (an ice hit, sim/constants.ts), dimmed and blued under a crust of ice crystals.
 // Time-based rather than frame-based so it looks the same at any frame rate; the avatar calls
-// update() from its own per-frame update with whether its player is frozen. A material that glows
+// update() from its own per-frame update with whether its player is chilled. A material that glows
 // through a texture glows plain red for the moment.
 import {
   Color3,
@@ -26,7 +26,7 @@ export class HitFlash {
   }[];
   private until = 0;
   private lit = false;
-  private frozen = false;
+  private chilled = false;
 
   // Takes the materials before anything is drawn with them: the frost is shader code of theirs.
   constructor(materials: StandardMaterial[]) {
@@ -50,10 +50,10 @@ export class HitFlash {
     }
   }
 
-  update(frozen = false): void {
-    if (frozen !== this.frozen) {
-      this.frozen = frozen;
-      for (const { frost } of this.originals) frost.frost = frozen ? 1 : 0;
+  update(chilled = false): void {
+    if (chilled !== this.chilled) {
+      this.chilled = chilled;
+      for (const { frost } of this.originals) frost.frost = chilled ? 1 : 0;
     }
     if (!this.lit || performance.now() < this.until) return;
     this.lit = false;
@@ -67,7 +67,7 @@ export class HitFlash {
 
 // The frost, laid over a pixel once the material has shaded it: `frost` (0 to 1) of the way to the
 // colour paled a little, and to ice where a patch of it is. The patches are cells of two sizes,
-// each chosen by a hash of where the pixel is in the world, which stays put as long as a frozen
+// each chosen by a hash of where the pixel is in the world, which stays put as long as a chilled
 // body does; so no texture, no UVs, and nothing but one comparison while thawed.
 class FrostPlugin extends MaterialPluginBase {
   frost = 0;
