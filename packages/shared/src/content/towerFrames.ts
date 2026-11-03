@@ -1,6 +1,6 @@
 // Murals hung round the inside of Tung Tung Tower's floors (sim/wallFrames.ts), each floor's again
-// in a furnished building that is that floor on its own (content/buildings.ts), where they hang just
-// the same. Each is an angle in degrees round from the main entrance (to your right as you stand in the
+// in every building that is that floor on its own (content/buildings.ts), where they hang just the
+// same. Each is an angle in degrees round from the main entrance (to your right as you stand in the
 // middle facing it), a height in metres, and what it shows; the width follows from the picture, and
 // every one is centred halfway up its storey (10 m up). The layout throws if one doesn't fit, comes
 // down over a doorway (3 m tall, the main one 6 m on the ground and top floors), or crosses the stair.
@@ -10,7 +10,7 @@
 // under the top of the flight past 270°, where its steps run well over them. Each floor's flight
 // starts half a turn on from the one below's.
 import type { WallFrame } from '../sim/wallFrames';
-import { BUILDING_PLAN, BUILDING_ROOMS } from './buildings';
+import { BUILDING_FLOORS, BUILDING_ROOMS } from './buildings';
 import { TUNG_TUNG_TOWER_ROOMS } from './tower';
 
 type Mural = Omit<WallFrame, 'room'>;
@@ -97,8 +97,7 @@ const FLOORS: Mural[][] = [
 ];
 
 export const WALL_FRAMES: WallFrame[] = FLOORS.flatMap((murals, s) =>
-  [
-    TUNG_TUNG_TOWER_ROOMS[s],
-    ...BUILDING_ROOMS.filter((_, b) => BUILDING_PLAN[b].floor === s && BUILDING_PLAN[b].murals),
-  ].flatMap((room) => murals.map((m) => ({ ...m, room }))),
+  [TUNG_TUNG_TOWER_ROOMS[s], ...BUILDING_ROOMS.filter((_, b) => BUILDING_FLOORS[b] === s)].flatMap((room) =>
+    murals.map((m) => ({ ...m, room })),
+  ),
 );

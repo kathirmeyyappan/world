@@ -376,8 +376,8 @@ wire: server and client both build the world from that file.
   1 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
   floors (each one's doors and where its flight starts), stacked from the ground and turned to face
   the way in. The tower stacks all four and each building stands one of them alone (Buildings 1 and
-  2 the ground floor and the first, murals and all; 3 and 4 the same two bare, for the time being),
-  so a floor is the same room in both; change a floor there and both follow. The terrace (`content/terrace.ts`)
+  3 the ground floor, 2 and 4 the first), so a floor is the same room in both, stair and murals
+  alike; change a floor there and both follow. The terrace (`content/terrace.ts`)
   is reached from all of them: the tower's sky bridge, and a staircase from each building's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
