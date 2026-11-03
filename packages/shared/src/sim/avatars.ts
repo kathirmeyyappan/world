@@ -156,7 +156,6 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
     nameTag: null,
     blurb: 'become the light dragon',
     command: 'light-dragon',
-    hidden: true,
     eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
     hitbox: { top: 3.7, radius: 2, head: 3.7 }, // the head's 2 m sphere, all of it head; shots test the body too
   },
