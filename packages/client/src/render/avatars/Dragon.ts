@@ -276,17 +276,19 @@ interface Frame {
 
 // The head's frame for a look, lifted `lift` radians for a roar. Pointing straight up or down
 // (climbing out of the ground), the head has no lean to take its up from: its back faces away from
-// the look, as it does just short of vertical.
+// the look, as it does just short of vertical. The lift turns the frame as one about its right
+// axis, so the back stays put through a roar: a vertical head's, taken from the lifted forward,
+// would come round to the other side.
 function headFrame(look: Vec3, yaw: number, lift: number): Frame {
-  let forward = new Vector3(look.x, look.y, look.z);
-  let up = Vector3.Up().subtract(forward.scale(forward.y));
+  const forward = new Vector3(look.x, look.y, look.z);
+  const up = Vector3.Up().subtract(forward.scale(forward.y));
   if (up.lengthSquared() < 1e-6) up.set(-Math.sin(yaw), 0, -Math.cos(yaw));
   up.normalize();
-  if (lift > 0) {
-    forward = forward.scale(Math.cos(lift)).addInPlace(up.scale(Math.sin(lift)));
-    up = Vector3.Up().subtract(forward.scale(forward.y)).normalize();
-  }
-  return { up, forward };
+  if (lift <= 0) return { up, forward };
+  return {
+    forward: forward.scale(Math.cos(lift)).addInPlace(up.scale(Math.sin(lift))),
+    up: up.scale(Math.cos(lift)).subtractInPlace(forward.scale(Math.sin(lift))),
+  };
 }
 
 // Where each spine bone goes and which way it points, nearest the head first: along the spine
