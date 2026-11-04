@@ -378,11 +378,11 @@ wire: server and client both build the world from that file.
   the way in. The tower stacks all four and a building stands one of them alone (Building 2 the
   ground floor, Building 3 the first), so a floor is the same room in both, stair and murals alike;
   change a floor there and both follow. Building 4 stands a bare keep until it gets a structure of
-  its own. Building 1 is SpongeBob's house (`content/pineapple.ts`), a model the client draws (see
-  Models below) on a dune of sand, collided with through hidden pieces stood inside its skin. Inside
-  it is a round room like a keep's, behind a door you click: the sand its ground floor, which hangs
-  the tower's ground-floor murals (`PINEAPPLE_ROOM`), a keep's stair up the wall, and a wooden first
-  floor under a net ceiling. The terrace (`content/terrace.ts`) is reached from the keeps:
+  its own. Building 1 is SpongeBob's house (`content/pineapple.ts`), two models the client draws (see
+  Models below) on a dune of sand: the pineapple outside and, behind a door you click, the rooms of
+  the game inside (living room, closet, kitchen, bathroom, the bedroom upstairs, the library on top),
+  joined by a spiral stair and a flight of the sim's; the sim collides with boxes cut from every
+  surface of the rooms and hidden rings for the shell. The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
@@ -418,24 +418,28 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 5,988 pieces (5,020
-  drawn) render as 75 meshes (about 15 in view at once), and a world-spanning raycast costs about
-  60 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
+  so draw calls stay in the tens however many pieces there are. The world's 8,616 pieces (4,972
+  drawn; the house's rooms are 2,651 hidden boxes) render as 76 meshes (about 15 in view at once), and a
+  world-spanning raycast costs about 170 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
   through `render/Loader.ts` (see Models below).
 
 ### Models and doors
 
 A landmark too shapely for boxes is a model: a mesh the client draws from files in
 `packages/client/public/assets/models/` and textures in `public/assets/textures/models/`, written by
-a script in `packages/client/scripts/` (`house-model.py` makes the pineapple from a Sketchfab GLB:
-turned afresh as a smooth lathe through the model's rings, flattened into an upright face round the
-door, an upright bamboo-walled room inside under a net ceiling, its doorway cut straight through the
-wall and cased in steel, its door a flat slab on a pin at its edge, a part of its own) along with a
-profile of its shape for the sim (`content/pineappleProfile.ts`). The sim never sees a mesh: the
-content stands `hidden` structures inside it (`content/pineapple.ts`: rings of wall between the room
-and the shell, the jambs and lintel of its flat face, slabs above the ceiling) and the renderer skips
-them, so what you bump into is the content's to keep true to the model. `render/models/Models.ts` fetches each part and hangs it where the content's
-placement says.
+a script in `packages/client/scripts/` (`house-model.py` makes the pineapple from two Sketchfab
+GLBs: the outside turned afresh as a smooth lathe through one model's rings, flattened into an
+upright face round the door, with a steel vestibule behind the doorway and its door a flat slab on a
+pin at its edge; and inside, the other model's rooms at half scale, in their own textures packed
+into one atlas, with the hall round the bedroom, the stairwell and the landing built to join them,
+`house_interior.py`) along with a profile of its shape for the sim (`content/pineappleProfile.ts`:
+the shell's rings, the levels, the stairs and every door) and the boxes the rooms are cut into on a
+quarter-metre grid (`content/pineappleInterior.ts`, floors, walls and furniture alike). The sim never
+sees a mesh: the content stands those as `hidden` structures (`content/pineapple.ts`, with rings for
+the solid shell round the rooms) and the renderer skips them, so what you bump into is the
+generator's to keep true to the models. `render/models/Models.ts` fetches each part listed in
+`render/models/pineappleParts.ts` (generated too) and hangs it where the content's placement says,
+a door's on a node at its pin.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
 somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
