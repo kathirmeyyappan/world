@@ -677,7 +677,10 @@ export class Game {
       held ? itemStats(held.id) : '',
     );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
-    this.fuel.set(held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null);
+    this.fuel.set(
+      held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null,
+      held ? ITEMS[held.id].element : null,
+    );
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.commandHint.update(

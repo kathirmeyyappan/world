@@ -747,6 +747,12 @@ body {
   background: linear-gradient(90deg, #ff5a1f, #ffb347);
   transform-origin: left;
 }
+#fuel.ice {
+  border-color: rgba(159, 212, 255, 0.7);
+}
+#fuel.ice .fill {
+  background: linear-gradient(90deg, #7cc4ff, #e6f6ff);
+}
 #fuel.empty {
   border-color: rgba(255, 255, 255, 0.3);
 }
