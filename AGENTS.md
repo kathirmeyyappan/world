@@ -380,8 +380,9 @@ wire: server and client both build the world from that file.
   change a floor there and both follow. Building 4 stands a bare keep until it gets a structure of
   its own. Building 1 is SpongeBob's house (`content/pineapple.ts`), two models the client draws (see
   Models below) on a dune of sand: the pineapple outside and, behind a door you click, the rooms of
-  the game inside (living room, closet, kitchen, bathroom, the bedroom upstairs, the library on top),
-  joined by a stair of the sim's round the back of the house (out of the kitchen's back door, clear
+  the game inside (living room, closet, kitchen, bathroom, the bedroom upstairs, the library on top;
+  the living room's side door, painted shut in the model, is dug through to the dune), joined by a
+  stair of the sim's round the back of the house (out of the kitchen's back door, clear
   of the shell with rails both sides, up to a balcony at the hall's door) and a flight from the hall
   up through the library's floor; the sim collides with boxes cut from every surface of the rooms,
   hidden rings for the shell, walls along the flat faces carved round its doors, and the path's
@@ -421,8 +422,8 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 10,685 pieces (5,007
-  drawn; the house's rooms are 2,646 hidden boxes and its shell 2,670 hidden ring pieces) render as
+  so draw calls stay in the tens however many pieces there are. The world's 10,849 pieces (5,007
+  drawn; the house's rooms are 2,719 hidden boxes and its shell 2,706 hidden ring pieces) render as
   75 meshes (about 15 in view at once), and a world-spanning raycast costs about 120 µs. The sim's
   grid has height bands as well as cells, so a walker's tick pays only for the pieces at its own
   height (about 70 µs inside the house). Check both numbers in the PR when a landmark adds a lot.

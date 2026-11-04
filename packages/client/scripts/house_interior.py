@@ -15,8 +15,10 @@ library's old door is walled up, so nothing outside its wall can be reached or s
 What changes in the model: the painted front door and its wheel go (our door swings at the face,
 and the model's frame stands at the back of the vestibule behind it), the door panels become doors
 of the sim's, each hung on a pin at the edge the model's rig turns it on (the library's goes for
-good), the kitchen's back wall and the library's floor get their openings, the library's wall loses
-its outside, and everything stands FLOOR_LIFT above the dune so its floor doesn't fight the sand.
+good, and the living room's side panel for a door of this house's own in its frame, SIDE_AT), the
+kitchen's back wall, the wall round that frame and the library's floor get their openings, the
+library's wall loses its outside, and everything stands FLOOR_LIFT above the dune so its floor
+doesn't fight the sand.
 
 Everything here is in the model's frame, which is glTF's, right-handed; what's written out for
 the game is mirrored in x (house_mesh.MIRROR), so a bearing measured on the model (in Blender or
@@ -55,6 +57,17 @@ FLIGHT = ((-8.0, 7.0), (2.8, 7.0), 2.4)
 FRONT_DOORWAY = (2.6, 3.3)
 DOORWAY = (2.4, 3.2)
 CLEARANCE = 0.02  # metres a door stands in from its doorway's edge all round
+# The living room's side door: the model's panel stands painted shut in a frame on the outer wall,
+# SIDE_AT on the floor. The panel goes, and this house hangs a door of its own in the frame, sized
+# to fill the frame's arched opening with its edges just behind the jambs, and digs a passage out
+# behind it along the radial through it (house-model.py), from the frame's back (its jambs and
+# lintel run deep enough to seal the mouth) through the shell onto the dune. The door swings out
+# into the passage as far as its arch, which comes down at the sides, lets the door's crown.
+SIDE_AT = (10.5, 2.3)
+SIDE_BEARING = float(np.arctan2(*SIDE_AT))
+SIDE_OPENING = (1.82, 2.67)
+SIDE_DOORWAY = (2.0, 3.0)
+SIDE_SWING = np.radians(75.0)
 BACK_BEARING = np.radians(183.0)  # bearing (from +z toward +x) of the kitchen's back door, where its outer wall is bare
 HALL_BEARING = np.radians(250.0)  # bearing of the hall's door, at the head of the stair
 # The stair round the back, from the back door up to the platform at the hall's door, standing
@@ -133,6 +146,7 @@ class Interior:
         default_factory=dict
     )  # at each of its rings' heights, how far out it stands at its roundest
     sealed: list[Door] = field(default_factory=list)  # the doors walled up, for where their openings are
+    side_depth: float = 0.0  # how far out the side door's panel stood at its back: where this house's door hangs
 
 
 def load(path: str) -> Interior:
@@ -271,7 +285,13 @@ def take_apart(interior: Interior) -> None:
         lo, hi = bounds(interior, ks)
         centre = ((lo + hi) / 2)[[0, 2]]
         panel = hi[1] - lo[1] >= 2.5 and min(hi[0] - lo[0], hi[2] - lo[2]) <= 0.6
-        if panel and min(np.hypot(*(np.array(d[1]) - centre)) for d in DOORS) < 1.5:
+        if not panel:
+            continue
+        if np.hypot(*(np.array(SIDE_AT) - centre)) < 1.5:
+            along = np.array([np.sin(SIDE_BEARING), 0.0, np.cos(SIDE_BEARING)])
+            interior.side_depth = max(float(p @ along) for k in ks for p, _ in interior.tris[k][0])
+            drop.update(ks)
+        elif min(np.hypot(*(np.array(d[1]) - centre)) for d in DOORS) < 1.5:
             door = make_door(interior, ks)
             (interior.sealed if door.id in SEALED else interior.doors).append(door)
             drop.update(ks)
@@ -308,22 +328,31 @@ def clone_door(stock: Door, bearing: float, reach: float, height: float) -> list
     return turned_by([[(p * scale, q) for p, q in tri] for tri in stock.mesh], np.pi / 2 - bearing)
 
 
-def new_door(interior: Interior, id_: str, bearing: float, depth: float, y: float, out: bool) -> Door:
-    """A door of this house's own in a DOORWAY-sized opening through a wall standing `depth` out
-    from the axis at a bearing (from +z toward +x): the closet's panel fitted to it, swinging a
-    quarter turn out (`out`) or in, and hung on the face it swings toward, as a real door is, so
-    swung square it stands clear of its jamb: out, at the opening's +x edge on the wall's outer
-    face, running across to -x; in, at the -x edge on the inner face, running to +x. Either way the
-    panel (to the left of its run, make_door) fills the opening just inside the wall's surface."""
+def new_door(
+    interior: Interior,
+    id_: str,
+    bearing: float,
+    depth: float,
+    y: float,
+    out: bool,
+    opening: tuple[float, float] = DOORWAY,
+    turn: float = np.pi / 2,
+) -> Door:
+    """A door of this house's own in an `opening` (width, height) through a wall standing `depth`
+    out from the axis at a bearing (from +z toward +x): the closet's panel fitted to it, swinging
+    `turn` out (`out`) or in, and hung on the face it swings toward, as a real door is, so swung
+    square it stands clear of its jamb: out, at the opening's +x edge on the wall's outer face,
+    running across to -x; in, at the -x edge on the inner face, running to +x. Either way the panel
+    (to the left of its run, make_door) fills the opening just inside the wall's surface."""
     stock = next(d for d in interior.doors if d.id == "closet")
-    reach, height = DOORWAY[0] - 2 * CLEARANCE, DOORWAY[1] - CLEARANCE
-    edge = DOORWAY[0] / 2 - CLEARANCE
+    reach, height = opening[0] - 2 * CLEARANCE, opening[1] - CLEARANCE
+    edge = opening[0] / 2 - CLEARANCE
     local = np.array([edge, 0.0, depth]) if out else np.array([-edge, 0.0, depth - stock.thickness])
     pin, along = (
         turned_by([[(p, np.zeros(2))]], bearing)[0][0][0] for p in (local, np.array([-1.0 if out else 1.0, 0.0, 0.0]))
     )
     run = float(np.arctan2(along[2], along[0]))
-    swing = -np.pi / 2  # toward the right of the run: the way the pin's face looks
+    swing = -turn  # toward the right of the run: the way the pin's face looks
     door = Door(
         id_,
         (float(pin[0]), float(pin[2])),

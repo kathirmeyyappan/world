@@ -19,7 +19,9 @@ portholes, and the path and flowers, and builds the rest itself:
   cut out of it;
 - passage: the vestibule inside the doorway, cased in riveted steel painted here: its sides run
   straight back from the skin to a steel wall standing just outside the rooms' front wall, with the
-  rooms' own door frame set in it (the way in); and the frame round the doorway on the face;
+  rooms' own door frame set in it (the way in); the frame round the doorway on the face; and the
+  passages through the shell at the back door, the hall's and the living room's side door, lined
+  in the same steel;
 - trim: the leaves, the chimney, the portholes (their tubes cut off inside the shell's wall, their
   glass painted with its sheen) and the crown's cap;
 - door: a flat slab the doorway's shape less a hair of clearance all round, the show's front door
@@ -136,8 +138,8 @@ FRONT_FACE = Face(0.0, 2.7, 4.6, 0.0, 6.6, 10.5, (DOOR_WIDTH / 2, DOOR_HEIGHT))
 FACES: list[Face] = [FRONT_FACE]
 
 
-def door_face(bearing: float, floor: float) -> Face:
-    return Face(bearing, 1.8, 3.2, floor, floor + 4.0, floor + 6.5, (inside.DOORWAY[0] / 2, inside.DOORWAY[1]))
+def door_face(bearing: float, floor: float, doorway: tuple[float, float] = inside.DOORWAY) -> Face:
+    return Face(bearing, 1.8, 3.2, floor, floor + 4.0, floor + 6.5, (doorway[0] / 2, doorway[1]))
 
 
 def main(outside: str, rooms: str) -> None:
@@ -178,7 +180,13 @@ def main(outside: str, rooms: str) -> None:
 
     interior = inside.load(rooms)
     hall = interior.levels["hall"]
-    FACES.extend((door_face(inside.BACK_BEARING, 0.0), door_face(inside.HALL_BEARING, hall)))
+    FACES.extend(
+        (
+            door_face(inside.BACK_BEARING, 0.0),
+            door_face(inside.HALL_BEARING, hall),
+            door_face(inside.SIDE_BEARING, 0.0, inside.SIDE_DOORWAY),
+        )
+    )
     inside.build_floors(
         interior,
         lambda a, y: float(np.hypot(*surface(profile, a, y)[[0, 2]])),
@@ -215,13 +223,39 @@ def main(outside: str, rooms: str) -> None:
     skin_tris, tube = doorway(skin_tris, inside.HALL_BEARING, hall_hole, interior.hall_wall, hall, False)
     through.add(tube)
     interior.tris += [(t, interior.hall_wall_material) for t in interior.hall_wall]
+    # The living room's side door: the skin cut on the radial through its frame, and the passage
+    # lined from the cut to the frame's back. The frame runs deeper than the wall round it and the
+    # doorway's arch stands within the frame's, so the frame seals the passage's mouth.
+    side_hole = arch(-inside.SIDE_DOORWAY[0] / 2, inside.SIDE_DOORWAY[0] / 2, inside.SIDE_DOORWAY[1], ARCH_STEPS)
+    cut, rest = cut_hole(turned_by(skin_tris, -inside.SIDE_BEARING), side_hole)
+    tube = lining(cut, interior.side_depth, side_hole, STEEL_TILE, flat_xy, lift)
+    skin_tris = turned_by(cut + rest, inside.SIDE_BEARING)
+    through.add(turned_by(tube, inside.SIDE_BEARING))
     interior.solid += inside.faced_wall(interior)
-    # The back door swings out onto the sand, the hall's in off the platform.
-    for id_, bearing, depth, floor, out in (
-        ("back", inside.BACK_BEARING, wall_depth(kitchen_wall, inside.BACK_BEARING), 0.0, True),
-        ("hall", inside.HALL_BEARING, wall_depth(interior.hall_wall, inside.HALL_BEARING), hall, False),
+    # The back door swings out onto the sand, the hall's in off the platform, and the side door out
+    # into its passage, as far as the passage's arch lets it.
+    for id_, bearing, depth, floor, out, opening, turn in (
+        (
+            "back",
+            inside.BACK_BEARING,
+            wall_depth(kitchen_wall, inside.BACK_BEARING),
+            0.0,
+            True,
+            inside.DOORWAY,
+            np.pi / 2,
+        ),
+        (
+            "hall",
+            inside.HALL_BEARING,
+            wall_depth(interior.hall_wall, inside.HALL_BEARING),
+            hall,
+            False,
+            inside.DOORWAY,
+            np.pi / 2,
+        ),
+        ("side", inside.SIDE_BEARING, interior.side_depth, 0.0, True, inside.SIDE_OPENING, inside.SIDE_SWING),
     ):
-        inside.new_door(interior, id_, bearing, depth, floor, out)
+        inside.new_door(interior, id_, bearing, depth, floor, out, opening, turn)
     through.add(frame_band(face_plane(profile, FRONT_FACE) + FRAME_PROUD))
     skin = MeshBuilder()
     skin.add(skin_tris)
@@ -791,10 +825,14 @@ def build_garden(
 
 
 def in_the_way(foot: np.ndarray) -> bool:
-    """Whether a flower standing there would stand in the stair round the back or at its doors."""
+    """Whether a flower standing there would stand in the stair round the back or at its doors, or
+    outside the side door."""
     bearing = float(np.arctan2(foot[0], foot[2])) % (2 * np.pi)
     margin = np.radians(8)
-    return inside.BACK_BEARING - margin < bearing < inside.HALL_BEARING + margin and np.hypot(foot[0], foot[2]) < 24
+    out = float(np.hypot(foot[0], foot[2]))
+    return (inside.BACK_BEARING - margin < bearing < inside.HALL_BEARING + margin and out < 24) or (
+        abs(bearing - inside.SIDE_BEARING) < margin and out < 20
+    )
 
 
 def garden_image(doc: dict, blob: bytes, mesh: dict) -> Image.Image:
@@ -1096,6 +1134,7 @@ def emit_profile(
         "  doorways: [",
         f"    {{ bearing: {num(bearing(inside.BACK_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.DOORWAY[1] + 0.4)} }},",
         f"    {{ bearing: {num(bearing(inside.HALL_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: {num(levels['hall'])}, top: {num(levels['hall'] + inside.DOORWAY[1] + 0.4)} }},",
+        f"    {{ bearing: {num(bearing(inside.SIDE_BEARING))}, width: {num(inside.SIDE_DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.SIDE_DOORWAY[1] + 0.4)} }},",
         "  ],",
         "  doors: [",
         *(
