@@ -15,6 +15,9 @@ Triangle = list[Corner]
 Outline = list[tuple[float, float]]
 Profile = list[tuple[float, float]]  # (height, radius) up a lathe
 UV_UNIT = 4096  # texture coordinate units to the repeat in the part files
+# The game's frame from the model's: glTF's frame is right-handed and Babylon's left-handed, so
+# everything written out is mirrored in x (emit_part, and the profile house-model.py writes).
+MIRROR = np.array([-1.0, 1.0, 1.0])
 
 
 def area(tri: Triangle) -> float:
@@ -293,11 +296,13 @@ def emit_part(out: Path, mesh: MeshBuilder, swatch_uv: dict[str, np.ndarray]) ->
     (Int16), texture coordinates (Uint16, UV_UNIT to the repeat, v down the image), triangles
     (Uint16) and unit normals (Int8), normals last so nothing needs padding. A wrapped texture's
     coordinates are brought down by whole repeats a triangle at a time, so a lathe of any girth fits
-    the format. Vertices at one spot share a normal whatever their coordinates."""
+    the format. Vertices at one spot share a normal whatever their coordinates. Written in the
+    game's frame: every position mirrored by MIRROR, and every triangle rewound so it faces the
+    same way."""
     positions, uvs, indices = [], [], []
     index: dict[tuple, int] = {}
     for tri, swatch in mesh.tris:
-        corners = [(p, swatch_uv[swatch] if swatch else q) for p, q in tri]
+        corners = [(p * MIRROR, swatch_uv[swatch] if swatch else q) for p, q in reversed(tri)]
         repeats = np.floor(np.min([q for _, q in corners], axis=0))
         for p, q in corners:
             uv = q - repeats

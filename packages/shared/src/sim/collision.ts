@@ -6,7 +6,10 @@
 import { surfaceOf, validateStructure, type Structure } from './structures';
 import type { Vec3 } from './types';
 
-const CELL = 8; // metres per spatial-grid cell
+// Metres per spatial-grid cell, across and up: a query looks only in the cells of the height band
+// it reaches, so pieces at other heights in the same column (a keep's upper floors, the house's
+// shell band by band) cost it nothing.
+const CELL = 8;
 const RAY_STEP = 0.05; // metres between samples when a ray crosses a sloped top
 
 // The part of a player that meets structures: a vertical cylinder from feet to head. Anything
@@ -39,6 +42,8 @@ export class Structures {
   private readonly placed: Placed[];
   private readonly grid = new Map<string, number[]>();
   private readonly doors = new Map<string, number[]>(); // each door's pieces
+  private readonly lowBand: number; // the grid's lowest and highest height bands with anything in them
+  private readonly highBand: number;
 
   constructor(readonly list: readonly Structure[]) {
     list.forEach((s, i) => validateStructure(s, String(i)));
@@ -66,9 +71,11 @@ export class Structures {
     });
     this.doorIds = [...this.doors.keys()];
     this.top = Math.max(0, ...this.placed.map((p) => p.base + p.height));
+    this.lowBand = Math.min(0, ...this.placed.map((p) => band(p.base)));
+    this.highBand = Math.max(0, ...this.placed.map((p) => band(p.base + p.height)));
     this.placed.forEach((p, i) => {
       const r = Math.hypot(p.hw, p.hd);
-      for (const key of cells(p.x - r, p.z - r, p.x + r, p.z + r)) {
+      for (const key of cells(p.x - r, p.z - r, p.x + r, p.z + r, p.base, p.base + p.height)) {
         const bucket = this.grid.get(key);
         if (bucket) bucket.push(i);
         else this.grid.set(key, [i]);
@@ -90,25 +97,33 @@ export class Structures {
     return this.cast(o, d, maxT).hit?.door?.id ?? null;
   }
 
-  // The highest surface under (x, z) that is no higher than `reach`, or 0 for the floor.
+  // The highest surface under (x, z) that is no higher than `reach`, or 0 for the floor: down the
+  // height bands from the one `reach` is in, until the bands left all lie under the best so far.
   groundAt(x: number, z: number, reach: number): number {
     let ground = 0;
-    for (const p of this.near(x, z, x, z)) {
-      const [lx, lz] = local(p, x, z);
-      if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) continue;
-      const top = p.base + p.top(lx, lz);
-      if (top <= reach && top > ground) ground = top;
+    for (let b = Math.min(band(reach), this.highBand); b >= this.lowBand; b--) {
+      for (const p of this.near(x, z, x, z, b * CELL, b * CELL)) {
+        const [lx, lz] = local(p, x, z);
+        if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) continue;
+        const top = p.base + p.top(lx, lz);
+        if (top <= reach && top > ground) ground = top;
+      }
+      if (ground >= b * CELL) break;
     }
     return ground;
   }
 
-  // The lowest underside over (x, z) at or above `from`, or Infinity.
+  // The lowest underside over (x, z) at or above `from`, or Infinity: up the height bands from the
+  // one `from` is in, until the bands left all start above the best so far.
   ceilingAt(x: number, z: number, from: number): number {
     let ceiling = Infinity;
-    for (const p of this.near(x, z, x, z)) {
-      const [lx, lz] = local(p, x, z);
-      if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) continue;
-      if (p.base >= from && p.base < ceiling) ceiling = p.base;
+    for (let b = Math.max(band(from), this.lowBand); b <= this.highBand; b++) {
+      for (const p of this.near(x, z, x, z, b * CELL, b * CELL)) {
+        const [lx, lz] = local(p, x, z);
+        if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) continue;
+        if (p.base >= from && p.base < ceiling) ceiling = p.base;
+      }
+      if (ceiling <= (b + 1) * CELL) break;
     }
     return ceiling;
   }
@@ -116,7 +131,7 @@ export class Structures {
   // Whether a body at (x, z), feet at `feet` and `height` tall, is clear of every structure: anything
   // there tops out at or below its feet (ground) or starts above its head.
   fits(x: number, z: number, feet: number, height: number): boolean {
-    return this.near(x, z, x, z).every((p) => {
+    return this.near(x, z, x, z, feet, feet + height).every((p) => {
       const [lx, lz] = local(p, x, z);
       if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) return true;
       return p.base >= feet + height || p.base + p.top(lx, lz) <= feet + 1e-6;
@@ -133,6 +148,8 @@ export class Structures {
       Math.min(pos.z, pos.z + dz) - r,
       Math.max(pos.x, pos.x + dx) + r,
       Math.max(pos.z, pos.z + dz) + r,
+      body.reach,
+      body.head,
     );
     if (near.length === 0) {
       pos.x += dx;
@@ -157,7 +174,7 @@ export class Structures {
   // Whether any structure that is a wall to `body` comes within its radius of (x, z).
   touches(x: number, z: number, body: Body): boolean {
     const r = body.radius;
-    for (const p of this.near(x - r, z - r, x + r, z + r)) {
+    for (const p of this.near(x - r, z - r, x + r, z + r, body.reach, body.head)) {
       const [lx, lz] = local(p, x, z);
       const qx = Math.max(-p.hw, Math.min(p.hw, lx));
       const qz = Math.max(-p.hd, Math.min(p.hd, lz));
@@ -225,19 +242,28 @@ export class Structures {
     return this.raycast(a, d, len) === Infinity;
   }
 
-  // Structures whose grid cells touch the rectangle.
-  private near(minX: number, minZ: number, maxX: number, maxZ: number): Placed[] {
+  // Structures whose grid cells touch the box, standing (a door's piece only while the door is
+  // its way). Anything wholly above or below the box's height is left out; a height past every
+  // band with anything in it (an infinite reach) looks no further than those.
+  private near(minX: number, minZ: number, maxX: number, maxZ: number, minY: number, maxY: number): Placed[] {
     if (this.placed.length === 0) return [];
     const found = new Set<number>();
-    for (const key of cells(minX, minZ, maxX, maxZ)) for (const i of this.grid.get(key) ?? []) found.add(i);
+    const low = Math.max(minY, this.lowBand * CELL);
+    const high = Math.min(maxY, this.highBand * CELL);
+    for (const key of cells(minX, minZ, maxX, maxZ, low, high)) for (const i of this.grid.get(key) ?? []) found.add(i);
     return [...found].map((i) => this.placed[i]).filter((p) => p.on);
   }
 }
 
-function cells(minX: number, minZ: number, maxX: number, maxZ: number): string[] {
+function band(y: number): number {
+  return Math.floor(y / CELL);
+}
+
+function cells(minX: number, minZ: number, maxX: number, maxZ: number, minY: number, maxY: number): string[] {
   const keys: string[] = [];
   for (let cx = Math.floor(minX / CELL); cx <= Math.floor(maxX / CELL); cx++)
-    for (let cz = Math.floor(minZ / CELL); cz <= Math.floor(maxZ / CELL); cz++) keys.push(`${cx},${cz}`);
+    for (let cz = Math.floor(minZ / CELL); cz <= Math.floor(maxZ / CELL); cz++)
+      for (let cy = band(minY); cy <= band(maxY); cy++) keys.push(`${cx},${cz},${cy}`);
   return keys;
 }
 

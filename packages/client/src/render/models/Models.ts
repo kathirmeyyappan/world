@@ -55,7 +55,8 @@ export class Models {
 
 // Fetches a part and hangs its mesh on `parent`: counts (Uint32 vertices, triangles), positions in
 // centimetres (Int16), texture coordinates (Uint16, UV_UNIT to the repeat), triangles (Uint16),
-// unit normals (Int8). Drawn both sides: the leaves and the rooms' walls are single sheets.
+// unit normals (Int8). Drawn both sides (the leaves and the rooms' walls are single sheets) unless
+// the part says nothing looks at its inside.
 async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNode): Promise<void> {
   const buffer = await (await fetch(`/assets/models/pineapple-${part.name}.bin`)).arrayBuffer();
   const [vertices, triangles] = new Uint32Array(buffer, 0, 2);
@@ -86,7 +87,7 @@ async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNod
   material.diffuseTexture = image;
   material.emissiveTexture = image;
   material.specularColor = Color3.Black();
-  material.backFaceCulling = false;
+  material.backFaceCulling = part.oneSided ?? false;
   material.twoSidedLighting = true;
   if (part.unlit) {
     // Indoors: every surface shows its texture as painted, whichever way it faces.
@@ -99,6 +100,10 @@ async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNod
     material.useAlphaFromDiffuseTexture = true;
     material.transparencyMode = StandardMaterial.MATERIAL_ALPHATEST;
     material.alphaCutOff = 0.5;
+  }
+  if (part.opacity !== undefined) {
+    material.alpha = part.opacity;
+    material.transparencyMode = StandardMaterial.MATERIAL_ALPHABLEND;
   }
   mesh.material = material;
   mesh.parent = parent;
