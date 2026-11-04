@@ -586,9 +586,8 @@ def dune(lx: float, lz: float, top: float) -> float:
 
 def build_stair(profile: Profile, hall: float) -> list[list[float]]:
     """The stair round the back of the house, from the back door up to the platform at the hall's
-    door, hugging the skin: each step a slab (grounded in the dune where it meets it) with a rail
-    post along its outer edge, then the platform, a slab with rails along its outer edge and its
-    far side. Each piece as [x, z, y, w, d, h, yaw] in the house's frame: its centre across, its
+    door, hugging the skin: each step a slab with a rail post along its outer edge, then the
+    platform, a slab with rails along its outer edge and its far side. Each piece as [x, z, y, w, d, h, yaw] in the house's frame: its centre across, its
     underside, its size across the arc, out from the axis and up, and the bearing it faces (from +z
     toward +x), which is the sim's yaw."""
     skin_at = lambda a, y: float(np.hypot(*surface(profile, a, y)[[0, 2]]))
@@ -608,8 +607,7 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
         r_in = max(skin_at(b, h) for b in (b0, bm, b1)) + inside.STAIR_GAP
         r_out = r_in + width
         depth = (b1 - b0) * r_out + 0.05
-        under = min(dune(*at(r, b), dune_top(profile)) for r in (r_in, r_out) for b in (b0, b1))
-        base = min(h - inside.STAIR_THICKNESS, under - 0.05)
+        base = h - inside.STAIR_THICKNESS
         rows.append([*at((r_in + r_out) / 2, bm), base, depth, width, h - base, bm])
         rows.append([*at(r_out - rail_w / 2, bm), h, depth + 0.02, rail_w, inside.RAIL, bm])
     rm = plat_in + out / 2
