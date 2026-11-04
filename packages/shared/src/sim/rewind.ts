@@ -5,14 +5,14 @@
 // against where the targets were at that tick instead of where they are now.
 //
 // PositionHistory is the server's short memory of where everyone was, one entry per snapshot: each
-// player's eye point and, for a dragon, its spine (sim/dragon.ts).
+// player's eye point and, for a dragon, its spine and whether it had risen (sim/dragon.ts).
 import { MAX_REWIND_TICKS } from './constants';
 import type { DragonState } from './dragon';
 import type { Vec3 } from './types';
 
 export interface Was {
   pos: Vec3;
-  dragon: Pick<DragonState, 'spine'> | null;
+  dragon: Pick<DragonState, 'spine' | 'risen'> | null;
 }
 
 interface Entry {
@@ -26,7 +26,8 @@ export class PositionHistory {
   // Remember where everyone was as sent in the snapshot for `tick`.
   record(tick: number, players: Iterable<Pick<Was, 'pos' | 'dragon'> & { id: string }>): void {
     const was = new Map<string, Was>();
-    for (const p of players) was.set(p.id, { pos: { ...p.pos }, dragon: p.dragon && { spine: [...p.dragon.spine] } });
+    for (const p of players)
+      was.set(p.id, { pos: { ...p.pos }, dragon: p.dragon && { spine: [...p.dragon.spine], risen: p.dragon.risen } });
     this.entries.push({ tick, was });
     while (this.entries.length > MAX_REWIND_TICKS + 1) this.entries.shift();
   }

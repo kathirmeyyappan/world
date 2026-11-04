@@ -9,7 +9,8 @@
 // above whatever is under it, is too big for any doorway, and has the whole sky out to the world's
 // reach, the void between its parts included. A new one rises out of the ground where its rider
 // stood, head up and body straight below, and climbs straight on by itself, whatever the keys,
-// until the whole of its spine is out; only then is it free to fly.
+// until the whole of its spine is out; only then is it free to fly. Until then nothing can hit it:
+// a rider is caught half in the ground, unable to steer, and would be a sitting duck.
 import type { ClassSpec, HitShape, Sphere } from './classes';
 import type { Body, Structures } from './collision';
 import type { Shooter, Target } from './combat';
@@ -319,6 +320,7 @@ function round(v: number): number {
 }
 
 function hitShape(p: Target): HitShape {
+  if (p.dragon && !p.dragon.risen) return { kind: 'spheres', spheres: [] };
   const spheres: Sphere[] = [{ x: p.pos.x, y: p.pos.y, z: p.pos.z, r: HEAD_RADIUS, head: true }];
   const spine = p.dragon?.spine ?? [];
   for (let i = 0; i < spine.length; i += 3)

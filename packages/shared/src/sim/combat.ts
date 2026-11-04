@@ -1,6 +1,6 @@
 // Shooting, resolved on the server from the shooter's avatar's eyes (eyeOf) along their look. A
 // shot has to land in the target's class's hit shape (classes.ts): a walker's upright capsule, sized
-// to their avatar, or a dragon's head and body spheres. Hitscan takes the nearest one the ray passes
+// to their avatar, or a dragon's head and body spheres (none while it's still rising). Hitscan takes the nearest one the ray passes
 // through within range, and where on it the ray lands says whether it was a headshot; a cone takes
 // everyone with any of it inside. Structures stop shots: nothing behind a wall is hit. Damage
 // numbers live in health.ts.
@@ -22,7 +22,7 @@ export interface Target {
   pos: Vec3;
   dead: boolean;
   avatar: AvatarId;
-  dragon: Pick<DragonState, 'spine'> | null;
+  dragon: Pick<DragonState, 'spine' | 'risen'> | null;
 }
 
 export interface Shooter {
