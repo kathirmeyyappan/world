@@ -624,7 +624,7 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
     """The stair round the back of the house, from the back door up to the platform at the hall's
     door, standing clear of the shell (which leans out overhead) by STAIR_GAP beyond the skin's
     widest within a walker's height over each step: each step a slab with a rail along both edges,
-    then the platform, a slab from the hall's face out to the stair's outer edge, railed along that
+    the lowest ones standing down in the sand (see STAIR_FOOT), then the platform, a slab from the hall's face out to the stair's outer edge, railed along that
     edge, its far side, and its near side from the wall to the stair's inner rail. Each piece as
     [x, z, y, w, d, h, yaw] in the house's frame: its centre across, its underside, its size across
     the arc, out from the axis and up, and the bearing it faces (from +z toward +x), the sim's yaw."""
@@ -644,6 +644,7 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
     plat_half = across / 2 / (plat_in + out / 2)
     a0, a1 = inside.BACK_BEARING + inside.STAIR_START, inside.HALL_BEARING - plat_half
     at = lambda r, a: [r * np.sin(a), r * np.cos(a)]
+    top_r = dune_top(profile)
     rows: list[list[float]] = []
     for i in range(steps):
         b0, b1 = a0 + (a1 - a0) * i / steps, a0 + (a1 - a0) * (i + 1) / steps
@@ -653,7 +654,20 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
         r_out = r_in + width
         depth = (b1 - b0) * r_out + 0.05
         base = h - inside.STAIR_THICKNESS
-        rows.append([*at((r_in + r_out) / 2, bm), base, depth, width, h - base, bm])
+        centre = np.array(at((r_in + r_out) / 2, bm))
+        along, outward = np.array([np.cos(bm), -np.sin(bm)]), np.array([np.sin(bm), np.cos(bm)])
+        corners = [centre + sx * along * depth / 2 + sy * outward * width / 2 for sx in (-1, 1) for sy in (-1, 1)]
+        # The flight's foot stands in the sand, which falls away under it: a step less than half
+        # STAIR_FOOT over its lowest corner goes down into the sand, and the underside of the next
+        # few lifts off by degrees (a riser's rise more each step), so the flight leaves the ground
+        # as one solid piece rather than hovering just over it.
+        sand = min(dune(-float(c[0]), float(c[1]), top_r) for c in corners)
+        gap = base - sand
+        skirt = max(0.0, inside.STAIR_FOOT - gap)
+        if skirt + top / steps >= gap:
+            skirt = gap + inside.STAIR_SINK
+        base -= skirt
+        rows.append([*centre, base, depth, width, h - base, bm])
         for r in (r_in + rail_w / 2, r_out - rail_w / 2):
             rows.append([*at(r, bm), h, depth + 0.02, rail_w, inside.RAIL, bm])
     rm = plat_in + out / 2
