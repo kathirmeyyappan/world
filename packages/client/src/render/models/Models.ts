@@ -67,7 +67,7 @@ function swung(door: { open: boolean; at: number }, now: number): number {
 // unit normals (Int8). Drawn both sides (the leaves and the rooms' walls are single sheets) unless
 // the part says nothing looks at its inside.
 async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNode): Promise<void> {
-  const buffer = await (await fetch(`/assets/models/pineapple-${part.name}.bin`)).arrayBuffer();
+  const buffer = await (await fetch(`/assets/models/pineapple/${part.name}.bin`)).arrayBuffer();
   const [vertices, triangles] = new Uint32Array(buffer, 0, 2);
   let at = 8;
   const positions = new Int16Array(buffer, at, vertices * 3);
@@ -85,7 +85,7 @@ async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNod
   const mesh = new Mesh(`model-pineapple-${part.name}`, scene);
   data.applyToMesh(mesh);
   const image = new Texture(
-    `/assets/textures/models/${part.texture}.png`,
+    `/assets/models/pineapple/${part.texture}.png`,
     scene,
     false,
     false,
