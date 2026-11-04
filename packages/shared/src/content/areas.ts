@@ -5,6 +5,7 @@
 // (the floor bridge, the paths) keeps the last name.
 import type { Vec3 } from '../sim/types';
 import { ANNEX, BUILDING_GROUNDS, MAIN_DISC, partDistance, type WorldPart } from '../sim/world';
+import { BUILDING_NAMES } from './buildings';
 
 export interface Area {
   name: string;
@@ -16,7 +17,7 @@ export const AREAS: Area[] = [
   { name: 'TUNG TUNG TOWER', part: ANNEX },
   { name: 'TERRACE', part: MAIN_DISC, above: 5 }, // well over a jump
   { name: 'MAIN AREA', part: MAIN_DISC },
-  ...BUILDING_GROUNDS.map((part, n) => ({ name: `BUILDING ${n + 1}`, part })),
+  ...BUILDING_GROUNDS.map((part, n) => ({ name: BUILDING_NAMES[n], part })),
 ];
 
 // The area at an eye position, or null between areas.

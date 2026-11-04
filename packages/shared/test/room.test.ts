@@ -20,7 +20,11 @@ import {
   TICK_RATE,
   worldDistance,
   CIRCLE_LOOKS,
+  DOOR_SWING_SECONDS,
+  DUNE_HEIGHT,
   HEAD_RADIUS,
+  PINEAPPLE_DOOR,
+  PINEAPPLE_PLACEMENT,
   defaultBotsFor,
   type BotRequest,
   type InputFrame,
@@ -36,8 +40,8 @@ function link() {
 }
 
 let seq = 1000;
-function frame(pitch: number, actions: ItemAction[], yaw = 0): InputFrame {
-  return { seq: seq++, mx: 0, my: 0, yaw, pitch, jump: false, reading: null, actions };
+function frame(pitch: number, actions: ItemAction[], yaw = 0, use: string | null = null): InputFrame {
+  return { seq: seq++, mx: 0, my: 0, yaw, pitch, jump: false, reading: null, use, actions };
 }
 
 // One press of the shoot action: a tick with it held, then a tick released.
@@ -527,6 +531,52 @@ test('ice blower: every touch costs a quarter heart and chills from the last one
     a.inbox.some((m) => m.t === 'shot' && m.id === idb),
     'chilled: the trigger still works',
   );
+});
+
+test("a click on the house's door within reach swings it for everyone, once a swing; from afar it does nothing", () => {
+  const room = new Room('door', { seed: 4 });
+  const a = link();
+  const b = link();
+  const ida = room.join('alice', a)!;
+  room.join('bob', b);
+  const alice = room.players.find((p) => p.id === ida)!;
+  // The slab's middle shut or open, and the way out from the house through the doorway.
+  const door = PINEAPPLE_DOOR;
+  const middle = (open: boolean) => {
+    const a = door.bearing + (open ? door.swing : 0);
+    return { x: door.hinge.x + (door.reach / 2) * Math.cos(a), z: door.hinge.z + (door.reach / 2) * Math.sin(a) };
+  };
+  const shut = middle(false);
+  const out = { x: shut.x - PINEAPPLE_PLACEMENT.x, z: shut.z - PINEAPPLE_PLACEMENT.z };
+  const len = Math.hypot(out.x, out.z);
+  out.x /= len;
+  out.z /= len;
+  // Standing `away` metres outside the doorway at the dune's height, looking at the slab's middle
+  // wherever it stands.
+  const use = (away: number) => {
+    alice.pos = { x: shut.x + out.x * away, y: DUNE_HEIGHT + 1.7, z: shut.z + out.z * away };
+    const at = middle(swings().at(-1)?.t === 'door' && !!swings().at(-1)?.open);
+    const dx = at.x - alice.pos.x;
+    const dz = at.z - alice.pos.z;
+    const pitch = -Math.atan2(door.y + door.height / 2 - alice.pos.y, Math.hypot(dx, dz));
+    room.receive(ida, { t: 'input', f: frame(pitch, [], Math.atan2(dx, dz), door.id) });
+    room.step();
+  };
+  const swings = () => b.inbox.filter((m) => m.t === 'door');
+
+  use(30);
+  assert.equal(swings().length, 0, 'out of reach: nothing');
+  use(5);
+  assert.deepEqual(
+    swings().at(-1),
+    { t: 'door', id: door.id, open: true, by: ida },
+    'in reach: it opens, for everyone',
+  );
+  use(5);
+  assert.equal(swings().length, 1, 'while it swings, a click does nothing');
+  for (let i = 0; i < DOOR_SWING_SECONDS * TICK_RATE; i++) room.step();
+  use(5);
+  assert.equal(swings().at(-1)?.t === 'door' && swings().at(-1)?.open, false, 'swung: a click shuts it again');
 });
 
 test('a tap weapon fires once per press however long the key is held', () => {

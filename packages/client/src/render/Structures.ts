@@ -6,8 +6,9 @@
 // way each face points (tops bright, undersides dark) rather than by the scene's lights, so an
 // interior reads the same as an exterior and a round wall doesn't band segment by segment. To keep
 // the client light, pieces with the same look in the same REGION are merged into one mesh (a whole
-// tower is a few draw calls, each culled when it's off screen), and none are pickable: the hover
-// ray asks the sim's raycast instead.
+// tower is a few draw calls, each culled when it's off screen), built through the loader
+// (render/Loader.ts) a region a frame, nearest first, and none are pickable: the hover ray asks
+// the sim's raycast instead.
 import {
   Color3,
   DynamicTexture,
@@ -29,6 +30,7 @@ import {
   type Terrain,
 } from '@world/shared';
 import type { Engine } from './Engine';
+import type { Loader } from './Loader';
 import { MATERIALS, TEXELS, paintMaterial } from './structureMaterials';
 
 const DEFAULT_COLORS: Record<StructureKind, string> = { box: '#39414f', ramp: '#454f60', terrain: '#1d3a2c' };
@@ -39,31 +41,44 @@ const SHADE = { top: 1, bottom: 0.5, sideX: 0.82, sideZ: 0.68 };
 
 type Look = StructureMaterial | string; // a material, or a flat colour
 
-export function buildStructures(engine: Engine, structures: readonly Structure[]): Mesh[] {
+export function buildStructures(engine: Engine, structures: readonly Structure[], loader: Loader): void {
   const scene = engine.scene;
-  const groups = new Map<string, { look: Look; meshes: Mesh[] }>();
+  const groups = new Map<string, { look: Look; x: number; z: number; pieces: { s: Structure; i: number }[] }>();
   structures.forEach((s, i) => {
+    if (s.hidden) return;
     const look: Look = s.material ?? s.color ?? DEFAULT_COLORS[s.kind];
-    const spec = s.material ? MATERIALS[s.material] : null;
-    const mesh = build(scene, `structure-${i}`, s, { tile: spec?.tile ?? FLAT_TILE, worldTop: spec?.worldTop ?? true });
-    mesh.position.set(s.x, mesh.position.y + (s.y ?? 0), s.z);
-    mesh.rotation.y = s.yaw ?? 0; // Babylon's rotation about y matches the sim's yaw
-    const key = `${look}@${Math.floor(s.x / REGION)},${Math.floor(s.z / REGION)}`;
-    const group = groups.get(key) ?? { look, meshes: [] };
-    group.meshes.push(mesh);
+    const rx = Math.floor(s.x / REGION);
+    const rz = Math.floor(s.z / REGION);
+    const key = `${look}@${rx},${rz}`;
+    const group = groups.get(key) ?? { look, x: (rx + 0.5) * REGION, z: (rz + 0.5) * REGION, pieces: [] };
+    group.pieces.push({ s, i });
     groups.set(key, group);
   });
   const materials = new Map<Look, StandardMaterial>();
-  return [...groups].map(([key, { look, meshes }]) => {
-    const merged = Mesh.MergeMeshes(meshes, true, true)!;
-    merged.name = `structures-${key}`;
-    let mat = materials.get(look);
-    if (!mat) materials.set(look, (mat = material(scene, look)));
-    merged.material = mat;
-    merged.isPickable = false;
-    merged.freezeWorldMatrix();
-    return merged;
-  });
+  for (const [key, { look, x, z, pieces }] of groups)
+    loader.add({
+      x,
+      z,
+      load: () => {
+        const meshes = pieces.map(({ s, i }) => {
+          const spec = s.material ? MATERIALS[s.material] : null;
+          const mesh = build(scene, `structure-${i}`, s, {
+            tile: spec?.tile ?? FLAT_TILE,
+            worldTop: spec?.worldTop ?? true,
+          });
+          mesh.position.set(s.x, mesh.position.y + (s.y ?? 0), s.z);
+          mesh.rotation.y = s.yaw ?? 0; // Babylon's rotation about y matches the sim's yaw
+          return mesh;
+        });
+        const merged = Mesh.MergeMeshes(meshes, true, true)!;
+        merged.name = `structures-${key}`;
+        let mat = materials.get(look);
+        if (!mat) materials.set(look, (mat = material(scene, look)));
+        merged.material = mat;
+        merged.isPickable = false;
+        merged.freezeWorldMatrix();
+      },
+    });
 }
 
 function material(scene: Scene, look: Look): StandardMaterial {

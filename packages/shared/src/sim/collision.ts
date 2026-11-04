@@ -1,7 +1,8 @@
 // The sim's view of the structures (structures.ts): where a player can stand, what stops them,
 // what they bump their head on, and what a shot can't pass. Pure, so the Room and the client's
 // prediction get identical answers. With no structures every query answers as the bare floor
-// does: ground 0, no ceiling, nothing in the way.
+// does: ground 0, no ceiling, nothing in the way. A door's pieces (doors.ts) stand or not as the
+// door is swung: `setDoor` is the one thing that changes after building, so a Room keeps its own.
 import { surfaceOf, validateStructure, type Structure } from './structures';
 import type { Vec3 } from './types';
 
@@ -28,12 +29,16 @@ interface Placed {
   top(lx: number, lz: number): number;
   mid: number; // height of the centre of its bounding sphere
   reach: number; // that sphere's radius
+  on: boolean; // standing: always, but for a door's piece while the door is the other way
+  door: { id: string; open: boolean } | null;
 }
 
 export class Structures {
   readonly top: number; // the highest point of any structure, 0 with none
+  readonly doorIds: string[];
   private readonly placed: Placed[];
   private readonly grid = new Map<string, number[]>();
+  private readonly doors = new Map<string, number[]>(); // each door's pieces
 
   constructor(readonly list: readonly Structure[]) {
     list.forEach((s, i) => validateStructure(s, String(i)));
@@ -52,8 +57,14 @@ export class Structures {
         top: surface.top,
         mid: (s.y ?? 0) + surface.height / 2,
         reach: Math.hypot(s.w / 2, s.d / 2, surface.height / 2),
+        on: !s.door || !s.door.open, // doors start shut
+        door: s.door ?? null,
       };
     });
+    this.placed.forEach((p, i) => {
+      if (p.door) this.doors.set(p.door.id, [...(this.doors.get(p.door.id) ?? []), i]);
+    });
+    this.doorIds = [...this.doors.keys()];
     this.top = Math.max(0, ...this.placed.map((p) => p.base + p.height));
     this.placed.forEach((p, i) => {
       const r = Math.hypot(p.hw, p.hd);
@@ -63,6 +74,20 @@ export class Structures {
         else this.grid.set(key, [i]);
       }
     });
+  }
+
+  // Swings a door: its pieces for that state stand, the others don't.
+  setDoor(id: string, open: boolean): void {
+    for (const i of this.doors.get(id) ?? []) this.placed[i].on = this.placed[i].door!.open === open;
+  }
+
+  isOpen(id: string): boolean {
+    return (this.doors.get(id) ?? []).some((i) => this.placed[i].door!.open && this.placed[i].on);
+  }
+
+  // The door the ray (o, d) meets first within maxT, before anything else, or null.
+  doorAt(o: Vec3, d: Vec3, maxT: number): string | null {
+    return this.cast(o, d, maxT).hit?.door?.id ?? null;
   }
 
   // The highest surface under (x, z) that is no higher than `reach`, or 0 for the floor.
@@ -143,8 +168,14 @@ export class Structures {
 
   // Distance along the unit ray (o, d) to the first structure it enters within maxT, else Infinity.
   raycast(o: Vec3, d: Vec3, maxT: number): number {
+    return this.cast(o, d, maxT).t;
+  }
+
+  private cast(o: Vec3, d: Vec3, maxT: number): { t: number; hit: Placed | null } {
     let best = Infinity;
+    let hit: Placed | null = null;
     for (const p of this.placed) {
+      if (!p.on) continue;
       // Cheap rejection first: skip anything whose bounding sphere the ray misses.
       const cx = p.x - o.x;
       const cy = p.mid - o.y;
@@ -177,11 +208,12 @@ export class Structures {
         const lz = Math.max(-p.hd, Math.min(p.hd, oz + dz * t));
         if (o.y + d.y * t <= p.base + p.top(lx, lz) + 1e-9) {
           best = t;
+          hit = p;
           break;
         }
       }
     }
-    return best;
+    return { t: best, hit };
   }
 
   // Whether nothing stands between a and b.
@@ -198,7 +230,7 @@ export class Structures {
     if (this.placed.length === 0) return [];
     const found = new Set<number>();
     for (const key of cells(minX, minZ, maxX, maxZ)) for (const i of this.grid.get(key) ?? []) found.add(i);
-    return [...found].map((i) => this.placed[i]);
+    return [...found].map((i) => this.placed[i]).filter((p) => p.on);
   }
 }
 

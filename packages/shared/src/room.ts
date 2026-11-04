@@ -45,16 +45,11 @@ import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, t
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
-import type { Structures } from './sim/collision';
+import { Structures } from './sim/collision';
+import { STRUCTURES } from './content/structures';
+import { DOOR_REACH, DOOR_SWING_SECONDS, lookVector } from './sim/doors';
 import { CAPSULE_TOP } from './sim/health';
-import {
-  WORLD_SHAPE,
-  WORLD_STRUCTURES,
-  clampToWorld,
-  randomPointInDisc,
-  worldDistance,
-  type WorldPart,
-} from './sim/world';
+import { WORLD_SHAPE, clampToWorld, randomPointInDisc, worldDistance, type WorldPart } from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
@@ -120,13 +115,14 @@ export class Room {
   private readonly log: (msg: string) => void;
   private readonly spawnBot?: BotSpawner;
   private publicName: string | null = null; // the room code clients asked for, learnt at the first join
+  private readonly doorSwung = new Map<string, number>(); // the tick each door last swung
   private timer: unknown = null;
   private nextPlayerId = 1;
 
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
     this.worldShape = opts.worldShape ?? WORLD_SHAPE;
-    this.structures = opts.structures ?? WORLD_STRUCTURES;
+    this.structures = opts.structures ?? new Structures(STRUCTURES); // its own: doors swing per room
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
     this.pickups = createPickups(opts.pickupAreas ?? PICKUP_AREAS, this.rng);
@@ -212,6 +208,7 @@ export class Room {
       players: this.players,
       cubes: this.cubeSnapshot(),
       pickups: this.pickupSnapshot(),
+      doors: this.structures.doorIds.map((door) => ({ id: door, open: this.structures.isOpen(door) })),
     });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
@@ -336,6 +333,18 @@ export class Room {
     }
   }
 
+  // A click on a door within reach swings it the other way, for everyone, once its last swing is done.
+  private useDoor(seat: Seat, id: string): void {
+    const me = seat.state;
+    if (me.dead || !this.structures.doorIds.includes(id)) return;
+    if (this.tick - (this.doorSwung.get(id) ?? -Infinity) < DOOR_SWING_SECONDS * TICK_RATE) return;
+    if (this.structures.doorAt(me.pos, lookVector(me.yaw, me.pitch), DOOR_REACH) !== id) return;
+    const open = !this.structures.isOpen(id);
+    this.structures.setDoor(id, open);
+    this.doorSwung.set(id, this.tick);
+    this.broadcast({ t: 'door', id, open, by: me.id });
+  }
+
   // Takes hearts off `victim`, for a shot by `by.shooter` or, with no `by`, a fall, and kills them
   // at zero. A death is one structured message; clients word the announcement.
   private damage(victim: PlayerState, damage: number, by: { shooter: Seat; headshot: boolean } | null): void {
@@ -384,6 +393,8 @@ export class Room {
       for (let i = 0; i < n; i++) {
         this.land(seat, stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape, this.structures));
         this.applyActions(seat, seat.queue[i]);
+        const use = seat.queue[i].use;
+        if (use) this.useDoor(seat, use);
       }
       seat.queue.splice(0, n);
     }

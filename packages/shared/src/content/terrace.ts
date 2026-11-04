@@ -1,11 +1,12 @@
 // The terrace: a ring of deck floating over the middle of the main disc, level with Tung Tung
 // Tower's top floor, open in the middle, with a parapet round both edges. The outer one opens where
 // a way up arrives: the tower's sky bridge from the east (content/tower.ts), and a staircase from
-// each building's roof (content/buildings.ts) that climbs over the building's path, railed both sides.
+// each keep's roof (content/buildings.ts) that climbs over the building's path, railed both sides.
 import { roundFloor, roundWall, stairs, type Structure } from '../sim/structures';
-import { ANNEX, BUILDING_GROUNDS } from '../sim/outline';
+import { ANNEX } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { Bridge } from '../sim/world';
+import { KEEP_GROUNDS } from './buildings';
 import { OUTER, RAIL, SILL, STOREY } from './keep';
 
 // The deck's own outline, its top at y.
@@ -16,18 +17,18 @@ export const WALKWAY = 4; // width of the sky bridge and the staircases
 const { x: X, z: Z, r: R, inner: INNER, y: Y } = TERRACE_RING;
 const PARAPET_R = R - 0.1; // the outer parapet's centreline
 
-// Each building's staircase, from the foot of its roof exit (in the wall, under the parapet's gap)
-// to the terrace's edge, its top step just below the deck and reaching a hair under it: any further
+// Each keep's staircase, from the foot of its roof exit (in the wall, under the parapet's gap) to
+// the terrace's edge, its top step just below the deck and reaching a hair under it: any further
 // and the deck's edge would stand more than a step above the last stair a player can reach.
-const STAIRCASES = BUILDING_GROUNDS.map(({ x, z }) => {
+const STAIRCASES = KEEP_GROUNDS.map(({ x, z }) => {
   const out = Math.hypot(x - X, z - Z);
   const along = (d: number) => ({ x: X + ((x - X) * d) / out, z: Z + ((z - Z) * d) / out });
   const roof = STOREY - SILL; // a one-storey building's roof, just under its top like a sill
   return { bottom: along(out - OUTER + 0.5), top: along(R - 0.05), y: roof, h: Y - SILL - roof };
 });
 
-// Where the outer parapet opens: toward the tower and each building.
-const ARRIVALS = [ANNEX, ...BUILDING_GROUNDS].map(({ x, z }) => Math.atan2(z - Z, x - X));
+// Where the outer parapet opens: toward the tower and each keep.
+const ARRIVALS = [ANNEX, ...KEEP_GROUNDS].map(({ x, z }) => Math.atan2(z - Z, x - X));
 
 export const TERRACE: Structure[] = [
   ...roundFloor({ ...TERRACE_RING, thickness: DECK, material: 'flagstone' }),

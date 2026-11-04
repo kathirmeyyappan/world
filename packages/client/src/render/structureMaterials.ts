@@ -110,11 +110,27 @@ const flagstone: MaterialSpec = {
   },
 };
 
+// Sand: pale grains flecked with darker ones, with faint ripples running one way, 2 m to a repeat.
+const sand: MaterialSpec = {
+  tile: 2,
+  worldTop: true,
+  paint(px, rng) {
+    const shades = ['#e9d8a6', '#e3d09b', '#efdfb0', '#dfcb94', '#e6d4a0'];
+    for (let y = 0; y < TEXELS; y++) {
+      for (let x = 0; x < TEXELS; x++) {
+        const ripple = Math.sin(((x + y * 0.5) / TEXELS) * Math.PI * 4) > 0.8;
+        px(x, y, rng() < 0.06 ? '#c9b27a' : ripple ? '#d6c28c' : pick(rng, shades));
+      }
+    }
+  },
+};
+
 export const MATERIALS: Record<StructureMaterial, MaterialSpec> = {
   brick,
   wood,
   'red-tile': redTile,
   flagstone,
+  sand,
 };
 
 // One material's texture as canvas pixels, deterministic for a given material.
