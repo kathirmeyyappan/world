@@ -1,6 +1,6 @@
 // Landmarks drawn from mesh files rather than built from structures: the pineapple house, in the
-// parts scripts/house-model.py writes (its skin, its bamboo inside, its ceiling, its trim, its
-// door), fetched
+// parts scripts/house-model.py writes (its skin, its bamboo inside, its ceiling, its steel passage,
+// its trim, its door), fetched
 // through the loader (render/Loader.ts) and stood where the shared content puts it
 // (content/pineapple.ts). The
 // sim never sees these meshes; it collides with the structures the content hides inside them, so
@@ -37,6 +37,7 @@ export class Models {
       [{ name: 'skin', texture: 'pineapple-skin', wrap: true }, house],
       [{ name: 'inside', texture: 'bamboo', wrap: true }, house],
       [{ name: 'ceiling', texture: 'net', wrap: true }, house],
+      [{ name: 'passage', texture: 'steel', wrap: true }, house],
       [{ name: 'trim', texture: 'pineapple', wrap: false }, house],
       [{ name: 'door', texture: 'door', wrap: false }, hinge],
     ];

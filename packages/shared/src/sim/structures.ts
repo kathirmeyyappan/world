@@ -254,16 +254,15 @@ export function roundWall(opts: {
 }
 
 // Steps winding around (x, z) between two radii, `turns` times round while rising from `bottom`
-// by `rise`. The outer radius may be a function of how far a step has climbed, for a flight against
-// a wall that leans. Each step is a slab `thickness` deep, so there's headroom beneath the flight
-// above. With `rail`, each step also carries a post that high along its inner edge, so players
-// can't step off the inside of the flight; they get on and off at its ends. Throws if a step is
-// taller than a player can walk up.
+// by `rise`. Each step is a slab `thickness` deep, so there's headroom beneath the flight above.
+// With `rail`, each step also carries a post that high along its inner edge, so players can't step
+// off the inside of the flight; they get on and off at its ends. Throws if a step is taller than
+// a player can walk up.
 export function spiralStairs(opts: {
   x: number;
   z: number;
   inner: number;
-  outer: number | ((climbed: number) => number);
+  outer: number;
   bottom: number;
   rise: number;
   turns: number;
@@ -297,16 +296,15 @@ export function spiralStairs(opts: {
     const angle = start + turn * (i + 0.5);
     const top = bottom + (rise * (i + 1)) / steps;
     const base = Math.max(bottom, top - thickness);
-    const edge = typeof outer === 'number' ? outer : outer(top - bottom);
     const yaw = Math.atan2(-Math.sin(angle), Math.cos(angle)); // local +z runs along the direction of climb
     const at = (r: number) => onCircle(x, z, r, angle);
     const step: Box = {
       kind: 'box',
-      ...at((inner + edge) / 2),
+      ...at((inner + outer) / 2),
       y: base,
       yaw,
-      w: edge - inner,
-      d: turn * edge, // the arc at the outer edge, so steps meet there and overlap inside
+      w: outer - inner,
+      d: turn * outer, // the arc at the outer edge, so steps meet there and overlap inside
       h: top - base,
       material,
       color,

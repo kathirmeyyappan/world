@@ -2,17 +2,22 @@
 // down the path in, on a dune of sand. The house itself is a model only the client draws
 // (render/models/Models.ts); the sim knows it by its profile (content/pineappleProfile.ts, written
 // with the model by scripts/house-model.py) and collides with structures stood inside its skin,
-// never drawn: rings of wall following the shell's curve up to the ceiling, left out where the
-// shell flattens into the upright face round the door, and solid slabs above it; in the face's
-// place, the jambs either side of the doorway and the lintel over it. The dune rises from the
-// grounds' edge to a flat top the house sits on, and bulges a little round it; its sand is the
-// ground floor, as in the show. The door hangs in the doorway (sim/doors.ts). A wooden flight
-// winds half a turn up the back of the room against the wall to the first floor, a wooden slab
-// run into the wall and open where the flight arrives.
+// never drawn: rings of wall between the room's upright wall and the shell's leaning skin up to the
+// ceiling, left out where the shell flattens into the face round the door, and solid slabs above
+// it; in the face's place, the jambs either side of the doorway and the lintel over it. The dune
+// rises from the grounds' edge to a flat top the house sits on, and bulges a little round it; its
+// sand is the ground floor, as in the show. The door hangs in the doorway (sim/doors.ts).
+//
+// Inside, the house is a round room like a keep's (content/keep.ts): a flight winds half a turn up
+// the wall from the side of the room round the back to the first floor, a wooden slab run into
+// the wall and open where the flight arrives, and the ground floor hangs the tower's ground-floor
+// murals (content/towerFrames.ts), its storey tall enough for them. The first floor is a lower
+// room under the net ceiling.
 import { roundFloor, roundWall, spiralStairs, terrain, type Box, type Structure } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
+import type { RoundRoom } from '../sim/wallFrames';
 import type { Disc } from '../sim/world';
 import { PINEAPPLE_PROFILE as SHAPE } from './pineappleProfile';
 
@@ -24,19 +29,17 @@ const DUNE_TOP = SHAPE.rings[0][1] + 1; // radius of the flat top: just past the
 const DUNE_FOOT = GROUND.r; // where the dune meets the floor: the grounds' edge
 const DUNE_BULGES = 5; // soft mounds round the slope
 const BULGE = 0.5; // metres they rise and fall by
-const SEGMENTS = 32;
-export const STOREY = 10; // metres: the first floor's top above the ground
+const ROOM = SHAPE.room; // the room's wall, upright
+const STOREY = 20; // metres: the first floor's top above the ground, a keep's storey, so the murals clear the flight
 const SLAB = 0.5; // the first floor's thickness
-const STAIR_INNER = 10; // metres from the axis: the flight's inner edge
-const STAIR_CLEAR = 0.15; // metres its outer edge keeps from the wall
-const STAIR_TURNS = 0.5;
-const STEP_RISE = 0.25;
-const STEP = 0.3; // a step's thickness: a flight in the air, with headroom beneath it
-const STAIR_HOLE = (60 * Math.PI) / 180; // the floor is open over the last 60° of the flight, where it's within 3 m
+const STAIR_WIDTH = 3.75; // a keep's
+const STAIR_INNER = ROOM - STAIR_WIDTH;
+const STAIR_HOLE = (35 * Math.PI) / 180; // the floor is open over the last 35° of the flight, where it's within 3 m
 const RAIL = 1; // height of the posts along the flight's inner edge
 const SILL = 0.02; // the flight sits this far below the floor it meets, so no two tops share a height
-const RING_MARGIN = 0.1; // metres a collision ring keeps inside each face of the skin
-const MIN_RING = 0.5; // metres: the thinnest ring worth standing; a band is split until its rings are
+const SEGMENTS = 32; // straight pieces in each collision ring
+const RING_MARGIN = 0.1; // metres a collision ring keeps inside the skin
+const WALL_SEGMENTS = 72; // straight pieces the model's wall is turned in, which frames hang on
 
 // The door faces the way in; the model's door faces its +z, so it's turned to match.
 const ENTRANCE = Math.atan2(-Z, -X);
@@ -71,15 +74,24 @@ export const PINEAPPLE_LEVELS: Region[] = [0, STOREY].map((y) => ({
   y: DUNE_HEIGHT + y,
 }));
 
-// The room's wall at a height above the ground: the shell's radius there, less the wall.
-const roomRadius = (y: number) => {
-  const i = Math.max(
-    1,
-    SHAPE.rings.findIndex(([ring]) => ring >= y),
-  );
-  const [y0, r0] = SHAPE.rings[i - 1];
-  const [y1, r1] = SHAPE.rings[i];
-  return r0 + ((r1 - r0) * (y - y0)) / (y1 - y0) - SHAPE.wall;
+// The flight, climbing from the side of the room round the back, over the door, to the first
+// floor: from 135° round from the entrance (to your right, facing it from the middle) to 315°,
+// as a keep's ground floor's does, so the murals hung there hang here just the same.
+const STAIR_START = ENTRANCE - (3 * Math.PI) / 4;
+const STAIR_END = STAIR_START + Math.PI;
+
+// The ground floor as a round room, for the murals (sim/wallFrames.ts): the wall as the collision
+// rings stand it, the doorway its one door, the flight leaving it.
+export const PINEAPPLE_ROOM: RoundRoom = {
+  x: X,
+  z: Z,
+  floor: DUNE_HEIGHT,
+  ceiling: DUNE_HEIGHT + STOREY - SLAB,
+  middle: DUNE_HEIGHT + STOREY / 2,
+  wall: { r: ROOM + 1, thickness: 2, segments: WALL_SEGMENTS },
+  entrance: ENTRANCE,
+  doors: [{ angle: ENTRANCE, width: 2 * Math.asin(SHAPE.doorway.width / 2 / ROOM), top: SHAPE.doorway.height }],
+  stair: { from: STAIR_START, climb: STOREY / Math.PI },
 };
 
 // The flat face's share of a band of wall between two heights above the floor, if it reaches it.
@@ -95,9 +107,8 @@ const faced = (bottom: number, top: number, r: number) =>
       ]
     : [];
 
-// The shell, band by band between its rings: below the ceiling, rings of wall inside the skin, each
-// band split until a straight ring fits the sloping skin with MIN_RING to spare; above it, solid.
-// All unseen: the model is the shell's look.
+// The shell, band by band between its rings: below the ceiling, a ring of wall from the room's
+// wall out to just inside the skin; above it, solid. All unseen: the model is the shell's look.
 const shell: Structure[] = SHAPE.rings.slice(1).flatMap(([y1, r1], i) => {
   const [y0, r0] = SHAPE.rings[i];
   if (y0 >= SHAPE.ceiling - 1e-6)
@@ -109,73 +120,65 @@ const shell: Structure[] = SHAPE.rings.slice(1).flatMap(([y1, r1], i) => {
       thickness: y1 - y0,
       hidden: true,
     });
-  const parts = Math.max(1, Math.ceil(Math.abs(r1 - r0) / (SHAPE.wall - 2 * RING_MARGIN - MIN_RING)));
-  return Array.from({ length: parts }, (_, k) => {
-    const [ya, yb] = [y0 + ((y1 - y0) * k) / parts, y0 + ((y1 - y0) * (k + 1)) / parts];
-    const [ra, rb] = [r0 + ((r1 - r0) * k) / parts, r0 + ((r1 - r0) * (k + 1)) / parts];
-    const outer = Math.min(ra, rb) - RING_MARGIN;
-    const inner = Math.max(ra, rb) - SHAPE.wall + RING_MARGIN;
-    return roundWall({
-      x: X,
-      z: Z,
-      r: (outer + inner) / 2,
-      thickness: outer - inner,
-      y: DUNE_HEIGHT + ya,
-      h: yb - ya,
-      segments: SEGMENTS,
-      gaps: faced(ya, yb, (outer + inner) / 2),
-      hidden: true,
-    });
-  }).flat();
+  const outer = Math.min(r0, r1) - RING_MARGIN;
+  return roundWall({
+    x: X,
+    z: Z,
+    r: (outer + ROOM) / 2,
+    thickness: outer - ROOM,
+    y: DUNE_HEIGHT + y0,
+    h: Math.min(y1, SHAPE.ceiling) - y0,
+    segments: SEGMENTS,
+    gaps: faced(y0, Math.min(y1, SHAPE.ceiling), (outer + ROOM) / 2),
+    hidden: true,
+  });
 });
 
-// The face as the sim sees it, in the house's frame: a slab of wall from the face's plane back
-// toward the room. The jambs either side of the doorway reach the room's wall at the foot, and
-// are thinner above, where the room's wall leans away from the face; the lintel over the doorway
-// is thin like them. Nothing below the ceiling stands within a step of a player's head, so the
-// hollow behind the thin parts is never felt.
-const slab = (lx: number, depth: number, w: number, bottom: number, top: number): Box => ({
-  kind: 'box',
-  ...placed(lx, SHAPE.face.z - depth / 2),
-  yaw: YAW,
-  w,
-  d: depth,
-  h: top - bottom,
-  y: DUNE_HEIGHT + bottom,
-  hidden: true,
-});
-const JAMB = SHAPE.face.halfWidth - SHAPE.doorway.width / 2;
-const JAMB_AT = SHAPE.doorway.width / 2 + JAMB / 2;
+// The face as the sim sees it, in the house's frame: slabs of wall from the face's plane back to
+// the room's wall, the jambs either side of the doorway (two each, so their backs keep to the
+// round wall) and the lintel over it.
+const slab = (x0: number, x1: number, bottom: number, top: number): Box => {
+  const depth = SHAPE.face.z - Math.sqrt(ROOM * ROOM - Math.max(x0 * x0, x1 * x1)) + 0.05;
+  return {
+    kind: 'box',
+    ...placed((x0 + x1) / 2, SHAPE.face.z - depth / 2),
+    yaw: YAW,
+    w: Math.abs(x1 - x0),
+    d: depth,
+    h: top - bottom,
+    y: DUNE_HEIGHT + bottom,
+    hidden: true,
+  };
+};
+const JAMB = (SHAPE.face.halfWidth - SHAPE.doorway.width / 2) / 2;
 const face: Structure[] = [
-  ...[-1, 1].flatMap((side) => [
-    slab(side * JAMB_AT, 1.6, JAMB, 0, 2.2),
-    slab(side * JAMB_AT, 0.8, JAMB, 2.2, SHAPE.face.top),
-  ]),
-  slab(0, 0.8, SHAPE.doorway.width, SHAPE.doorway.height, SHAPE.face.top),
+  ...[-1, 1].flatMap((side) => {
+    const edge = (SHAPE.doorway.width / 2) * side;
+    return [
+      slab(edge, edge + JAMB * side, 0, SHAPE.face.top),
+      slab(edge + JAMB * side, edge + 2 * JAMB * side, 0, SHAPE.face.top),
+    ];
+  }),
+  slab(-SHAPE.doorway.width / 2, SHAPE.doorway.width / 2, SHAPE.doorway.height, SHAPE.face.top),
 ];
 
-// The flight, climbing from the side of the room round the back to the first floor: a keep's stair
-// (content/keep.ts), but with its outer edge following the wall as it leans out.
-const STAIR_START = ENTRANCE + Math.PI / 2;
-const STAIR_END = STAIR_START + STAIR_TURNS * 2 * Math.PI;
+// The flight and the first floor, a keep's.
 const stair = spiralStairs({
   x: X,
   z: Z,
   inner: STAIR_INNER,
-  outer: (climbed) => roomRadius(climbed) - STAIR_CLEAR,
-  bottom: DUNE_HEIGHT - SILL, // so the top step (and the rail post on it) sits just under the floor
+  outer: ROOM + 0.05, // into the wall, so there's no gap at its foot
+  bottom: DUNE_HEIGHT - SILL,
   rise: STOREY,
-  turns: STAIR_TURNS,
+  turns: 0.5,
   start: STAIR_START,
-  thickness: STEP,
-  stepRise: STEP_RISE,
   rail: RAIL,
   material: 'wood',
 });
 const upstairs = roundFloor({
   x: X,
   z: Z,
-  r: roomRadius(STOREY) + 0.1,
+  r: ROOM + 0.3,
   y: DUNE_HEIGHT + STOREY,
   thickness: SLAB,
   hole: { inner: STAIR_INNER, from: STAIR_END - STAIR_HOLE, to: STAIR_END },

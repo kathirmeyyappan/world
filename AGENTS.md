@@ -379,9 +379,10 @@ wire: server and client both build the world from that file.
   ground floor, Building 3 the first), so a floor is the same room in both, stair and murals alike;
   change a floor there and both follow. Building 4 stands a bare keep until it gets a structure of
   its own. Building 1 is SpongeBob's house (`content/pineapple.ts`), a model the client draws (see
-  Models below) on a dune of sand, collided with through hidden pieces stood inside its skin: two
-  bamboo-walled floors behind a door you click, the sand below and a wooden floor above, joined by
-  a flight up the back wall. The terrace (`content/terrace.ts`) is reached from the keeps:
+  Models below) on a dune of sand, collided with through hidden pieces stood inside its skin. Inside
+  it is a round room like a keep's, behind a door you click: the sand its ground floor, which hangs
+  the tower's ground-floor murals (`PINEAPPLE_ROOM`), a keep's stair up the wall, and a wooden first
+  floor under a net ceiling. The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
@@ -417,7 +418,7 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 6,078 pieces (4,951
+  so draw calls stay in the tens however many pieces there are. The world's 5,988 pieces (5,020
   drawn) render as 75 meshes (about 15 in view at once), and a world-spanning raycast costs about
   60 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
   through `render/Loader.ts` (see Models below).
@@ -428,12 +429,12 @@ A landmark too shapely for boxes is a model: a mesh the client draws from files 
 `packages/client/public/assets/models/` and textures in `public/assets/textures/models/`, written by
 a script in `packages/client/scripts/` (`house-model.py` makes the pineapple from a Sketchfab GLB:
 turned afresh as a smooth lathe through the model's rings, flattened into an upright face round the
-door, walled in bamboo inside under a net ceiling, its doorway cut straight through the wall and
-lined, its door a flat slab on a pin at its edge, a part of its own) along with a profile of its
-shape for the sim (`content/pineappleProfile.ts`). The sim never sees a mesh: the content stands `hidden`
-structures inside it (`content/pineapple.ts`: rings of wall following the shell, the jambs and
-lintel of its flat face, slabs above the ceiling) and the renderer skips them, so what you bump into
-is the content's to keep true to the model. `render/models/Models.ts` fetches each part and hangs it where the content's
+door, an upright bamboo-walled room inside under a net ceiling, its doorway cut straight through the
+wall and cased in steel, its door a flat slab on a pin at its edge, a part of its own) along with a
+profile of its shape for the sim (`content/pineappleProfile.ts`). The sim never sees a mesh: the
+content stands `hidden` structures inside it (`content/pineapple.ts`: rings of wall between the room
+and the shell, the jambs and lintel of its flat face, slabs above the ceiling) and the renderer skips
+them, so what you bump into is the content's to keep true to the model. `render/models/Models.ts` fetches each part and hangs it where the content's
 placement says.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands

@@ -7,25 +7,27 @@ sim's content/pineappleProfile.ts.
 The model is a single skin: the pineapple's shell (a coarse lathe, open at the ground and at the
 crown), a door panel with its frame and wheel, three portholes in the wall, a chimney, the leaves,
 and the rivets on all of those. From it this keeps the shell's outline (its rings' radii up the
-height), the leaves, the portholes and the chimney, and builds the rest itself, in five parts:
+height), the leaves, the portholes and the chimney, and builds the rest itself, in six parts:
 
 - skin: the shell turned afresh as a smooth lathe through those rings, scaled so its belly is OUTER
   round like the keep it replaces, in a pineapple diamond pattern painted here and wrapped round,
   flattened into an upright face round the door (a door hangs true in a flat wall, and the shell
   leans out as it rises) that rounds back into the shell either side and above, with the doorway
   cut out of it;
-- inside: the same lathe WALL inward up to CEILING, walled in the show's bamboo painted here, the
-  doorway cut out of it the same way (the floor between its two storeys is the content's);
+- inside: the room, an upright cylinder WALL in from the shell's foot up to CEILING (the shell
+  leans out above it, so the wall thickens as it rises), walled in the show's bamboo painted here,
+  the doorway cut out of it the same way (the floor between its two storeys is the content's);
 - ceiling: the flat ceiling over the top floor, in the show's rope net painted here;
-- trim: the leaves, portholes and chimney as the model has them (its texture, cut down), the
-  crown's cap, the frame round the doorway and the passage through the wall behind it, straight
-  from the one cut to the other;
+- passage: the doorway through the wall, straight from the one cut to the other, and the frame
+  round it on the face, cased in riveted steel painted here;
+- trim: the leaves, portholes and chimney as the model has them (its texture, cut down), and the
+  crown's cap;
 - door: a flat slab the doorway's shape less a hair of clearance all round, the show's front door
   painted here on both faces, flush with the face about the pin at its left edge on the ground,
   for the sim to swing (content/pineapple.ts).
 
-The profile the sim collides with (the shell's rings, the doorway and its door, the flat face, the
-ceiling) comes from the same lathe.
+The profile the sim collides with (the shell's rings, the room's radius, the doorway and its door,
+the flat face, the ceiling) comes from the same lathe.
 """
 
 from __future__ import annotations
@@ -41,8 +43,8 @@ from glb import accessor, components, local_matrix, read_glb
 from PIL import Image
 
 OUTER = 20.0  # metres: the shell's radius at its widest, the keep's (content/keep.ts)
-WALL = 2.0  # metres: how thick the shell is made
-CEILING = 20.0  # metres above the shell's foot: the flat ceiling over the house's two floors
+WALL = 2.0  # metres: how thick the shell is at its foot, where the room's wall stands
+CEILING = 26.5  # metres above the shell's foot: the flat ceiling over the house's two storeys
 DOOR_WIDTH = 2.8  # metres: the doorway, an arch
 DOOR_HEIGHT = 4.0
 DOOR_THICKNESS = 0.2
@@ -63,9 +65,10 @@ PROFILE_STEP = 3.0  # metres between the rings the sim gets
 SKIN_TILE = 8.5  # metres of shell one repeat of the pineapple pattern (two diamonds) covers
 BAMBOO_TILE = 6.0  # metres of wall one repeat of the bamboo (five poles) covers: players are small in this house
 NET_TILE = 6.0  # metres of ceiling one repeat of the net (two meshes) covers
+STEEL_TILE = 3.0  # metres of passage one repeat of the steel (two plates) covers
 TRIM_TEXTURE = 512  # the model's texture is cut down to this for what's kept of it
 ATLAS_PAD = 64  # pixels of blank strip added at that texture's right for the swatches
-SWATCHES = {"crown": (138, 107, 42), "iron": (74, 74, 80), "frame": (196, 206, 224), "lining": (100, 118, 152)}
+SWATCHES = {"crown": (138, 107, 42), "iron": (74, 74, 80)}
 CLIENT = Path(__file__).resolve().parents[1]
 MODELS_OUT = CLIENT / "public/assets/models"
 TEXTURES_OUT = CLIENT / "public/assets/textures/models"
@@ -100,23 +103,29 @@ def main(path: str) -> None:
     rings = lathe_rings(points[parts[shell]])
     s = OUTER / max(r for _, r in rings)
     profile = smooth_profile([(y * s, r * s) for y, r in rings])
-    print(f"shell: {len(rings)} rings in the model, {len(profile)} in the lathe; scale {s:.3f}")
+    room = room_radius(profile)
+    print(
+        f"shell: {len(rings)} rings in the model, {len(profile)} in the lathe; scale {s:.3f}; room {room:.2f} m round"
+    )
 
     hole = arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, ARCH_STEPS)
     front, rest = cut_hole(lathe(profile, SKIN_TILE, lambda a, y: surface(profile, a, y), lathe_angles()), hole)
     inner_rings = [(y, r) for y, r in profile if y <= CEILING + 1e-6]
-    inner_front, inner_rest = cut_hole(lathe(inner_rings, BAMBOO_TILE, lambda a, y: turned(profile, a, y, WALL)), hole)
+    inner_front, inner_rest = cut_hole(
+        lathe(inner_rings, BAMBOO_TILE, lambda a, y: np.array([room * np.sin(a), y, room * np.cos(a)])), hole
+    )
     lining = passage(front, inner_front, hole)
     skin = MeshBuilder()
     skin.add(front + rest)
     inside = MeshBuilder()
     inside.add([list(reversed(tri)) for tri in inner_front + inner_rest])
     ceiling = MeshBuilder()
-    ceiling.add(net_disc(profile))
+    ceiling.add(net_disc(room + 0.3))
+    through = MeshBuilder()
+    through.add(lining)
+    through.add(frame_band(face_plane(profile) + FRAME_PROUD))
     trim = MeshBuilder()
-    trim.add(lining, "lining")
-    trim.add(frame_band(face_plane(profile) + FRAME_PROUD), "frame")
-    trim.add(disc(ring_points(profile, profile[-1][0], 0.0), (0, profile[-1][0], 0), down=False), "crown")
+    trim.add(disc(ring_points(profile, profile[-1][0]), (0, profile[-1][0], 0), down=False), "crown")
     atlas, swatch_uv, squeeze = trim_texture(doc, blob)
     for k in range(len(parts)):
         if k == shell or k in on_door:
@@ -124,7 +133,7 @@ def main(path: str) -> None:
         kept = [
             tri
             for tri in model_triangles(points, uv, tris[of == k], s, squeeze)
-            if not any(within(p, profile) for p, _ in tri)
+            if not any(within(p, room) for p, _ in tri)
         ]
         trim.add(kept)
     door_part, hinge = build_door(profile)
@@ -133,11 +142,13 @@ def main(path: str) -> None:
     paint_pineapple().save(TEXTURES_OUT / "pineapple-skin.png", optimize=True)
     paint_bamboo().save(TEXTURES_OUT / "bamboo.png", optimize=True)
     paint_net().save(TEXTURES_OUT / "net.png", optimize=True)
+    paint_steel().save(TEXTURES_OUT / "steel.png", optimize=True)
     paint_door().save(TEXTURES_OUT / "door.png", optimize=True)
     MODELS_OUT.mkdir(parents=True, exist_ok=True)
     emit_part("skin", skin, {})
     emit_part("inside", inside, {})
     emit_part("ceiling", ceiling, {})
+    emit_part("passage", through, {})
     emit_part("trim", trim, swatch_uv)
     emit_part("door", door_part, swatch_uv)
     emit_profile(profile, hinge)
@@ -204,16 +215,15 @@ def radius_at(profile: Profile, y: float) -> float:
     return float(np.interp(y, ys, rs))
 
 
-def within(p: np.ndarray, profile: Profile) -> bool:
-    """Whether a point is inside the room: under the ceiling, short of the shell by the wall. A trim
-    triangle with any corner there (the back of a porthole's ring) would show on the room's wall."""
-    return p[1] < CEILING and np.hypot(p[0], p[2]) < radius_at(profile, p[1]) - WALL - 0.01
+def room_radius(profile: Profile) -> float:
+    """The room's wall: WALL in from the shell's foot, upright the whole way up."""
+    return radius_at(profile, 0.0) - WALL
 
 
-def turned(profile: Profile, a: float, y: float, inset: float = 0.0) -> np.ndarray:
-    """A point of the profile turned round the y axis to angle a, `inset` in from it."""
-    r = radius_at(profile, y) - inset
-    return np.array([r * np.sin(a), y, r * np.cos(a)])
+def within(p: np.ndarray, room: float) -> bool:
+    """Whether a point is inside the room: under the ceiling, short of its wall. A trim triangle with
+    any corner there (the back of a porthole's ring) would show on the room's wall."""
+    return p[1] < CEILING and np.hypot(p[0], p[2]) < room - 0.01
 
 
 def face_plane(profile: Profile) -> float:
@@ -255,7 +265,7 @@ def lathe(
     as triangles with coordinates that wrap it in whole repeats of `tile` round and up. The seam
     column comes twice (at 0 and at the whole number of repeats), so no triangle spans the wrap."""
     angles = angles or [2 * np.pi * k / SEGMENTS for k in range(SEGMENTS + 1)]
-    around = max(1, round(2 * np.pi * np.mean([r for _, r in profile]) / tile))
+    around = max(1, round(2 * np.pi * np.mean([np.hypot(*place(0.0, y)[[0, 2]]) for y, _ in profile]) / tile))
     grid = [[(place(a, y), np.array([around * a / (2 * np.pi), -y / tile])) for a in angles] for y, _ in profile]
     tris: list[Triangle] = []
     for row, above in pairwise(grid):
@@ -348,31 +358,39 @@ def passage(outer: list[Triangle], inner: list[Triangle], hole: Outline) -> list
     outline on the outer skin to the same outline on the inner. Each edge of the outline is a strip
     broken at every point either skin's cut put on that edge, and each skin's triangles along the
     edge are split at the other's points too, so all three meet vertex to vertex with no crack
-    between."""
+    between. The steel runs along the edge and in from the face."""
     middle = np.array([0.0, max(y for _, y in hole) / 2, 0.0])
-    swatch = np.array([0.0, 0.0])
     strips: list[Triangle] = []
+    along_wall = 0.0
     for i in range(len(hole)):
         a, b = np.array(hole[i]), np.array(hole[(i + 1) % len(hole)])
-        if a[1] < 0 and b[1] < 0:
-            continue
-        on_outer, on_inner = outline_points(outer, a, b), outline_points(inner, a, b)
-        ts: list[float] = []
-        for t in sorted({t for t, _ in on_outer} | {t for t, _ in on_inner}):
-            if not ts or t - ts[-1] > 1e-6:
-                ts.append(t)
-        split_edge(outer, a, b, ts)
-        split_edge(inner, a, b, ts)
-        for t0, t1 in pairwise(ts):
-            o0, o1 = along_edge(on_outer, t0), along_edge(on_outer, t1)
-            i0, i1 = along_edge(on_inner, t0), along_edge(on_inner, t1)
-            for tri in ([o0, o1, i1], [o0, i1, i0]):
-                p, q, r = tri
-                if np.cross(q - p, r - p) @ (middle - (p + q + r) / 3) < 0:
-                    tri = [tri[0], tri[2], tri[1]]
-                corners: Triangle = [(v, swatch) for v in tri]
-                if area(corners) > 1e-9:
-                    strips.append(corners)
+        length = float(np.linalg.norm(b - a))
+        if a[1] >= 0 or b[1] >= 0:
+            on_outer, on_inner = outline_points(outer, a, b), outline_points(inner, a, b)
+            ts: list[float] = []
+            for t in sorted({t for t, _ in on_outer} | {t for t, _ in on_inner}):
+                if not ts or t - ts[-1] > 1e-6:
+                    ts.append(t)
+            split_edge(outer, a, b, ts)
+            split_edge(inner, a, b, ts)
+            for t0, t1 in pairwise(ts):
+                o0, o1 = along_edge(on_outer, t0), along_edge(on_outer, t1)
+                i0, i1 = along_edge(on_inner, t0), along_edge(on_inner, t1)
+                s0, s1 = (along_wall + t0 * length) / STEEL_TILE, (along_wall + t1 * length) / STEEL_TILE
+                d0, d1 = float(np.linalg.norm(i0 - o0)) / STEEL_TILE, float(np.linalg.norm(i1 - o1)) / STEEL_TILE
+                quad: list[Corner] = [
+                    (o0, np.array([0.0, s0])),
+                    (o1, np.array([0.0, s1])),
+                    (i1, np.array([d1, s1])),
+                    (i0, np.array([d0, s0])),
+                ]
+                for tri in ([quad[0], quad[1], quad[2]], [quad[0], quad[2], quad[3]]):
+                    p, q, r = (v for v, _ in tri)
+                    if np.cross(q - p, r - p) @ (middle - (p + q + r) / 3) < 0:
+                        tri = [tri[0], tri[2], tri[1]]
+                    if area(tri) > 1e-9:
+                        strips.append(tri)
+        along_wall += length
     return strips
 
 
@@ -430,24 +448,33 @@ def along_edge(points: list[tuple[float, np.ndarray]], t: float) -> np.ndarray:
 
 def frame_band(z: float) -> list[Triangle]:
     """The frame round the doorway: a flat band FRAME wide along the arch and down both jambs, on the
-    face at `z`, in one colour."""
+    face at `z`, in the steel, a plate's middle across it and the plates along it."""
     inner = arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, ARCH_STEPS, bottom=0.0)
     outer = arch(-DOOR_WIDTH / 2 - FRAME, DOOR_WIDTH / 2 + FRAME, DOOR_HEIGHT + FRAME, ARCH_STEPS, bottom=0.0)
-    swatch = np.array([0.0, 0.0])
     tris: list[Triangle] = []
+    along_wall = 0.0
     for i in range(1, len(inner)):  # the pairs along the outline but the bottom, which is the ground
         j = (i + 1) % len(inner)
+        length = float(np.hypot(inner[j][0] - inner[i][0], inner[j][1] - inner[i][1]))
+        s0, s1 = along_wall / STEEL_TILE, (along_wall + length) / STEEL_TILE
         p0, p1, q0, q1 = (np.array([x, y, z]) for x, y in (inner[i], inner[j], outer[i], outer[j]))
-        for tri in ([p0, p1, q1], [p0, q1, q0]):
-            if np.cross(tri[1] - tri[0], tri[2] - tri[0])[2] < 0:
+        quad: list[Corner] = [
+            (p0, np.array([0.25, s0])),
+            (p1, np.array([0.25, s1])),
+            (q1, np.array([0.25 + FRAME / STEEL_TILE, s1])),
+            (q0, np.array([0.25 + FRAME / STEEL_TILE, s0])),
+        ]
+        for tri in ([quad[0], quad[1], quad[2]], [quad[0], quad[2], quad[3]]):
+            if np.cross(tri[1][0] - tri[0][0], tri[2][0] - tri[0][0])[2] < 0:
                 tri = [tri[0], tri[2], tri[1]]
-            tris.append([(p, swatch) for p in tri])
+            tris.append(tri)
+        along_wall += length
     return tris
 
 
-def ring_points(profile: Profile, y: float, inset: float) -> list[np.ndarray]:
+def ring_points(profile: Profile, y: float) -> list[np.ndarray]:
     """The lathe's vertices on the ring at height y, round in angle order."""
-    r = radius_at(profile, y) - inset
+    r = radius_at(profile, y)
     return [np.array([r * np.sin(a), y, r * np.cos(a)]) for a in 2 * np.pi * np.arange(SEGMENTS) / SEGMENTS]
 
 
@@ -465,10 +492,10 @@ def disc(ring: list[np.ndarray], centre: tuple[float, float, float], down: bool)
     return tris
 
 
-def net_disc(profile: Profile) -> list[Triangle]:
-    """The ceiling: a fan over the ring at CEILING, facing down, in NET_TILE repeats of the net
-    across the floor's axes."""
-    ring = ring_points(profile, CEILING, 0.0)
+def net_disc(r: float) -> list[Triangle]:
+    """The ceiling: a fan over a ring of radius r at CEILING, facing down, in NET_TILE repeats of the
+    net across the floor's axes."""
+    ring = [np.array([r * np.sin(a), CEILING, r * np.cos(a)]) for a in 2 * np.pi * np.arange(SEGMENTS) / SEGMENTS]
     c = np.array([0.0, CEILING, 0.0])
     flat = lambda p: np.array([p[0] / NET_TILE, p[2] / NET_TILE])
     tris = []
@@ -637,6 +664,42 @@ def paint_net(size: int = 192, rope: int = 5) -> Image.Image:
     return img
 
 
+def paint_steel(size: int = 192) -> Image.Image:
+    """One repeat of the passage's casing: steel plates, two by two to the repeat, each a shade of
+    its own, with dark seams between and a rivet every so often along every seam."""
+    rng = np.random.default_rng(8)
+    img = Image.new("RGB", (size, size))
+    px = img.load()
+    plate = size // 2
+    seam = 5
+    shades = [(134, 146, 166), (128, 140, 160), (140, 152, 172), (131, 143, 163)]
+    for x in range(size):
+        for y in range(size):
+            c = shades[(x // plate + 2 * (y // plate)) % 4]
+            if rng.random() < 0.06:
+                c = (c[0] - 8, c[1] - 8, c[2] - 8)
+            if x % plate < seam or y % plate < seam:
+                c = (78, 88, 108)
+            px[x, y] = c
+    for k in range(0, size, size // 8):  # rivets along the seams, a plate's eighth apart
+        for cx, cy in (
+            (k + seam // 2 + 2, seam // 2 + 2),
+            (seam // 2 + 2, k + seam // 2 + 2),
+            (k + seam // 2 + 2, plate + seam // 2 + 2),
+            (plate + seam // 2 + 2, k + seam // 2 + 2),
+        ):
+            for x in range(cx - 4, cx + 5):
+                for y in range(cy - 4, cy + 5):
+                    d = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+                    if d <= 4 and 0 <= x < size and 0 <= y < size:
+                        px[x, y] = (
+                            (196, 206, 222)
+                            if d <= 2 and x <= cx and y <= cy
+                            else ((70, 78, 96) if d > 3 else (156, 166, 184))
+                        )
+    return img
+
+
 DOOR_PLANKS = 0.9  # how much of the door texture, down from the top, is the door; under it, the iron swatch
 
 
@@ -732,13 +795,15 @@ def emit_profile(profile: Profile, hinge: np.ndarray) -> None:
     lines = [
         "// Generated by packages/client/scripts/house-model.py; don't edit. The pineapple house's shape for",
         "// the sim (content/pineapple.ts), in metres in the house's frame (the door facing +z): the shell's",
-        "// rings from the ground up (height, radius), the doorway cut in its front and the door that hangs",
-        "// in it (its pin on the ground at the door's left edge, on the face it swings toward, how far the",
-        "// door reaches from the pin, how tall and thick it is), the flat upright face the door stands in",
-        "// (how far it reaches either side of the door and up, and how far out from the axis it stands),",
-        "// how far above the ground the flat ceiling is, and the wall's thickness.",
+        "// rings from the ground up (height, radius), the room's radius (its wall stands upright inside the",
+        "// shell), the doorway cut in its front and the door that hangs in it (its pin on the ground at the",
+        "// door's left edge, on the face it swings toward, how far the door reaches from the pin, how tall",
+        "// and thick it is), the flat upright face the door stands in (how far it reaches either side of the",
+        "// door and up, and how far out from the axis it stands), and how far above the ground the flat",
+        "// ceiling is.",
         "export const PINEAPPLE_PROFILE = {",
         f"  rings: [{', '.join(f'[{y:.2f}, {r:.2f}]' for y, r in rings)}],",
+        f"  room: {room_radius(profile):.3f},",
         f"  doorway: {{ width: {DOOR_WIDTH}, height: {DOOR_HEIGHT} }},",
         "  door: {",
         f"    hinge: [{hinge[0]:.3f}, {hinge[2]:.3f}],",
@@ -748,7 +813,6 @@ def emit_profile(profile: Profile, hinge: np.ndarray) -> None:
         "  },",
         f"  face: {{ halfWidth: {FACE_BLEND}, top: {FACE_BLEND_TOP}, z: {face_plane(profile):.3f} }},",
         f"  ceiling: {CEILING},",
-        f"  wall: {WALL},",
         "} as const;",
         "",
     ]
