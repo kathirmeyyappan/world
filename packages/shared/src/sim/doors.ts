@@ -2,19 +2,20 @@
 // because the Room keeps it (room.ts) and tells every client. Shut, it stands across the opening;
 // open, turned `swing` round its hinge, it stands beside it; either way it's a wall: `doorPieces`
 // makes the two structures, each marked with the door and the state it stands in, which Structures
-// turns on and off (collision.ts). A player looking at a door from within DOOR_REACH uses it with a
+// turns on and off (collision.ts). The hinge's pin is on the slab's face, the one it swings toward,
+// at its edge, so the slab swung square stands clear of its jamb, as a real door hung on its face does. A player looking at a door from within DOOR_REACH uses it with a
 // click (InputFrame.use), and the Room swings it the other way once the last swing has had
 // DOOR_SWING_SECONDS to finish. Bots' map leaves doors out, so they walk as if every door stood open.
 import { wall, type Box } from './structures';
 
 export interface DoorSpec {
   id: string;
-  hinge: { x: number; z: number }; // on the floor the door stands on
+  hinge: { x: number; z: number }; // the pin, on the floor the door stands on
   y: number; // that floor's height
   bearing: number; // the way the slab runs from the hinge when shut (radians from +x toward +z)
   reach: number; // metres the slab runs from the hinge
   height: number;
-  thickness: number;
+  thickness: number; // metres the slab hangs behind its face, to the right of the way it runs
   swing: number; // radians the slab turns round the hinge to open, the same way round as the bearing
 }
 
@@ -24,8 +25,10 @@ export const DOOR_SWING_SECONDS = 0.8;
 export function doorPieces(door: DoorSpec): Box[] {
   return [false, true].map((open) => {
     const a = door.bearing + (open ? door.swing : 0);
-    const end = { x: door.hinge.x + door.reach * Math.cos(a), z: door.hinge.z + door.reach * Math.sin(a) };
-    return { ...wall(door.hinge, end, door.height, door.thickness, door.y), door: { id: door.id, open }, hidden: true };
+    const back = { x: (door.thickness / 2) * Math.sin(a), z: (-door.thickness / 2) * Math.cos(a) };
+    const from = { x: door.hinge.x + back.x, z: door.hinge.z + back.z };
+    const to = { x: from.x + door.reach * Math.cos(a), z: from.z + door.reach * Math.sin(a) };
+    return { ...wall(from, to, door.height, door.thickness, door.y), door: { id: door.id, open }, hidden: true };
   });
 }
 

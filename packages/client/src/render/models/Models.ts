@@ -1,6 +1,8 @@
 // Landmarks drawn from mesh files rather than built from structures: the pineapple house, in the
-// parts scripts/house-model.py writes (its shell, its papered inside, its door), fetched through the
-// loader (render/Loader.ts) and stood where the shared content puts it (content/pineapple.ts). The
+// parts scripts/house-model.py writes (its skin, its papered inside, its doorway's frame, its trim,
+// its door), fetched
+// through the loader (render/Loader.ts) and stood where the shared content puts it
+// (content/pineapple.ts). The
 // sim never sees these meshes; it collides with the structures the content hides inside them, so
 // what you bump into is theirs to keep true to the model. The door hangs on a node at its hinge and
 // swings to the state the Room tells us (sim/doors.ts) over DOOR_SWING_SECONDS.
@@ -29,12 +31,14 @@ export class Models {
     const [hx, hz] = PINEAPPLE_PROFILE.door.hinge;
     const hinge = new TransformNode('model-pineapple-door', scene);
     hinge.parent = house;
-    hinge.position.set(hx, 0, hz);
+    hinge.position.set(hx, PINEAPPLE_PROFILE.door.sill, hz);
     this.doors.set(PINEAPPLE_DOOR.id, { node: hinge, swing: PINEAPPLE_DOOR.swing, open: false, at: 0 });
     const parts: [Part, TransformNode][] = [
-      [{ name: 'shell', texture: 'pineapple', wrap: false }, house],
+      [{ name: 'skin', texture: 'pineapple-skin', wrap: true }, house],
       [{ name: 'inside', texture: 'wallpaper', wrap: true }, house],
-      [{ name: 'door', texture: 'pineapple', wrap: false }, hinge],
+      [{ name: 'frame', texture: 'planks', wrap: true }, house],
+      [{ name: 'trim', texture: 'pineapple', wrap: false }, house],
+      [{ name: 'door', texture: 'door', wrap: false }, hinge],
     ];
     for (const [part, parent] of parts)
       loader.add({ x: PINEAPPLE_PLACEMENT.x, z: PINEAPPLE_PLACEMENT.z, load: () => fetchPart(scene, part, parent) });

@@ -3,12 +3,10 @@
 // (render/models/Models.ts); the sim knows it by its profile (content/pineappleProfile.ts, written
 // with the model by scripts/house-model.py) and collides with structures stood inside its skin,
 // never drawn: rings of wall following the shell's curve up to the ceiling, the doorway open in
-// them, solid slabs above it, and a wooden floor between the walls. The dune
+// them, solid slabs above it, and a wooden floor out to the shell, a sill's height up. The dune
 // rises from the grounds' edge to a flat top the house sits on, and bulges a little round it. The
-// door hangs in the doorway (sim/doors.ts), and the furniture of the show's front room stands
-// inside, built from boxes: the armchair on its life ring, the side table, the couch of rolled
-// bamboo on its blue bed.
-import { roundFloor, roundWall, terrain, wall, type Box, type Structure } from '../sim/structures';
+// door hangs in the doorway (sim/doors.ts).
+import { roundFloor, roundWall, terrain, type Structure } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -26,7 +24,8 @@ const BULGE = 0.5; // metres they rise and fall by
 const SEGMENTS = 32;
 const RING_MARGIN = 0.1; // metres a collision ring keeps inside each face of the skin
 const MIN_RING = 0.5; // metres: the thinnest ring worth standing; a band is split until its rings are
-const FLOOR = 0.1; // the wooden floor's thickness
+const FLOOR = SHAPE.door.sill; // the wooden floor's thickness: the door stands on it
+const FLOOR_MARGIN = 0.05; // metres the floor's edge stays inside the shell's foot
 
 // The door faces the way in; the model's door faces its +z, so it's turned to match.
 const ENTRANCE = Math.atan2(-Z, -X);
@@ -39,13 +38,13 @@ const placed = (lx: number, lz: number) => ({
 });
 const FLOOR_TOP = DUNE_HEIGHT + 0.1; // the wooden floor's top
 
-// The door swings outward on the hinge at its left edge, through a little more than a right angle,
-// to stand beside the doorway.
-export const DOOR_SWING = (100 * Math.PI) / 180;
+// The door swings outward on the hinge at its left edge, square to the doorway, to stand at its
+// side.
+export const DOOR_SWING = Math.PI / 2;
 export const PINEAPPLE_DOOR: DoorSpec = {
   id: 'pineapple',
-  hinge: placed(SHAPE.door.hinge[0], SHAPE.door.hinge[1] + SHAPE.door.middle[1]),
-  y: DUNE_HEIGHT,
+  hinge: placed(SHAPE.door.hinge[0], SHAPE.door.hinge[1]),
+  y: FLOOR_TOP,
   bearing: -YAW, // the house's +x, where the slab runs from the hinge
   reach: SHAPE.door.reach,
   height: SHAPE.door.height,
@@ -124,72 +123,16 @@ const dune = terrain({
   },
 });
 
-// The front room, in the house's frame: a few times a person's size, like the house.
-const RED = '#d8402a';
-const CREAM = '#efe6d2';
-const BLUE = '#2f55c4';
-const GREEN = '#64b23c';
-const ORANGE = '#e3772b';
-const BROWN = '#7a4a22';
-const DARK = '#3b2a1a';
-const box = (lx: number, lz: number, w: number, d: number, h: number, y: number, color: string): Box => ({
-  kind: 'box',
-  ...placed(lx, lz),
-  yaw: YAW,
-  w,
-  d,
-  h,
-  y: FLOOR_TOP + y,
-  color,
-});
-// A ring of `count` straight pieces round (lx, lz), coloured in turn from `colors`.
-const ring = (
-  lx: number,
-  lz: number,
-  r: number,
-  h: number,
-  thickness: number,
-  count: number,
-  colors: string[],
-): Box[] =>
-  Array.from({ length: count }, (_, k) => {
-    const a = ((k - 0.52) / count) * 2 * Math.PI;
-    const b = ((k + 0.52) / count) * 2 * Math.PI;
-    const at = (t: number) => placed(lx + r * Math.cos(t), lz + r * Math.sin(t));
-    return { ...wall(at(a), at(b), h, thickness, FLOOR_TOP), color: colors[k % colors.length] };
-  });
-const furniture: Structure[] = [
-  // The armchair, red on a life ring, facing the door.
-  ...ring(-7, -5, 2.1, 0.9, 1.1, 12, [RED, CREAM]),
-  box(-7, -5, 3.2, 2.6, 0.8, 0.9, RED),
-  box(-7, -6.2, 3.2, 0.8, 2.4, 1.7, RED),
-  box(-8.7, -5.2, 0.8, 2.2, 1.1, 1.7, RED),
-  box(-5.3, -5.2, 0.8, 2.2, 1.1, 1.7, RED),
-  // The side table: a round top on a stem with an anchor of a foot.
-  ...roundFloor({ ...placed(-3.2, -6), r: 1.0, y: FLOOR_TOP + 1.7, thickness: 0.15, color: BROWN }),
-  box(-3.2, -6, 0.3, 0.3, 1.55, 0, DARK),
-  box(-3.2, -6, 1.6, 0.25, 0.25, 0, DARK),
-  box(-3.2, -6, 0.25, 1.6, 0.25, 0, DARK),
-  // The couch: rolls of bamboo bound in orange, on a blue bed.
-  box(5.5, -5.5, 6.4, 2.8, 0.8, 0, BLUE),
-  box(5.5, -6.4, 6.0, 1.0, 1.0, 0.8, GREEN),
-  box(5.5, -6.4, 6.0, 1.0, 1.0, 1.8, GREEN),
-  box(5.5, -6.4, 6.0, 1.0, 1.0, 2.8, GREEN),
-  box(3.6, -6.4, 0.5, 1.12, 3.0, 0.8, ORANGE),
-  box(7.4, -6.4, 0.5, 1.12, 3.0, 0.8, ORANGE),
-];
-
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
   ...roundFloor({
     x: X,
     z: Z,
-    r: SHAPE.rings[0][1] - SHAPE.wall / 2,
+    r: SHAPE.rings[0][1] - FLOOR_MARGIN,
     y: FLOOR_TOP,
     thickness: FLOOR,
     material: 'wood',
   }),
   ...shell,
   ...doorPieces(PINEAPPLE_DOOR),
-  ...furniture,
 ];
