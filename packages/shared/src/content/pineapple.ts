@@ -13,10 +13,12 @@
 // Inside, the rooms are the game's (Battle for Bikini Bottom): the living room through the front
 // door, the closet off it, the kitchen behind, the bathroom off the kitchen, the bedroom upstairs
 // over the kitchen, and the library on top. A stair round the back of the house climbs from the
-// kitchen's back door to a platform at the hall's door; the hall runs round the bedroom to its
-// doors, and a straight flight climbs from it through a hole in the library's floor, railed round.
-// Every door swings (sim/doors.ts), the front one outward, the rooms' into the room each closes.
-import { roundFloor, roundWall, stairs, terrain, wall, type Box, type Structure } from '../sim/structures';
+// kitchen's back door, standing clear of the shell with rails both sides, to a balcony at the
+// hall's door; the hall runs round the bedroom to its doors, and a straight flight climbs from it
+// through a hole in the library's floor, railed round. Every door swings (sim/doors.ts), the front
+// one and the back door outward, the rooms' into the room each closes; each outside door hangs in
+// a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
+import { ramp, roundFloor, roundWall, stairs, terrain, wall, type Box, type Structure } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -82,14 +84,10 @@ export const PINEAPPLE_LEVELS: Region[] = [
 ];
 
 // What's open through the shell's rings between two heights above the floor: the doorways (the
-// back door's and the hall's; each `width` metres across at the ring's radius) and
-// the face round the front door, which has a wall of its own below (`faceWalls`), each as a gap.
-const FACE_ARC = 2 * Math.asin(SHAPE.face.halfWidth / SHAPE.rings[0][1]);
+// back door's and the hall's; each `width` metres across at the ring's radius) and the flat faces
+// round the doors, which have walls of their own (`faceWalls`), each as a gap.
 const openings = (bottom: number, top: number, r: number) =>
-  [
-    ...SHAPE.doorways.map((g) => ({ ...g, arc: g.width / r })),
-    { bearing: 0, arc: FACE_ARC, bottom: 0, top: SHAPE.face.top },
-  ]
+  [...SHAPE.doorways.map((g) => ({ ...g, arc: g.width / r })), ...SHAPE.faces]
     .filter((g) => g.bottom < top && g.top > bottom)
     .map((g) => ({
       angle: bearing(g.bearing),
@@ -104,8 +102,8 @@ const openings = (bottom: number, top: number, r: number) =>
 // left out of it: the whole thickness outside the ground floor's rooms, then only a seal inside
 // the skin, behind the hall's wall; from the library's floor up, solid from its wall's inside out
 // to the skin (nothing stands between them), and above the library solid through. Where the skin
-// is flattened into the face round the front door the rings are open and the face's own wall
-// stands, chord by chord.
+// is flattened into a face round a door the rings are open and the face's own wall stands, chord
+// by chord.
 const edges = [...new Set([...SHAPE.rings.map(([y]) => y), levels.hall, levels.library, levels.top])].sort(
   (a, b) => a - b,
 );
@@ -122,7 +120,7 @@ const ring = (inner: number, outer: number, y0: number, y1: number): Box[] =>
     hidden: true,
   });
 const face: Box[] = SHAPE.faceWalls.map(([x1, z1, x2, z2, y0, y1]) => ({
-  ...wall(placed(x1, z1), placed(x2, z2), y1 - y0, SHAPE.face.thickness, DUNE_HEIGHT + y0),
+  ...wall(placed(x1, z1), placed(x2, z2), y1 - y0, SHAPE.faceThickness, DUNE_HEIGHT + y0),
   hidden: true,
 }));
 const shell: Structure[] = edges.slice(1).flatMap((y1, i): Structure[] => {
@@ -196,6 +194,13 @@ function slotRails(): Box[] {
   ];
 }
 
+// The path's flagstones, a hair above the sand, each a ramp lying with the dune's slope, so a
+// walker steps on and off them where the model draws them.
+const stones: Structure[] = SHAPE.stones.map(([lx, lz, hx, hz, y, w, h]) => ({
+  ...ramp(placed(lx, lz), placed(hx, hz), h, w, DUNE_HEIGHT + y),
+  hidden: true,
+}));
+
 // Flat on top, down to the floor by the grounds' edge, never steeper than a walk; its underside a
 // hair under the floor, so its rim and corners (the grounds are round, it is square) stay out of
 // sight beneath it. Heights are over the underside. The same hill the model's garden was laid on.
@@ -207,7 +212,11 @@ const dune = terrain({
   d: 2 * hill.foot,
   y: -0.05,
   material: 'sand',
-  height: (lx, lz) => {
+  height: (ox, oz) => {
+    // The terrain samples at offsets in the world's axes; the hill is shaped in the house's frame,
+    // the one the garden is laid on it in (scripts/house-model.py, with this same hill).
+    const lx = ox * Math.cos(YAW) - oz * Math.sin(YAW);
+    const lz = ox * Math.sin(YAW) + oz * Math.cos(YAW);
     const out = Math.hypot(lx, lz);
     const t = Math.max(0, Math.min(1, (hill.foot - out) / (hill.foot - hill.top)));
     const slope = t * t * (3 - 2 * t);
@@ -218,6 +227,7 @@ const dune = terrain({
 
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
+  ...stones,
   ...shell,
   ...face,
   ...rooms,

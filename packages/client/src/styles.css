@@ -660,6 +660,31 @@ body {
 #hit-notice.note {
   color: rgba(255, 255, 255, 0.8);
 }
+/* What a click does to what the crosshair is on (a door in reach): under the hit notice, bigger,
+   blinking between white and grey the way an old screen's prompt does. */
+#door-prompt {
+  position: fixed;
+  top: calc(50% + 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  pointer-events: none;
+  font: 26px var(--mono);
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+  white-space: pre;
+  display: none;
+}
+#door-prompt.on {
+  display: block;
+  animation: prompt-blink 0.8s steps(1) infinite;
+}
+@keyframes prompt-blink {
+  50% {
+    color: #8c919b;
+  }
+}
 
 /* Onboarding banner across the screen after 30 s without using anything. */
 /* The area you've walked into, under the hearts: pixel letters that step in and out. */

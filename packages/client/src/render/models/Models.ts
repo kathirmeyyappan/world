@@ -33,24 +33,33 @@ export class Models {
     }
   }
 
-  // A door's state from the Room: swung over the next DOOR_SWING_SECONDS, or set at once.
+  // A door's state from the Room: swung over the next DOOR_SWING_SECONDS, or set at once. Turned
+  // back mid-swing, it carries on from where it is: the new swing starts as far along as brings
+  // it to the old one's angle.
   setDoor(id: string, open: boolean, swing = true): void {
     const door = this.doors.get(id);
     if (!door || door.open === open) return;
+    const now = performance.now();
+    const at = swung(door, now);
     door.open = open;
-    door.at = swing ? performance.now() : -Infinity;
+    const begun = 1 - Math.sqrt(open ? 1 - at : at);
+    door.at = swing ? now - begun * DOOR_SWING_SECONDS * 1000 : -Infinity;
   }
 
   update(): void {
     const now = performance.now();
     for (const door of this.doors.values()) {
-      const t = Math.min(1, (now - door.at) / (DOOR_SWING_SECONDS * 1000));
-      const eased = 1 - (1 - t) * (1 - t); // fast off the latch, settling at the end
-      const open = door.open ? eased : 1 - eased;
       // The sim's swing turns from +x toward +z; Babylon's turn about y goes the other way round.
-      door.node.rotation.y = -door.swing * open;
+      door.node.rotation.y = -door.swing * swung(door, now);
     }
   }
+}
+
+// How far open a door is drawn at a moment, 0 shut to 1 open: fast off the latch, settling at the end.
+function swung(door: { open: boolean; at: number }, now: number): number {
+  const t = Math.min(1, (now - door.at) / (DOOR_SWING_SECONDS * 1000));
+  const eased = 1 - (1 - t) * (1 - t);
+  return door.open ? eased : 1 - eased;
 }
 
 // Fetches a part and hangs its mesh on `parent`: counts (Uint32 vertices, triangles), positions in

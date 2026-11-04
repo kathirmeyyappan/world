@@ -57,15 +57,19 @@ DOORWAY = (2.4, 3.2)
 CLEARANCE = 0.02  # metres a door stands in from its doorway's edge all round
 BACK_BEARING = np.radians(183.0)  # bearing (from +z toward +x) of the kitchen's back door, where its outer wall is bare
 HALL_BEARING = np.radians(250.0)  # bearing of the hall's door, at the head of the stair
-# The stair round the back, from the back door up to the platform at the hall's door, hugging the
-# skin STAIR_GAP off it: its width, its risers, its slabs, and the rail along its outer edge.
-STAIR_WIDTH = 2.4
-STAIR_GAP = 0.25
+# The stair round the back, from the back door up to the platform at the hall's door, standing
+# clear of the shell: its width (rails on both edges stand on it), how far beyond the skin's
+# widest within STAIR_HEADROOM over a step its inner edge keeps, its risers, its slabs, and its
+# rails.
+STAIR_WIDTH = 2.8
+STAIR_GAP = 0.8
+STAIR_HEADROOM = 2.4
+STAIR_START = np.radians(12.0)  # past the back door's bearing the stair's foot stands: beside the doorway, not in front
 STAIR_RISER = 0.25
 STAIR_THICKNESS = 0.3
 RAIL = 1.0
 RAIL_WIDTH = 0.2
-PLATFORM = (2.8, 2.4)  # the platform at the stair's head: across the arc and out from the skin
+PLATFORM_ACROSS = 2.8  # the platform at the stair's head, across the arc; it runs out to the stair's outer edge
 FLIGHT_SLOT = 0.15  # metres of room round the flight in the floors it climbs through
 # Metres of tread under a floor from which the flight's slot in it starts: a head under the floor's
 # half-metre boxes, with the grid's slack and a riser to spare, so no one walking down meets it.
@@ -123,6 +127,9 @@ class Interior:
     bedroom_floor: Outline = field(default_factory=list)  # its floor's, a little past the walls
     hall_wall: list[Triangle] = field(default_factory=list)  # the hall's round wall, kept aside until its door is cut
     hall_wall_material: int = 0
+    hall_round: dict[float, float] = field(
+        default_factory=dict
+    )  # at each of its rings' heights, how far out it stands at its roundest
     sealed: list[Door] = field(default_factory=list)  # the doors walled up, for where their openings are
 
 
@@ -299,19 +306,22 @@ def clone_door(stock: Door, bearing: float, reach: float, height: float) -> list
     return turned_by([[(p * scale, q) for p, q in tri] for tri in stock.mesh], np.pi / 2 - bearing)
 
 
-def new_door(interior: Interior, id_: str, bearing: float, depth: float, y: float, swing: float) -> Door:
+def new_door(interior: Interior, id_: str, bearing: float, depth: float, y: float, out: bool) -> Door:
     """A door of this house's own in a DOORWAY-sized opening through a wall standing `depth` out
-    from the axis at a bearing (from +z toward +x): the closet's panel fitted to it, hung at the
-    opening's -x edge to run across it, its thickness just inside the wall's surface, swinging
-    `swing` (a quarter turn out or in)."""
+    from the axis at a bearing (from +z toward +x): the closet's panel fitted to it, swinging a
+    quarter turn out (`out`) or in, and hung on the face it swings toward, as a real door is, so
+    swung square it stands clear of its jamb: out, at the opening's +x edge on the wall's outer
+    face, running across to -x; in, at the -x edge on the inner face, running to +x. Either way the
+    panel (to the left of its run, make_door) fills the opening just inside the wall's surface."""
     stock = next(d for d in interior.doors if d.id == "closet")
     reach, height = DOORWAY[0] - 2 * CLEARANCE, DOORWAY[1] - CLEARANCE
-    # The panel hangs to the left of its run from the pin (make_door): out from the pin here.
+    edge = DOORWAY[0] / 2 - CLEARANCE
+    local = np.array([edge, 0.0, depth]) if out else np.array([-edge, 0.0, depth - stock.thickness])
     pin, along = (
-        turned_by([[(p, np.zeros(2))]], bearing)[0][0][0]
-        for p in (np.array([-DOORWAY[0] / 2 + CLEARANCE, 0.0, depth - stock.thickness]), np.array([1.0, 0.0, 0.0]))
+        turned_by([[(p, np.zeros(2))]], bearing)[0][0][0] for p in (local, np.array([-1.0 if out else 1.0, 0.0, 0.0]))
     )
     run = float(np.arctan2(along[2], along[0]))
+    swing = -np.pi / 2  # toward the right of the run: the way the pin's face looks
     door = Door(
         id_,
         (float(pin[0]), float(pin[2])),
@@ -504,12 +514,7 @@ def build_floors(
     ]
     interior.hall_wall = lathe(rings, BAMBOO_TILE, place, angles=angles)
     interior.hall_wall_material = bamboo
-    round_wall = {y: max(wall(a, y) for a in angles) for y, _ in rings}
-    faced = [
-        tri
-        for tri in interior.hall_wall
-        if any(np.hypot(p[0], p[2]) < round_wall[min(round_wall, key=lambda y: abs(y - p[1]))] - 0.01 for p, _ in tri)
-    ]
+    interior.hall_round = {y: max(wall(a, y) for a in angles) for y, _ in rings}
     # The flight's shaft, from the hall's ceiling up to the library's floor, and its hole in that
     # floor, which it arrives through.
     sx0, sx1, sz0, sz1 = shaft
@@ -538,9 +543,15 @@ def build_floors(
         pieces.append((round_floor(top - drop, lambda a: cap, True, [], tile), m))
     for tris, m in pieces:
         interior.tris += [(t, m) for t in tris]
-    # The round wall is rings of the profile's to the sim, not boxes, but for where it stands in
-    # from the round.
-    interior.solid += [t for tris, _ in pieces for t in tris] + faced
+    interior.solid += [t for tris, _ in pieces for t in tris]
+
+
+def faced_wall(interior: Interior) -> list[Triangle]:
+    """What the sim gets of the hall's wall as boxes: the round of it is rings of the profile's,
+    so only where it stands in from the round, behind the faces round the doors; taken once its
+    door is cut through it."""
+    at = lambda y: interior.hall_round[min(interior.hall_round, key=lambda ry: abs(ry - y))]
+    return [tri for tri in interior.hall_wall if any(np.hypot(p[0], p[2]) < at(p[1]) - 0.01 for p, _ in tri)]
 
 
 def cut_floor(interior: Interior, name: str, hole: Outline) -> None:
