@@ -47,7 +47,7 @@ import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import { Structures } from './sim/collision';
 import { STRUCTURES } from './content/structures';
-import { DOOR_REACH, DOOR_SWING_SECONDS, lookVector } from './sim/doors';
+import { DOOR_DEBOUNCE_SECONDS, DOOR_REACH, lookVector } from './sim/doors';
 import { CAPSULE_TOP } from './sim/health';
 import { WORLD_SHAPE, clampToWorld, randomPointInDisc, worldDistance, type WorldPart } from './sim/world';
 
@@ -333,11 +333,12 @@ export class Room {
     }
   }
 
-  // A click on a door within reach swings it the other way, for everyone, once its last swing is done.
+  // A click on a door within reach swings it the other way, for everyone; a second click hard on
+  // the first is the same click.
   private useDoor(seat: Seat, id: string): void {
     const me = seat.state;
     if (me.dead || !this.structures.doorIds.includes(id)) return;
-    if (this.tick - (this.doorSwung.get(id) ?? -Infinity) < DOOR_SWING_SECONDS * TICK_RATE) return;
+    if (this.tick - (this.doorSwung.get(id) ?? -Infinity) < DOOR_DEBOUNCE_SECONDS * TICK_RATE) return;
     if (this.structures.doorAt(me.pos, lookVector(me.yaw, me.pitch), DOOR_REACH) !== id) return;
     const open = !this.structures.isOpen(id);
     this.structures.setDoor(id, open);

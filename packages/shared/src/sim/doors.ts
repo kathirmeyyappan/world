@@ -3,9 +3,11 @@
 // open, turned `swing` round its hinge, it stands beside it; either way it's a wall: `doorPieces`
 // makes the two structures, each marked with the door and the state it stands in, which Structures
 // turns on and off (collision.ts). The hinge's pin is on the slab's face, the one it swings toward,
-// at its edge, so the slab swung square stands clear of its jamb, as a real door hung on its face does. A player looking at a door from within DOOR_REACH uses it with a
-// click (InputFrame.use), and the Room swings it the other way once the last swing has had
-// DOOR_SWING_SECONDS to finish. Bots' map leaves doors out, so they walk as if every door stood open.
+// at its edge, so the slab swung square stands clear of its jamb, as a real door hung on its face
+// does. A player looking at a door from within DOOR_REACH uses it with a click (InputFrame.use),
+// and the Room swings it the other way at once, even mid-swing (the client picks the swing up from
+// where it is); only a second click within DOOR_DEBOUNCE_SECONDS is taken for the same click.
+// Bots' map leaves doors out, so they walk as if every door stood open.
 import { wall, type Box } from './structures';
 
 export interface DoorSpec {
@@ -20,7 +22,8 @@ export interface DoorSpec {
 }
 
 export const DOOR_REACH = 16; // metres along the look from the eye to the slab
-export const DOOR_SWING_SECONDS = 0.8;
+export const DOOR_SWING_SECONDS = 0.8; // how long the client draws a swing taking
+export const DOOR_DEBOUNCE_SECONDS = 0.2;
 
 export function doorPieces(door: DoorSpec): Box[] {
   return [false, true].map((open) => {

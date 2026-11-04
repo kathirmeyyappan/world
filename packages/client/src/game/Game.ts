@@ -847,12 +847,13 @@ export class Game {
   }
 
   private updateHover(): void {
-    // A door in reach of the look is used by a click; say so when the crosshair lands on one.
+    // A door in reach of the look is used by a click; say so while the crosshair is on one.
     const me = this.prediction?.state;
     const door =
       me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch), DOOR_REACH) : null;
-    if (door && door !== this.hoveredDoor)
-      this.hitNotice.note(WORLD_STRUCTURES.isOpen(door) ? 'click to shut the door' : 'click to open the door');
+    this.hitNotice.prompt(
+      door ? `${IS_TOUCH ? 'tap' : 'click'} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door` : null,
+    );
     this.hoveredDoor = door;
     let nextCube: CubeMesh | null = null;
     let nextSky: SkyObject | null = null;

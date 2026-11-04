@@ -1,12 +1,22 @@
 // A small line under the crosshair: who you hit and for how much when a shot lands, brighter
-// for a headshot, or a plain note about what you're holding ("only fires while scoped").
-// Separate from chat so it never scrolls the log.
+// for a headshot, or a plain note about what you're holding ("only fires while scoped"); and under
+// it a standing prompt for what a click would do to what the crosshair is on (a door in reach),
+// blinking so it's seen, up while that holds. Separate from chat so it never scrolls the log.
 const SHOW_MS = 900;
 const NOTE_MS = 1500;
 
 export class HitNotice {
   private readonly el = document.getElementById('hit-notice')!;
+  private readonly promptEl = document.getElementById('door-prompt')!;
   private timer: number | null = null;
+  private promptText: string | null = null;
+
+  prompt(text: string | null): void {
+    if (text === this.promptText) return;
+    this.promptText = text;
+    this.promptEl.textContent = text ?? '';
+    this.promptEl.classList.toggle('on', text !== null);
+  }
 
   show(name: string, damage: number, headshot: boolean): void {
     this.put(`${headshot ? 'HEADSHOT' : 'hit'} ${name}  -${damage}`, headshot ? 'headshot' : '', SHOW_MS);
