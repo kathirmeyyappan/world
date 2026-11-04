@@ -1,8 +1,8 @@
 """Builds the pineapple house (SpongeBob's) for the world from two Sketchfab models: penqin's
 house for the outside, and the Sbfbb SpongeBob House (cherylhill28) for the rooms inside
-(house_interior.py). Writes the client's meshes (public/assets/models/pineapple-<part>.bin, fetched
-by the loader), their textures, the parts list (render/models/pineappleParts.ts) and what the sim
-collides with (content/pineappleProfile.ts and content/pineappleInterior.ts).
+(house_interior.py). Writes the client's meshes (public/assets/models/pineapple/<part>.bin, fetched
+by the loader) with their textures beside them, the parts list (render/models/pineappleParts.ts)
+and what the sim collides with (content/pineappleProfile.ts and content/pineappleInterior.ts).
 
     python packages/client/scripts/house-model.py path/to/spongebobs_house.glb path/to/sbfbb_house.glb
 
@@ -104,8 +104,7 @@ DUNE_FOOT = 30.0  # where the dune meets the floor: the grounds' radius (sim/out
 DUNE_BULGES = 5  # soft mounds round the slope
 BULGE = 0.5  # metres they rise and fall by
 CLIENT = Path(__file__).resolve().parents[1]
-MODELS_OUT = CLIENT / "public/assets/models"
-TEXTURES_OUT = CLIENT / "public/assets/textures/models"
+MODELS_OUT = CLIENT / "public/assets/models/pineapple"  # the meshes and their textures, together
 PARTS_OUT = CLIENT / "src/render/models/pineappleParts.ts"
 PROFILE_OUT = CLIENT.parent / "shared/src/content/pineappleProfile.ts"
 BOXES_OUT = CLIENT.parent / "shared/src/content/pineappleInterior.ts"
@@ -242,33 +241,31 @@ def main(outside: str, rooms: str) -> None:
     door_part, front_door = build_door(profile)
     flowers, flower_swatches, path, path_image, stones = build_garden(doc, blob, s, dune_top(profile))
 
-    atlas.quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(TEXTURES_OUT / "pineapple.png", optimize=True)
-    path_image.save(TEXTURES_OUT / "pineapple-path.png", optimize=True)
-    flower_swatches.save(TEXTURES_OUT / "pineapple-flowers.png", optimize=True)
-    paint_pineapple().save(TEXTURES_OUT / "pineapple-skin.png", optimize=True)
-    paint_steel().save(TEXTURES_OUT / "steel.png", optimize=True)
-    paint_door().save(TEXTURES_OUT / "door.png", optimize=True)
-    rooms_atlas, places = inside.pack_atlas(interior)
-    rooms_atlas.save(TEXTURES_OUT / "pineapple-interior.png", optimize=True)
     MODELS_OUT.mkdir(parents=True, exist_ok=True)
-    for old in MODELS_OUT.glob("pineapple-*.bin"):
+    for old in MODELS_OUT.glob("*.bin"):
         old.unlink()
-    for old in ("bamboo.png", "net.png", "pineapple-garden.png"):
-        (TEXTURES_OUT / old).unlink(missing_ok=True)
-    emit_part(MODELS_OUT / "pineapple-skin.bin", skin, {})
-    emit_part(MODELS_OUT / "pineapple-passage.bin", through, {})
-    emit_part(MODELS_OUT / "pineapple-trim.bin", trim, swatch_uv)
-    emit_part(MODELS_OUT / "pineapple-door-front.bin", door_part, swatch_uv)
-    emit_part(MODELS_OUT / "pineapple-flowers.bin", flowers, {})
-    emit_part(MODELS_OUT / "pineapple-path.bin", path, {})
+    atlas.quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(MODELS_OUT / "trim.png", optimize=True)
+    path_image.save(MODELS_OUT / "path.png", optimize=True)
+    flower_swatches.save(MODELS_OUT / "flowers.png", optimize=True)
+    paint_pineapple().save(MODELS_OUT / "skin.png", optimize=True)
+    paint_steel().save(MODELS_OUT / "steel.png", optimize=True)
+    paint_door().save(MODELS_OUT / "door.png", optimize=True)
+    rooms_atlas, places = inside.pack_atlas(interior)
+    rooms_atlas.save(MODELS_OUT / "interior.png", optimize=True)
+    emit_part(MODELS_OUT / "skin.bin", skin, {})
+    emit_part(MODELS_OUT / "passage.bin", through, {})
+    emit_part(MODELS_OUT / "trim.bin", trim, swatch_uv)
+    emit_part(MODELS_OUT / "door-front.bin", door_part, swatch_uv)
+    emit_part(MODELS_OUT / "flowers.bin", flowers, {})
+    emit_part(MODELS_OUT / "path.bin", path, {})
     rooms = MeshBuilder()
     rooms.add(inside.in_atlas(interior.tris, places))
-    emit_part(MODELS_OUT / "pineapple-interior.bin", rooms, {})
+    emit_part(MODELS_OUT / "interior.bin", rooms, {})
     doors_material = inside.material(interior, "Doors")
     for d in interior.doors:
         panel = MeshBuilder()
         panel.add(inside.in_atlas([(t, doors_material) for t in d.mesh], places))
-        emit_part(MODELS_OUT / f"pineapple-door-{d.id}.bin", panel, {})
+        emit_part(MODELS_OUT / f"door-{d.id}.bin", panel, {})
     boxes = inside.voxel_boxes(interior.solid + [t for t, _ in through.tris])
     emit_parts_list(interior.doors)
     emit_profile(profile, [front_door, *interior.doors], interior, stones)
@@ -965,18 +962,18 @@ def emit_parts_list(doors: list[inside.Door]) -> None:
     repeats or is an atlas with clear pixels, whether it's lit by the sun (the outside) or shows as
     painted (the rooms), whether only its outside is drawn, and the door it hangs on."""
     parts = [
-        ("skin", "pineapple-skin", True, False, False, None, None, True),
+        ("skin", "skin", True, False, False, None, None, True),
         ("passage", "steel", True, False, False, None, None, False),
-        ("trim", "pineapple", False, False, False, None, None, False),
-        ("flowers", "pineapple-flowers", False, False, False, FLOWER_OPACITY, None, False),
-        ("path", "pineapple-path", False, False, False, None, None, False),
+        ("trim", "trim", False, False, False, None, None, False),
+        ("flowers", "flowers", False, False, False, FLOWER_OPACITY, None, False),
+        ("path", "path", False, False, False, None, None, False),
         ("door-front", "door", False, False, False, None, "front", False),
-        ("interior", "pineapple-interior", False, True, True, None, None, False),
-        *((f"door-{d.id}", "pineapple-interior", False, True, True, None, d.id, False) for d in doors),
+        ("interior", "interior", False, True, True, None, None, False),
+        *((f"door-{d.id}", "interior", False, True, True, None, d.id, False) for d in doors),
     ]
     lines = [
         "// Generated by scripts/house-model.py; don't edit. The pineapple house's parts: each one's mesh",
-        "// (public/assets/models/pineapple-<name>.bin), its texture (public/assets/textures/models/<texture>.png),",
+        "// (public/assets/models/pineapple/<name>.bin), its texture (<texture>.png beside it),",
         "// whether the texture repeats (coordinates run past 1) or is an atlas, whether it has clear pixels,",
         "// whether it's drawn as painted rather than lit (the rooms, which the sun never reaches), how solid",
         "// it's drawn if it's see-through, whether only its outside is drawn (the skin, sealed all round,",
