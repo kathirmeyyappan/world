@@ -819,6 +819,25 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
   room.receive(ida, { t: 'chat', text: '/light-dragon' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're already light-dragon" });
 
+  // Nothing can hit it while it's rising: a sniper's shots at its head pass through until it's risen.
+  const b = link();
+  const idb = room.join('SNIPERbob', b)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  const shootAlice = () => {
+    bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 6 };
+    press(room, idb, 0, true);
+    for (let i = 0; i < ITEMS.sniper.cooldownTicks; i++) room.step();
+  };
+  shootAlice();
+  assert.ok(!alice.dragon!.risen && alice.hearts >= 28, 'a shot at a rising dragon passes through');
+  while (!alice.dragon!.risen) {
+    room.receive(ida, { t: 'input', f: frame(0, []) });
+    room.step();
+  }
+  alice.hearts = 28;
+  shootAlice();
+  assert.equal(alice.hearts, 28 - ITEMS.sniper.damage * HEADSHOT_MULTIPLIER, 'a risen one is hit');
+  alice.hearts = 28;
   for (let i = 0; i < 7 * TICK_RATE; i++) room.step();
   assert.equal(alice.hearts, 29, 'a heart back in 7 s');
   room.receive(ida, { t: 'input', f: frame(0, ['roar-1']) });
@@ -843,9 +862,6 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
 
   // Shot dead by a sniper at its head: it drops to the ground and lies there, long after alice has
   // gone, then poofs with a heart under the head and four along the body.
-  const b = link();
-  const idb = room.join('SNIPERbob', b)!;
-  const bob = room.players.find((p) => p.id === idb)!;
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 6 };
   alice.hearts = 10;
   press(room, idb, 0, true);
@@ -853,10 +869,10 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === ida && m.headshot));
   room.receive(ida, { t: 'chat', text: '/standard' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "not while you're dead" });
-  for (let i = 0; i < TICK_RATE; i++) room.step();
+  for (let i = 0; i < 7 * TICK_RATE; i++) room.step();
   assert.equal(alice.pos.y, HEAD_RADIUS, 'the head came to rest on the ground');
   room.leave(ida);
-  for (let i = 0; i < 28 * TICK_RATE; i++) room.step();
+  for (let i = 0; i < 22 * TICK_RATE; i++) room.step();
   assert.ok(
     room.players.some((p) => p.id === ida),
     'still lying there at 29 s',
