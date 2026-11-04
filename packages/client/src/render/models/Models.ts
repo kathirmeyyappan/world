@@ -100,6 +100,10 @@ async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNod
     material.transparencyMode = StandardMaterial.MATERIAL_ALPHATEST;
     material.alphaCutOff = 0.5;
   }
+  if (part.opacity !== undefined) {
+    material.alpha = part.opacity;
+    material.transparencyMode = StandardMaterial.MATERIAL_ALPHABLEND;
+  }
   mesh.material = material;
   mesh.parent = parent;
   mesh.isPickable = false;

@@ -32,23 +32,33 @@ from pathlib import Path
 
 import numpy as np
 from glb import accessor, components, local_matrix, read_glb
-from house_mesh import Outline, Triangle, area, circle, cut_out, disc, lathe
+from house_mesh import Outline, Triangle, arch, area, cut_out, disc, lathe, turned_by
 from PIL import Image
 
 INTERIOR_SCALE = 0.5  # metres per unit of the model: its doors come out 3 m tall, players SpongeBob's size
 FLOOR_LIFT = 0.02  # metres the rooms stand above the dune's top
 VOXEL = 0.25  # metres: the grid the sim's boxes are cut on
-STAIR_INNER = 0.9  # metres: the spiral's post
-WELL = 0.1  # metres a stair's well reaches past its flight's outer edge: clear of the steps' corners
-WELL_HEADROOM = 2.7  # metres under the hall's floor from which the spiral needs its opening
+SILL = 0.02  # metres a stair's head and a platform sit below the floor they meet, so no two tops share a height
 LINING = 0.35  # metres inside the shell's skin the hall's wall stands
-SEGMENTS = 72  # round the hall's wall and floor
-# The spiral in the living room (x, z, outer radius): clear of the furniture, starting at +x so its
-# first turn passes over the television.
-SPIRAL = (5.0, 7.0, 3.0)
-# The flight from the hall up to the landing: its foot and head on the floor and its width. It runs
+SEGMENTS = 72  # The flight from the hall up to the landing: its foot and head on the floor and its width. It runs
 # along the hall's front, outside the library's wall above, inside the hall's wall below.
 FLIGHT = ((-5.2, 14.9), (5.6, 14.9), 2.4)
+# The doorways this house cuts itself, each an arch (width, height): the vestibule's into the
+# living room, and the kitchen's back door and the hall's, the way out to the stair round the back.
+FRONT_DOORWAY = (2.6, 3.3)
+DOORWAY = (2.4, 3.2)
+CLEARANCE = 0.02  # metres a door stands in from its doorway's edge all round
+BACK_BEARING = np.radians(183.0)  # bearing (from +z toward +x) of the kitchen's back door, where its outer wall is bare
+HALL_BEARING = np.radians(250.0)  # bearing of the hall's door, at the head of the stair
+# The stair round the back, from the back door up to the platform at the hall's door, hugging the
+# skin STAIR_GAP off it: its width, its risers, its slabs, and the rail along its outer edge.
+STAIR_WIDTH = 2.4
+STAIR_GAP = 0.25
+STAIR_RISER = 0.25
+STAIR_THICKNESS = 0.3
+RAIL = 1.0
+RAIL_WIDTH = 0.2
+PLATFORM = (2.8, 2.4)  # the platform at the stair's head: across the arc and out from the skin
 FLIGHT_SLOT = 0.15  # metres of room round the flight in the floors it climbs through
 # Metres of tread under a floor from which the flight's slot in it starts: a head under the floor's
 # half-metre boxes, with the grid's slack and a riser to spare, so no one walking down meets it.
@@ -90,6 +100,7 @@ class Door:
     thickness: float
     swing: float  # radians it turns to open, the same way round as the bearing
     mesh: list[Triangle]  # the panel about its pin on the floor, textured in the atlas
+    paper: bool = False  # the model made the panel a sheet with no thickness
 
 
 @dataclass
@@ -104,6 +115,8 @@ class Interior:
     levels: dict[str, float] = field(default_factory=dict)
     bedroom_walls: Outline = field(default_factory=list)  # the bedroom's walls' footprint
     bedroom_floor: Outline = field(default_factory=list)  # its floor's, a little past the walls
+    hall_wall: list[Triangle] = field(default_factory=list)  # the hall's round wall, kept aside until its door is cut
+    hall_wall_material: int = 0
 
 
 def load(path: str) -> Interior:
@@ -216,19 +229,24 @@ def take_apart(interior: Interior) -> None:
     drop: set[int] = set()
     frames = comps(interior, "Metal_Doors_and_Window_Borders")
     front = max(frames, key=lambda ks: bounds(interior, ks)[1][2])
-    kept_frame: list[int] = []
-    for k in front:
-        tri, _ = interior.tris[k]
-        p, q, r = (v for v, _ in tri)
-        n = np.cross(q - p, r - p)
-        if abs(n[2]) > 0.9 * np.linalg.norm(n) and area(tri) > 1.0:
-            drop.add(k)  # the painted door: a sheet across the frame
-        else:
-            kept_frame.append(k)
-    print(f"front door: {len(front) - len(kept_frame)} triangles of painted door dropped from its frame")
-    outline = np.array([p[[0, 1]] for k in kept_frame for p, _ in interior.tris[k][0]])
-    interior.front = shrunk(hull(outline), 0.05)
-    interior.front_z = float(bounds(interior, kept_frame)[1][2]) - 0.13
+    # The front frame goes whole, painted door and all: the vestibule's steel wall stands where its
+    # outer face stood, with this house's own doorway cut through it and the wall behind.
+    drop.update(front)
+    interior.front = arch(-FRONT_DOORWAY[0] / 2, FRONT_DOORWAY[0] / 2, FRONT_DOORWAY[1])
+    interior.front_z = float(bounds(interior, front)[1][2]) - 0.13
+    # The lures' feathers are painted on black the model showed as clear.
+    for name in ("Furry_Lure", "Green_Blue_Lure"):
+        m = interior.materials.index(name)
+        image = interior.images[m]
+        if image is None:
+            continue
+        px = image.convert("RGB").load()
+        w, h = image.size
+        for k, (tri, mm) in enumerate(interior.tris):
+            if mm == m:
+                u, v = np.mean([q for _, q in tri], axis=0)
+                if sum(px[int(u * w) % w, int(v * h) % h]) < 60:
+                    drop.add(k)
     for ks in frames:
         lo, hi = bounds(interior, ks)
         if ks is not front and hi[2] > 12 and abs((lo[0] + hi[0]) / 2) < 1 and lo[1] > 0.5:
@@ -240,6 +258,12 @@ def take_apart(interior: Interior) -> None:
         if panel and min(np.hypot(*(np.array(d[1]) - centre)) for d in DOORS) < 1.5:
             interior.doors.append(make_door(interior, ks))
             drop.update(ks)
+    # The panels the model made paper-thin take the closet's, a slab with the same look.
+    stock = next(d for d in interior.doors if d.id == "closet")
+    for d in interior.doors:
+        if d.paper:
+            d.mesh = clone_door(stock, d.bearing, d.reach, d.height)
+            d.thickness = stock.thickness
     interior.tris = [t for k, t in enumerate(interior.tris) if k not in drop]
     interior.solid = [t for t, m in interior.tris if interior.materials[m] not in ROUND_WALLS]
     # The levels, from the model: the ground floor's ceiling, the bedroom's floor and ceiling (the
@@ -258,15 +282,66 @@ def take_apart(interior: Interior) -> None:
     walls += [k for ks in comps(interior, "Red_Walls") for k in ks]
     interior.bedroom_walls = shrunk(hull(np.array([p[[0, 2]] for k in walls for p, _ in interior.tris[k][0]])), -0.02)
     interior.bedroom_floor = shrunk(hull(np.array([p[[0, 2]] for k in bedroom for p, _ in interior.tris[k][0]])), -0.02)
-    well = circle(SPIRAL[0], SPIRAL[1], SPIRAL[2] + WELL)
-    for name in ("Ceiling", "Netting"):
-        ks = next(ks for ks in comps(interior, name) if covers(bounds(interior, ks), SPIRAL[0], SPIRAL[1]))
-        cut_in_plane(interior, ks, well)
 
 
-def covers(box: tuple[np.ndarray, np.ndarray], x: float, z: float) -> bool:
-    lo, hi = box
-    return bool(lo[0] <= x <= hi[0] and lo[2] <= z <= hi[2])
+def clone_door(stock: Door, bearing: float, reach: float, height: float) -> list[Triangle]:
+    """The stock door's panel fitted to another doorway: scaled to its reach and height about the
+    pin on the floor, and turned to run at its bearing (from +x toward +z)."""
+    scale = np.array([1.0, height / stock.height, reach / stock.reach])
+    return turned_by([[(p * scale, q) for p, q in tri] for tri in stock.mesh], np.pi / 2 - bearing)
+
+
+def new_door(interior: Interior, id_: str, hinge: tuple[float, float], y: float, bearing: float, swing: float) -> Door:
+    """A door of this house's own in a DOORWAY-sized opening, the closet's panel fitted to it."""
+    stock = next(d for d in interior.doors if d.id == "closet")
+    reach, height = DOORWAY[0] - 2 * CLEARANCE, DOORWAY[1] - CLEARANCE
+    door = Door(
+        id_, hinge, y, bearing, reach, height, stock.thickness, swing, clone_door(stock, bearing, reach, height)
+    )
+    interior.doors.append(door)
+    return door
+
+
+def cut_doorway(
+    interior: Interior, bearing: float, depths: tuple[float, float], hole: Outline
+) -> tuple[list[Triangle], int]:
+    """An opening cut through the rooms' outer wall at a bearing (from +z toward +x): the wall's
+    triangles facing along it between two depths from the axis are cut by `hole`, an outline in
+    the wall's plane as seen from outside (across, up), and taken out of the interior, returned
+    with their material for the opening's reveal to be built onto them before they go back in."""
+    turned = turned_by([tri for tri, _ in interior.tris], -bearing)
+    x0, x1 = min(x for x, _ in hole) - 0.5, max(x for x, _ in hole) + 0.5
+    top = max(y for _, y in hole) + 0.5
+
+    def near(tri: Triangle) -> bool:
+        a, b, c = (p for p, _ in tri)
+        n = np.cross(b - a, c - a)
+        pts = np.array([p for p, _ in tri])
+        mid = pts.mean(axis=0)
+        return bool(
+            abs(n[2]) > 0.5 * np.linalg.norm(n)
+            and depths[0] < mid[2] < depths[1]
+            and pts[:, 0].max() > x0
+            and pts[:, 0].min() < x1
+            and pts[:, 1].min() < top
+        )
+
+    which = [k for k, tri in enumerate(turned) if near(tri)]
+    # The wall is whichever material covers most there; what's hung on it stays whole.
+    extent: dict[int, float] = {}
+    for k in which:
+        extent[interior.tris[k][1]] = extent.get(interior.tris[k][1], 0.0) + area(turned[k])
+    m = max(extent, key=lambda n: extent[n])
+    if len(extent) > 1:
+        others = sorted(interior.materials[n] for n in extent if n != m)
+        print(f"doorway at {np.degrees(bearing):.0f}°: cutting {interior.materials[m]}, leaving {others} whole")
+    which = {k for k in which if interior.tris[k][1] == m}
+    cut, rest = cut_out([turned[k] for k in which], hole, flat_xy, lambda tri: True)
+    gone = {id(interior.tris[k][0]) for k in which}
+    interior.tris = [t for k, t in enumerate(interior.tris) if k not in which]
+    opened = turned_by(cut + rest, bearing)
+    interior.solid = [t for t in interior.solid if id(t) not in gone] + opened
+    return opened, m
 
 
 def hull(points: np.ndarray) -> Outline:
@@ -307,7 +382,11 @@ def make_door(interior: Interior, ks: list[int]) -> Door:
     id_, _, end, side = min(DOORS, key=lambda d: np.hypot(*(np.array(d[1]) - centre)))
     length_axis = 0 if hi[0] - lo[0] >= hi[2] - lo[2] else 2
     across_axis = 2 - length_axis
-    thickness = max(float(hi[across_axis] - lo[across_axis]), DOOR_THICKNESS)
+    # A panel the model left ajar is thick as a box; what tells a sheet is its extent across itself.
+    pts = np.array([p for k in ks for p, _ in interior.tris[k][0]])
+    flattest = np.linalg.svd(pts - pts.mean(axis=0), full_matrices=False)[2][2]
+    paper = float(np.ptp((pts - pts.mean(axis=0)) @ flattest)) < 0.05
+    thickness = DOOR_THICKNESS if paper else float(hi[across_axis] - lo[across_axis])
     reach = float(hi[length_axis] - lo[length_axis])
     at, other = (lo, hi) if end == "min" else (hi, lo)
     bearing = (
@@ -338,6 +417,7 @@ def make_door(interior: Interior, ks: list[int]) -> Door:
         thickness,
         sign * np.pi / 2,
         mesh,
+        paper,
     )
 
 
@@ -345,15 +425,8 @@ def flat_xz(p: np.ndarray) -> np.ndarray:
     return p[[0, 2]]
 
 
-def cut_in_plane(interior: Interior, ks: list[int], hole: Outline) -> None:
-    """Cuts a round hole out of a flat piece (a ceiling), in place in the interior's list."""
-    tris = [interior.tris[k][0] for k in ks]
-    m = interior.tris[ks[0]][1]
-    cut, rest = cut_out(tris, hole, flat_xz, about(hole))
-    for k in sorted(ks, reverse=True):
-        del interior.tris[k]
-    interior.tris += [(t, m) for t in cut + rest]
-    interior.solid = [t for t, m in interior.tris if interior.materials[m] not in ROUND_WALLS]
+def flat_xy(p: np.ndarray) -> np.ndarray:
+    return p[[0, 1]]
 
 
 def material(interior: Interior, name: str) -> int:
@@ -365,34 +438,28 @@ def build_floors(
 ) -> None:
     """The hall at the bedroom's floor, round it to the pineapple's inside, and the landing before
     the library's door: floors in the rooms' sand, ceilings in their net, walls in the library's
-    bamboo, the spiral's well a drum from the living room's ceiling up to the hall's floor, and
-    the flight's slot a shaft from the hall's ceiling up to the landing's floor. The hall's floor
-    and ceiling stop at the bedroom's own, edge to edge. `skin(a, y)` is the shell's radius at a
-    bearing (from +z toward +x) and a height, `angles` the bearings it is turned at and `heights`
-    its rings, so the hall's wall, turned at the same ones, keeps a wall's thickness inside it
-    everywhere, where the shell is flattened into the face round the door too."""
+    bamboo, and the flight's slot a shaft from the hall's ceiling up to the landing's floor. The
+    hall's floor and ceiling stop at the bedroom's own, edge to edge. `skin(a, y)` is the shell's
+    radius at a bearing (from +z toward +x) and a height, `angles` the bearings it is turned at and
+    `heights` its rings, so the hall's wall, turned at the same ones, keeps a wall's thickness
+    inside it everywhere, where the shell is flattened into the face round the door too. The hall's
+    wall is kept aside (`hall_wall`) for its door to be cut through it."""
     levels = interior.levels
     hall, ceiling, library = levels["hall"], levels["hallCeiling"], levels["library"]
     landing_top = library + LANDING_HEIGHT
     wall = lambda a, y: skin(a, y) - LINING
     sand, net, lid, bamboo = (material(interior, n) for n in ("Sand_Floor", "Netting", "Ceiling", "Library_Bamboo"))
     pieces: list[tuple[list[Triangle], int]] = []
-    # The well's opening in the hall's floor: only where the spiral comes up through it, from where
-    # a head on the steps would meet the floor (the spiral rises `hall` in its one turn, from angle
-    # 0, in the drum's 24 segments) round to where it arrives; the post's top is floored.
-    arrival = 2 * np.pi * np.floor(24 * (1 - WELL_HEADROOM / hall)) / 24
-    well = wedge(SPIRAL[0], SPIRAL[1], SPIRAL[2] + WELL, arrival, 2 * np.pi)
-    post = wedge(SPIRAL[0], SPIRAL[1], STAIR_INNER - 0.1, arrival, 2 * np.pi)
     fx1 = FLIGHT[1][0]
     slot = lambda y, end=fx1 + FLIGHT_SLOT, side=FLIGHT_SLOT: flight_slot(levels, y, end, side)
 
-    pieces.append(
-        (
-            round_floor(hall, lambda a: wall(a, hall) - 0.05, False, [interior.bedroom_floor, well], SAND_TILE)
-            + wedge_floor(hall, post, SAND_TILE),
-            sand,
-        )
-    )
+    # The hall's floor runs into the wall where the hall's door is, under the doorway's own floor
+    # (a hair lower), so the two meet with no crack; elsewhere it stops just short of the wall.
+    def floor_edge(a: float) -> float:
+        at_door = abs((a - HALL_BEARING + np.pi) % (2 * np.pi) - np.pi) < np.radians(6)
+        return wall(a, hall) + (0.05 if at_door else -0.05)
+
+    pieces.append((round_floor(hall, floor_edge, False, [interior.bedroom_floor], SAND_TILE), sand))
     shaft, shaft_hole = slot(ceiling)
     lid_edge = lambda a: wall(a, ceiling) - 0.05
     pieces.append((round_floor(ceiling, lid_edge, True, [interior.bedroom_walls, shaft_hole], CEILING_TILE), lid))
@@ -401,13 +468,17 @@ def build_floors(
     # ceiling only where the landing is. Where it stands in from the round (behind the face) the
     # sim gets it as boxes, since the shell's rings are round.
     place = lambda a, y: np.array([wall(a, y) * np.sin(a), y, wall(a, y) * np.cos(a)])
-    rings = [(y, wall(0.0, y)) for y in sorted({hall, ceiling, *(y for y in heights if hall < y < ceiling)})]
-    hall_wall = lathe(rings, BAMBOO_TILE, place, angles=angles)
-    pieces.append((hall_wall, bamboo))
+    # From a little under the floor, so the hall's doorway (its floor a hair under the hall's) cuts
+    # through wall all round.
+    rings = [
+        (y, wall(0.0, y)) for y in sorted({hall - 0.3, hall, ceiling, *(y for y in heights if hall < y < ceiling)})
+    ]
+    interior.hall_wall = lathe(rings, BAMBOO_TILE, place, angles=angles)
+    interior.hall_wall_material = bamboo
     round_wall = {y: max(wall(a, y) for a in angles) for y, _ in rings}
     faced = [
         tri
-        for tri in hall_wall
+        for tri in interior.hall_wall
         if any(np.hypot(p[0], p[2]) < round_wall[min(round_wall, key=lambda y: abs(y - p[1]))] - 0.01 for p, _ in tri)
     ]
     rings = [
@@ -415,10 +486,7 @@ def build_floors(
     ]
     sector_angles = [float(a) for a in np.linspace(-LANDING_SECTOR, LANDING_SECTOR, 13)]
     pieces.append((lathe(rings, BAMBOO_TILE, place, angles=sector_angles), bamboo))
-    # The spiral's well, and the flight's shaft.
-    r = SPIRAL[2] + WELL
-    drum = lambda a, y: np.array([SPIRAL[0] + r * np.sin(a), y, SPIRAL[1] + r * np.cos(a)])
-    pieces.append((lathe([(levels["ceiling"], r), (hall, r)], BAMBOO_TILE, drum, segments=24, axis=SPIRAL[:2]), bamboo))
+    # The flight's shaft.
     sx0, sx1, sz0, sz1 = shaft
     inside_shaft = ((sx0 + sx1) / 2, (sz0 + sz1) / 2)
     for a, b in (
@@ -455,9 +523,9 @@ def build_floors(
         pieces.append((upright(foot, far, library, landing_top, (0.0, 15.0)), bamboo))
     for tris, m in pieces:
         interior.tris += [(t, m) for t in tris]
-    # The hall's wall is round: the sim gets it as a ring from the profile, not boxes, but for where
-    # it stands in from the round.
-    interior.solid += [t for tris, _ in pieces[:3] + pieces[5:] for t in tris] + faced
+    # The round walls are rings of the profile's to the sim, not boxes, but for where the hall's
+    # stands in from the round.
+    interior.solid += [t for tris, _ in pieces[:3] + pieces[4:] for t in tris] + faced
 
 
 def flat_tile(tile: float) -> Callable[[np.ndarray], np.ndarray]:
@@ -491,25 +559,6 @@ def flight_slot(levels: dict[str, float], y: float, end: float, side: float = FL
 def landing_slot(interior: Interior) -> Rect:
     """The flight's slot in the landing's floor, for the rails the sim stands round it."""
     return flight_slot(interior.levels, interior.levels["library"], FLIGHT[1][0], 0.0)[0]
-
-
-def wedge(cx: float, cz: float, r: float, a0: float, a1: float) -> Outline:
-    """A pie slice's outline, counter-clockwise: its point at (cx, cz), its arc from angle a0 round
-    to a1 (from +x toward +z, less than a half turn, so it's convex) in the drum's 24 segments."""
-    steps = round(24 * (a1 - a0) / (2 * np.pi))
-    return [(cx, cz)] + [(cx + r * np.cos(a), cz + r * np.sin(a)) for a in np.linspace(a0, a1, steps + 1)]
-
-
-def wedge_floor(y: float, outline: Outline, tile: float) -> list[Triangle]:
-    """A level pie slice at a height, facing up: a fan from its point over its arc."""
-    centre = np.array([outline[0][0], y, outline[0][1]])
-    tex = flat_tile(tile)
-    tris: list[Triangle] = []
-    for (ax, az), (bx, bz) in pairwise(outline[1:]):
-        a, b = np.array([ax, y, az]), np.array([bx, y, bz])
-        tri = [centre, a, b] if np.cross(a - centre, b - centre)[1] > 0 else [centre, b, a]
-        tris.append([(p, tex(p)) for p in tri])
-    return tris
 
 
 def sector(

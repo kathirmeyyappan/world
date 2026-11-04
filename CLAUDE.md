@@ -80,8 +80,9 @@ wire: server and client both build the world from that file.
   its own. Building 1 is SpongeBob's house (`content/pineapple.ts`), two models the client draws (see
   Models below) on a dune of sand: the pineapple outside and, behind a door you click, the rooms of
   the game inside (living room, closet, kitchen, bathroom, the bedroom upstairs, the library on top),
-  joined by a spiral stair and a flight of the sim's; the sim collides with boxes cut from every
-  surface of the rooms and hidden rings for the shell. The terrace (`content/terrace.ts`) is reached from the keeps:
+  joined by a stair of the sim's round the back of the house (out of the kitchen's back door, up to a
+  platform and the hall's door) and a flight up to the library; the sim collides with boxes cut from
+  every surface of the rooms, hidden rings for the shell and a wall along its flat face. The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
@@ -117,9 +118,9 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 8,616 pieces (4,972
-  drawn; the house's rooms are 2,651 hidden boxes) render as 76 meshes (about 15 in view at once), and a
-  world-spanning raycast costs about 170 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
+  so draw calls stay in the tens however many pieces there are. The world's 10,686 pieces (4,975
+  drawn; the house's rooms are 2,638 hidden boxes and its shell 1,600 hidden ring pieces) render as 76 meshes (about 15 in view at once), and a
+  world-spanning raycast costs about 120 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
   through `render/Loader.ts` (see Models below).
 
 ### Models and doors
