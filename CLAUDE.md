@@ -78,8 +78,9 @@ wire: server and client both build the world from that file.
   ground floor, Building 3 the first), so a floor is the same room in both, stair and murals alike;
   change a floor there and both follow. Building 4 stands a bare keep until it gets a structure of
   its own. Building 1 is SpongeBob's house (`content/pineapple.ts`), a model the client draws (see
-  Models below) on a dune of sand, collided with through hidden pieces stood inside its skin: one
-  bamboo-walled room on the sand, behind a door you click. The terrace (`content/terrace.ts`) is reached from the keeps:
+  Models below) on a dune of sand, collided with through hidden pieces stood inside its skin: two
+  bamboo-walled floors behind a door you click, the sand below and a wooden floor above, joined by
+  a flight up the back wall. The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
@@ -115,8 +116,8 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 5,950 pieces (4,793
-  drawn) render as 73 meshes (about 15 in view at once), and a world-spanning raycast costs about
+  so draw calls stay in the tens however many pieces there are. The world's 6,078 pieces (4,951
+  drawn) render as 75 meshes (about 15 in view at once), and a world-spanning raycast costs about
   60 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
   through `render/Loader.ts` (see Models below).
 

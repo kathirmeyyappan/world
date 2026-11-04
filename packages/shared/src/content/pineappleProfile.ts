@@ -14,6 +14,7 @@ export const PINEAPPLE_PROFILE = {
     [12.0, 19.42],
     [15.0, 19.79],
     [18.0, 19.97],
+    [20.0, 20.09],
     [21.0, 20.12],
     [24.0, 20.12],
     [27.0, 19.92],
@@ -34,6 +35,6 @@ export const PINEAPPLE_PROFILE = {
     thickness: 0.2,
   },
   face: { halfWidth: 3.4, top: 8.0, z: 14.796 },
-  ceiling: 15.0,
+  ceiling: 20.0,
   wall: 2.0,
 } as const;

@@ -15,8 +15,8 @@ height), the leaves, the portholes and the chimney, and builds the rest itself, 
   leans out as it rises) that rounds back into the shell either side and above, with the doorway
   cut out of it;
 - inside: the same lathe WALL inward up to CEILING, walled in the show's bamboo painted here, the
-  doorway cut out of it the same way;
-- ceiling: the flat ceiling of the room, in the show's rope net painted here;
+  doorway cut out of it the same way (the floor between its two storeys is the content's);
+- ceiling: the flat ceiling over the top floor, in the show's rope net painted here;
 - trim: the leaves, portholes and chimney as the model has them (its texture, cut down), the
   crown's cap, the frame round the doorway and the passage through the wall behind it, straight
   from the one cut to the other;
@@ -42,7 +42,7 @@ from PIL import Image
 
 OUTER = 20.0  # metres: the shell's radius at its widest, the keep's (content/keep.ts)
 WALL = 2.0  # metres: how thick the shell is made
-CEILING = 15.0  # metres above the shell's foot: the flat ceiling of the one room inside
+CEILING = 20.0  # metres above the shell's foot: the flat ceiling over the house's two floors
 DOOR_WIDTH = 2.8  # metres: the doorway, an arch
 DOOR_HEIGHT = 4.0
 DOOR_THICKNESS = 0.2
@@ -61,8 +61,8 @@ FINE_SPAN = 16  # degrees either side of the door the lathe is turned a degree a
 RING_STEP = 1.0  # metres between the lathe's rings
 PROFILE_STEP = 3.0  # metres between the rings the sim gets
 SKIN_TILE = 8.5  # metres of shell one repeat of the pineapple pattern (two diamonds) covers
-BAMBOO_TILE = 2.0  # metres of wall one repeat of the bamboo (five poles) covers
-NET_TILE = 3.0  # metres of ceiling one repeat of the net covers
+BAMBOO_TILE = 6.0  # metres of wall one repeat of the bamboo (five poles) covers: players are small in this house
+NET_TILE = 6.0  # metres of ceiling one repeat of the net (two meshes) covers
 TRIM_TEXTURE = 512  # the model's texture is cut down to this for what's kept of it
 ATLAS_PAD = 64  # pixels of blank strip added at that texture's right for the swatches
 SWATCHES = {"crown": (138, 107, 42), "iron": (74, 74, 80), "frame": (196, 206, 224), "lining": (100, 118, 152)}
@@ -124,7 +124,7 @@ def main(path: str) -> None:
         kept = [
             tri
             for tri in model_triangles(points, uv, tris[of == k], s, squeeze)
-            if not all(within(p, profile) for p, _ in tri)
+            if not any(within(p, profile) for p, _ in tri)
         ]
         trim.add(kept)
     door_part, hinge = build_door(profile)
@@ -205,7 +205,8 @@ def radius_at(profile: Profile, y: float) -> float:
 
 
 def within(p: np.ndarray, profile: Profile) -> bool:
-    """Whether a point is inside the inner skin: under the ceiling, short of the shell by the wall."""
+    """Whether a point is inside the room: under the ceiling, short of the shell by the wall. A trim
+    triangle with any corner there (the back of a porthole's ring) would show on the room's wall."""
     return p[1] < CEILING and np.hypot(p[0], p[2]) < radius_at(profile, p[1]) - WALL - 0.01
 
 
@@ -590,7 +591,7 @@ def paint_pineapple(size: int = 128, groove: int = 6) -> Image.Image:
     return img
 
 
-def paint_bamboo(size: int = 96) -> Image.Image:
+def paint_bamboo(size: int = 192) -> Image.Image:
     """One repeat of the room's wall, the show's living room: upright bamboo poles in sky blue, of a
     few widths, each shaded down one side and lit down the other with a dark seam between, and a
     knuckle or two across each (a dark line under a bright lip)."""
@@ -599,19 +600,19 @@ def paint_bamboo(size: int = 96) -> Image.Image:
     px = img.load()
     seam, shade, fill, bright = (40, 136, 184), (66, 166, 206), (96, 196, 226), (176, 232, 244)
     x = 0
-    for w in (16, 22, 14, 20, 24):  # together the tile's width, so the poles wrap
-        knuckles = {int(k) for k in rng.integers(3, size - 3, 2)}
+    for w in (32, 44, 28, 40, 48):  # together the tile's width, so the poles wrap
+        knuckles = {int(k) for k in rng.integers(6, size - 6, 2)}
         for i in range(w):
             for y in range(size):
-                if i == 0:
+                if i < 2:
                     c = seam
-                elif y in knuckles:
+                elif y in knuckles or y - 1 in knuckles:
                     c = shade
-                elif y + 1 in knuckles:
+                elif y + 1 in knuckles or y + 2 in knuckles:
                     c = bright
-                elif i <= 2:
+                elif i < 6:
                     c = shade
-                elif w - 4 <= i < w - 1:
+                elif w - 8 <= i < w - 2:
                     c = bright
                 else:
                     c = fill if rng.random() < 0.9 else (88, 188, 220)
@@ -620,7 +621,7 @@ def paint_bamboo(size: int = 96) -> Image.Image:
     return img
 
 
-def paint_net(size: int = 96) -> Image.Image:
+def paint_net(size: int = 192, rope: int = 5) -> Image.Image:
     """One repeat of the ceiling, the show's: a rope net, two meshes to the repeat, over tan."""
     rng = np.random.default_rng(7)
     img = Image.new("RGB", (size, size))
@@ -629,7 +630,7 @@ def paint_net(size: int = 96) -> Image.Image:
     for x in range(size):
         for y in range(size):
             u, v = (x + y) % cell, (x - y) % cell
-            if u < 3 or v < 3:
+            if u < rope or v < rope:
                 px[x, y] = (122, 80, 42) if rng.random() < 0.8 else (104, 66, 34)
             else:
                 px[x, y] = (206, 152, 90) if rng.random() < 0.9 else (194, 140, 80)
