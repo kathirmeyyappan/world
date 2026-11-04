@@ -431,8 +431,8 @@ wire: server and client both build the world from that file.
 ### Models and doors
 
 A landmark too shapely for boxes is a model: a mesh the client draws from files in
-`packages/client/public/assets/models/` and textures in `public/assets/textures/models/`, written by
-a script in `packages/client/scripts/` (`house-model.py` makes the pineapple from two Sketchfab
+`packages/client/public/assets/models/<model>/`, its meshes and textures together, written by a
+script in `packages/client/scripts/` (`house-model.py` makes the pineapple from two Sketchfab
 GLBs: the outside turned afresh as a smooth lathe through one model's rings, flattened into an
 upright face round each door, with a steel vestibule behind the front doorway and its door a flat
 slab on a pin at its edge; and inside, the other model's rooms at half scale, in their own textures packed
