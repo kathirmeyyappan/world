@@ -2,7 +2,8 @@
 // (public/assets/models/pineapple-<name>.bin), its texture (public/assets/textures/models/<texture>.png),
 // whether the texture repeats (coordinates run past 1) or is an atlas, whether it has clear pixels,
 // whether it's drawn as painted rather than lit (the rooms, which the sun never reaches), how solid
-// it's drawn if it's see-through, and the door it hangs on, if it swings (content/pineappleProfile.ts).
+// it's drawn if it's see-through, whether only its outside is drawn (the skin, sealed all round,
+// so nothing looks at its inside), and the door it hangs on, if it swings (content/pineappleProfile.ts).
 export interface PineapplePart {
   name: string;
   texture: string;
@@ -10,18 +11,18 @@ export interface PineapplePart {
   alpha: boolean;
   unlit: boolean;
   opacity?: number;
+  oneSided?: boolean;
   door?: string;
 }
 
 export const PINEAPPLE_PARTS: readonly PineapplePart[] = [
-  { name: 'skin', texture: 'pineapple-skin', wrap: true, alpha: false, unlit: false },
+  { name: 'skin', texture: 'pineapple-skin', wrap: true, alpha: false, unlit: false, oneSided: true },
   { name: 'passage', texture: 'steel', wrap: true, alpha: false, unlit: false },
   { name: 'trim', texture: 'pineapple', wrap: false, alpha: false, unlit: false },
   { name: 'flowers', texture: 'pineapple-flowers', wrap: false, alpha: false, unlit: false, opacity: 0.75 },
   { name: 'path', texture: 'pineapple-path', wrap: false, alpha: false, unlit: false },
   { name: 'door-front', texture: 'door', wrap: false, alpha: false, unlit: false, door: 'front' },
   { name: 'interior', texture: 'pineapple-interior', wrap: false, alpha: true, unlit: true },
-  { name: 'door-library', texture: 'pineapple-interior', wrap: false, alpha: true, unlit: true, door: 'library' },
   { name: 'door-closet', texture: 'pineapple-interior', wrap: false, alpha: true, unlit: true, door: 'closet' },
   {
     name: 'door-bedroom-east',

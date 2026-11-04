@@ -32,6 +32,11 @@ portholes, and the path and flowers, and builds the rest itself:
 The profile the sim collides with (the shell's rings, the doorway and its door, the flat face, the
 openings through the shell, the dune, the rooms' levels, stairs and doors) comes from the same
 lathe and the same rooms; the boxes the rooms are cut into go to content/pineappleInterior.ts.
+
+Both models are in glTF's frame, right-handed; the game's is Babylon's, left-handed. The scripts
+work in the models' frame, where a bearing is what Blender or Sketchfab shows, and everything
+written out is mirrored in x (house_mesh.MIRROR): the meshes as they are written, the profile's
+numbers here.
 """
 
 from __future__ import annotations
@@ -150,6 +155,7 @@ def main(outside: str, rooms: str) -> None:
         lathe_angles(),
         [y for y, _ in profile],
     )
+    inside.seal_library(interior)
 
     # The skin, with the doorway cut out of it, and the vestibule behind.
     skin_tris = lathe(profile, SKIN_TILE, lambda a, y: surface(profile, a, y), lathe_angles())
@@ -184,15 +190,7 @@ def main(outside: str, rooms: str) -> None:
         ("back", inside.BACK_BEARING, wall_depth(kitchen_wall, inside.BACK_BEARING), 0.0, np.pi / 2),
         ("hall", inside.HALL_BEARING, wall_depth(interior.hall_wall, inside.HALL_BEARING), hall, -np.pi / 2),
     ):
-        # The pin at the doorway's left edge (seen from outside) on the wall's surface, the panel
-        # running across the doorway.
-        pin = turned_by([[(np.array([-inside.DOORWAY[0] / 2 + inside.CLEARANCE, 0.0, depth]), np.zeros(2))]], bearing)[
-            0
-        ][0][0]
-        along = turned_by([[(np.array([1.0, 0.0, 0.0]), np.zeros(2))]], bearing)[0][0][0]
-        inside.new_door(
-            interior, id_, (float(pin[0]), float(pin[2])), floor, float(np.arctan2(along[2], along[0])), swing
-        )
+        inside.new_door(interior, id_, bearing, depth, floor, swing)
     through.add(frame_band(face_plane(profile) + FRAME_PROUD))
     skin = MeshBuilder()
     skin.add(skin_tris)
@@ -515,13 +513,15 @@ def ring_points(profile: Profile, y: float) -> list[np.ndarray]:
 
 def build_door(profile: Profile) -> tuple[MeshBuilder, inside.Door]:
     """The door: a flat slab the doorway's outline less CLEARANCE from the ground up, DOOR_THICKNESS
-    thick, its face flush with the flat face of the shell, in the house's frame about its pin (the
-    slab's left edge on the ground, on the face it swings toward); and the door for the sim, which
-    swings it outward, square to the doorway, to stand at its side."""
+    thick, its face flush with the flat face of the shell, about its pin (an edge on the ground, on
+    the outer face, the face it swings toward); and the door for the sim, which swings it outward,
+    square to the doorway, to stand at its side. The slab runs to -x from its pin here, so that
+    mirrored into the game (house_mesh.MIRROR) it hangs to the right of its run, as doors.ts hangs
+    every slab, with the pin at the game's -x edge."""
     x0, x1 = -DOOR_WIDTH / 2 + CLEARANCE, DOOR_WIDTH / 2 - CLEARANCE
     top = DOOR_HEIGHT - CLEARANCE
     face = face_plane(profile)
-    hinge = np.array([x0, 0.0, face])
+    hinge = np.array([x1, 0.0, face])
     outline = arch(x0, x1, top, ARCH_STEPS, bottom=0.0)
     pts = [np.array([x, y, 0.0]) for x, y in outline]
     uvs = [np.array([(x - x0) / (x1 - x0), DOOR_PLANKS * (top - y) / top]) for x, y in outline]
@@ -564,7 +564,7 @@ def build_door(profile: Profile) -> tuple[MeshBuilder, inside.Door]:
             ):
                 edge.append([(v, np.array([0.0, 0.0])) for v in tri])
     mesh.add(edge, "iron")
-    door = inside.Door("front", (float(x0), float(face)), 0.0, 0.0, x1 - x0, top, DOOR_THICKNESS, np.pi / 2, [])
+    door = inside.Door("front", (float(x1), float(face)), 0.0, np.pi, x1 - x0, top, DOOR_THICKNESS, -np.pi / 2, [])
     return mesh, door
 
 
@@ -574,9 +574,10 @@ def dune_top(profile: Profile) -> float:
 
 
 def dune(lx: float, lz: float, top: float) -> float:
-    """The dune's height under a point of the house's frame, over the house's floor: flat on top
-    (`top` out), down to the grounds' floor by their edge, never steeper than a walk, bulging a
-    little round the slope. The same hill as content/pineapple.ts builds from the profile's `dune`."""
+    """The dune's height under a point of the game's frame (the model's mirrored in x,
+    house_mesh.MIRROR), over the house's floor: flat on top (`top` out), down to the grounds' floor
+    by their edge, never steeper than a walk, bulging a little round the slope. The same hill as
+    content/pineapple.ts builds from the profile's `dune`."""
     out = float(np.hypot(lx, lz))
     t = float(np.clip((DUNE_FOOT - out) / (DUNE_FOOT - top), 0, 1))
     slope = t * t * (3 - 2 * t)
@@ -683,13 +684,13 @@ def build_garden(
         swatches.paste(Image.new("RGB", (8, 8), colour), box)
         uv = np.array([(box[0] + 4) / swatches.width, (box[1] + 4) / swatches.height])
         placed = foot + (pos - foot) * FLOWER_SCALE
-        placed[:, 1] += np.array([dune(p[0], p[2], top) for p in placed])
+        placed[:, 1] += np.array([dune(-p[0], p[2], top) for p in placed])
         blooms.add([[(placed[i], uv) for i in tri] for tri in tris])
     stones = load_mesh(doc, blob, "Plane.001_0")
     path_image = garden_image(doc, blob, stones).resize((PATH_TEXTURE, PATH_TEXTURE), Image.Resampling.LANCZOS)
     pos = stones["positions"] * s
     pos = door_foot + (pos - door_foot) * PATH_SCALE
-    pos[:, 1] += np.array([dune(p[0], p[2], top) for p in pos])
+    pos[:, 1] += np.array([dune(-p[0], p[2], top) for p in pos])
     path = MeshBuilder()
     uvs = stones["uvs"] % 1
     path.add([[(pos[i], uvs[i]) for i in tri] for tri in stones["triangles"]])
@@ -880,23 +881,24 @@ def paint_door(w: int = 96, h: int = 160) -> Image.Image:
 def emit_parts_list(doors: list[inside.Door]) -> None:
     """The client's list of the house's parts: each one's mesh, texture, whether that texture
     repeats or is an atlas with clear pixels, whether it's lit by the sun (the outside) or shows as
-    painted (the rooms), and the door it hangs on."""
+    painted (the rooms), whether only its outside is drawn, and the door it hangs on."""
     parts = [
-        ("skin", "pineapple-skin", True, False, False, None, None),
-        ("passage", "steel", True, False, False, None, None),
-        ("trim", "pineapple", False, False, False, None, None),
-        ("flowers", "pineapple-flowers", False, False, False, FLOWER_OPACITY, None),
-        ("path", "pineapple-path", False, False, False, None, None),
-        ("door-front", "door", False, False, False, None, "front"),
-        ("interior", "pineapple-interior", False, True, True, None, None),
-        *((f"door-{d.id}", "pineapple-interior", False, True, True, None, d.id) for d in doors),
+        ("skin", "pineapple-skin", True, False, False, None, None, True),
+        ("passage", "steel", True, False, False, None, None, False),
+        ("trim", "pineapple", False, False, False, None, None, False),
+        ("flowers", "pineapple-flowers", False, False, False, FLOWER_OPACITY, None, False),
+        ("path", "pineapple-path", False, False, False, None, None, False),
+        ("door-front", "door", False, False, False, None, "front", False),
+        ("interior", "pineapple-interior", False, True, True, None, None, False),
+        *((f"door-{d.id}", "pineapple-interior", False, True, True, None, d.id, False) for d in doors),
     ]
     lines = [
         "// Generated by scripts/house-model.py; don't edit. The pineapple house's parts: each one's mesh",
         "// (public/assets/models/pineapple-<name>.bin), its texture (public/assets/textures/models/<texture>.png),",
         "// whether the texture repeats (coordinates run past 1) or is an atlas, whether it has clear pixels,",
         "// whether it's drawn as painted rather than lit (the rooms, which the sun never reaches), how solid",
-        "// it's drawn if it's see-through, and the door it hangs on, if it swings (content/pineappleProfile.ts).",
+        "// it's drawn if it's see-through, whether only its outside is drawn (the skin, sealed all round,",
+        "// so nothing looks at its inside), and the door it hangs on, if it swings (content/pineappleProfile.ts).",
         "export interface PineapplePart {",
         "  name: string;",
         "  texture: string;",
@@ -904,13 +906,18 @@ def emit_parts_list(doors: list[inside.Door]) -> None:
         "  alpha: boolean;",
         "  unlit: boolean;",
         "  opacity?: number;",
+        "  oneSided?: boolean;",
         "  door?: string;",
         "}",
         "",
         "export const PINEAPPLE_PARTS: readonly PineapplePart[] = [",
     ]
-    for name, texture, wrap, alpha, unlit, opacity, door in parts:
-        extra = (f", opacity: {opacity}" if opacity is not None else "") + (f", door: '{door}'" if door else "")
+    for name, texture, wrap, alpha, unlit, opacity, door, one_sided in parts:
+        extra = (
+            (f", opacity: {opacity}" if opacity is not None else "")
+            + (", oneSided: true" if one_sided else "")
+            + (f", door: '{door}'" if door else "")
+        )
         flags = f"wrap: {str(wrap).lower()}, alpha: {str(alpha).lower()}, unlit: {str(unlit).lower()}"
         lines.append(f"  {{ name: '{name}', texture: '{texture}', {flags}{extra} }},")
     lines += ["];", ""]
@@ -928,7 +935,13 @@ def emit_profile(profile: Profile, doors: list[inside.Door], interior: inside.In
     rings = [(y, radius_at(profile, y)) for y in ys]
     levels = interior.levels
     num = lambda v: f"{v:.3f}".rstrip("0").rstrip(".")
+    # Into the game's frame, the model's mirrored in x (house_mesh.MIRROR): x negated, a bearing
+    # from +z negated, a way from +x turned to π less it, and a swing the other way round.
+    across = lambda x: -x + 0.0
+    bearing = lambda b: (-b) % (2 * np.pi)
+    way = lambda a: (2 * np.pi - a) % (2 * np.pi) - np.pi
     (fx0, fz0), (fx1, fz1), fw = inside.FLIGHT
+    sx0, sx1, sz0, sz1 = inside.library_slot(interior)
     lines = [
         "// Generated by packages/client/scripts/house-model.py; don't edit. The pineapple house's shape for",
         "// the sim (content/pineapple.ts), in metres in the house's frame (the door facing +z, y up from",
@@ -937,9 +950,9 @@ def emit_profile(profile: Profile, doors: list[inside.Door], interior: inside.In
         "// door and up, and how far out from the axis it stands); the doorway cut in it and the vestibule",
         "// behind (how far back its steel wall stands); the rooms' levels (the ground floor's ceiling, the",
         "// first floor at the bedroom's floor and its ceiling, the library's floor, and the top of its wall,",
-        "// above which the shell is solid); how tall the landing is; the library's wall, band by band up",
-        "// it (height, inside, outside); the flight up the stairwell (its foot and head on the floor, its",
-        "// width, and its slot in the landing's floor); the sim's wall along the face, as chords in bands",
+        "// above which the shell is solid); the library's wall, band by band up it (height, inside,",
+        "// outside); the flight up from the hall (its foot and head on the floor, its width, and its slot",
+        "// in the library's floor, [x0, x1, z0, z1]); the sim's wall along the face, as chords in bands",
         "// ([x1, z1, x2, z2, y0, y1]); the stair round the back and its platform, piece by piece",
         "// ([x, z, y, w, d, h, yaw]: centre, underside, size, the bearing it faces); the doorways through",
         "// the shell for the sim (bearing from +z toward +x, width, bottom, top); and every door (its pin,",
@@ -952,22 +965,30 @@ def emit_profile(profile: Profile, doors: list[inside.Door], interior: inside.In
         f"  doorway: {{ width: {num(DOOR_WIDTH)}, height: {num(DOOR_HEIGHT)} }},",
         f"  vestibule: {{ back: {num(interior.front_z)} }},",
         f"  levels: {{ ceiling: {num(levels['ceiling'])}, hall: {num(levels['hall'])}, hallCeiling: {num(levels['hallCeiling'])}, library: {num(levels['library'])}, top: {num(levels['top'])} }},",
-        f"  landing: {{ height: {num(inside.LANDING_HEIGHT)} }},",
         f"  library: [{', '.join(f'[{y:.2f}, {a:.2f}, {b:.2f}]' for y, a, b in inside.library_wall(interior, PROFILE_STEP))}],",
         (
-            f"  flight: {{ from: [{num(fx0)}, {num(fz0)}], to: [{num(fx1)}, {num(fz1)}], width: {num(fw)}, "
-            f"slot: [{', '.join(num(v) for v in inside.landing_slot(interior))}] }},"
+            f"  flight: {{ from: [{num(across(fx0))}, {num(fz0)}], to: [{num(across(fx1))}, {num(fz1)}], width: {num(fw)}, "
+            f"slot: [{', '.join(num(v) for v in (across(sx1), across(sx0), sz0, sz1))}] }},"
         ),
-        f"  faceWalls: [{', '.join('[' + ', '.join(num(v) for v in row) + ']' for row in face_walls(profile))}],",
-        f"  stair: [{', '.join('[' + ', '.join(num(v) for v in row) + ']' for row in build_stair(profile, levels['hall']))}],",
+        "  faceWalls: ["
+        + ", ".join(
+            "[" + ", ".join(num(v) for v in (across(x1), z1, across(x2), z2, y0, y1)) + "]"
+            for x1, z1, x2, z2, y0, y1 in face_walls(profile)
+        )
+        + "],",
+        "  stair: ["
+        + ", ".join(
+            "[" + ", ".join(num(v) for v in (across(x), z, y, w, d, h, bearing(yaw))) + "]"
+            for x, z, y, w, d, h, yaw in build_stair(profile, levels["hall"])
+        )
+        + "],",
         "  doorways: [",
-        f"    {{ bearing: {num(inside.BACK_BEARING)}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.DOORWAY[1] + 0.4)} }},",
-        f"    {{ bearing: {num(inside.HALL_BEARING)}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: {num(levels['hall'])}, top: {num(levels['hall'] + inside.DOORWAY[1] + 0.4)} }},",
-        f"    {{ bearing: 0, width: 2.4, bottom: {num(levels['library'])}, top: {num(levels['library'] + 3.2)} }},",
+        f"    {{ bearing: {num(bearing(inside.BACK_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.DOORWAY[1] + 0.4)} }},",
+        f"    {{ bearing: {num(bearing(inside.HALL_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: {num(levels['hall'])}, top: {num(levels['hall'] + inside.DOORWAY[1] + 0.4)} }},",
         "  ],",
         "  doors: [",
         *(
-            f"    {{ id: '{d.id}', hinge: [{num(d.hinge[0])}, {num(d.hinge[1])}], y: {num(d.y)}, bearing: {num(d.bearing)}, reach: {num(d.reach)}, height: {num(d.height)}, thickness: {num(d.thickness)}, swing: {num(d.swing)} }},"
+            f"    {{ id: '{d.id}', hinge: [{num(across(d.hinge[0]))}, {num(d.hinge[1])}], y: {num(d.y)}, bearing: {num(way(d.bearing))}, reach: {num(d.reach)}, height: {num(d.height)}, thickness: {num(d.thickness)}, swing: {num(-d.swing)} }},"
             for d in doors
         ),
         "  ],",
@@ -979,13 +1000,14 @@ def emit_profile(profile: Profile, doors: list[inside.Door], interior: inside.In
 
 
 def emit_boxes(boxes: list[list[float]]) -> None:
+    # Into the game's frame: mirrored in x (house_mesh.MIRROR).
     lines = [
         "// Generated by packages/client/scripts/house-model.py; don't edit. The boxes the sim collides",
         "// with inside the pineapple house (content/pineapple.ts): every surface of the rooms and what's",
         "// in them, cut on a grid, each as [x, z, y, w, d, h] in metres in the house's frame (its centre",
         "// across, its underside, its size).",
         "export const PINEAPPLE_BOXES: readonly (readonly [number, number, number, number, number, number])[] = [",
-        *(f"  [{', '.join(f'{v:g}' for v in box)}]," for box in boxes),
+        *(f"  [{', '.join(f'{v:g}' for v in (-x + 0.0, z, y, w, d, h))}]," for x, z, y, w, d, h in boxes),
         "];",
         "",
     ]
