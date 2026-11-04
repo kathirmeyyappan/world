@@ -1,6 +1,6 @@
 // Landmarks drawn from mesh files rather than built from structures: the pineapple house, in the
-// parts scripts/house-model.py writes (its skin, its papered inside, its doorway's frame, its trim,
-// its door), fetched
+// parts scripts/house-model.py writes (its skin, its bamboo inside, its ceiling, its trim, its
+// door), fetched
 // through the loader (render/Loader.ts) and stood where the shared content puts it
 // (content/pineapple.ts). The
 // sim never sees these meshes; it collides with the structures the content hides inside them, so
@@ -31,12 +31,12 @@ export class Models {
     const [hx, hz] = PINEAPPLE_PROFILE.door.hinge;
     const hinge = new TransformNode('model-pineapple-door', scene);
     hinge.parent = house;
-    hinge.position.set(hx, PINEAPPLE_PROFILE.door.sill, hz);
+    hinge.position.set(hx, 0, hz);
     this.doors.set(PINEAPPLE_DOOR.id, { node: hinge, swing: PINEAPPLE_DOOR.swing, open: false, at: 0 });
     const parts: [Part, TransformNode][] = [
       [{ name: 'skin', texture: 'pineapple-skin', wrap: true }, house],
-      [{ name: 'inside', texture: 'wallpaper', wrap: true }, house],
-      [{ name: 'frame', texture: 'planks', wrap: true }, house],
+      [{ name: 'inside', texture: 'bamboo', wrap: true }, house],
+      [{ name: 'ceiling', texture: 'net', wrap: true }, house],
       [{ name: 'trim', texture: 'pineapple', wrap: false }, house],
       [{ name: 'door', texture: 'door', wrap: false }, hinge],
     ];

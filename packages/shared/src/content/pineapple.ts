@@ -2,11 +2,12 @@
 // down the path in, on a dune of sand. The house itself is a model only the client draws
 // (render/models/Models.ts); the sim knows it by its profile (content/pineappleProfile.ts, written
 // with the model by scripts/house-model.py) and collides with structures stood inside its skin,
-// never drawn: rings of wall following the shell's curve up to the ceiling, the doorway open in
-// them, solid slabs above it, and a wooden floor out to the shell, a sill's height up. The dune
-// rises from the grounds' edge to a flat top the house sits on, and bulges a little round it. The
-// door hangs in the doorway (sim/doors.ts).
-import { roundFloor, roundWall, terrain, type Structure } from '../sim/structures';
+// never drawn: rings of wall following the shell's curve up to the ceiling, left out where the
+// shell flattens into the upright face round the door, and solid slabs above it; in the face's
+// place, the jambs either side of the doorway and the lintel over it. The dune rises from the
+// grounds' edge to a flat top the house sits on, and bulges a little round it; its sand is the
+// room's floor, as in the show. The door hangs in the doorway (sim/doors.ts).
+import { roundFloor, roundWall, terrain, type Box, type Structure } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -24,8 +25,6 @@ const BULGE = 0.5; // metres they rise and fall by
 const SEGMENTS = 32;
 const RING_MARGIN = 0.1; // metres a collision ring keeps inside each face of the skin
 const MIN_RING = 0.5; // metres: the thinnest ring worth standing; a band is split until its rings are
-const FLOOR = SHAPE.door.sill; // the wooden floor's thickness: the door stands on it
-const FLOOR_MARGIN = 0.05; // metres the floor's edge stays inside the shell's foot
 
 // The door faces the way in; the model's door faces its +z, so it's turned to match.
 const ENTRANCE = Math.atan2(-Z, -X);
@@ -36,7 +35,6 @@ const placed = (lx: number, lz: number) => ({
   x: X + lx * Math.cos(YAW) + lz * Math.sin(YAW),
   z: Z - lx * Math.sin(YAW) + lz * Math.cos(YAW),
 });
-const FLOOR_TOP = DUNE_HEIGHT + 0.1; // the wooden floor's top
 
 // The door swings outward on the hinge at its left edge, square to the doorway, to stand at its
 // side.
@@ -44,7 +42,7 @@ export const DOOR_SWING = Math.PI / 2;
 export const PINEAPPLE_DOOR: DoorSpec = {
   id: 'pineapple',
   hinge: placed(SHAPE.door.hinge[0], SHAPE.door.hinge[1]),
-  y: FLOOR_TOP,
+  y: DUNE_HEIGHT,
   bearing: -YAW, // the house's +x, where the slab runs from the hinge
   reach: SHAPE.door.reach,
   height: SHAPE.door.height,
@@ -54,18 +52,18 @@ export const PINEAPPLE_DOOR: DoorSpec = {
 export const PINEAPPLE_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: Math.max(...SHAPE.rings.map(([, r]) => r)) };
 // The floor inside the walls, for placing things (content/regions.ts).
 export const PINEAPPLE_LEVELS: Region[] = [
-  { kind: 'disc', x: X, z: Z, r: SHAPE.rings[0][1] - SHAPE.wall - 1, y: DUNE_HEIGHT + FLOOR },
+  { kind: 'disc', x: X, z: Z, r: SHAPE.rings[0][1] - SHAPE.wall - 1, y: DUNE_HEIGHT },
 ];
 
-// The doorway's share of a band of wall between two heights above the floor, if it reaches it.
-const doorway = (bottom: number, top: number, r: number) =>
-  bottom < SHAPE.doorway.height
+// The flat face's share of a band of wall between two heights above the floor, if it reaches it.
+const faced = (bottom: number, top: number, r: number) =>
+  bottom < SHAPE.face.top
     ? [
         {
           angle: ENTRANCE,
-          width: 2 * Math.asin(SHAPE.doorway.width / 2 / r),
+          width: 2 * Math.asin(SHAPE.face.halfWidth / r),
           bottom: DUNE_HEIGHT + bottom,
-          top: DUNE_HEIGHT + Math.min(top, SHAPE.doorway.height),
+          top: DUNE_HEIGHT + Math.min(top, SHAPE.face.top),
         },
       ]
     : [];
@@ -98,11 +96,36 @@ const shell: Structure[] = SHAPE.rings.slice(1).flatMap(([y1, r1], i) => {
       y: DUNE_HEIGHT + ya,
       h: yb - ya,
       segments: SEGMENTS,
-      gaps: doorway(ya, yb, (outer + inner) / 2),
+      gaps: faced(ya, yb, (outer + inner) / 2),
       hidden: true,
     });
   }).flat();
 });
+
+// The face as the sim sees it, in the house's frame: a slab of wall from the face's plane back
+// toward the room. The jambs either side of the doorway reach the room's wall at the foot, and
+// are thinner above, where the room's wall leans away from the face; the lintel over the doorway
+// is thin like them. Nothing below the ceiling stands within a step of a player's head, so the
+// hollow behind the thin parts is never felt.
+const slab = (lx: number, depth: number, w: number, bottom: number, top: number): Box => ({
+  kind: 'box',
+  ...placed(lx, SHAPE.face.z - depth / 2),
+  yaw: YAW,
+  w,
+  d: depth,
+  h: top - bottom,
+  y: DUNE_HEIGHT + bottom,
+  hidden: true,
+});
+const JAMB = SHAPE.face.halfWidth - SHAPE.doorway.width / 2;
+const JAMB_AT = SHAPE.doorway.width / 2 + JAMB / 2;
+const face: Structure[] = [
+  ...[-1, 1].flatMap((side) => [
+    slab(side * JAMB_AT, 1.6, JAMB, 0, 2.2),
+    slab(side * JAMB_AT, 0.8, JAMB, 2.2, SHAPE.face.top),
+  ]),
+  slab(0, 0.8, SHAPE.doorway.width, SHAPE.doorway.height, SHAPE.face.top),
+];
 
 // Flat on top, down to the floor by the grounds' edge, never steeper than a walk; its underside a
 // hair under the floor, so its rim and corners (the grounds are round, it is square) stay out of
@@ -123,16 +146,4 @@ const dune = terrain({
   },
 });
 
-export const PINEAPPLE_HOUSE: Structure[] = [
-  dune,
-  ...roundFloor({
-    x: X,
-    z: Z,
-    r: SHAPE.rings[0][1] - FLOOR_MARGIN,
-    y: FLOOR_TOP,
-    thickness: FLOOR,
-    material: 'wood',
-  }),
-  ...shell,
-  ...doorPieces(PINEAPPLE_DOOR),
-];
+export const PINEAPPLE_HOUSE: Structure[] = [dune, ...shell, ...face, ...doorPieces(PINEAPPLE_DOOR)];
