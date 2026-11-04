@@ -12,11 +12,12 @@
 //
 // Inside, the rooms are the game's (Battle for Bikini Bottom): the living room through the front
 // door, the closet off it, the kitchen behind, the bathroom off the kitchen, the bedroom upstairs
-// over the kitchen, and the library on top. A spiral stair in the living room climbs through its
-// ceiling to a stair hall, off which a corridor runs to the bedroom's door and a stairwell climbs
-// by a straight flight to the landing before the library's door. Every door swings
+// over the kitchen, and the library on top. A stair round the back of the house climbs from the
+// kitchen's back door to a platform at the hall's door; the hall runs round the bedroom to its
+// doors, and a stairwell climbs by a straight flight to the landing before the library's door.
+// Every door swings
 // (sim/doors.ts), the front one outward, the rooms' into the room each closes.
-import { roundFloor, roundWall, spiralStairs, stairs, terrain, type Box, type Structure } from '../sim/structures';
+import { roundFloor, roundWall, stairs, terrain, wall, type Box, type Structure } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -35,7 +36,6 @@ const RAIL = 1; // height of the posts along a flight's edge
 const RAIL_WIDTH = 0.2; // and the landing's, across
 const SILL = 0.02; // a flight sits this far below the floor it meets, so no two tops share a height
 const SEGMENTS = 32; // straight pieces in each collision ring
-const RING_MARGIN = 0.1; // metres a collision ring keeps inside the skin
 
 // The door faces the way in; the model's door faces its +z, so it's turned to match.
 const ENTRANCE = Math.atan2(-Z, -X);
@@ -82,25 +82,30 @@ export const PINEAPPLE_LEVELS: Region[] = [
   { kind: 'disc', x: X, z: Z, r: 8, y: DUNE_HEIGHT + levels.library },
 ];
 
-// What's open through the shell between two heights above the floor: the doorway and the vestibule
-// behind it, and the library's doorway, each as a gap in a ring.
-const DOORWAY = { bearing: 0, width: SHAPE.doorway.width + 0.6, bottom: 0, top: SHAPE.doorway.height + 0.4 };
-const LIBRARY_DOOR = { bearing: 0, width: 2.4, bottom: levels.library, top: levels.library + 3.2 };
-const openings = (bottom: number, top: number) =>
-  [DOORWAY, LIBRARY_DOOR]
+// What's open through the shell's rings between two heights above the floor: the doorways (the
+// back door's, the hall's and the library's; each `width` metres across at the ring's radius) and
+// the face round the front door, which has a wall of its own below (`faceWalls`), each as a gap.
+const FACE_ARC = 2 * Math.asin(SHAPE.face.halfWidth / SHAPE.rings[0][1]);
+const openings = (bottom: number, top: number, r: number) =>
+  [
+    ...SHAPE.doorways.map((g) => ({ ...g, arc: g.width / r })),
+    { bearing: 0, arc: FACE_ARC, bottom: 0, top: SHAPE.face.top },
+  ]
     .filter((g) => g.bottom < top && g.top > bottom)
     .map((g) => ({
       angle: bearing(g.bearing),
-      width: g.width,
+      width: g.arc,
       bottom: DUNE_HEIGHT + Math.max(bottom, g.bottom),
       top: DUNE_HEIGHT + Math.min(top, g.top),
     }));
 
 // The shell, band by band between its rings and the levels where what's inside changes, all
 // unseen (the model is the shell's look). Each band is a ring from where the solid begins out to
-// just inside the skin, with the openings left out of it: the whole thickness outside the ground
-// floor's rooms, then only a seal inside the skin, behind the hall's wall and the landing's; the
-// library's wall is a ring of its own, and above the library the shell is solid through.
+// the skin where it stands outermost in the band (so nothing stands inside it), with the openings
+// left out of it: the whole thickness outside the ground floor's rooms, then only a seal inside
+// the skin, behind the hall's wall and the landing's; the library's wall is a ring of its own, and
+// above the library the shell is solid through. Where the skin is flattened into the face round
+// the front door the rings are open and the face's own wall stands, chord by chord.
 const landingTop = levels.library + SHAPE.landing.height;
 const edges = [...new Set([...SHAPE.rings.map(([y]) => y), levels.hall, levels.library, landingTop, levels.top])].sort(
   (a, b) => a - b,
@@ -114,12 +119,16 @@ const ring = (inner: number, outer: number, y0: number, y1: number): Box[] =>
     y: DUNE_HEIGHT + y0,
     h: y1 - y0,
     segments: SEGMENTS,
-    gaps: openings(y0, y1),
+    gaps: openings(y0, y1, (outer + inner) / 2),
     hidden: true,
   });
+const face: Box[] = SHAPE.faceWalls.map(([x1, z1, x2, z2, y0, y1]) => ({
+  ...wall(placed(x1, z1), placed(x2, z2), y1 - y0, SHAPE.face.thickness, DUNE_HEIGHT + y0),
+  hidden: true,
+}));
 const shell: Structure[] = edges.slice(1).flatMap((y1, i): Structure[] => {
   const y0 = edges[i];
-  const outer = Math.min(skin(y0), skin(y1)) - RING_MARGIN;
+  const outer = Math.max(skin(y0), skin(y1));
   if (y0 >= levels.top)
     return roundFloor({ x: X, z: Z, r: outer, y: DUNE_HEIGHT + y1, thickness: y1 - y0, hidden: true });
   if (y0 < levels.hall) return ring(GROUND_CORE, outer, y0, y1);
@@ -140,20 +149,20 @@ const rooms: Box[] = PINEAPPLE_BOXES.map(([x, z, y, w, d, h]) => ({
   hidden: true,
 }));
 
-// The spiral up from the living room, and the flight up the stairwell.
-const { spiral, flight } = SHAPE;
+// The stair round the back, from the kitchen's back door up to the platform at the hall's door,
+// and the flight up the stairwell.
+const { flight } = SHAPE;
 const flights: Box[] = [
-  ...spiralStairs({
-    ...placed(spiral.x, spiral.z),
-    inner: spiral.inner,
-    outer: spiral.outer,
-    bottom: DUNE_HEIGHT - SILL,
-    rise: levels.hall,
-    turns: spiral.turns,
-    start: turned(spiral.start),
-    rail: RAIL,
+  ...SHAPE.stair.map(([x, z, y, w, d, h, yaw]): Box => ({
+    kind: 'box',
+    ...placed(x, z),
+    y: DUNE_HEIGHT + y,
+    yaw: YAW + yaw,
+    w,
+    d,
+    h,
     material: 'wood',
-  }),
+  })),
   ...stairs(placed(...flight.from), placed(...flight.to), levels.library - levels.hall, flight.width, {
     y: DUNE_HEIGHT + levels.hall - SILL,
     thickness: 0.3,
@@ -209,6 +218,7 @@ const dune = terrain({
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
   ...shell,
+  ...face,
   ...rooms,
   ...PINEAPPLE_DOORS.flatMap((d) => doorPieces(d)),
   ...flights,
