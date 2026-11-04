@@ -43,7 +43,7 @@ import { ACTION_SOUNDS, ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
-import { IS_TOUCH } from '../input/touch';
+import { IS_TOUCH, onTap } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
@@ -258,6 +258,11 @@ export class Game {
     // when the press started on it: a hold that began as a shot stays a shot.
     canvas.addEventListener('click', () => {
       if (!this.isBlocked() && this.hovered && !this.mouseFiring) this.overlay.show(this.hovered.content);
+    });
+    // On touch a finger on the world drags the look, so a tap (down and up in place) is the press
+    // that uses the door under the crosshair; the FIRE button, when there is one, uses it too.
+    onTap(canvas, () => {
+      if (!this.isBlocked() && this.hoveredDoor) this.useDoor = this.hoveredDoor;
     });
 
     conn.onMessage((m) => this.handle(m));
