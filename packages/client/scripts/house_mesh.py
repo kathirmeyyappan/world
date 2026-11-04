@@ -52,6 +52,23 @@ def clip(
     return out
 
 
+def clip_at(poly: list[Corner], value: Callable[[np.ndarray], float], limit: float) -> list[Corner]:
+    """Sutherland-Hodgman against the surface where `value` comes to `limit`, keeping where it is no
+    more, each crossing found straight along its edge (close enough for a value smooth over a
+    small polygon)."""
+    vals = [value(p) for p, _ in poly]
+    out: list[Corner] = []
+    for k in range(len(poly)):
+        p, q = poly[k], poly[(k + 1) % len(poly)]
+        vp, vq = vals[k], vals[(k + 1) % len(poly)]
+        if vp <= limit:
+            out.append(p)
+        if (vp <= limit) != (vq <= limit):
+            f = (limit - vp) / (vq - vp)
+            out.append((p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f))
+    return out
+
+
 def cut_out(
     tris: list[Triangle], hole: Outline, flat: Callable[[np.ndarray], np.ndarray], near: Callable[[Triangle], bool]
 ) -> tuple[list[Triangle], list[Triangle]]:

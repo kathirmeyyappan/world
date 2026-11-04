@@ -418,8 +418,8 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 8,600 pieces (4,969
-  drawn; the house's rooms are 2,638 hidden boxes) render as 76 meshes (about 15 in view at once), and a
+  so draw calls stay in the tens however many pieces there are. The world's 8,616 pieces (4,972
+  drawn; the house's rooms are 2,651 hidden boxes) render as 76 meshes (about 15 in view at once), and a
   world-spanning raycast costs about 170 µs. Check both numbers in the PR when a landmark adds a lot. Everything heavy is streamed in
   through `render/Loader.ts` (see Models below).
 

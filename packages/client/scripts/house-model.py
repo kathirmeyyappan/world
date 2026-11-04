@@ -20,8 +20,8 @@ portholes, and the path and flowers, and builds the rest itself:
 - passage: the vestibule inside the doorway, cased in riveted steel painted here: its sides run
   straight back from the skin to a steel wall standing just outside the rooms' front wall, with the
   rooms' own door frame set in it (the way in); and the frame round the doorway on the face;
-- trim: the leaves, the chimney, the portholes (their tubes cut off inside the shell's wall) and
-  the crown's cap;
+- trim: the leaves, the chimney, the portholes (their tubes cut off inside the shell's wall, their
+  glass painted with its sheen) and the crown's cap;
 - door: a flat slab the doorway's shape less a hair of clearance all round, the show's front door
   painted here on both faces, flush with the face about the pin at its left edge on the ground,
   for the sim to swing (content/pineapple.ts);
@@ -49,7 +49,7 @@ from house_mesh import (
     Profile,
     Triangle,
     arch,
-    clip,
+    clip_at,
     cut_out,
     disc,
     emit_part,
@@ -80,6 +80,8 @@ PROFILE_STEP = 3.0  # metres between the rings the sim gets
 SKIN_TILE = 8.5  # metres of shell one repeat of the pineapple pattern (two diamonds) covers
 STEEL_TILE = 3.0  # metres of passage one repeat of the steel (two plates) covers
 PORTHOLE_STUB = 0.3  # metres inside the skin a porthole's tube is cut off: within the shell's wall
+GLASS_RADIUS = 3.2  # metres from a porthole's axis its glass reaches, which tells the panes from the ring's rims
+GLASS = 56  # pixels across the glass painted in the trim texture's strip
 TRIM_TEXTURE = 512  # the model's texture is cut down to this for what's kept of it
 GARDEN_TEXTURES = (512, 256)  # the flowers' and the path's textures, cut down to these
 ATLAS_PAD = 64  # pixels of blank strip added at the trim texture's right for the swatches
@@ -123,7 +125,7 @@ def main(outside: str, rooms: str) -> None:
     s = OUTER / max(r for _, r in rings)
     profile = smooth_profile([(y * s, r * s) for y, r in rings])
     print(f"shell: {len(rings)} rings in the model, {len(profile)} in the lathe; scale {s:.3f}")
-    atlas, swatch_uv, squeeze = trim_texture(doc, blob)
+    atlas, swatch_uv, squeeze, glass = trim_texture(doc, blob)
     portholes = {k for k in range(len(parts)) if k not in on_door and k != shell and is_porthole(points[parts[k]] * s)}
     # Each porthole's glass and rivets: the pieces about it no bigger than its ring.
     fittings = {
@@ -171,7 +173,7 @@ def main(outside: str, rooms: str) -> None:
             continue
         trim.add(model_triangles(points, uv, tris[of == k], s, squeeze))
     for k, cs in fittings.items():
-        trim.add(porthole(points, uv, tris, of, parts, [k, *cs], s, squeeze, profile))
+        trim.add(porthole(points, uv, tris, of, parts, [k, *cs], s, squeeze, profile, glass))
     door_part, front_door = build_door(profile)
     garden, garden_atlas = build_garden(doc, blob, s, dune_top(profile))
 
@@ -372,21 +374,46 @@ def porthole(
     s: float,
     squeeze: float,
     profile: Profile,
+    glass: tuple[float, float, float, float],
 ) -> list[Triangle]:
     """One of the outside model's portholes (its ring first, with its glass, then its rivets) where
-    the model has it, less the back of its tube, cut off just inside the skin: the tube runs metres
-    in, and a stub inside the shell's wall shows nowhere, while one through it would stand into a
-    room."""
+    the model has it, less the back of its tube, cut off PORTHOLE_STUB inside the skin, following
+    it: the tube runs metres in, and a stub within the shell's wall shows nowhere, while one
+    through it would stand into a room. The glass (the ring's flat panes about its axis) is
+    painted afresh with its sheen, the pane's own texture coordinates across the `glass` box of
+    the trim texture."""
     c = points[parts[pieces[0]]].mean(axis=0) * s
     axis = np.array([c[0], 0, c[2]])
     axis /= np.linalg.norm(axis)
-    skin = float(np.hypot(*surface(profile, float(np.arctan2(c[0], c[2])), c[1])[[0, 2]]))
-    back = skin - PORTHOLE_STUB
-    along = lambda p: np.array([float(p @ axis), p[1]])
-    kept: list[Triangle] = []
-    for piece in pieces:
-        for tri in model_triangles(points, uv, tris[of == piece], s, squeeze):
-            kept += fan(clip(tri, (back, -1.0), (back, 1.0), False, along))
+    # How far inside the skin a point is.
+    depth = lambda p: float(
+        np.hypot(*surface(profile, float(np.arctan2(p[0], p[2])), p[1])[[0, 2]]) - np.hypot(p[0], p[2])
+    )
+    up = np.array([0.0, 1.0, 0.0])
+    right = np.cross(axis, up)  # to the right as seen from outside
+    radius = lambda p: float(np.linalg.norm((p - c) - ((p - c) @ axis) * axis))
+
+    def is_pane(tri: Triangle) -> bool:
+        a, b, d = (p for p, _ in tri)
+        n = np.cross(b - a, d - a)
+        return abs(float(n @ axis)) > 0.9 * float(np.linalg.norm(n)) and max(radius(p) for p, _ in tri) < GLASS_RADIUS
+
+    ring = model_triangles(points, uv, tris[of == pieces[0]], s, squeeze)
+    panes = [tri for tri in ring if is_pane(tri)]
+    rim = max(radius(p) for tri in panes for p, _ in tri) * 1.02
+    u0, v0, u1, v1 = glass
+    on_glass = lambda p: np.array(
+        [
+            u0 + (u1 - u0) * (0.5 + float((p - c) @ right) / (2 * rim)),
+            v0 + (v1 - v0) * (0.5 - float((p - c) @ up) / (2 * rim)),
+        ]
+    )
+    kept: list[Triangle] = [[(p, on_glass(p)) for p, _ in tri] for tri in panes]
+    rest = [tri for tri in ring if not is_pane(tri)]
+    for piece in pieces[1:]:
+        rest += model_triangles(points, uv, tris[of == piece], s, squeeze)
+    for tri in rest:
+        kept += fan(clip_at(tri, depth, PORTHOLE_STUB))
     return kept
 
 
@@ -545,10 +572,13 @@ def bled(image: Image.Image, rounds: int = 24) -> Image.Image:
     return Image.fromarray(px.astype(np.uint8))
 
 
-def trim_texture(doc: dict, blob: bytes) -> tuple[Image.Image, dict[str, np.ndarray], float]:
+def trim_texture(
+    doc: dict, blob: bytes
+) -> tuple[Image.Image, dict[str, np.ndarray], float, tuple[float, float, float, float]]:
     """The model's texture at TRIM_TEXTURE, for the leaves, chimney and window rings, with a blank
-    strip ATLAS_PAD wide added at its right and the swatches painted down it; each swatch's texture
-    coordinates (its middle); and how much the model's own coordinates squeeze by across."""
+    strip ATLAS_PAD wide added at its right and the swatches painted down it, then the portholes'
+    glass; each swatch's texture coordinates (its middle); how much the model's own coordinates
+    squeeze by across; and the glass's box in texture coordinates."""
     image = next(
         doc["images"][
             doc["textures"][m["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"]]["source"]
@@ -565,7 +595,25 @@ def trim_texture(doc: dict, blob: bytes) -> tuple[Image.Image, dict[str, np.ndar
         box = (TRIM_TEXTURE + 16, 8 + i * 40, TRIM_TEXTURE + 48, 40 + i * 40)
         atlas.paste(Image.new("RGB", (32, 32), colour), box[:2])
         swatch_uv[name] = np.array([(box[0] + box[2]) / 2 / atlas.width, (box[1] + box[3]) / 2 / atlas.height])
-    return atlas, swatch_uv, TRIM_TEXTURE / atlas.width
+    gx, gy = TRIM_TEXTURE + (ATLAS_PAD - GLASS) // 2, 8 + len(SWATCHES) * 40
+    atlas.paste(paint_glass(GLASS), (gx, gy))
+    glass = (gx / atlas.width, gy / atlas.height, (gx + GLASS) / atlas.width, (gy + GLASS) / atlas.height)
+    return atlas, swatch_uv, TRIM_TEXTURE / atlas.width, glass
+
+
+def paint_glass(size: int) -> Image.Image:
+    """A porthole's glass: sea blue, deeper toward the rim and the lower right, lit from the upper
+    left where the sky catches it, with a bright streak of that sheen, in a few flat shades."""
+    shades = [(62, 122, 186), (92, 158, 214), (126, 190, 236), (170, 218, 246), (222, 242, 252)]
+    img = Image.new("RGB", (size, size))
+    px = img.load()
+    for x in range(size):
+        for y in range(size):
+            fx, fy = (x + 0.5) / size - 0.5, (y + 0.5) / size - 0.5  # across and down, -0.5 to 0.5
+            light = 0.55 - 0.9 * (fx + fy) - 2 * (fx * fx + fy * fy)
+            streak = abs(fx + fy + 0.3) < 0.04 and -0.42 < fx - fy < 0.22
+            px[x, y] = shades[4] if streak else shades[int(np.clip(round(light * 3), 0, 3))]
+    return img
 
 
 def paint_pineapple(size: int = 128, groove: int = 6) -> Image.Image:

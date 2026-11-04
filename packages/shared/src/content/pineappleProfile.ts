@@ -47,7 +47,7 @@ export const PINEAPPLE_PROFILE = {
     [32.19, 6.98, 9.5],
   ],
   spiral: { x: 5, z: 7, inner: 0.9, outer: 3, turns: 1, start: 0 },
-  flight: { from: [-5.2, 14.9], to: [5.6, 14.9], width: 2.4, slot: [1.456, 5.6, 13.55, 16.25] },
+  flight: { from: [-5.2, 14.9], to: [5.6, 14.9], width: 2.4, slot: [1.456, 5.6, 13.7, 16.1] },
   doors: [
     { id: 'front', hinge: [-1.98, 14.671], y: 0, bearing: 0, reach: 3.96, height: 5.98, thickness: 0.3, swing: 1.571 },
     {

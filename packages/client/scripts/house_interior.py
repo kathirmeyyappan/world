@@ -384,7 +384,7 @@ def build_floors(
     well = wedge(SPIRAL[0], SPIRAL[1], SPIRAL[2] + WELL, arrival, 2 * np.pi)
     post = wedge(SPIRAL[0], SPIRAL[1], STAIR_INNER - 0.1, arrival, 2 * np.pi)
     fx1 = FLIGHT[1][0]
-    slot = lambda y, end=fx1 + FLIGHT_SLOT: flight_slot(levels, y, end)
+    slot = lambda y, end=fx1 + FLIGHT_SLOT, side=FLIGHT_SLOT: flight_slot(levels, y, end, side)
 
     pieces.append(
         (
@@ -430,7 +430,7 @@ def build_floors(
         pieces.append((upright(a, b, ceiling, library, inside_shaft), bamboo))
     # The landing: a sector of floor and ceiling between the library's wall and the hall's, the
     # flight arriving through its floor, and a wall closing each side.
-    _, landing_hole = slot(library, fx1)
+    _, landing_hole = slot(library, fx1, 0.0)
     floor = sector(library, LIBRARY_SKIRT, wall(0.0, library) - 0.05, False, landing_hole, flat_tile(SAND_TILE))
     # In the library's doorway, with no wall to hide the two overlapping, the landing's floor stops
     # where the library's own ends, edge to edge.
@@ -476,20 +476,21 @@ def round_floor(y: float, r: Callable[[float], float], down: bool, holes: list[O
     return tris
 
 
-def flight_slot(levels: dict[str, float], y: float, end: float) -> tuple[Rect, Outline]:
+def flight_slot(levels: dict[str, float], y: float, end: float, side: float = FLIGHT_SLOT) -> tuple[Rect, Outline]:
     """The flight's slot in a floor at a height: from where a tread is FLIGHT_HEADROOM under it to
     `end` (past the flight's head, or at it for the floor it arrives on, so the last step meets the
-    floor with no crack), FLIGHT_SLOT wider than the flight either side."""
+    floor with no crack), `side` wider than the flight either side (none for the floor it arrives
+    on, whose edges meet the flight's rails)."""
     (fx0, fz), (fx1, _), fw = FLIGHT
     hall, rise = levels["hall"], levels["library"] - levels["hall"]
     x0 = fx0 + (fx1 - fx0) * (y - FLIGHT_HEADROOM - hall) / rise - FLIGHT_SLOT
-    rect = (x0, end, fz - fw / 2 - FLIGHT_SLOT, fz + fw / 2 + FLIGHT_SLOT)
+    rect = (x0, end, fz - fw / 2 - side, fz + fw / 2 + side)
     return rect, [(rect[0], rect[2]), (rect[1], rect[2]), (rect[1], rect[3]), (rect[0], rect[3])]
 
 
 def landing_slot(interior: Interior) -> Rect:
     """The flight's slot in the landing's floor, for the rails the sim stands round it."""
-    return flight_slot(interior.levels, interior.levels["library"], FLIGHT[1][0])[0]
+    return flight_slot(interior.levels, interior.levels["library"], FLIGHT[1][0], 0.0)[0]
 
 
 def wedge(cx: float, cz: float, r: float, a0: float, a1: float) -> Outline:
