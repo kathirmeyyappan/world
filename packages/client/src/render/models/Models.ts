@@ -1,24 +1,17 @@
 // Landmarks drawn from mesh files rather than built from structures: the pineapple house, in the
-// parts scripts/house-model.py writes (its skin, its bamboo inside, its ceiling, its steel passage,
-// its trim, its door), fetched
-// through the loader (render/Loader.ts) and stood where the shared content puts it
-// (content/pineapple.ts). The
+// parts scripts/house-model.py writes (render/models/pineappleParts.ts), fetched through the
+// loader (render/Loader.ts) and stood where the shared content puts it (content/pineapple.ts). The
 // sim never sees these meshes; it collides with the structures the content hides inside them, so
-// what you bump into is theirs to keep true to the model. The door hangs on a node at its hinge and
+// what you bump into is theirs to keep true to the models. Each door hangs on a node at its pin and
 // swings to the state the Room tells us (sim/doors.ts) over DOOR_SWING_SECONDS.
 import { Color3, Mesh, StandardMaterial, Texture, TransformNode, VertexData, type Scene } from '@babylonjs/core';
-import { DOOR_SWING_SECONDS, PINEAPPLE_DOOR, PINEAPPLE_PLACEMENT, PINEAPPLE_PROFILE } from '@world/shared';
+import { DOOR_SWING_SECONDS, PINEAPPLE_PLACEMENT, PINEAPPLE_PROFILE } from '@world/shared';
 import type { Engine } from '../Engine';
 import type { Loader } from '../Loader';
+import { PINEAPPLE_PARTS, type PineapplePart } from './pineappleParts';
 
 const GLOW = 0.3; // how much a model lights itself, like the avatars, so it reads at night
 const UV_UNIT = 4096; // texture coordinate units to the repeat in the mesh files
-
-interface Part {
-  name: string; // public/assets/models/pineapple-<name>.bin
-  texture: string; // public/assets/textures/models/<texture>.png
-  wrap: boolean; // the texture repeats (coordinates run past 1), or is an atlas
-}
 
 export class Models {
   private readonly doors = new Map<string, { node: TransformNode; swing: number; open: boolean; at: number }>();
@@ -28,21 +21,16 @@ export class Models {
     const house = new TransformNode('model-pineapple', scene);
     house.position.set(PINEAPPLE_PLACEMENT.x, PINEAPPLE_PLACEMENT.y, PINEAPPLE_PLACEMENT.z);
     house.rotation.y = PINEAPPLE_PLACEMENT.yaw;
-    const [hx, hz] = PINEAPPLE_PROFILE.door.hinge;
-    const hinge = new TransformNode('model-pineapple-door', scene);
-    hinge.parent = house;
-    hinge.position.set(hx, 0, hz);
-    this.doors.set(PINEAPPLE_DOOR.id, { node: hinge, swing: PINEAPPLE_DOOR.swing, open: false, at: 0 });
-    const parts: [Part, TransformNode][] = [
-      [{ name: 'skin', texture: 'pineapple-skin', wrap: true }, house],
-      [{ name: 'inside', texture: 'bamboo', wrap: true }, house],
-      [{ name: 'ceiling', texture: 'net', wrap: true }, house],
-      [{ name: 'passage', texture: 'steel', wrap: true }, house],
-      [{ name: 'trim', texture: 'pineapple', wrap: false }, house],
-      [{ name: 'door', texture: 'door', wrap: false }, hinge],
-    ];
-    for (const [part, parent] of parts)
+    for (const door of PINEAPPLE_PROFILE.doors) {
+      const hinge = new TransformNode(`model-pineapple-door-${door.id}`, scene);
+      hinge.parent = house;
+      hinge.position.set(door.hinge[0], door.y, door.hinge[1]);
+      this.doors.set(door.id, { node: hinge, swing: door.swing, open: false, at: 0 });
+    }
+    for (const part of PINEAPPLE_PARTS) {
+      const parent = part.door ? this.doors.get(part.door)!.node : house;
       loader.add({ x: PINEAPPLE_PLACEMENT.x, z: PINEAPPLE_PLACEMENT.z, load: () => fetchPart(scene, part, parent) });
+    }
   }
 
   // A door's state from the Room: swung over the next DOOR_SWING_SECONDS, or set at once.
@@ -67,8 +55,8 @@ export class Models {
 
 // Fetches a part and hangs its mesh on `parent`: counts (Uint32 vertices, triangles), positions in
 // centimetres (Int16), texture coordinates (Uint16, UV_UNIT to the repeat), triangles (Uint16),
-// unit normals (Int8). Drawn both sides: the leaves are single sheets.
-async function fetchPart(scene: Scene, part: Part, parent: TransformNode): Promise<void> {
+// unit normals (Int8). Drawn both sides: the leaves and the rooms' walls are single sheets.
+async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNode): Promise<void> {
   const buffer = await (await fetch(`/assets/models/pineapple-${part.name}.bin`)).arrayBuffer();
   const [vertices, triangles] = new Uint32Array(buffer, 0, 2);
   let at = 8;
@@ -97,10 +85,21 @@ async function fetchPart(scene: Scene, part: Part, parent: TransformNode): Promi
   const material = new StandardMaterial(`model-pineapple-${part.name}`, scene);
   material.diffuseTexture = image;
   material.emissiveTexture = image;
-  material.emissiveColor = new Color3(GLOW, GLOW, GLOW);
   material.specularColor = Color3.Black();
   material.backFaceCulling = false;
   material.twoSidedLighting = true;
+  if (part.unlit) {
+    // Indoors: every surface shows its texture as painted, whichever way it faces.
+    material.disableLighting = true;
+    material.emissiveColor = Color3.White();
+  } else material.emissiveColor = new Color3(GLOW, GLOW, GLOW);
+  if (part.alpha) {
+    // Clear pixels (the rooms' net ceilings) are cut out, not blended, so nothing sorts.
+    image.hasAlpha = true;
+    material.useAlphaFromDiffuseTexture = true;
+    material.transparencyMode = StandardMaterial.MATERIAL_ALPHATEST;
+    material.alphaCutOff = 0.5;
+  }
   mesh.material = material;
   mesh.parent = parent;
   mesh.isPickable = false;
