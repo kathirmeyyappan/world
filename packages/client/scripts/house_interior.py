@@ -95,7 +95,7 @@ HALL_BEARING = np.radians(250.0)  # bearing of the hall's door, at the head of t
 # clear of the shell: its width (rails on both edges stand on it), how far beyond the skin's
 # widest within STAIR_HEADROOM over a step its inner edge keeps, its risers, its slabs, and its
 # rails.
-STAIR_WIDTH = 2.8
+STAIR_WIDTH = 4.5
 STAIR_GAP = 0.8
 STAIR_HEADROOM = 2.4
 STAIR_START = np.radians(12.0)  # past the back door's bearing the stair's foot stands: beside the doorway, not in front

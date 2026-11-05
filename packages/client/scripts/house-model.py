@@ -657,9 +657,11 @@ def dune(lx: float, lz: float, top: float) -> float:
 def build_stair(profile: Profile, hall: float) -> list[list[float]]:
     """The stair round the back of the house, from the back door up to the platform at the hall's
     door, standing clear of the shell (which leans out overhead) by STAIR_GAP beyond the skin's
-    widest within a walker's height over each step: each step a slab with a rail along both edges,
-    the lowest ones standing down in the sand (see STAIR_FOOT), then the platform, a slab from the hall's face out to the stair's outer edge, railed along that
-    edge, its far side, and its near side from the wall to the stair's inner rail. Each piece as
+    widest within a walker's height over each step: each step a slab with a rail along both edges
+    where it stands out of the sand, the flight going on down into the sand below the door's floor
+    (see STAIR_FOOT), then the platform, a slab from the hall's face out to the stair's outer
+    edge, railed along that edge, its far side, and its near side from the wall to the stair's
+    inner rail. Each piece as
     [x, z, y, w, d, h, yaw] in the house's frame: its centre across, its underside, its size across
     the arc, out from the axis and up, and the bearing it faces (from +z toward +x), the sim's yaw."""
     skin_at = lambda a, y: float(np.hypot(*surface(profile, a, y)[[0, 2]]))
@@ -679,31 +681,48 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
     a0, a1 = inside.BACK_BEARING + inside.STAIR_START, inside.HALL_BEARING - plat_half
     at = lambda r, a: [r * np.sin(a), r * np.cos(a)]
     top_r = dune_top(profile)
-    rows: list[list[float]] = []
-    for i in range(steps):
+    rise = top / steps
+
+    def lay(i: int) -> tuple[list[list[float]], float]:
+        """The step's slab and its rails, and how far its top stands over the lowest sand under it
+        (nothing, when it lies buried whole)."""
         b0, b1 = a0 + (a1 - a0) * i / steps, a0 + (a1 - a0) * (i + 1) / steps
         bm = (b0 + b1) / 2
-        h = top * (i + 1) / steps
-        r_in = clear(h)
+        h = rise * (i + 1)
+        r_in = clear(max(h, 0.0))
         r_out = r_in + width
         depth = (b1 - b0) * r_out + 0.05
         base = h - inside.STAIR_THICKNESS
         centre = np.array(at((r_in + r_out) / 2, bm))
         along, outward = np.array([np.cos(bm), -np.sin(bm)]), np.array([np.sin(bm), np.cos(bm)])
-        corners = [centre + sx * along * depth / 2 + sy * outward * width / 2 for sx in (-1, 1) for sy in (-1, 1)]
-        # The flight's foot stands in the sand, which falls away under it: a step less than half
+        corners = [centre + sx * along * depth / 2 + sy * outward * width / 2 for sy in (-1, 1) for sx in (-1, 1)]
+        sand = [
+            dune(-float(c[0]), float(c[1]), top_r) for c in corners
+        ]  # under the inner edge's ends, then the outer's
+        # The flight's foot stands in the sand, which falls away under it: a step less than
         # STAIR_FOOT over its lowest corner goes down into the sand, and the underside of the next
         # few lifts off by degrees (a riser's rise more each step), so the flight leaves the ground
         # as one solid piece rather than hovering just over it.
-        sand = min(dune(-float(c[0]), float(c[1]), top_r) for c in corners)
-        gap = base - sand
+        gap = base - min(sand)
         skirt = max(0.0, inside.STAIR_FOOT - gap)
-        if skirt + top / steps >= gap:
+        if skirt + rise >= gap:
             skirt = gap + inside.STAIR_SINK
         base -= skirt
-        rows.append([*centre, base, depth, width, h - base, bm])
-        for r in (r_in + rail_w / 2, r_out - rail_w / 2):
-            rows.append([*at(r, bm), h, depth + 0.02, rail_w, inside.RAIL, bm])
+        pieces = [[*centre, base, depth, width, h - base, bm]]
+        for r, edge in ((r_in + rail_w / 2, sand[:2]), (r_out - rail_w / 2, sand[2:])):
+            if h > max(edge):  # a rail only along an edge standing out of the sand
+                pieces.append([*at(r, bm), h, depth + 0.02, rail_w, inside.RAIL, bm])
+        return pieces, h - min(sand)
+
+    # Below the door's floor the flight goes on down into the sand, a step at a time, until the
+    # next would lie buried whole: so the lowest step out of the sand stands at most a riser over
+    # it, and the flight is stepped onto from the slope like any stair.
+    foot = 0
+    while lay(foot - 1)[1] > 0:
+        foot -= 1
+    rows: list[list[float]] = []
+    for i in range(foot, steps):
+        rows += lay(i)[0]
     rm = plat_in + out / 2
     centre = np.array(at(rm, inside.HALL_BEARING))
     tangent = np.array([np.cos(inside.HALL_BEARING), -np.sin(inside.HALL_BEARING)])
