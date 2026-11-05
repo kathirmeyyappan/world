@@ -85,12 +85,12 @@ wire: server and client both build the world from that file.
   of the sim's round the back of the house (out of the kitchen's back door, clear of the shell with
   rails both sides, up to a balcony at the hall's door); upstairs a corridor runs from that door
   along the bedroom and round the bathroom, walled off from the rest of the hall, the ground
-  floor's closet and bathroom are copied off the bedroom, and a straight stair walled both sides
-  and roofed over climbs from the corridor's end through the hall's ceiling to a hole in the
-  library's floor (`house_interior.py`
-  lays it out, the sim stands its steps); the sim collides with boxes cut from every surface of the
-  rooms, hidden rings for the shell, walls along the flat faces carved round its doors, and the
-  path's flagstones as ramps lying with the dune.
+  floor's closet and bathroom are copied off the bedroom, and a straight stair of solid steps
+  climbs from the corridor's end through the hall's ceiling to a hole in the library's floor, open
+  along the corridor and walled both sides and roofed over from where the corridor's wall meets it
+  (`house_interior.py` lays it out, the sim stands its steps); the sim collides with boxes cut from
+  every surface of the rooms, hidden rings for the shell, walls along the flat faces carved round
+  its doors, and the path's flagstones as ramps lying with the dune.
   The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
