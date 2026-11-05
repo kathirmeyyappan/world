@@ -14,10 +14,10 @@
 // door, the closet off it, the kitchen behind, the bathroom off the kitchen, the bedroom upstairs
 // over the kitchen, and the library on top. A stair round the back of the house climbs from the
 // kitchen's back door, standing clear of the shell with rails both sides, to a balcony at the
-// hall's door. Upstairs a corridor runs from that door round the bedroom, walled off from the rest
-// of the hall; the ground floor's closet and bathroom are copied off the bedroom; and a stair
-// walled both sides curves up from the corridor's end through the hall's ceiling and a hole in the
-// library's floor. Every door swings (sim/doors.ts), the front
+// hall's door. Upstairs a corridor runs from that door along the bedroom and round the bathroom,
+// walled off from the rest of the hall; the ground floor's closet and bathroom are copied off the
+// bedroom; and a straight stair walled both sides climbs from the corridor's end through the
+// hall's ceiling and a hole in the library's floor. Every door swings (sim/doors.ts), the front
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
 import { ramp, roundFloor, roundWall, terrain, wall, type Box, type Structure } from '../sim/structures';
@@ -74,12 +74,12 @@ export const PINEAPPLE_DOORS: DoorSpec[] = SHAPE.doors.map((d) => ({
 export const PINEAPPLE_DOOR = PINEAPPLE_DOORS.find((d) => d.id === 'front')!;
 export const PINEAPPLE_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: Math.max(...SHAPE.rings.map(([, r]) => r)) };
 // A spot on each level for placing things (content/regions.ts): the living room, the corridor
-// upstairs, and the library.
+// upstairs, and the library's middle, short of the stairwell's hole in its floor.
 const { levels } = SHAPE;
 export const PINEAPPLE_LEVELS: Region[] = [
   { kind: 'disc', ...placed(-3.5, 10), r: 2.5, y: DUNE_HEIGHT },
   { kind: 'disc', ...placed(14, -4), r: 1.5, y: DUNE_HEIGHT + levels.hall },
-  { kind: 'disc', x: X, z: Z, r: 8, y: DUNE_HEIGHT + levels.library },
+  { kind: 'disc', x: X, z: Z, r: 4.5, y: DUNE_HEIGHT + levels.library },
 ];
 
 // What's open through the shell's rings between two heights above the floor: the doorways (the
@@ -146,7 +146,7 @@ const rooms: Box[] = PINEAPPLE_BOXES.map(([x, z, y, w, d, h]) => ({
 }));
 
 // The stair round the back, from the kitchen's back door up to the platform at the hall's door,
-// and the stairwell from the corridor's end upstairs round to the library, each piece a box.
+// and the stairwell from the corridor's end upstairs to the library, each piece a box.
 type Piece = readonly [number, number, number, number, number, number, number];
 const piece = ([x, z, y, w, d, h, yaw]: Piece): Box => ({
   kind: 'box',
