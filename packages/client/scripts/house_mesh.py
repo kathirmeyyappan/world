@@ -321,6 +321,13 @@ def emit_part(out: Path, mesh: MeshBuilder, swatch_uv: dict[str, np.ndarray]) ->
     normals = np.zeros((welded.max() + 1, 3))
     a, b, c = pos[idx[:, 0]], pos[idx[:, 1]], pos[idx[:, 2]]
     face = np.cross(b - a, c - a)
+    # A sliver thinner than the centimetre the positions are written to can come out of the
+    # rounding wound the other way, and culled it leaves a crack along a cut: such a triangle is
+    # rewound to face as it did.
+    at = np.round(pos * 100) / 100
+    drawn = np.cross(at[idx[:, 1]] - at[idx[:, 0]], at[idx[:, 2]] - at[idx[:, 0]])
+    turned = np.einsum("ij,ij->i", face, drawn) < 0
+    idx[turned] = idx[turned][:, [0, 2, 1]]
     for k in range(3):
         np.add.at(normals, welded[idx[:, k]], face)
     normals /= np.linalg.norm(normals, axis=1, keepdims=True) + 1e-12
