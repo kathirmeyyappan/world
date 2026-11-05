@@ -7,10 +7,10 @@
 // steel wall stands); the rooms' levels (the ground floor's ceiling, the
 // first floor at the bedroom's floor and its ceiling, the library's floor, and the top of its wall,
 // above which the shell is solid); the library's wall, band by band up it (height, inside,
-// outside); the flight up from the hall (its foot and head on the floor, its width, and its slot
-// in the library's floor, [x0, x1, z0, z1]); the sim's wall along the face, as chords in bands
-// ([x1, z1, x2, z2, y0, y1]); the stair round the back and its platform, piece by piece
-// ([x, z, y, w, d, h, yaw]: centre, underside, size, the bearing it faces); the doorways through
+// outside); the sim's wall along the face, as chords in bands ([x1, z1, x2, z2, y0, y1]); the
+// stair round the back and its platform, and the stairwell up from the corridor's end to the
+// library, piece by piece ([x, z, y, w, d, h, yaw]: centre, underside, size, the bearing it
+// faces); the doorways through
 // the shell for the sim (bearing from +z toward +x, width, bottom, top); the path's stones, each
 // a ramp lying with the dune ([lowX, lowZ, highX, highZ, y, w, h]: its downhill and uphill ends,
 // its underside at the downhill end, its width, its rise); and every door (its pin, the floor it
@@ -88,7 +88,6 @@ export const PINEAPPLE_PROFILE = {
     [29.19, 8.26, 11.46],
     [32.19, 6.98, 9.5],
   ],
-  flight: { from: [8, 7], to: [-2.8, 7], width: 2.4, slot: [-2.8, 1.344, 5.8, 8.2] },
   faceWalls: [
     [4.501, 13.83, 3.543, 14.106, 0, 0.5],
     [3.638, 14.088, 2.657, 14.173, 0, 0.5],
@@ -578,6 +577,46 @@ export const PINEAPPLE_PROFILE = {
     [19.507, -5.717, 7.711, 0.2, 4.149, 1, 1.92],
     [17.303, -7.681, 7.711, 0.2, 1.749, 1, 1.92],
   ],
+  stairwell: [
+    [8.672, -12.926, 7.68, 0.67, 4.648, 0.3, 2.551],
+    [8.216, -13.363, 7.928, 0.67, 4.597, 0.3, 2.59],
+    [7.765, -13.819, 8.177, 0.67, 4.455, 0.3, 2.63],
+    [7.313, -14.288, 8.425, 0.67, 4.244, 0.3, 2.669],
+    [6.855, -14.762, 8.674, 0.67, 3.983, 0.3, 2.707],
+    [6.378, -15.216, 8.922, 0.67, 3.691, 0.3, 2.745],
+    [5.881, -15.646, 9.171, 0.67, 3.388, 0.3, 2.782],
+    [5.339, -15.973, 9.419, 0.67, 3.094, 0.3, 2.819],
+    [4.754, -16.179, 9.668, 0.67, 2.828, 0.3, 2.856],
+    [4.132, -16.255, 9.916, 0.67, 2.611, 0.3, 2.893],
+    [3.483, -16.2, 10.165, 0.67, 2.462, 0.3, 2.93],
+    [2.813, -16.006, 10.413, 0.67, 2.401, 0.3, 2.968],
+    [2.138, -15.699, 10.662, 0.67, 2.4, 0.3, 3.006],
+    [1.468, -15.312, 10.91, 0.67, 2.4, 0.3, 3.046],
+    [0.812, -14.86, 11.159, 0.67, 2.4, 0.3, 3.087],
+    [0.175, -14.355, 11.408, 0.67, 2.4, 0.3, 3.129],
+    [-0.44, -13.808, 11.656, 0.67, 2.4, 0.3, 3.173],
+    [-1.029, -13.225, 11.905, 0.67, 2.4, 0.3, 3.219],
+    [-1.591, -12.622, 12.153, 0.67, 2.4, 0.3, 3.267],
+    [-2.126, -12.013, 12.402, 0.67, 2.4, 0.3, 3.317],
+    [-2.636, -11.407, 12.65, 0.67, 2.4, 0.3, 3.369],
+    [-3.123, -10.817, 12.899, 0.67, 2.4, 0.3, 3.423],
+    [-3.594, -10.254, 13.147, 0.67, 2.4, 0.3, 3.479],
+    [-4.057, -9.729, 13.396, 0.67, 2.4, 0.3, 3.537],
+    [-4.521, -9.251, 13.644, 0.67, 2.4, 0.3, 3.596],
+    [-4.999, -8.829, 13.893, 0.67, 2.4, 0.3, 3.657],
+    [-5.505, -8.468, 14.141, 0.67, 2.4, 0.3, 3.718],
+    [-6.014, -8.114, 14.39, 0.67, 2.4, 0.3, 3.779],
+    [-6.501, -7.73, 14.638, 0.67, 2.4, 0.3, 3.841],
+    [-6.963, -7.316, 14.887, 0.67, 2.4, 0.3, 3.902],
+    [-7.399, -6.875, 15.135, 0.67, 2.4, 0.3, 3.964],
+    [-7.806, -6.409, 15.384, 0.67, 2.4, 0.3, 4.025],
+    [-8.185, -5.918, 15.632, 0.67, 2.4, 0.3, 4.086],
+    [-8.532, -5.404, 15.881, 0.67, 2.4, 0.3, 4.148],
+    [-8.848, -4.871, 16.129, 0.67, 2.4, 0.3, 4.209],
+    [-9.13, -4.319, 16.378, 0.67, 2.4, 0.3, 4.271],
+    [-9.378, -3.75, 16.626, 0.67, 2.4, 0.3, 4.332],
+    [-9.59, -3.168, 16.875, 0.67, 2.4, 0.3, 4.393],
+  ],
   stones: [
     [26.658, 23.958, 23.087, 20.749, -2.93, 5.279, 0.02],
     [4.467, 34.029, 3.956, 30.136, -2.93, 3.477, 0.02],
@@ -639,6 +678,16 @@ export const PINEAPPLE_PROFILE = {
       height: 2.985,
       thickness: 0.165,
       swing: -1.571,
+    },
+    {
+      id: 'bathroom-up',
+      hinge: [4.498, -0.445],
+      y: 7.731,
+      bearing: 0,
+      reach: 2.006,
+      height: 2.985,
+      thickness: 0.165,
+      swing: 1.571,
     },
     {
       id: 'back',
