@@ -73,12 +73,10 @@ OUTER = 20.0  # metres: the shell's radius at its widest, the keep's (content/ke
 DOOR_WIDTH = 4.0  # metres: the doorway, an arch
 DOOR_HEIGHT = 6.0
 DOOR_THICKNESS = 0.3
-CLEARANCE = 0.02  # metres the door stands in from the doorway's edge all round
 KNUCKLES = (0.9, 4.7)  # metres up the pin the two hinge knuckles sit
 KNUCKLE = (0.08, 0.36)  # a knuckle's radius and height
 FRAME = 0.4  # metres wide the frame round the doorway is
 FRAME_PROUD = 0.04  # metres it stands off the face
-ARCH_STEPS = 32  # straight pieces in the doorway's arch
 SEGMENTS = 72  # round the lathe
 FINE_SPAN = 24  # degrees either side of the front door the lathe is turned a degree at a time, for its face
 DOOR_FINE_SPAN = 14  # and either side of the house's own doors, for their smaller faces
@@ -197,7 +195,7 @@ def main(outside: str, rooms: str) -> None:
 
     # The skin, with the doorway cut out of it, and the vestibule behind.
     skin_tris = lathe(profile, SKIN_TILE, lambda a, y: surface(profile, a, y), lathe_angles())
-    hole = arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, ARCH_STEPS)
+    hole = arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, inside.ARCH_STEPS)
     cut, rest = cut_hole(skin_tris, hole)
     through = MeshBuilder()
     lift = lambda a, z: np.array([a[0], a[1], z])
@@ -206,7 +204,9 @@ def main(outside: str, rooms: str) -> None:
     # The vestibule's back wall, with the doorway into the living room cut through it and the
     # room's wall behind, the reveal between them in the steel too.
     back = back_wall(
-        arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, ARCH_STEPS, bottom=0.0), interior.front_z, interior.front
+        arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, inside.ARCH_STEPS, bottom=0.0),
+        interior.front_z,
+        interior.front,
     )
     front_wall, front_material = inside.cut_doorway(interior, 0.0, (12.4, 13.6), interior.front)
     through.add(lining(back, front_wall, interior.front, STEEL_TILE, flat_xy, lift))
@@ -214,48 +214,42 @@ def main(outside: str, rooms: str) -> None:
     interior.tris += [(t, front_material) for t in front_wall]
     # The back door out of the kitchen, and the hall's door at the head of the stair, each a
     # doorway through the shell: the skin cut, the wall behind cut, and the steel between.
-    back_hole = arch(-inside.DOORWAY[0] / 2, inside.DOORWAY[0] / 2, inside.DOORWAY[1], ARCH_STEPS)
+    back_hole = arch(-inside.DOORWAY[0] / 2, inside.DOORWAY[0] / 2, inside.DOORWAY[1], inside.ARCH_STEPS)
     kitchen_wall, kitchen_material = inside.cut_doorway(interior, inside.BACK_BEARING, (12.0, 13.6), back_hole)
     skin_tris, tube = doorway(skin_tris, inside.BACK_BEARING, back_hole, kitchen_wall, 0.0, True)
     through.add(tube)
     interior.tris += [(t, kitchen_material) for t in kitchen_wall]
-    hall_hole = arch(-inside.DOORWAY[0] / 2, inside.DOORWAY[0] / 2, inside.DOORWAY[1], ARCH_STEPS, bottom=-0.01)
+    hall_hole = arch(-inside.DOORWAY[0] / 2, inside.DOORWAY[0] / 2, inside.DOORWAY[1], inside.ARCH_STEPS, bottom=-0.01)
     skin_tris, tube = doorway(skin_tris, inside.HALL_BEARING, hall_hole, interior.hall_wall, hall, False)
     through.add(tube)
     interior.tris += [(t, interior.hall_wall_material) for t in interior.hall_wall]
     # The living room's side door: the skin cut on the radial through its frame, and the passage
     # lined from the cut to the frame's back. The frame runs deeper than the wall round it and the
     # doorway's arch stands within the frame's, so the frame seals the passage's mouth.
-    side_hole = arch(-inside.SIDE_DOORWAY[0] / 2, inside.SIDE_DOORWAY[0] / 2, inside.SIDE_DOORWAY[1], ARCH_STEPS)
+    side_hole = arch(-inside.SIDE_DOORWAY[0] / 2, inside.SIDE_DOORWAY[0] / 2, inside.SIDE_DOORWAY[1], inside.ARCH_STEPS)
     cut, rest = cut_hole(turned_by(skin_tris, -inside.SIDE_BEARING), side_hole)
     tube = lining(cut, interior.side_depth, side_hole, STEEL_TILE, flat_xy, lift)
     skin_tris = turned_by(cut + rest, inside.SIDE_BEARING)
     through.add(turned_by(tube, inside.SIDE_BEARING))
     interior.solid += inside.faced_wall(interior)
-    # The back door swings out onto the sand, the hall's in off the platform, and the side door out
-    # into its passage, as far as the passage's arch lets it.
-    for id_, bearing, depth, floor, out, opening, turn in (
-        (
-            "back",
-            inside.BACK_BEARING,
-            wall_depth(kitchen_wall, inside.BACK_BEARING),
-            0.0,
-            True,
-            inside.DOORWAY,
-            np.pi / 2,
-        ),
+    # The back door swings out onto the sand, the hall's in off the platform, and the side door in
+    # off its frame's face, standing a hair off it so their faces never share a plane.
+    door_shape = inside.arch_shape(*inside.DOORWAY)
+    side_bearing, side_face, side_middle, side_opening = inside.side_frame(interior)
+    for id_, bearing, depth, floor, out, shape, across in (
+        ("back", inside.BACK_BEARING, wall_depth(kitchen_wall, inside.BACK_BEARING), 0.0, True, door_shape, 0.0),
         (
             "hall",
             inside.HALL_BEARING,
             wall_depth(interior.hall_wall, inside.HALL_BEARING),
             hall,
             False,
-            inside.DOORWAY,
-            np.pi / 2,
+            door_shape,
+            0.0,
         ),
-        ("side", inside.SIDE_BEARING, interior.side_depth, 0.0, True, inside.SIDE_OPENING, inside.SIDE_SWING),
+        ("side", side_bearing, side_face - 0.01, 0.0, False, inside.grown(side_opening, inside.SIDE_LAP), side_middle),
     ):
-        inside.new_door(interior, id_, bearing, depth, floor, out, opening, turn)
+        inside.new_door(interior, id_, bearing, depth, floor, out, shape, across=across)
     through.add(frame_band(face_plane(profile, FRONT_FACE) + FRAME_PROUD))
     skin = MeshBuilder()
     skin.add(skin_tris)
@@ -551,8 +545,8 @@ def porthole(
 def frame_band(z: float) -> list[Triangle]:
     """The frame round the doorway: a flat band FRAME wide along the arch and down both jambs, on the
     face at `z`, in the steel, a plate's middle across it and the plates along it."""
-    inner = arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, ARCH_STEPS, bottom=0.0)
-    outer = arch(-DOOR_WIDTH / 2 - FRAME, DOOR_WIDTH / 2 + FRAME, DOOR_HEIGHT + FRAME, ARCH_STEPS, bottom=0.0)
+    inner = arch(-DOOR_WIDTH / 2, DOOR_WIDTH / 2, DOOR_HEIGHT, inside.ARCH_STEPS, bottom=0.0)
+    outer = arch(-DOOR_WIDTH / 2 - FRAME, DOOR_WIDTH / 2 + FRAME, DOOR_HEIGHT + FRAME, inside.ARCH_STEPS, bottom=0.0)
     tris: list[Triangle] = []
     along_wall = 0.0
     for i in range(1, len(inner)):  # the pairs along the outline but the bottom, which is the ground
@@ -581,17 +575,17 @@ def ring_points(profile: Profile, y: float) -> list[np.ndarray]:
 
 
 def build_door(profile: Profile) -> tuple[MeshBuilder, inside.Door]:
-    """The door: a flat slab the doorway's outline less CLEARANCE from the ground up, DOOR_THICKNESS
-    thick, its face flush with the flat face of the shell, about its pin (an edge on the ground, on
-    the outer face, the face it swings toward); and the door for the sim, which swings it outward,
-    square to the doorway, to stand at its side. The slab runs to -x from its pin here, so that
-    mirrored into the game (house_mesh.MIRROR) it hangs to the right of its run, as doors.ts hangs
-    every slab, with the pin at the game's -x edge."""
-    x0, x1 = -DOOR_WIDTH / 2 + CLEARANCE, DOOR_WIDTH / 2 - CLEARANCE
-    top = DOOR_HEIGHT - CLEARANCE
+    """The door: a flat slab the doorway's outline from the ground up, DOOR_THICKNESS thick, its
+    face flush with the flat face of the shell, about its pin (an edge on the ground, on the outer
+    face, the face it swings toward); and the door for the sim, which swings it outward, square to
+    the doorway, to stand at its side. The slab runs to -x from its pin here, so that mirrored into
+    the game (house_mesh.MIRROR) it hangs to the right of its run, as doors.ts hangs every slab,
+    with the pin at the game's -x edge."""
+    x0, x1 = -DOOR_WIDTH / 2, DOOR_WIDTH / 2
+    top = DOOR_HEIGHT
     face = face_plane(profile, FRONT_FACE)
     hinge = np.array([x1, 0.0, face])
-    outline = arch(x0, x1, top, ARCH_STEPS, bottom=0.0)
+    outline = arch(x0, x1, top, inside.ARCH_STEPS, bottom=0.0)
     pts = [np.array([x, y, 0.0]) for x, y in outline]
     uvs = [np.array([(x - x0) / (x1 - x0), DOOR_PLANKS * (top - y) / top]) for x, y in outline]
     centre = np.array([(x0 + x1) / 2, top / 2, 0.0])

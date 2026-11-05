@@ -37,6 +37,7 @@ from __future__ import annotations
 import io
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -77,18 +78,19 @@ STAIRWELL_CLEAR = 0.3  # metres the stair's inner edge keeps from the bedroom's 
 # living room, and the kitchen's back door and the hall's, the way out to the stair round the back.
 FRONT_DOORWAY = (2.6, 3.3)
 DOORWAY = (2.4, 3.2)
-CLEARANCE = 0.02  # metres a door stands in from its doorway's edge all round
+CLEARANCE = 0.02  # metres the bedroom's wall is cut clear of the bathroom door's frame all round
+ARCH_STEPS = 32  # straight pieces in a doorway's arch, and in the crown of the door that fills it
 # The living room's side door: the model's panel stands painted shut in a frame on the outer wall,
-# SIDE_AT on the floor. The panel goes, and this house hangs a door of its own in the frame, sized
-# to fill the frame's arched opening with its edges just behind the jambs, and digs a passage out
-# behind it along the radial through it (house-model.py), from the frame's back (its jambs and
-# lintel run deep enough to seal the mouth) through the shell onto the dune. The door swings out
-# into the passage as far as its arch, which comes down at the sides, lets the door's crown.
+# SIDE_AT on the floor. The panel goes, and this house hangs a door of its own on the frame's face
+# toward the room: a panel the frame's pointed opening (side_frame) grown SIDE_LAP all round, so
+# it laps onto the frame's band and nothing shows past its edge, swinging in square to the wall.
+# Behind the frame a passage is dug out along the radial through it (house-model.py), from the
+# frame's back (its jambs and lintel run deep enough to seal the mouth) through the shell onto the
+# dune, SIDE_DOORWAY (width, height) its arch.
 SIDE_AT = (10.5, 2.3)
 SIDE_BEARING = float(np.arctan2(*SIDE_AT))
-SIDE_OPENING = (1.82, 2.67)
+SIDE_LAP = 0.06
 SIDE_DOORWAY = (2.0, 3.0)
-SIDE_SWING = np.radians(75.0)
 BACK_BEARING = np.radians(183.0)  # bearing (from +z toward +x) of the kitchen's back door, where its outer wall is bare
 HALL_BEARING = np.radians(250.0)  # bearing of the hall's door, at the head of the stair
 # The stair round the back, from the back door up to the platform at the hall's door, standing
@@ -183,7 +185,7 @@ class Interior:
         default_factory=dict
     )  # at each of its rings' heights, how far out it stands at its roundest
     sealed: list[Door] = field(default_factory=list)  # the doors walled up, for where their openings are
-    side_depth: float = 0.0  # how far out the side door's panel stood at its back: where this house's door hangs
+    side_depth: float = 0.0  # how far out the side door's painted panel stood at its back: the passage's lining ends there, in the frame's band
     stairwell: Stairwell | None = None
     closet: Outline = field(default_factory=list)  # the closet upstairs: its walls' footprint, a little past them
     closet_walls: Outline = field(default_factory=list)  # and that footprint itself
@@ -325,8 +327,7 @@ def take_apart(interior: Interior) -> None:
     for ks in comps(interior, "Doors"):
         lo, hi = bounds(interior, ks)
         centre = ((lo + hi) / 2)[[0, 2]]
-        panel = hi[1] - lo[1] >= 2.5 and min(hi[0] - lo[0], hi[2] - lo[2]) <= 0.6
-        if not panel:
+        if not (hi[1] - lo[1] >= 2.5 and min(hi[0] - lo[0], hi[2] - lo[2]) <= 0.6):
             continue
         if np.hypot(*(np.array(SIDE_AT) - centre)) < 1.5:
             along = np.array([np.sin(SIDE_BEARING), 0.0, np.cos(SIDE_BEARING)])
@@ -336,12 +337,15 @@ def take_apart(interior: Interior) -> None:
             door = make_door(interior, ks)
             (interior.sealed if door.id in SEALED else interior.doors).append(door)
             drop.update(ks)
-    # The panels the model made paper-thin take the closet's, a slab with the same look.
+    # The panels the model made paper-thin take the closet's look on a slab cut to their wall's
+    # opening (opening), hung on the face the door swings toward, as new_door hangs this house's.
     stock = next(d for d in interior.doors if d.id == "closet")
     for d in interior.doors:
         if d.paper:
-            d.mesh = clone_door(stock, d.bearing, d.reach, d.height)
-            d.thickness = stock.thickness
+            foot, d.bearing, shape = opening(interior, d)
+            d.hinge = (float(foot[0]), float(foot[2]))
+            d.reach, d.height, d.thickness = 2 * shape[0][1], shape[-1][0], stock.thickness
+            d.mesh = turned_by(panel(shape, stock.thickness, stock_uv(stock, d.reach, d.height)), np.pi / 2 - d.bearing)
     interior.tris = [t for k, t in enumerate(interior.tris) if k not in drop]
     interior.solid = [t for t, m in interior.tris if interior.materials[m] not in ROUND_WALLS]
     # The levels, from the model: the ground floor's ceiling, the bedroom's floor and ceiling (the
@@ -362,11 +366,192 @@ def take_apart(interior: Interior) -> None:
     interior.bedroom_floor = shrunk(hull(np.array([p[[0, 2]] for k in bedroom for p, _ in interior.tris[k][0]])), -0.02)
 
 
-def clone_door(stock: Door, bearing: float, reach: float, height: float) -> list[Triangle]:
-    """The stock door's panel fitted to another doorway: scaled to its reach and height about the
-    pin on the floor, and turned to run at its bearing (from +x toward +z)."""
-    scale = np.array([1.0, height / stock.height, reach / stock.reach])
-    return turned_by([[(p * scale, q) for p, q in tri] for tri in stock.mesh], np.pi / 2 - bearing)
+Shape = list[tuple[float, float]]  # an opening's shape: (height, half-width) up its middle, floor to top
+
+
+def opening(interior: Interior, door: Door) -> tuple[np.ndarray, float, Shape]:
+    """The opening in the wall one of the model's paper-thin doors stood in, measured on the wall's
+    face the door swings toward (the model's sheets stand off their walls, short of the jambs, and
+    a wall can run askew of its sheet): the foot of the jamb on that face at the pin's end, the
+    bearing (from +x toward +z) the face runs at from there to the other jamb, and the opening's
+    outline between them as a shape (height, half-width), for a panel hung on that foot that fills
+    the opening corner for corner, its thickness into the wall."""
+    along = 0 if abs(np.cos(door.bearing)) > 0.5 else 2
+    across = 2 - along
+    forward = (np.cos(door.bearing) if along == 0 else np.sin(door.bearing)) > 0
+    start = door.hinge[0 if along == 0 else 1]
+    ends = sorted((start, start + (door.reach if forward else -door.reach)))
+    plane = door.hinge[1 if along == 0 else 0]
+    opens = (np.cos(door.bearing - door.swing), np.sin(door.bearing - door.swing))[0 if across == 0 else 1]
+    tris = [np.array([p for p, _ in tri]) for tri, _ in interior.tris]
+    normals = [np.cross(pts[1] - pts[0], pts[2] - pts[0]) for pts in tris]
+    # The jambs' reveals, across the run at the sheet's ends, run the wall's thickness: their feet
+    # are the wall's corners there, and the corner further the way the door opens is on its face.
+    feet = []
+    for end in ends:
+        corners = [
+            p
+            for pts, n in zip(tris, normals)
+            if abs(n[along]) > 0.8 * np.linalg.norm(n)
+            and abs(pts[:, along].mean() - end) < 0.3
+            and abs(pts[:, across].mean() - plane) < 0.8
+            and door.y - 0.1 < pts[:, 1].min() < door.y + 0.5
+            for p in pts
+            if p[1] < door.y + 0.05
+        ]
+        feet.append(max(corners, key=lambda p: float(p[across]) * opens))
+    foot, far = feet if forward else feet[::-1]
+    run = far - foot
+    run[1] = 0.0
+    reach = float(np.linalg.norm(run))
+    run = run / reach
+    bearing = float(np.arctan2(run[2], run[0]))
+    normal = np.array([-run[2], 0.0, run[0]])
+    # The opening's outline on that face: the corners on it of the reveals round the opening,
+    # across the run up the jambs and sloping over the crown (the wall's other face is its
+    # thickness further in). The face itself may bend at the opening, so the outline is taken
+    # along the run from the foot, not in a plane.
+    bands: dict[float, float] = {}
+    for pts, n in zip(tris, normals):
+        off = (pts - foot) @ normal
+        u = (pts - foot) @ run
+        if (
+            abs(n @ normal) < 0.5 * np.linalg.norm(n)
+            and -0.1 < off.min()
+            and off.max() < 0.6
+            and u.max() > -0.3
+            and u.min() < reach + 0.3
+            and door.y - 0.05 < pts[:, 1].min()
+            and pts[:, 1].max() < door.y + 3.5
+        ):
+            for p, o, uu in zip(pts, off, u):
+                if o < 0.17 and -0.05 < uu < reach + 0.05:
+                    y = max(round(float(p[1] - door.y), 2), 0.0)
+                    bands[y] = max(bands.get(y, 0.0), abs(float(uu) - reach / 2))
+    shape: Shape = [(0.0, reach / 2)]
+    for y in sorted(bands):
+        if y > 0:
+            shape.append((y, min(bands[y], shape[-1][1])))
+    return foot, bearing, shape
+
+
+def arch_shape(width: float, top: float) -> Shape:
+    """A round-arched opening's shape, with the ARCH_STEPS pieces round the arch an opening is cut
+    with, so a panel of it fills the opening corner for corner."""
+    right = sorted((y, x) for x, y in arch(-width / 2, width / 2, top, ARCH_STEPS, bottom=0.0) if x > 1e-9)
+    return [(0.0, width / 2)] + [(y, x) for y, x in right if y > 1e-9] + [(top, 0.0)]
+
+
+def stock_shape(stock: Door, reach: float, height: float) -> Shape:
+    """The stock door's own shape, a pointed crown with a flat top, at a reach and height."""
+    outline = hull(np.array([[p[2], p[1]] for tri in stock.mesh for p, _ in tri]))
+    mid = stock.reach / 2
+    right = sorted({(round(float(y), 4), round(float(x - mid), 4)) for x, y in outline if x >= mid - 1e-6})
+    shape = [(0.0, mid)] + [(y, hw) for y, hw in right if y > 1e-6]
+    return [(y * height / stock.height, hw * reach / stock.reach) for y, hw in shape]
+
+
+def stock_uv(stock: Door, reach: float, height: float) -> Callable[[float, float], np.ndarray]:
+    """Where a point (along, up) of a panel `reach` long and `height` tall lies in the stock door's
+    texture: the stock's own mapping, straight along and up its face, stretched to the panel."""
+    zs, ys, us, vs = [], [], [], []
+    for tri in stock.mesh:
+        p = np.array([q for q, _ in tri])
+        n = np.cross(p[1] - p[0], p[2] - p[0])
+        if n[0] > 0.9 * np.linalg.norm(n):
+            for q, uv in tri:
+                zs.append(float(q[2]))
+                ys.append(float(q[1]))
+                us.append(float(uv[0]))
+                vs.append(float(uv[1]))
+    (bu, au), (bv, av) = np.polyfit(zs, us, 1), np.polyfit(ys, vs, 1)
+    return lambda z, y: np.array([au + bu * z * stock.reach / reach, av + bv * y * stock.height / height])
+
+
+def panel(shape: Shape, thickness: float, uv: Callable[[float, float], np.ndarray]) -> list[Triangle]:
+    """A door panel of an opening's shape: standing on the floor with its pin edge up the y axis,
+    running along +z and `thickness` thick toward -x, as the stock panel stands, its faces
+    textured by `uv(along, up)`; a flat piece per band of the shape, each wound to face out."""
+    reach, height = 2 * shape[0][1], shape[-1][0]
+    middle = np.array([-thickness / 2, height / 2, reach / 2])
+    left = [(reach / 2 - hw, y) for y, hw in shape]
+    right = [(reach / 2 + hw, y) for y, hw in shape]
+    tris: list[Triangle] = []
+
+    def add(ring: list[tuple[float, float, float]]) -> None:
+        corners = [c for i, c in enumerate(ring) if c != ring[i - 1]]
+        for tri in fan([(np.array([x, y, z]), uv(z, y)) for x, y, z in corners]):
+            p, q, r = (c for c, _ in tri)
+            n = np.cross(q - p, r - p)
+            if np.linalg.norm(n) < 1e-9:
+                continue
+            tris.append(tri if n @ ((p + q + r) / 3 - middle) > 0 else [tri[0], tri[2], tri[1]])
+
+    for (zl0, y0), (zr0, _), (zl1, y1), (zr1, _) in zip(left, right, left[1:], right[1:]):
+        for x in (0.0, -thickness):
+            add([(x, y0, zl0), (x, y0, zr0), (x, y1, zr1), (x, y1, zl1)])
+        add([(0.0, y0, zr0), (0.0, y1, zr1), (-thickness, y1, zr1), (-thickness, y0, zr0)])
+        add([(0.0, y0, zl0), (-thickness, y0, zl0), (-thickness, y1, zl1), (0.0, y1, zl1)])
+    add(
+        [(0.0, 0.0, left[0][0]), (-thickness, 0.0, left[0][0]), (-thickness, 0.0, right[0][0]), (0.0, 0.0, right[0][0])]
+    )
+    (zl, yt), (zr, _) = left[-1], right[-1]
+    if zr - zl > 1e-6:
+        add([(0.0, yt, zl), (0.0, yt, zr), (-thickness, yt, zr), (-thickness, yt, zl)])
+    return tris
+
+
+def side_frame(interior: Interior) -> tuple[float, float, float, Shape]:
+    """The frame on the living room's outer wall the side door hangs on, from the model: the
+    bearing (from +z toward +x) its face toward the room looks along (the frame stands a few
+    degrees off the radial through it), how far out from the axis that face is, how far to the
+    right of the bearing's line (looking out) the opening's middle is, and the opening's shape:
+    the frame's inner edge up one jamb and round its pointed arch, as height and half-width from
+    that middle."""
+    frames = comps(interior, "Metal_Doors_and_Window_Borders")
+    at = lambda ks: ((bounds(interior, ks)[0] + bounds(interior, ks)[1]) / 2)[[0, 2]]
+    ks = min(frames, key=lambda ks: float(np.hypot(*(np.array(SIDE_AT) - at(ks)))))
+    pts = np.array([p for k in ks for p, _ in interior.tris[k][0]])
+    out = pts @ np.array([np.sin(SIDE_BEARING), 0.0, np.cos(SIDE_BEARING)])
+    # The band's face toward the room is flat; its back stands the frame's depth further out. The
+    # band runs across its face's longest spread, and the face looks the other way, outward.
+    face = pts[out < out.min() + 0.3]
+    spread = np.unique(np.round(face[:, [0, 2]], 3), axis=0)
+    run = np.linalg.svd(spread - spread.mean(axis=0))[2][0]
+    normal = np.array([run[1], -run[0]])
+    if normal @ spread.mean(axis=0) < 0:
+        normal = -normal
+    bearing = float(np.arctan2(normal[0], normal[1]))
+    along = np.array([np.sin(bearing), 0.0, np.cos(bearing)])
+    across = np.array([np.cos(bearing), 0.0, -np.sin(bearing)])
+    corners = {(round(float(c), 3), 0.0 if y < 0.01 else round(float(y), 3)) for c, y in zip(face @ across, face[:, 1])}
+    # The band's outer edge is the convex hull of its face; its inner edge is every other corner
+    # (the feet of its jambs lie along the hull's floor edge, which the hull keeps no corner on).
+    rim = set(hull(np.array(sorted(corners))))
+    inner = sorted(c for c in corners if c not in rim)
+    feet = [c for c, y in inner if y == 0.0]
+    middle = (min(feet) + max(feet)) / 2
+    right = sorted((y, c - middle) for c, y in inner if c - middle > -0.02)
+    shape: Shape = [(y, 0.0 if hw < 0.02 else hw) for y, hw in right]
+    return bearing, float(np.mean(face @ along)), middle, shape
+
+
+def grown(shape: Shape, by: float) -> Shape:
+    """A shape's outline moved out `by` all round but along the floor: each edge up its side
+    pushed out square to itself, the corners where neighbours meet again, and the crown where the
+    top edge meets its own mirror."""
+    pts = [np.array([hw, y]) for y, hw in shape]
+    lines = []
+    for a, b in pairwise(pts):
+        d = b - a
+        lines.append((a + by * np.array([d[1], -d[0]]) / np.linalg.norm(d), d))
+    out: Shape = [(0.0, float(lines[0][0][0]))]
+    for (p, d), (q, e) in pairwise(lines):
+        s = np.linalg.solve(np.array([[d[0], -e[0]], [d[1], -e[1]]]), q - p)[0]
+        out.append((float((p + s * d)[1]), float((p + s * d)[0])))
+    p, d = lines[-1]
+    out.append((float(p[1] - p[0] * d[1] / d[0]), 0.0))
+    return out
 
 
 def new_door(
@@ -376,37 +561,29 @@ def new_door(
     depth: float,
     y: float,
     out: bool,
-    opening: tuple[float, float] = DOORWAY,
+    shape: Shape,
     turn: float = np.pi / 2,
     across: float = 0.0,
 ) -> Door:
-    """A door of this house's own in an `opening` (width, height) through a wall standing `depth`
+    """A door of this house's own filling an opening of `shape` through a wall standing `depth`
     out from the axis at a bearing (from +z toward +x), its middle `across` from the bearing's line
-    (to the right, looking out): the closet's panel fitted to it, swinging
-    `turn` out (`out`) or in, and hung on the face it swings toward, as a real door is, so swung
-    square it stands clear of its jamb: out, at the opening's +x edge on the wall's outer face,
-    running across to -x; in, at the -x edge on the inner face, running to +x. Either way the panel
-    (to the left of its run, make_door) fills the opening just inside the wall's surface."""
+    (to the right, looking out): a panel in the stock door's look, cut to the opening's shape so
+    it meets the jambs and the arch edge to edge, swinging `turn` out (`out`) or in, and hung on
+    the face it swings toward, as a real door is, so swung square it stands clear of its jamb:
+    out, at the opening's +x edge on the wall's outer face, running across to -x; in, at the -x
+    edge on the inner face, running to +x. Either way the panel (to the left of its run,
+    make_door) fills the opening just inside the wall's surface."""
     stock = next(d for d in interior.doors if d.id == "closet")
-    reach, height = opening[0] - 2 * CLEARANCE, opening[1] - CLEARANCE
-    edge = opening[0] / 2 - CLEARANCE
+    reach, height = 2 * shape[0][1], shape[-1][0]
+    edge = reach / 2
     local = np.array([across + edge, 0.0, depth]) if out else np.array([across - edge, 0.0, depth - stock.thickness])
     pin, along = (
         turned_by([[(p, np.zeros(2))]], bearing)[0][0][0] for p in (local, np.array([-1.0 if out else 1.0, 0.0, 0.0]))
     )
     run = float(np.arctan2(along[2], along[0]))
     swing = -turn  # toward the right of the run: the way the pin's face looks
-    door = Door(
-        id_,
-        (float(pin[0]), float(pin[2])),
-        y,
-        run,
-        reach,
-        height,
-        stock.thickness,
-        swing,
-        clone_door(stock, run, reach, height),
-    )
+    mesh = turned_by(panel(shape, stock.thickness, stock_uv(stock, reach, height)), np.pi / 2 - run)
+    door = Door(id_, (float(pin[0]), float(pin[2])), y, run, reach, height, stock.thickness, swing, mesh)
     interior.doors.append(door)
     return door
 
@@ -913,7 +1090,8 @@ def add_rooms(interior: Interior, wall: Callable[[float, float], float]) -> None
     """Upstairs, the closet and the bathroom off the bedroom: the ground floor's, copied with
     everything in them, their ceilings and the bathroom's carpet (the hall's own sand is their
     floor). The closet is mirrored onto the bedroom's east wall so that its doorway, with the thick
-    wall's reveal round it, lands on the bedroom's own east door. The bathroom is turned so that
+    wall's reveal round it, runs on from the bedroom's own east door: the reveal's mouth on the
+    wall's face the door hangs on, its jamb in line with the door's pin. The bathroom is turned so that
     its doorway lands in the bedroom's south wall, west of the porthole there, where that wall is
     cut and a door of this house's own hung in the reveal; its north wall stands a wall's thickness
     beyond the bedroom's, as the kitchen's stood from it downstairs. And the wall that closes the
@@ -952,9 +1130,18 @@ def add_rooms(interior: Interior, wall: Callable[[float, float], float]) -> None
         interior.solid += [t for t, _ in copied]
         return copied
 
-    # The closet: mirrored in x, then moved so its doorway's pin is the bedroom's east door's.
+    # The closet: mirrored in x, then moved so its doorway's reveal starts where the bedroom's
+    # east door hangs, its jamb at the door's pin.
     closet, east = doors["closet"], doors["bedroom-east"]
-    dx, dz = east.hinge[0] + closet.hinge[0], east.hinge[1] - closet.hinge[1]
+    reveal = {"Hallways"}
+    reveal_at = lambda c: -3.1 < c[0] < -1.95 and 1.4 < c[2] < 3.7
+    mouth = max(
+        p[0]
+        for tri, m in interior.tris
+        if interior.materials[m] in reveal and reveal_at(np.mean([p for p, _ in tri], axis=0))
+        for p, _ in tri
+    )
+    dx, dz = east.hinge[0] + mouth, east.hinge[1] - closet.hinge[1]
     closet_in = {
         "Blue_Walls",
         "Ceiling",
@@ -968,10 +1155,9 @@ def add_rooms(interior: Interior, wall: Callable[[float, float], float]) -> None
         "Closet_Lifesaver",
         "Soap_and_Rubber_Ducky",
     }
-    reveal = {"Hallways"}
     mirror = lambda p: np.array([-p[0] + dx, p[1] + lift, p[2] + dz])
     room = copy(closet_in, lambda c: c[0] < -2.95 and 0.5 < c[2] < 8.2 and c[1] < 6.0, mirror)
-    room += copy(reveal, lambda c: -3.1 < c[0] < -1.95 and 1.4 < c[2] < 3.7, mirror)
+    room += copy(reveal, reveal_at, mirror)
     walls = {material(interior, n) for n in ("Blue_Walls", "Hallways")}
     interior.closet_walls = hull(np.array([p[[0, 2]] for tri, m in room if m in walls for p, _ in tri]))
     interior.closet = shrunk(interior.closet_walls, -0.3)
@@ -1028,7 +1214,7 @@ def add_rooms(interior: Interior, wall: Callable[[float, float], float]) -> None
         bath.hinge[0] + bz + bath.thickness / 2,
         hall,
         True,
-        (bath.reach + 2 * CLEARANCE, bath.height + CLEARANCE),
+        stock_shape(doors["closet"], bath.reach, bath.height),
         across=(x0 + x1) / 2,
     )
     print(f"bathroom upstairs: {n} triangles, swapped and moved by ({bx:.2f}, {bz:.2f}); door at x {x0:.2f}..{x1:.2f}")
