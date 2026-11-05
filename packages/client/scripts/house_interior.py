@@ -6,10 +6,12 @@ kitchen behind and the bathroom behind that), the bedroom over the kitchen, and 
 round room the shape of the pineapple's top. This keeps all of it and builds what joins it up, in
 the model's own textures: a hall at the bedroom's level, round it to the pineapple's inside, where
 the bedroom's doors open and a door of its own leads out to the stair round the back of the house
-(house-model.py builds that stair, from the kitchen's back door); a straight flight up from the
-hall through its ceiling, a shaft of bamboo, and a hole in the library's own floor; the hall
-floored in the rooms' sand under a net ceiling like the rooms' and walled in the library's bamboo,
-and the library capped with a net ceiling of its own (content/pineapple.ts builds the flight). The
+(house-model.py builds that stair, from the kitchen's back door), floored in the rooms' sand under a
+net ceiling like the rooms' and walled in the library's bamboo, and the library capped with a net
+ceiling of its own. Upstairs a corridor runs from the hall's door round the bedroom, walled off
+from the rest of the hall; the ground floor's closet and bathroom are copied off the bedroom
+(add_rooms); and a stair walled both sides curves up from the corridor's end through the hall's
+ceiling and a hole in the library's floor (stairwell; content/pineapple.ts stands its steps). The
 library's old door is walled up, so nothing outside its wall can be reached or seen.
 
 What changes in the model: the painted front door and its wheel go (our door swings at the face,
@@ -48,10 +50,29 @@ VOXEL = 0.25  # metres: the grid the sim's boxes are cut on
 SILL = 0.02  # metres a stair's head and a platform sit below the floor they meet, so no two tops share a height
 LINING = 0.35  # metres inside the shell's skin the hall's wall stands
 SEGMENTS = 72
-# The flight from the hall up through the library's floor: its foot and head on the floor and its
-# width. It runs across the hall's front half, the whole of it under the library's floor, and comes
-# up in the front of the library, clear of the chair in the middle.
-FLIGHT = ((-8.0, 7.0), (2.8, 7.0), 2.4)
+# The stairwell up to the library, from the corridor's end at the bedroom's north-west corner: its
+# foot the line at bearing STAIRWELL_FOOT (from +z toward +x) from the bedroom's wall out to the
+# hall's wall, STAIRWELL_STEPS risers of STAIRWELL_TREAD sweeping round the back and the east side,
+# the corridor's whole width at the foot narrowing to STAIRWELL_WIDTH over the first
+# STAIRWELL_NARROW of the climb, and between the two STAIRWELL_PULL fractions of the climb pulling
+# in from the hall's wall to STAIRWELL_HEAD_R out from the axis, inside the library's wall (the
+# hall is wider than the library, and the shell is solid outside that wall above its floor). The
+# pull-in has to wait for the closet's corner, which it passes clear of until it is over the
+# closet's ceiling, and be done before a head on it comes up to the library's floor. Walled both
+# sides: from the hall's floor (or the closet's ceiling, over it) up to the hall's ceiling, then
+# under a lid of its own STAIRWELL_LID over the treads while it runs on through the void between
+# the hall's ceiling and the library's floor, and STAIRWELL_PARAPET above the library's floor round
+# the hole it comes up through.
+STAIRWELL_FOOT = np.radians(215.0)
+STAIRWELL_STEPS = 38
+STAIRWELL_TREAD = 0.62
+STAIRWELL_WIDTH = 2.4
+STAIRWELL_NARROW = 0.3
+STAIRWELL_PULL = (0.15, 0.7)
+STAIRWELL_HEAD_R = 11.3
+STAIRWELL_LID = 2.6
+STAIRWELL_PARAPET = 1.0
+STAIRWELL_CLEAR = 0.3  # metres the stair's inner edge keeps from the bedroom's corner at its foot
 # The doorways this house cuts itself, each an arch (width, height): the vestibule's into the
 # living room, and the kitchen's back door and the hall's, the way out to the stair round the back.
 FRONT_DOORWAY = (2.6, 3.3)
@@ -85,10 +106,11 @@ STAIR_SINK = 0.2  # metres a step standing on the sand goes down into it, past t
 RAIL = 1.0
 RAIL_WIDTH = 0.2
 PLATFORM_ACROSS = 2.8  # the platform at the stair's head, across the arc; it runs out to the stair's outer edge
-FLIGHT_SLOT = 0.15  # metres of room round the flight in the floors it climbs through
-# Metres of tread under a floor from which the flight's slot in it starts: a head under the floor's
-# half-metre boxes, with the grid's slack and a riser to spare, so no one walking down meets it.
-FLIGHT_HEADROOM = 3.5
+HOLE_MARGIN = 0.15  # metres of room round the stairwell in the floors it climbs through
+# Metres of tread under a floor from which the stairwell's hole in it starts: a head under the
+# floor's half-metre boxes, with the grid's slack and a riser to spare, so no one walking down
+# meets it.
+HEADROOM = 3.5
 CAP_DROP = 0.3  # metres under the library's wall's top its ceiling hangs, where the wall is still round
 # Metres of surface one repeat of a texture covers, as the model's rooms map them.
 SAND_TILE = 3.4
@@ -129,6 +151,22 @@ class Door:
 
 
 @dataclass
+class Stairwell:
+    """The stair up to the library (STAIRWELL_*): its steps as the sim's boxes, each
+    [x, z, y, w, d, h, bearing] (centre, underside, size across the arc, out from the axis and up,
+    the bearing it faces) standing on the hall's floor; the hall's ceiling and the library's floor
+    cut over the steps within HEADROOM of each, a hole per step; its lids over the steps that run
+    outside the library's floor, each a footprint at a height; and its walls as chords on the floor
+    (a, b) between two heights, facing a point inside."""
+
+    steps: list[list[float]]
+    ceiling_holes: list[Outline]
+    library_holes: list[Outline]
+    lids: list[tuple[Outline, float]]
+    walls: list[tuple[tuple[float, float], tuple[float, float], float, float, tuple[float, float]]]
+
+
+@dataclass
 class Interior:
     tris: list[tuple[Triangle, int]]  # every surface that stays, with its material
     materials: list[str]
@@ -147,6 +185,9 @@ class Interior:
     )  # at each of its rings' heights, how far out it stands at its roundest
     sealed: list[Door] = field(default_factory=list)  # the doors walled up, for where their openings are
     side_depth: float = 0.0  # how far out the side door's panel stood at its back: where this house's door hangs
+    stairwell: Stairwell | None = None
+    closet: Outline = field(default_factory=list)  # the closet upstairs: its walls' footprint, a little past them
+    closet_top: float = 0.0  # and its ceiling's height
 
 
 def load(path: str) -> Interior:
@@ -337,9 +378,11 @@ def new_door(
     out: bool,
     opening: tuple[float, float] = DOORWAY,
     turn: float = np.pi / 2,
+    across: float = 0.0,
 ) -> Door:
     """A door of this house's own in an `opening` (width, height) through a wall standing `depth`
-    out from the axis at a bearing (from +z toward +x): the closet's panel fitted to it, swinging
+    out from the axis at a bearing (from +z toward +x), its middle `across` from the bearing's line
+    (to the right, looking out): the closet's panel fitted to it, swinging
     `turn` out (`out`) or in, and hung on the face it swings toward, as a real door is, so swung
     square it stands clear of its jamb: out, at the opening's +x edge on the wall's outer face,
     running across to -x; in, at the -x edge on the inner face, running to +x. Either way the panel
@@ -347,7 +390,7 @@ def new_door(
     stock = next(d for d in interior.doors if d.id == "closet")
     reach, height = opening[0] - 2 * CLEARANCE, opening[1] - CLEARANCE
     edge = opening[0] / 2 - CLEARANCE
-    local = np.array([edge, 0.0, depth]) if out else np.array([-edge, 0.0, depth - stock.thickness])
+    local = np.array([across + edge, 0.0, depth]) if out else np.array([across - edge, 0.0, depth - stock.thickness])
     pin, along = (
         turned_by([[(p, np.zeros(2))]], bearing)[0][0][0] for p in (local, np.array([-1.0 if out else 1.0, 0.0, 0.0]))
     )
@@ -505,9 +548,9 @@ def build_floors(
     interior: Interior, skin: Callable[[float, float], float], angles: list[float], heights: list[float]
 ) -> None:
     """The hall at the bedroom's floor, round it to the pineapple's inside: a floor in the rooms'
-    sand, a ceiling in their net, a wall in the library's bamboo, and the flight's slot cut through
-    that ceiling and through the library's own floor above, with a shaft of bamboo between them;
-    and a net ceiling over the library, under its wall's top. The hall's floor and ceiling stop at
+    sand, a ceiling in their net, a wall in the library's bamboo, and the stairwell's walls, with
+    its holes cut through that ceiling and through the library's own floor above; and a net
+    ceiling over the library, under its wall's top. The hall's floor and ceiling stop at
     the bedroom's own, edge to edge. `skin(a, y)` is the shell's radius at a bearing (from +z
     toward +x) and a height, `angles` the bearings it is turned at and `heights` its rings, so the
     hall's wall, turned at the same ones, keeps a wall's thickness inside it everywhere, where the
@@ -515,12 +558,18 @@ def build_floors(
     angles, tuck their rims just behind it, so no gap shows the shell's inside (which the client
     never draws). The hall's wall is kept aside (`hall_wall`) for its door to be cut through it."""
     levels = interior.levels
-    hall, ceiling, library, top = levels["hall"], levels["hallCeiling"], levels["library"], levels["top"]
+    hall, ceiling, top = levels["hall"], levels["hallCeiling"], levels["top"]
     wall = lambda a, y: skin(a, y) - LINING
     sand, net, lid, bamboo = (material(interior, n) for n in ("Sand_Floor", "Netting", "Ceiling", "Library_Bamboo"))
     pieces: list[tuple[list[Triangle], int]] = []
-    fx1 = FLIGHT[1][0]
-    slot = lambda y, end=fx1 + FLIGHT_SLOT, side=FLIGHT_SLOT: flight_slot(levels, y, end, side)
+    library_r = max(
+        float(np.hypot(p[0], p[2]))
+        for ks in comps(interior, "Library_Floor")
+        for k in ks
+        for p, _ in interior.tris[k][0]
+    )
+    well = stairwell(levels, wall, interior.bedroom_walls, interior.closet, interior.closet_top, library_r - 0.3)
+    interior.stairwell = well
     round_angles = angles[:-1]  # the lathe's seam column comes twice
 
     # The hall's floor runs into the wall where the hall's door is, under the doorway's own floor
@@ -530,9 +579,8 @@ def build_floors(
         return wall(a, hall) + (0.05 if at_door else 0.01)
 
     pieces.append((round_floor(hall, floor_edge, False, [interior.bedroom_floor], SAND_TILE, round_angles), sand))
-    shaft, shaft_hole = slot(ceiling)
     lid_edge = lambda a: wall(a, ceiling) + 0.01
-    holes = [interior.bedroom_walls, shaft_hole]
+    holes = [interior.bedroom_walls, *well.ceiling_holes]
     pieces.append((round_floor(ceiling, lid_edge, True, holes, CEILING_TILE, round_angles), lid))
     pieces.append((round_floor(ceiling - 0.1, lid_edge, True, holes, NET_TILE, round_angles), net))
     # The wall: the shell's inside, LINING in from the skin so it leans out with it. Where it stands
@@ -546,18 +594,13 @@ def build_floors(
     interior.hall_wall = lathe(rings, BAMBOO_TILE, place, angles=angles)
     interior.hall_wall_material = bamboo
     interior.hall_round = {y: max(wall(a, y) for a in angles) for y, _ in rings}
-    # The flight's shaft, from the hall's ceiling up to the library's floor, and its hole in that
-    # floor, which it arrives through.
-    sx0, sx1, sz0, sz1 = shaft
-    inside_shaft = ((sx0 + sx1) / 2, (sz0 + sz1) / 2)
-    for a, b in (
-        ((sx0, sz0), (sx1, sz0)),
-        ((sx1, sz0), (sx1, sz1)),
-        ((sx1, sz1), (sx0, sz1)),
-        ((sx0, sz1), (sx0, sz0)),
-    ):
-        pieces.append((upright(a, b, ceiling, library, inside_shaft), bamboo))
-    cut_floor(interior, "Library_Floor", slot(library, fx1, 0.0)[1])
+    # The stairwell's walls, and its holes through the library's floor, which it arrives through.
+    for a, b, y0, y1, inner in well.walls:
+        pieces.append((upright(a, b, y0, y1, inner), bamboo))
+    for outline, y in well.lids:
+        pieces.append((lid_over(outline, y, CEILING_TILE), lid))
+    for hole in well.library_holes:
+        cut_floor(interior, "Library_Floor", hole)
     # The library's ceiling: a disc under the wall's top, its rim tucked into the wall, which leans
     # in there (the band of the wall's vertices just above gives how far in).
     wall_top = np.array(
@@ -693,24 +736,243 @@ def round_floor(
     return tris
 
 
-def flight_slot(levels: dict[str, float], y: float, end: float, side: float = FLIGHT_SLOT) -> tuple[Rect, Outline]:
-    """The flight's slot in a floor at a height: from where a tread is FLIGHT_HEADROOM under it to
-    `end` (past the flight's head, or at it for the floor it arrives on, so the last step meets the
-    floor with no crack), `side` wider than the flight either side (none for the floor it arrives
-    on, whose edges meet the flight's rails)."""
-    (fx0, fz), (fx1, _), fw = FLIGHT
-    hall, rise = levels["hall"], levels["library"] - levels["hall"]
-    x0 = fx0 + (fx1 - fx0) * (y - FLIGHT_HEADROOM - hall) / rise - FLIGHT_SLOT
-    rect = (x0, end, fz - fw / 2 - side, fz + fw / 2 + side)
-    return rect, [(rect[0], rect[2]), (rect[1], rect[2]), (rect[1], rect[3]), (rect[0], rect[3])]
+def ccw(poly: Outline) -> Outline:
+    """An outline the way round cut_out wants it: counter-clockwise on the floor."""
+    area = sum(x0 * z1 - x1 * z0 for (x0, z0), (x1, z1) in zip(poly, poly[1:] + poly[:1]))
+    return poly if area > 0 else poly[::-1]
 
 
-def library_slot(interior: Interior) -> Rect:
-    """The flight's slot in the library's floor, for the rails the sim stands round it."""
-    return flight_slot(interior.levels, interior.levels["library"], FLIGHT[1][0], 0.0)[0]
+def within(p: tuple[float, float], outline: Outline) -> bool:
+    """Whether a point on the floor lies inside an outline."""
+    inside = False
+    for (x0, z0), (x1, z1) in zip(outline, outline[1:] + outline[:1]):
+        if (z0 > p[1]) != (z1 > p[1]) and p[0] < x0 + (x1 - x0) * (p[1] - z0) / (z1 - z0):
+            inside = not inside
+    return inside
 
 
-Rect = tuple[float, float, float, float]  # x0, x1, z0, z1
+def lid_over(outline: Outline, y: float, tile: float) -> list[Triangle]:
+    """A level ceiling over a footprint at a height, facing down, tiled from the house's axis."""
+    tris = fan([(np.array([x, y, z]), np.array([x / tile, z / tile])) for x, z in outline])
+    down = lambda tri: float(np.cross(tri[1][0] - tri[0][0], tri[2][0] - tri[0][0])[1]) < 0
+    return [tri if down(tri) else [tri[0], tri[2], tri[1]] for tri in tris]
+
+
+def stairwell(
+    levels: dict[str, float],
+    wall: Callable[[float, float], float],
+    bedroom: Outline,
+    closet: Outline,
+    closet_top: float,
+    library_r: float,
+) -> Stairwell:
+    """The stair up to the library laid out (STAIRWELL_*): `wall(a, y)` is how far out the hall's
+    wall stands at a bearing and a height, `bedroom` and `closet` the footprints of their walls
+    (the closet's a little past them, `closet_top` its ceiling), `library_r` how far out the
+    library's floor reaches, less a margin."""
+    hall, ceiling, library = levels["hall"], levels["hallCeiling"], levels["library"]
+    riser = (library - SILL - hall) / STAIRWELL_STEPS
+    at = lambda r, b: (float(r * np.sin(b)), float(r * np.cos(b)))
+    b = STAIRWELL_FOOT
+    foot_r = wall(b, hall + 0.3)
+    inner0 = max(float(np.hypot(x, z)) for x, z in bedroom) + STAIRWELL_CLEAR
+    foot_w = foot_r - 0.02 - inner0
+    ease = lambda u: u * u * (3 - 2 * u)
+    p0, p1 = STAIRWELL_PULL
+    well = Stairwell([], [], [], [], [])
+    first: tuple[float, float] | None = None
+    cut: list[int] = []
+    for i in range(STAIRWELL_STEPS):
+        f = i / (STAIRWELL_STEPS - 1)
+        top = hall + riser * (i + 1)
+        along_wall = wall(b, top) - 0.02
+        pull = ease(min(1.0, max(0.0, (f - p0) / (p1 - p0))))
+        outer = along_wall - (along_wall - STAIRWELL_HEAD_R) * pull
+        width = foot_w + (STAIRWELL_WIDTH - foot_w) * ease(min(1.0, f / STAIRWELL_NARROW))
+        inner = outer - width
+        mid = (outer + inner) / 2
+        b0, b1 = b, b - STAIRWELL_TREAD / mid
+        bm = (b0 + b1) / 2
+        centre = at(mid, bm)
+        well.steps.append([*centre, top - STAIR_THICKNESS, STAIRWELL_TREAD + 0.05, width, STAIR_THICKNESS, bm])
+        in_shaft, in_library, under_library = top >= ceiling - HEADROOM, outer <= library_r, top >= library - HEADROOM
+        ia, ib, oa, ob = at(inner, b0), at(inner, b1), at(outer, b0), at(outer, b1)
+        # The walls stop at the hall's ceiling, or just over the stairwell's own lid, or at the
+        # parapet round the hole in the library's floor; they start on the hall's floor, or on
+        # the closet's ceiling where they would stand in the closet.
+        wall_top = (
+            library + STAIRWELL_PARAPET
+            if in_library and under_library
+            else top + STAIRWELL_LID + 0.3
+            if in_shaft
+            else ceiling
+        )
+        foot = lambda a, c: closet_top + 0.02 if within(a, closet) or within(c, closet) else hall
+        well.walls.append((ia, ib, foot(ia, ib), wall_top, centre))
+        if pull > 0:
+            well.walls.append((oa, ob, foot(oa, ob), wall_top, centre))
+        if in_library and under_library and not well.library_holes:
+            # A parapet across the hole's foot, where the library's floor ends over the stair.
+            well.walls.append((ia, oa, library, library + STAIRWELL_PARAPET, centre))
+        if in_shaft:
+            far = max(outer, wall(bm, ceiling)) + HOLE_MARGIN + 0.1
+            near = inner - HOLE_MARGIN
+            hole = ccw([at(far, b0 + 0.02), at(far, b1 - 0.02), at(near, b1 - 0.02), at(near, b0 + 0.02)])
+            well.ceiling_holes.append(hole)
+            if in_library and under_library:
+                well.library_holes.append(hole)
+            elif not in_library:
+                well.lids.append((hole, top + STAIRWELL_LID))
+        if top - STAIR_THICKNESS < closet_top + 0.1 and (within(ia, closet) or within(ib, closet)):
+            cut.append(i)
+        if first is None:
+            first = ia
+        b = b1
+    if cut:
+        raise ValueError(f"the stairwell's steps {cut} stand in the closet")
+    print(
+        f"stairwell: {STAIRWELL_STEPS} steps from bearing {np.degrees(STAIRWELL_FOOT):.0f} to {np.degrees(b):.0f} deg, "
+        f"{len(well.ceiling_holes)} holes in the hall's ceiling, {len(well.lids)} lids, {len(well.library_holes)} holes in the library's floor"
+    )
+    # The gap at the foot between the bedroom's corner and the stair's inner edge, closed.
+    assert first is not None
+    corner = min(bedroom, key=lambda q: np.hypot(q[0] - first[0], q[1] - first[1]))
+    well.walls.append(
+        ((float(corner[0]), float(corner[1])), first, hall, ceiling, (well.steps[0][0], well.steps[0][1]))
+    )
+    return well
+
+
+def add_rooms(interior: Interior, wall: Callable[[float, float], float]) -> None:
+    """Upstairs, the closet and the bathroom off the bedroom: the ground floor's, copied with
+    everything in them, their ceilings and the bathroom's carpet (the hall's own sand is their
+    floor). The closet is mirrored onto the bedroom's east wall so that its doorway, with the thick
+    wall's reveal round it, lands on the bedroom's own east door. The bathroom is turned so that
+    its doorway lands in the bedroom's south wall, west of the porthole there, where that wall is
+    cut and a door of this house's own hung in the reveal; its north wall stands a wall's thickness
+    beyond the bedroom's, as the kitchen's stood from it downstairs. And the wall that closes the
+    corridor: along the bedroom's south wall from its corner out to the hall's wall."""
+    hall, ceiling = interior.levels["hall"], interior.levels["hallCeiling"]
+    doors = {d.id: d for d in interior.doors}
+    floor = min(p[1] for tri, m in interior.tris if interior.materials[m] == "Sand_Floor" for p, _ in tri if p[1] < 1)
+    lift = hall - floor
+
+    def plane(name: str, axis: int, box: tuple[tuple[float, float], ...]) -> float:
+        """Where a wall's face of a material stands along an axis: the mean over its triangles
+        facing that way whose middles lie in `box` (ranges of x, y, z)."""
+        found = []
+        for tri, m in interior.tris:
+            if interior.materials[m] != name:
+                continue
+            pts = np.array([p for p, _ in tri])
+            n = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            c = pts.mean(axis=0)
+            if abs(n[axis]) > 0.7 * np.linalg.norm(n) and all(lo < c[k] < hi for k, (lo, hi) in enumerate(box)):
+                found.append(float(c[axis]))
+        return float(np.mean(found))
+
+    def copy(
+        materials: set[str], pick: Callable[[np.ndarray], bool], move: Callable[[np.ndarray], np.ndarray]
+    ) -> list[tuple[Triangle, int]]:
+        copied = []
+        for tri, m in interior.tris:
+            if interior.materials[m] not in materials:
+                continue
+            pts = np.array([p for p, _ in tri])
+            if pick(pts.mean(axis=0)):
+                moved = [(move(p), q) for p, q in tri]
+                copied.append(([moved[0], moved[2], moved[1]], m))  # mirrored, so rewound to face the same way
+        interior.tris += copied
+        interior.solid += [t for t, _ in copied]
+        return copied
+
+    # The closet: mirrored in x, then moved so its doorway's pin is the bedroom's east door's.
+    closet, east = doors["closet"], doors["bedroom-east"]
+    dx, dz = east.hinge[0] + closet.hinge[0], east.hinge[1] - closet.hinge[1]
+    closet_in = {
+        "Blue_Walls",
+        "Ceiling",
+        "Netting",
+        "Clothes",
+        "Bamboo_2",
+        "Cardboard",
+        "Closet_Barrel",
+        "Closet_Beach_Ball",
+        "Closet_Cannonball",
+        "Closet_Lifesaver",
+        "Soap_and_Rubber_Ducky",
+    }
+    reveal = {"Hallways"}
+    mirror = lambda p: np.array([-p[0] + dx, p[1] + lift, p[2] + dz])
+    room = copy(closet_in, lambda c: c[0] < -2.95 and 0.5 < c[2] < 8.2 and c[1] < 6.0, mirror)
+    room += copy(reveal, lambda c: -3.1 < c[0] < -1.95 and 1.4 < c[2] < 3.7, mirror)
+    walls = {material(interior, n) for n in ("Blue_Walls", "Hallways")}
+    interior.closet = shrunk(hull(np.array([p[[0, 2]] for tri, m in room if m in walls for p, _ in tri])), -0.3)
+    interior.closet_top = max(p[1] for tri, m in room if m == material(interior, "Ceiling") for p, _ in tri)
+    print(
+        f"closet upstairs: {len(room)} triangles, moved by ({dx:.2f}, {dz:.2f}), ceiling {interior.closet_top:.2f} up"
+    )
+    # The bathroom: x and z swapped, then moved so its west wall's face stands a wall's thickness
+    # (the kitchen's wall to its own, downstairs) beyond the bedroom's south face, and its doorway
+    # a clear 0.8 m west of the porthole in that wall.
+    bath = doors["bathroom"]
+    kitchen_face = plane("Metal_Walls", 0, ((1.3, 2.2), (0, 6.2), (-8, -0.6)))
+    south_face = plane("Metal_Walls", 2, ((-11, 0.5), (7.5, 16), (-1.4, -0.6)))
+    porthole = min(
+        p[0]
+        for tri, m in interior.tris
+        if interior.materials[m] == "Windows"
+        for p, _ in tri
+        if -1.4 < p[2] < -0.6 and 8 < p[1] < 12
+    )
+    bz = south_face - kitchen_face
+    bx = porthole - 0.8 - bath.hinge[1]
+    bath_in = {
+        "Flower_Walls",
+        "Rusty_Metal",
+        "Bathroom_Carpet",
+        "Bathtub",
+        "Shower_Curtain",
+        "Bathroom_Sink",
+        "Wringer",
+        "Bamboo_1",
+        "Soap_and_Rubber_Ducky",
+        "Toilet_Paper",
+        "Bathroom_Mirror",
+        "Shellfish_Pic",
+        "Towels",
+        "Toilet_Seat_and_Vanity_Seat",
+        "Windows",
+        "Doors",
+    }
+    turn = lambda p: np.array([p[2] + bx, p[1] + lift + 0.015, p[0] + bz])
+    n = len(copy(bath_in, lambda c: c[0] > 2.7 and -8.3 < c[2] < -0.5 and c[1] < 6.0, turn))
+    n += len(copy(reveal, lambda c: 1.6 < c[0] < 2.9 and -3.7 < c[2] < -1.5, turn))
+    # Its doorway through the bedroom's wall, and the door in it, swinging into the bathroom.
+    x1 = bath.hinge[1] + bx
+    x0 = x1 - bath.reach
+    hole = [(x, y + hall) for x, y in arch(x0 - CLEARANCE, x1 + CLEARANCE, bath.height + CLEARANCE)]
+    cut_doorway(interior, 0.0, (south_face - 0.3, south_face + 0.25), hole)
+    new_door(
+        interior,
+        "bathroom-up",
+        0.0,
+        bath.hinge[0] + bz + bath.thickness / 2,
+        hall,
+        True,
+        (bath.reach + 2 * CLEARANCE, bath.height + CLEARANCE),
+        across=(x0 + x1) / 2,
+    )
+    print(f"bathroom upstairs: {n} triangles, swapped and moved by ({bx:.2f}, {bz:.2f}); door at x {x0:.2f}..{x1:.2f}")
+    # The corridor's end wall, from the bedroom's south-west corner out to the hall's wall.
+    corner = max((p for p in interior.bedroom_walls if p[0] < -9), key=lambda p: p[1])
+    out = -float(np.sqrt(wall(1.5 * np.pi, hall + 1.0) ** 2 - corner[1] ** 2)) - 0.3
+    closing = upright(
+        (float(corner[0]), float(corner[1])), (out, float(corner[1])), hall, ceiling, (-14.0, float(corner[1]) - 2.0)
+    )
+    bamboo = material(interior, "Library_Bamboo")
+    interior.tris += [(t, bamboo) for t in closing]
+    interior.solid += closing
 
 
 def about(hole: Outline) -> Callable[[Triangle], bool]:

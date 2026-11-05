@@ -14,11 +14,13 @@
 // door, the closet off it, the kitchen behind, the bathroom off the kitchen, the bedroom upstairs
 // over the kitchen, and the library on top. A stair round the back of the house climbs from the
 // kitchen's back door, standing clear of the shell with rails both sides, to a balcony at the
-// hall's door; the hall runs round the bedroom to its doors, and a straight flight climbs from it
-// through a hole in the library's floor, railed round. Every door swings (sim/doors.ts), the front
+// hall's door. Upstairs a corridor runs from that door round the bedroom, walled off from the rest
+// of the hall; the ground floor's closet and bathroom are copied off the bedroom; and a stair
+// walled both sides curves up from the corridor's end through the hall's ceiling and a hole in the
+// library's floor. Every door swings (sim/doors.ts), the front
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
-import { ramp, roundFloor, roundWall, stairs, terrain, wall, type Box, type Structure } from '../sim/structures';
+import { ramp, roundFloor, roundWall, terrain, wall, type Box, type Structure } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -33,9 +35,6 @@ if (SHAPE.dune.foot !== GROUND.r) throw new Error('the house model laid its dune
 export const DUNE_HEIGHT = SHAPE.dune.height; // metres the dune's flat top, and the house's floor, stand above the floor
 const GROUND_CORE = 13.3; // radius the shell is solid from on the ground floor: just outside the rooms' outer wall
 const SEAL = 0.4; // metres inside the skin the seal above the ground floor begins: just behind the hall's wall
-const RAIL = 1; // height of the posts along a flight's edge
-const RAIL_WIDTH = 0.2; // and the rails round the library's slot, across
-const SILL = 0.02; // a flight sits this far below the floor it meets, so no two tops share a height
 const SEGMENTS = 32; // straight pieces in each collision ring
 
 // The door faces the way in; the model's door faces its +z, so it's turned to match.
@@ -79,7 +78,7 @@ export const PINEAPPLE_FOOTPRINT: Disc = { kind: 'disc', x: X, z: Z, r: Math.max
 const { levels } = SHAPE;
 export const PINEAPPLE_LEVELS: Region[] = [
   { kind: 'disc', ...placed(-3.5, 10), r: 2.5, y: DUNE_HEIGHT },
-  { kind: 'disc', ...placed(-2.2, -3), r: 1.5, y: DUNE_HEIGHT + levels.hall },
+  { kind: 'disc', ...placed(14, -4), r: 1.5, y: DUNE_HEIGHT + levels.hall },
   { kind: 'disc', x: X, z: Z, r: 8, y: DUNE_HEIGHT + levels.library },
 ];
 
@@ -147,52 +146,19 @@ const rooms: Box[] = PINEAPPLE_BOXES.map(([x, z, y, w, d, h]) => ({
 }));
 
 // The stair round the back, from the kitchen's back door up to the platform at the hall's door,
-// and the flight from the hall up through the library's floor.
-const { flight } = SHAPE;
-const flights: Box[] = [
-  ...SHAPE.stair.map(([x, z, y, w, d, h, yaw]): Box => ({
-    kind: 'box',
-    ...placed(x, z),
-    y: DUNE_HEIGHT + y,
-    yaw: YAW + yaw,
-    w,
-    d,
-    h,
-    material: 'wood',
-  })),
-  ...stairs(placed(...flight.from), placed(...flight.to), levels.library - levels.hall, flight.width, {
-    y: DUNE_HEIGHT + levels.hall - SILL,
-    thickness: 0.3,
-    rail: RAIL,
-    material: 'wood',
-  }),
-  ...slotRails(),
-];
-
-// Rails round the flight's slot in the library's floor, along its sides and across its foot (its
-// head is where the flight arrives, railed by the flight's own), standing a hair above the floor.
-function slotRails(): Box[] {
-  const [x0, x1, z0, z1] = flight.slot;
-  const y = DUNE_HEIGHT + levels.library + 0.03;
-  const w = RAIL_WIDTH;
-  const rail = (x: number, z: number, along: number, across: number): Box => ({
-    kind: 'box',
-    ...placed(x, z),
-    y,
-    yaw: YAW,
-    w: along,
-    d: across,
-    h: RAIL,
-    material: 'wood',
-  });
-  // The slot's foot end is whichever is nearer the flight's foot; the rail across it stands just outside.
-  const footEnd = Math.abs(x0 - flight.from[0]) < Math.abs(x1 - flight.from[0]) ? x0 - w / 2 : x1 + w / 2;
-  return [
-    rail((x0 + x1) / 2, z0 - w / 2, x1 - x0, w),
-    rail((x0 + x1) / 2, z1 + w / 2, x1 - x0, w),
-    rail(footEnd, (z0 + z1) / 2, w, z1 - z0 + 2 * w),
-  ];
-}
+// and the stairwell from the corridor's end upstairs round to the library, each piece a box.
+type Piece = readonly [number, number, number, number, number, number, number];
+const piece = ([x, z, y, w, d, h, yaw]: Piece): Box => ({
+  kind: 'box',
+  ...placed(x, z),
+  y: DUNE_HEIGHT + y,
+  yaw: YAW + yaw,
+  w,
+  d,
+  h,
+  material: 'wood',
+});
+const flights: Box[] = [...SHAPE.stair.map(piece), ...SHAPE.stairwell.map(piece)];
 
 // The path's flagstones, a hair above the sand, each a ramp lying with the dune's slope, so a
 // walker steps on and off them where the model draws them.
