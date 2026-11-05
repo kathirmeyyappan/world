@@ -101,6 +101,9 @@ PATH_NEAR = 17.5  # metres out from the axis the path's first stone lies (just u
 PATH_FAR = 32.0  # and its last, just past the dune's foot onto the floor
 STONE_SCALE = 0.8  # how wide each stone lies, of the model's
 STONE_HEIGHT = 0.12  # metres a stone stands above the sand: a flagstone to step on, not a drum
+PATH_SPREAD = (
+    10.0  # metres either side of the path's line its flagstones lie within (the model's rock lies further out)
+)
 DUNE_HEIGHT = 3.0  # metres the dune's flat top, and the house's floor, stand above the floor
 DUNE_FOOT = 30.0  # where the dune meets the floor: the grounds' radius (sim/outline.ts BUILDING_GROUNDS)
 DUNE_BULGES = 5  # soft mounds round the slope
@@ -749,11 +752,12 @@ def face_walls(profile: Profile) -> list[list[float]]:
 def build_garden(
     doc: dict, blob: bytes, s: float, top: float
 ) -> tuple[MeshBuilder, Image.Image, MeshBuilder, Image.Image, list[list[float]]]:
-    """The model's flowers round the house, each in the one colour its texture paints it (a swatch
-    in a small image), FLOWER_SCALE as big about its foot on the dune; and its stone path from the
-    door, laid again down the dune from PATH_NEAR to PATH_FAR out (the model's ran on past the
-    grounds), each stone STONE_SCALE as wide about its own middle and no taller than STONE_HEIGHT, a
-    flagstone to step on, with its texture; both laid on the dune. Also each stone for the sim: a
+    """The model's flowers on the dune, each in the one colour its texture paints it (a swatch in a
+    small image), FLOWER_SCALE as big about its foot on the dune; and its stone path from the door,
+    laid again down the dune from PATH_NEAR to PATH_FAR out (the model's ran on past the grounds),
+    each stone STONE_SCALE as wide about its own middle and no taller than STONE_HEIGHT, a
+    flagstone to step on, with its texture; both laid on the dune. A flower standing off the dune
+    and the rock beside the path are left out. Also each stone for the sim: a
     ramp lying with the dune's slope, [lowX, lowZ, highX, highZ, y, w, h] (its downhill and uphill
     ends on the floor, its underside at the downhill end, its width across, and its rise)."""
     flowers = load_mesh(doc, blob, "Circle_0")
@@ -768,7 +772,7 @@ def build_garden(
     blooms = MeshBuilder()
     for k, verts in enumerate(parts):
         foot = np.array([pos[verts, 0].mean(), pos[verts, 1].min(), pos[verts, 2].mean()])
-        if in_the_way(foot):
+        if in_the_way(foot) or np.hypot(foot[0], foot[2]) > DUNE_FOOT:
             continue
         tris = [tri for tri in flowers["triangles"] if owner[tri[0]] == k]
         samples = []
@@ -788,10 +792,11 @@ def build_garden(
     path_image = garden_image(doc, blob, stones).resize((PATH_TEXTURE, PATH_TEXTURE), Image.Resampling.LANCZOS)
     pos = stones["positions"] * s
     parts = components({"positions": stones["positions"], "triangles": stones["triangles"]})
-    owner = np.zeros(len(pos), int)
+    centres = [(pos[v].min(axis=0) + pos[v].max(axis=0)) / 2 for v in parts]
+    parts, centres = zip(*[(v, c) for v, c in zip(parts, centres) if abs(c[0]) < PATH_SPREAD])
+    owner = np.full(len(pos), -1)
     for k, verts in enumerate(parts):
         owner[verts] = k
-    centres = [(pos[v].min(axis=0) + pos[v].max(axis=0)) / 2 for v in parts]
     near, far = min(c[2] for c in centres), max(c[2] for c in centres)
     k = (PATH_FAR - PATH_NEAR) / (far - near)
     laid = pos.copy()
@@ -811,7 +816,7 @@ def build_garden(
         laid[verts] = p
     path = MeshBuilder()
     uvs = stones["uvs"] % 1
-    path.add([[(laid[i], uvs[i]) for i in tri] for tri in stones["triangles"]])
+    path.add([[(laid[i], uvs[i]) for i in tri] for tri in stones["triangles"] if owner[tri[0]] >= 0])
     return (
         blooms,
         swatches,
