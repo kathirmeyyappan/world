@@ -174,8 +174,9 @@ function touchHtml(groups: Group[]): string {
     const buttons = g.rows.map((r) => {
       const send = r.send ? ` data-send="${r.send}"` : '';
       const label = r.label.split(', ')[0];
+      const args = r.args ? `<span class="args" translate="no">${r.args}</span>` : '';
       return `<button class="cmd-button${r.send ? '' : ' needs-args'}"${send} data-label="${label}">
-        <span class="cmd" translate="no">${label}</span><span class="note">${r.note}</span></button>`;
+        <span class="cmd" translate="no">${label}</span>${args}<span class="note">${r.note}</span></button>`;
     });
     return `<section><h2>${g.title}</h2><div class="buttons">${buttons.join('')}</div></section>`;
   });
@@ -184,7 +185,7 @@ function touchHtml(groups: Group[]): string {
     <div class="card touch">
       <div class="body">
         <h1>COMMANDS</h1>
-        <p class="how">tap one to use it · greyed ones need options, so type them in chat</p>
+        <p class="how">tap to use<span class="or">or type any of these in chat, options and all</span></p>
         <div class="groups">${sections.join('')}</div>
       </div>
       <div class="footer">

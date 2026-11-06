@@ -1554,6 +1554,15 @@ body {
 #commands .cmd-button .note {
   line-height: 1.2;
 }
+#commands .cmd-button .args {
+  font-size: 12px;
+  line-height: 1.3;
+}
+#commands .how .or {
+  display: block;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
 #commands .cmd-button.needs-args {
   border-color: rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.05);
@@ -1561,6 +1570,9 @@ body {
 #commands .cmd-button.needs-args .cmd,
 #commands .cmd-button.needs-args .note {
   color: rgba(255, 255, 255, 0.4);
+}
+#commands .cmd-button.needs-args .args {
+  color: rgba(129, 199, 132, 0.55);
 }
 #commands .cmd-button.needs-args:active {
   transform: none;
