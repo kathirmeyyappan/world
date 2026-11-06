@@ -47,7 +47,7 @@ from pathlib import Path
 
 import numpy as np
 from glb import accessor, components, local_matrix, read_glb
-from house_mesh import Outline, Triangle, arch, area, cut_out, disc, fan, lathe, turned_by
+from house_mesh import Outline, Triangle, arch, area, clip_at, cut_out, disc, fan, lathe, turned_by
 from PIL import Image
 
 INTERIOR_SCALE = 0.5  # metres per unit of the model: its doors come out 3 m tall, players SpongeBob's size
@@ -972,6 +972,17 @@ def build_floors(
     for tris, m in pieces:
         interior.tris += [(t, m) for t in tris]
     interior.solid += [t for tris, _ in pieces for t in tris]
+    # Nothing of the wall or its pillars stands past the ceiling, whose top is the cylinder's floor.
+    lid_y = top - CAP_DROP
+    clipped = {material(interior, "Library_Wall"), material(interior, "Library_Bamboo")}
+    kept: list[tuple[Triangle, int]] = []
+    for tri, m in interior.tris:
+        if m in clipped and any(p[1] > lid_y + 0.001 for p, _ in tri):
+            poly = clip_at(list(tri), lambda p: p[1] - lid_y, 0.0)
+            kept += [(t, m) for t in fan(poly)] if len(poly) >= 3 else []
+        else:
+            kept.append((tri, m))
+    interior.tris = kept
 
 
 def faced_wall(interior: Interior) -> list[Triangle]:
