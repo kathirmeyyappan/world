@@ -47,6 +47,7 @@ export class HeldItems {
       node.parent = hand;
       node.position.copyFrom(handOffset);
       node.rotation.set(Math.PI / 2, 0, holdRoll(avatar, item));
+      node.scaling.setAll(this.weaponScale);
       const muzzle = buildWeapon(scene, `${name}-${item}`, item, node, pal);
       if (!muzzle) {
         node.dispose();
@@ -56,7 +57,6 @@ export class HeldItems {
       this.weapons.set(item, node);
       this.flashes.set(item, buildFlash(engine, `${name}-${item}`, node, muzzle));
       const spec = ITEMS[item];
-      node.scaling.setAll(this.weaponScale);
       if (!spec.element) continue;
       const nozzle = new TransformNode(`${name}-${item}-nozzle`, scene);
       nozzle.parent = node;

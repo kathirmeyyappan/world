@@ -28,7 +28,7 @@ const PARENTS: Record<GaryBone, GaryBone | null> = {
 
 // How much of the look's pitch the eyes take; a held item takes the rest, so it still aims along the look.
 const FOLLOW = 0.5;
-const RIPPLE = 0.12; // radians each band of the foot tips up and down at full stride, the swell's crest
+const SWELL = 0.12; // radians each band of the foot tips up and down at full stride, the swell's crest
 // Radians of the swell's phase from one band of the foot to the next: half a wave along the foot, so
 // it rolls under him gently rather than rippling.
 const WAVE = Math.PI / 4;
@@ -96,10 +96,10 @@ export class GaryAvatar implements Avatar {
 
     this.gait.update(p.x, p.z, !p.grounded, step);
     const { phase, effort } = this.gait;
-    const ripple = p.grounded && !p.dead ? effort : 0;
+    const swell = p.grounded && !p.dead ? effort : 0;
     this.eyes.rotation.x = p.dead ? 0 : p.pitch * FOLLOW;
     this.feet.forEach((foot, i) => {
-      foot.rotation.x = RIPPLE * ripple * Math.sin(phase + i * WAVE);
+      foot.rotation.x = SWELL * swell * Math.sin(phase + i * WAVE);
     });
     // Barrel along the look; dead, it lies level along his body rather than through the ground.
     this.grip.rotation.x = (p.dead ? 0 : p.pitch * (1 - FOLLOW)) - Math.PI / 2;
