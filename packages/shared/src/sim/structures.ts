@@ -226,15 +226,21 @@ export function roundWall(opts: {
       const t = offset / (step * 1.04) + 0.5;
       return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
     };
-    // Each gap's reach over this piece, as offsets from its middle.
+    // Each gap's reach over this piece, as offsets from its middle, and up it, within its height.
     const cuts = gaps
       .map((g) => {
         const centre = g.width === undefined ? Math.round(g.angle / step) * step : g.angle;
         const half = (g.width ?? step) / 2;
         const off = Math.atan2(Math.sin(centre - mid), Math.cos(centre - mid));
-        return { ...g, from: Math.max(off - half, -step / 2), to: Math.min(off + half, step / 2) };
+        return {
+          ...g,
+          bottom: Math.max(g.bottom, y),
+          top: Math.min(g.top, y + h),
+          from: Math.max(off - half, -step / 2),
+          to: Math.min(off + half, step / 2),
+        };
       })
-      .filter((g) => g.to - g.from > 1e-6)
+      .filter((g) => g.to - g.from > 1e-6 && g.top - g.bottom > 1e-6)
       .sort((p, q) => p.bottom - q.bottom);
     let from = y;
     const spans: [number, number][] = [];

@@ -24,6 +24,7 @@ export const PINEAPPLE_PARTS: readonly PineapplePart[] = [
   { name: 'door-front', texture: 'door', wrap: false, alpha: false, unlit: false, door: 'front' },
   { name: 'interior', texture: 'interior', wrap: false, alpha: true, unlit: true },
   { name: 'hatch', texture: 'slide', wrap: true, alpha: false, unlit: true },
+  { name: 'slide-floor', texture: 'slide-floor', wrap: true, alpha: false, unlit: true },
   { name: 'hatch-rim', texture: 'hatch-rim', wrap: true, alpha: false, unlit: true },
   { name: 'door-closet', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'closet' },
   { name: 'door-bedroom-east', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'bedroom-east' },

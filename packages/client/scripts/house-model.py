@@ -307,12 +307,16 @@ def main(outside: str, rooms: str) -> None:
         else:
             panel.add(d.mesh)
         emit_part(MODELS_OUT / f"door-{d.id}.bin", panel, {})
-    hatch_steel, hatch_rim = MeshBuilder(), MeshBuilder()
-    hatch_steel.add(interior.hatch_steel)
-    hatch_rim.add(interior.hatch_rim)
-    emit_part(MODELS_OUT / "hatch.bin", hatch_steel, {})
-    emit_part(MODELS_OUT / "hatch-rim.bin", hatch_rim, {})
+    for name, tris in (
+        ("hatch", interior.hatch_steel),
+        ("slide-floor", interior.slide_floor),
+        ("hatch-rim", interior.hatch_rim),
+    ):
+        mesh = MeshBuilder()
+        mesh.add(tris)
+        emit_part(MODELS_OUT / f"{name}.bin", mesh, {})
     paint_slide().save(MODELS_OUT / "slide.png", optimize=True)
+    paint_slide(dark=True).save(MODELS_OUT / "slide-floor.png", optimize=True)
     paint_rim().save(MODELS_OUT / "hatch-rim.png", optimize=True)
     paint_hatch_door().save(MODELS_OUT / "hatch-door.png", optimize=True)
     boxes = inside.voxel_boxes(interior.solid + [t for t, _ in through.tris])
@@ -1018,15 +1022,22 @@ def paint_steel(size: int = 192) -> Image.Image:
 DOOR_PLANKS = 0.9  # how much of the door texture, down from the top, is the door; under it, the iron swatch
 
 
-def paint_slide(size: int = 128) -> Image.Image:
+def paint_slide(size: int = 128, dark: bool = False) -> Image.Image:
     """One repeat of the slide's steel, as the show paints it: pale periwinkle plates, two by two
-    to the repeat, a dark seam between them with a rivet every so often along it."""
+    to the repeat, a dark seam between them with a rivet every so often along it; `dark` a shade
+    darker, for the slide's floor against its sides."""
     rng = np.random.default_rng(11)
     img = Image.new("RGB", (size, size))
     px = img.load()
     plate = size // 2
     seam = 4
-    shades = [(186, 198, 240), (178, 190, 234), (192, 204, 244), (182, 194, 238)]
+    tint = 14 if dark else 0
+    shades = [
+        (186 - tint, 198 - tint, 240 - tint // 2),
+        (178 - tint, 190 - tint, 234 - tint // 2),
+        (192 - tint, 204 - tint, 244 - tint // 2),
+        (182 - tint, 194 - tint, 238 - tint // 2),
+    ]
     for x in range(size):
         for y in range(size):
             c = shades[(x // plate + 2 * (y // plate)) % 4]
@@ -1044,15 +1055,13 @@ def paint_slide(size: int = 128) -> Image.Image:
 
 
 def paint_rim(size: int = 64) -> Image.Image:
-    """One repeat of the collar round the hatch: dark blue steel with a lighter bevel along each
-    edge and a rivet in the middle of the repeat."""
+    """One repeat of the hatch's frame: dark blue steel, lighter along its top (the ring's inner
+    edge and the bolts' heads take it) and darker along its bottom (the ring's outer edge)."""
     img = Image.new("RGB", (size, size), (84, 96, 190))
     draw = ImageDraw.Draw(img)
-    draw.rectangle([0, 0, size - 1, 5], fill=(124, 136, 214))
-    draw.rectangle([0, size - 6, size - 1, size - 1], fill=(58, 68, 156))
-    c = size // 2
-    draw.ellipse([c - 6, c - 6, c + 6, c + 6], fill=(52, 62, 150))
-    draw.ellipse([c - 4, c - 6, c, c - 2], fill=(180, 190, 236))
+    draw.rectangle([0, 0, size - 1, size // 8 - 1], fill=(150, 162, 228))
+    draw.rectangle([0, size // 8, size - 1, size // 8 + 2], fill=(110, 122, 206))
+    draw.rectangle([0, size - size // 8, size - 1, size - 1], fill=(52, 62, 150))
     return img
 
 
@@ -1147,6 +1156,7 @@ def emit_parts_list(doors: list[inside.Door]) -> None:
         ("door-front", "door", False, False, False, None, "front", False),
         ("interior", "interior", False, True, True, None, None, False),
         ("hatch", "slide", True, False, True, None, None, False),
+        ("slide-floor", "slide-floor", True, False, True, None, None, False),
         ("hatch-rim", "hatch-rim", True, False, True, None, None, False),
         *((f"door-{d.id}", d.texture, False, d.texture == "interior", True, None, d.id, False) for d in doors),
     ]
