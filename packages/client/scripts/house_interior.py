@@ -1254,7 +1254,9 @@ def attic_stair(floor: float, ceiling: float, crown: float, wall_r: Callable[[fl
         base = max(floor, top - ATTIC_THICKNESS)
         attic.steps.append([*at(mid, a), base, ATTIC_WIDTH, turn * outer, top - base, float(facing)])
         attic.steps.append([*at(inner + 0.1, a), top, 0.2, turn * inner + 0.02, ATTIC_RAIL, float(facing)])
-        if ceiling - HEADROOM < top < ceiling + ATTIC_THICKNESS:
+        # The hole runs on past the ceiling until a walker's reach clears the ceiling's boxes, which
+        # the sim cuts a cell coarse round a hole's edge.
+        if ceiling - HEADROOM < top < ceiling + 0.75:
             corners = [
                 at(r, b)
                 for r, b in (
