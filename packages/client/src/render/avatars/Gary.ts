@@ -1,8 +1,8 @@
 // Gary, SpongeBob's snail: a soft body with a foot along its underside, a shell on its back and
 // his eyes on stalks at the front, from Anthony Yanez's model (garyModel.ts, made by
 // scripts/avatar-model.py) and skinned over a handful of bones. He has no arms or legs, so nothing
-// holds an item: it sits by the right of his eyes, aimed along the look, and his packs go on the
-// top of his shell. He walks with no footsteps: a ripple runs along his foot instead.
+// holds an item: it sits by the right of his eyes, aimed along the look, and his packs hang upright
+// on the back of his shell. He walks with no footsteps: a slow swell runs along his foot instead.
 import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
 import { EYE_HEIGHT } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
@@ -28,14 +28,15 @@ const PARENTS: Record<GaryBone, GaryBone | null> = {
 
 // How much of the look's pitch the eyes take; a held item takes the rest, so it still aims along the look.
 const FOLLOW = 0.5;
-const RIPPLE = 0.2; // radians each band of the foot tips up and down at full stride, the ripple's crest
-const WAVE = Math.PI / 2; // radians of ripple phase from one band of the foot to the next: a wave across it
+const RIPPLE = 0.12; // radians each band of the foot tips up and down at full stride, the swell's crest
+// Radians of the swell's phase from one band of the foot to the next: half a wave along the foot, so
+// it rolls under him gently rather than rippling.
+const WAVE = Math.PI / 4;
 // The weapon's grip in the eyes' frame, metres: beside the right eye and a little in front of it.
 const GRIP = new Vector3(0.14, -0.02, 0.1);
 // Drawn this much of their size, to fit his body: the guns and the packs were made for a person.
 const WEAPON_SCALE = 0.6;
 const PACK_SCALE = 0.5;
-const PACK_LIFT = 0.16; // metres the packs' centres sit above the top of the shell, so their bottoms rest on it
 
 export class GaryAvatar implements Avatar {
   readonly kind = 'gary' as const;
@@ -73,9 +74,8 @@ export class GaryAvatar implements Avatar {
     this.grip = new TransformNode(`avatar-grip-${id}`, scene);
     this.grip.parent = this.eyes;
     this.grip.position.copyFrom(GRIP);
-    // The packs hang off the shell, which never moves, so they stay on its top as he crawls.
+    // The packs hang off the shell, which never moves, so they stay put on its back as he crawls.
     const pack = this.skin.offset('shell', GARY_MODEL.back);
-    pack.y += PACK_LIFT;
     this.items = new HeldItems(engine, `gary-${id}`, 'gary', this.grip, Vector3.Zero(), this.skin.node('shell'), pack, {
       weapons: WEAPON_SCALE,
       packs: PACK_SCALE,

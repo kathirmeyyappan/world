@@ -110,7 +110,8 @@ class Model:
     necks: tuple[str, ...] = ()
     # A rig that faces +x (a snail's, its eyes forward) rather than +z: its right is then +z.
     facing_x: bool = False
-    # A bone that is a shell on the back: the tank sits on the middle of its top, not on the shoulders.
+    # A bone that is a shell on the back: the tank hangs on the back of it, halfway up, not below the
+    # shoulders.
     shell: str | None = None
 
 
@@ -478,11 +479,10 @@ def main(name: str, glb: str) -> None:
     else:
         palm = avatar(np.mean([transform(joints[joint(ref)])[:3, 3] for ref in model.palm], axis=0))[0]
     if model.shell:
-        # A shell on the back: the tank sits on the middle of its top.
+        # The tank hangs halfway up the shell, as far back as the shell goes there.
         own = posed[order[:, 0] == bone_names.index(model.shell)]
-        crown = own[own[:, 1] > own[:, 1].max() - 0.02]
-        back = crown.mean(axis=0)
-        back[1] = own[:, 1].max()
+        middle = (own[:, 1].min() + own[:, 1].max()) / 2
+        back = np.array([0, middle, own[abs(own[:, 1] - middle) < 0.05][:, 2].min() - 0.03])
     else:
         # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
         shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - 0.2
