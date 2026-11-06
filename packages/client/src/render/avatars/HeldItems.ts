@@ -21,10 +21,13 @@ export class HeldItems {
   private readonly backOffset: Vector3;
   private held: ItemId | null = null;
   private lastNow = performance.now();
+  private readonly weaponScale: number;
+  private readonly packScale: number;
 
   // `hand` points the barrel along its local -y when raised (see the avatars), so the shapes,
   // built barrel-along-+z, are turned 90 degrees inside it, and rolled about the barrel as `avatar`
-  // holds each.
+  // holds each. `scale` is how big the tap weapons and the packs (the tanks and gear on the back) are
+  // drawn on this body, for one much smaller or bigger than the shapes were drawn for.
   constructor(
     engine: Engine,
     name: string,
@@ -33,9 +36,12 @@ export class HeldItems {
     handOffset: Vector3,
     back: TransformNode,
     backOffset: Vector3,
+    scale: { weapons: number; packs: number } = { weapons: 1, packs: 1 },
   ) {
     const scene = engine.scene;
     const pal = weaponPalette(scene, `${name}-weapon`);
+    this.weaponScale = scale.weapons;
+    this.packScale = scale.packs;
     for (const item of ITEM_IDS) {
       const node = new TransformNode(`${name}-${item}`, scene);
       node.parent = hand;
@@ -50,6 +56,7 @@ export class HeldItems {
       this.weapons.set(item, node);
       this.flashes.set(item, buildFlash(engine, `${name}-${item}`, node, muzzle));
       const spec = ITEMS[item];
+      if (spec.actions.shoot?.mode === 'tap') node.scaling.setAll(this.weaponScale);
       if (!spec.element) continue;
       const nozzle = new TransformNode(`${name}-${item}-nozzle`, scene);
       nozzle.parent = node;
@@ -57,17 +64,19 @@ export class HeldItems {
       this.jets.set(item, createJet(engine, `${name}-${item}`, nozzle, spec.element, spec.range, coneAngle(spec)));
       const tank = buildTank(scene, `${name}-${item}`, back, pal, spec.element);
       tank.position.copyFrom(backOffset);
+      tank.scaling.setAll(this.packScale);
       tank.setEnabled(false);
       this.tanks.set(item, tank);
     }
-    this.gear = new WornGear(engine, name, back, backOffset);
+    this.gear = new WornGear(engine, name, back, backOffset, this.packScale);
     this.backOffset = backOffset.clone();
   }
 
   // Draws the tap weapons `factor` times their size: the player's own, seen from the boom, where true
   // size reads as a toy. A hold weapon keeps its size, its jet drawn from the nozzle at the item's range.
   scaleWeapons(factor: number): void {
-    for (const [item, node] of this.weapons) if (ITEMS[item].actions.shoot?.mode === 'tap') node.scaling.setAll(factor);
+    for (const [item, node] of this.weapons)
+      if (ITEMS[item].actions.shoot?.mode === 'tap') node.scaling.setAll(factor * this.weaponScale);
   }
 
   update({ item, firing, gear, thrusting }: Pick<RemotePlayer, 'item' | 'firing' | 'gear' | 'thrusting'>): void {

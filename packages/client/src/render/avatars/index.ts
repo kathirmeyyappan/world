@@ -4,6 +4,7 @@ import type { AvatarId } from '@world/shared';
 import type { Engine } from '../Engine';
 import { BodyAvatar } from './Body';
 import { DragonAvatar, loadDragonModel } from './Dragon';
+import { GaryAvatar } from './Gary';
 import { ElizabethAvatar } from './Elizabeth';
 import { KRABS } from './Krabs';
 import { MIKE } from './Mike';
@@ -21,7 +22,16 @@ export { StandardAvatar } from './Standard';
 
 // The avatars drawn from a model with an atlas, each fetched once the page has nothing better to
 // do, with the dragon's model, so a change of look goes on without waiting on the network.
-const SKINNED: readonly AvatarId[] = ['sulley', 'mike', 'spongebob', 'patrick', 'krabs', 'squidward', 'light-dragon'];
+const SKINNED: readonly AvatarId[] = [
+  'sulley',
+  'mike',
+  'spongebob',
+  'patrick',
+  'krabs',
+  'squidward',
+  'gary',
+  'light-dragon',
+];
 
 export function preloadAvatars(engine: Engine): void {
   const idle = window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 3000));
@@ -49,6 +59,8 @@ export function createAvatar(engine: Engine, p: { id: string; color: string; ava
       return new BodyAvatar(engine, p.id, KRABS);
     case 'squidward':
       return new SquidwardAvatar(engine, p.id);
+    case 'gary':
+      return new GaryAvatar(engine, p.id);
     case 'standard':
       return new StandardAvatar(engine, p.id, p.color);
     case 'light-dragon':

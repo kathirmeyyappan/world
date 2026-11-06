@@ -7,6 +7,7 @@
     python packages/client/scripts/avatar-model.py spongebob path/to/spongebob_squarepants.glb
     python packages/client/scripts/avatar-model.py patrick path/to/patrick_star_fortnite.glb
     python packages/client/scripts/avatar-model.py squidward path/to/squidward_tentacles.glb
+    python packages/client/scripts/avatar-model.py gary path/to/gary_spongebob.glb
 
 Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, or rigid parts on a tree of
 nodes, with no animation. This poses it
@@ -65,15 +66,26 @@ class Lower:
 
 
 @dataclass(frozen=True)
+class Band:
+    """One of `count` bones laid along a node's length (its x, the forward of a rig that faces +x).
+    Each vertex of the node takes the bones whose share of the length it is nearest to, blended with
+    its neighbours, so a wave passing along the node bends it rather than tearing it."""
+
+    node: Joint
+    index: int
+    count: int
+
+
+@dataclass(frozen=True)
 class Model:
     title: str  # the model's name on Sketchfab
     author: str
     height: float  # metres, feet to the top of the head
     # The avatar's bones and the rig joint each takes the subtree of, the piece of a node's mesh it
-    # is, or the lower part of a piece it is. The first is the root: its joint is only its pivot, and
-    # it takes every joint no other bone does. The order is the bone index the vertices refer to;
-    # the avatar parents them.
-    bones: tuple[tuple[str, Joint | Piece | Lower], ...]
+    # is, the lower part of a piece it is, or a band of a node. The first is the root: its joint is
+    # only its pivot, and it takes every joint no other bone does. The order is the bone index the
+    # vertices refer to; the avatar parents them.
+    bones: tuple[tuple[str, Joint | Piece | Lower | Band], ...]
     torso: tuple[str, ...]  # the bones whose vertices are the trunk, for finding the back
     # The right hand and finger roots: a held item goes at their middle. Or the bone that is the
     # right arm, whose far end is the hand.
@@ -93,6 +105,10 @@ class Model:
     hinges: tuple[str, ...] = ()
     # Bones that turn on the bottom of their own geometry: a head whose node is at its middle.
     necks: tuple[str, ...] = ()
+    # A rig that faces +x (a snail's, its eyes forward) rather than +z: its right is then +z.
+    facing_x: bool = False
+    # A bone that is a shell on the back: the tank sits on the middle of its top, not on the shoulders.
+    shell: str | None = None
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -179,6 +195,30 @@ MODELS = {
     # both arms one on node 19, so those bones are the pieces of them, and each tentacle's lower half
     # is a bone of its own so it bends. Every part is an open shell, with its rim inside the part it
     # meets.
+    # Not skinned: a snail's rig of rigid parts on a tree of nodes. The soft body with its foot is
+    # node 4, cut into five bones along its length so the foot can ripple; the shell on its back is
+    # node 6 and the eyes on their stalks, at the front, node 5, turning on the bottom of the stalks.
+    "gary": Model(
+        "Gary (Spongebob)",
+        "Anthony Yanez",
+        0.63,  # a third of SpongeBob
+        (
+            ("body", 3),
+            ("shell", 6),
+            ("eyes", 5),
+            ("foot0", Band(4, 0, 5)),
+            ("foot1", Band(4, 1, 5)),
+            ("foot2", Band(4, 2, 5)),
+            ("foot3", Band(4, 3, 5)),
+            ("foot4", Band(4, 4, 5)),
+        ),
+        ("body",),
+        "eyes",
+        necks=("eyes",),
+        facing_x=True,
+        shell="shell",
+        texture_size=256,
+    ),
     "squidward": Model(
         "Squidward Tentacles",
         "Super Tablé",
@@ -249,15 +289,22 @@ def main(name: str, glb: str) -> None:
     # else to the root bone; a piece's bone takes it from whichever bone has its node.
     bone_names = [bone for bone, _ in model.bones]
     takes = {
-        joint(ref): i for i, (_, ref) in enumerate(model.bones[1:], start=1) if not isinstance(ref, (Piece, Lower))
+        joint(ref): i
+        for i, (_, ref) in enumerate(model.bones[1:], start=1)
+        if not isinstance(ref, (Piece, Lower, Band))
     }
     pieces: dict[int, list[tuple[int, Piece]]] = {}  # a joint's pieces, with their bones
     lowers: dict[int, list[tuple[int, Lower]]] = {}  # a piece's bone's lower parts, with their bones
+    bands: dict[int, list[tuple[int, Band]]] = {}  # a joint's bands, with their bones
     for i, (_, ref) in enumerate(model.bones):
         if isinstance(ref, Piece):
             pieces.setdefault(joint(ref.node), []).append((i, ref))
         elif isinstance(ref, Lower):
             lowers.setdefault(bone_names.index(ref.of), []).append((i, ref))
+        elif isinstance(ref, Band):
+            bands.setdefault(joint(ref.node), []).append((i, ref))
+    # Each banded joint's extent in the rig: its x from end to end, its lowest y and its middle z.
+    extents: dict[int, tuple[float, float, float, float]] = {}
     root = joint(model.bones[0][1])
     hip = transform(joints[root])[:3, 3]
 
@@ -307,6 +354,19 @@ def main(name: str, glb: str) -> None:
                     "nij,nj->ni", np.linalg.inv(m[:, :3, :3]).transpose(0, 2, 1), n
                 )
                 np.add.at(folded, (np.arange(len(p)), joint_bone[j[:, k]]), w[:, k])
+            here = bands.get(joint_index[index], [])
+            if here:
+                # Hat weights over the node's length: a vertex at a band's share of it is that band's,
+                # and between two shares it is split between them, so the weights always sum to one.
+                lo, hi = posed[:, 0].min(), posed[:, 0].max()
+                extents[joint_index[index]] = (lo, hi, posed[:, 1].min(), posed[:, 2].mean())
+                count = here[0][1].count
+                assert len(here) == count, f"node {index}: {len(here)} bands, {count} expected"
+                t = np.clip((posed[:, 0] - lo) / (hi - lo), 0, 1) * (count - 1)
+                share = np.clip(1 - np.abs(t[:, None] - np.arange(count)), 0, None)
+                folded[:] = 0
+                for i, band in here:
+                    folded[:, i] = share[:, band.index]
             limbs = pieces_of(joint_index[index])
             for vertices in components({"positions": posed, "triangles": triangles}) if limbs else []:
                 # The rig's left is +x, the avatar's right (see below).
@@ -360,13 +420,17 @@ def main(name: str, glb: str) -> None:
     # left-handed frame.
     feet = posed[:, 1].min()
     scale = model.height / (posed[:, 1].max() - feet)
+    # A biped faces +z with its left at +x, so mirroring x gives the avatar's frame. A rig that faces +x
+    # has its right at +z, so its x and z swap (a reflection too, so the winding comes out the same).
+    turn = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=np.float64) if model.facing_x else np.diag([-1.0, 1, 1])
+    origin = np.array([hip[0], feet, hip[2]])
 
     def avatar(p: np.ndarray) -> np.ndarray:
         p = np.atleast_2d(p)
-        return np.stack([-(p[:, 0] - hip[0]), p[:, 1] - feet, p[:, 2] - hip[2]], axis=1) * scale
+        return (p - origin) @ turn.T * scale
 
     posed = avatar(posed)
-    posed_normals *= [-1, 1, 1]
+    posed_normals = posed_normals @ turn.T
     posed_normals /= np.linalg.norm(posed_normals, axis=1)[:, None]
 
     # Each vertex's four heaviest bones, their weights summing to 255.
@@ -380,8 +444,14 @@ def main(name: str, glb: str) -> None:
     pivots = {
         bone: avatar(transform(joints[joint(ref)])[:3, 3])[0]
         for bone, ref in model.bones
-        if not isinstance(ref, (Piece, Lower))
+        if not isinstance(ref, (Piece, Lower, Band))
     }
+    # A band's pivot is on the ground under its share of the node, so the ripple bends from there.
+    for bone, ref in model.bones:
+        if isinstance(ref, Band):
+            lo, hi, bottom, middle = extents[joint(ref.node)]
+            x = lo + (hi - lo) * ref.index / (ref.count - 1)
+            pivots[bone] = avatar(np.array([[x, bottom, middle]]))[0]
     # A hinge, a piece or a lower part swings from the middle of the top of its own geometry, a neck
     # turns on the middle of the bottom of its: the band within a twentieth of its height of that end.
     for bone, ref in model.bones:
@@ -399,11 +469,18 @@ def main(name: str, glb: str) -> None:
         palm = own[reach > reach.max() * 0.9].mean(axis=0)
     else:
         palm = avatar(np.mean([transform(joints[joint(ref)])[:3, 3] for ref in model.palm], axis=0))[0]
-    # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
-    shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - 0.2
-    trunk = np.isin(order[:, 0], [bone_names.index(b) for b in model.torso])
-    back_z = posed[trunk & (abs(posed[:, 1] - shoulder_y) < 0.3)][:, 2].min() - 0.05
-    back = np.array([0, shoulder_y, back_z])
+    if model.shell:
+        # A shell on the back: the tank sits on the middle of its top.
+        own = posed[order[:, 0] == bone_names.index(model.shell)]
+        crown = own[own[:, 1] > own[:, 1].max() - 0.02]
+        back = crown.mean(axis=0)
+        back[1] = own[:, 1].max()
+    else:
+        # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
+        shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - 0.2
+        trunk = np.isin(order[:, 0], [bone_names.index(b) for b in model.torso])
+        back_z = posed[trunk & (abs(posed[:, 1] - shoulder_y) < 0.3)][:, 2].min() - 0.05
+        back = np.array([0, shoulder_y, back_z])
     # Fallen on its back, the body lies this far up: as far as anything (the back of a big head) is
     # behind the root bone's pivot.
     lie = -posed[:, 2].min()
