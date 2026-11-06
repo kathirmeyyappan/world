@@ -845,6 +845,15 @@ def build_floors(
         return wall(a, hall) + (0.05 if at_door else 0.01)
 
     pieces.append((round_floor(hall, floor_edge, False, [interior.bedroom_floor], SAND_TILE, round_angles), sand))
+    # The bedroom's floor is not convex (a notch at its north-west corner, a step along its east
+    # side), while the hall's floor is cut to its convex hull, so between the two, under and just
+    # outside the bedroom's walls, there would be nothing over the rooms below. A sheet of sand a
+    # sill under the bedroom's floor covers the hull and a little round it: out of sight under
+    # both floors, and all that shows where they fall short.
+    underlay = shrunk(interior.bedroom_floor, -0.1)
+    ring = [np.array([x, hall - SILL, z]) for x, z in underlay]
+    centre = np.array([*np.mean(underlay, axis=0)])
+    pieces.append((disc(ring, np.array([centre[0], hall - SILL, centre[1]]), False, flat_tile(SAND_TILE)), sand))
     lid_edge = lambda a: wall(a, ceiling) + 0.01
     # The bedroom's walls lean in at their top, so the ceiling meets them at their outline there.
     holes = [interior.bedroom_top, *well.ceiling_holes]
