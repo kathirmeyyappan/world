@@ -16,12 +16,14 @@ export class WornGear {
   private readonly jets: FlameJet[] = [];
   private worn: GearId | null = null;
 
-  constructor(engine: Engine, name: string, back: TransformNode, offset: Vector3) {
+  // `scale` draws the gear this much its size, for a wearer smaller or bigger than the shapes were drawn for.
+  constructor(engine: Engine, name: string, back: TransformNode, offset: Vector3, scale: number) {
     const scene = engine.scene;
     for (const id of GEAR_IDS) {
       const node = new TransformNode(`${name}-${id}`, scene);
       node.parent = back;
       node.position.copyFrom(offset);
+      node.scaling.setAll(scale);
       const { depth, nozzles } = buildGear(scene, `${name}-${id}`, id, node);
       for (const [i, at] of nozzles.entries()) {
         const nozzle = new TransformNode(`${name}-${id}-nozzle-${i}`, scene);
@@ -31,7 +33,7 @@ export class WornGear {
         this.jets.push(new FlameJet(engine, `${name}-${id}-${i}`, nozzle, JET_LENGTH, JET_SPREAD));
       }
       node.setEnabled(false);
-      this.shapes.set(id, { node, depth });
+      this.shapes.set(id, { node, depth: depth * scale });
     }
   }
 

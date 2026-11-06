@@ -27,6 +27,7 @@ export const CIRCLE_LOOKS: readonly AvatarId[] = [
   'patrick',
   'krabs',
   'squidward',
+  'gary',
   'elizabeth',
 ];
 const CIRCLES = 2;

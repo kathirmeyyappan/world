@@ -115,7 +115,7 @@ export class Footsteps {
       const falls = Math.floor(w.walked / w.stride);
       w.walked -= falls * w.stride;
       w.footfalls += falls;
-      if (loop) continue;
+      if (loop || steps === 'silent') continue;
       const bar = typeof steps === 'object' && 'bar' in steps ? steps.bar : null;
       w.step = bar
         ? (w.step + 1) % bar.length

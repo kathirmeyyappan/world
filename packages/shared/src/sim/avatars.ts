@@ -19,6 +19,7 @@ export type AvatarId =
   | 'patrick'
   | 'krabs'
   | 'squidward'
+  | 'gary'
   | 'light-dragon';
 
 // What shots at a walker test against (sim/combat.ts): a vertical capsule from the feet up to `top`
@@ -147,6 +148,17 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
     command: 'squidward',
     eye: 2.74,
     hitbox: { top: 3.2, radius: 0.6, head: 1.25 }, // a 0.95 m head on a 0.75 m shirt, the collar 1.95 m up: the head is everything above it
+  },
+  gary: {
+    id: 'gary',
+    class: 'walker',
+    item: null,
+    regen: false,
+    nameTag: 'GARY',
+    blurb: 'become gary the snail',
+    command: 'gary',
+    eye: 0.5, // his eyes, on stalks at the front of his body
+    hitbox: { top: 0.65, radius: 0.4, head: 0.2 }, // a 0.63 m snail, 0.75 m from shell to eyes, with the eyes as the head
   },
   'light-dragon': {
     id: 'light-dragon',

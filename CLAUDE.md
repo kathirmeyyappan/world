@@ -6,8 +6,9 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
 ## Pull requests
 
 - Anything visual gets screenshots in the PR description. Push the images to the orphan
-  `screenshots` branch under `pr-<number>/` and link them with
-  `https://raw.githubusercontent.com/kathirmeyyappan/world/screenshots/pr-<number>/<file>.png`.
+  `screenshots` branch under `pr-<number>/` and embed each one in the description as an image,
+  `![alt](https://raw.githubusercontent.com/kathirmeyyappan/world/screenshots/pr-<number>/<file>.png)`,
+  so it renders inline rather than as a bare link.
   Capture them headless (Playwright with the swiftshader flags; `window.__world.debug()` and
   `setLook()` are exposed for scripting) and include a mobile shot when the HUD changes.
 - Architecture diagrams live in `docs/` with their SVG-in-HTML sources in `docs/src/`. When a flow
