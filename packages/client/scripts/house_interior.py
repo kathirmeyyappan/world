@@ -10,9 +10,10 @@ the bedroom's doors open and a door of its own leads out to the stair round the 
 net ceiling like the rooms' and walled in the library's bamboo, and the library capped with a net
 ceiling of its own. Upstairs a corridor runs from the hall's door along the bedroom and round the
 bathroom, walled off from the rest of the hall; the ground floor's closet and bathroom are copied
-off the bedroom (add_rooms); and a straight stair walled both sides climbs from the corridor's end
-through the hall's ceiling and a hole in the library's floor (stairwell; content/pineapple.ts
-stands its steps). The library's old door is walled up, so nothing outside its wall can be reached
+off the bedroom (add_rooms); and a straight stair of solid steps climbs from the corridor's end
+through the hall's ceiling and a hole in the library's floor, open along the corridor and walled
+both sides from where the corridor's wall meets it (stairwell; content/pineapple.ts stands its
+steps). The library's old door is walled up, so nothing outside its wall can be reached
 or seen.
 
 What changes in the model: the painted front door and its wheel go (our door swings at the face,
@@ -54,8 +55,10 @@ LINING = 0.35  # metres inside the shell's skin the hall's wall stands
 SEGMENTS = 72
 # The stairwell up to the library: a straight flight of STAIRWELL_STEPS risers, STAIRWELL_WIDTH wide,
 # from its foot (STAIRWELL_FOOT: a bearing from +z toward +x, and how far out from the axis the
-# foot's middle stands) to its head (STAIRWELL_HEAD, the same), a closed way: walls both sides from
-# the hall's floor up to its ceiling, then up to a roof of its own that rises off that ceiling
+# foot's middle stands) to its head (STAIRWELL_HEAD, the same), its steps solid down to the hall's
+# floor. Along the corridor, which ends at the foot, its near side is open, so the flight is in
+# plain sight; from where the corridor's wall meets it the way is closed: walls both sides from the
+# hall's floor up to its ceiling, then up to a roof of its own that rises off that ceiling
 # STAIRWELL_LID over the treads until it meets the library's floor, where the way opens through a
 # hole in that floor, flush with it; walls, roof and holes share their edges, so nothing shows
 # through. The walls are STAIRWELL_WALL thick, a face each side, and the steps run into them, so no
@@ -63,13 +66,16 @@ SEGMENTS = 72
 # of the corridor from the hall's door, a corridor's width inside the hall's wall, the head well
 # inside the library's wall and clear of the chair in its middle, and the flight between keeps
 # clear of the bedroom, the closet and the bathroom, passing the bathroom's corner so close that
-# one short wall joins them (stairwell).
+# one short wall joins them (stairwell). The lid is what keeps the way down open: the sim gets the
+# roof and the library's floor as boxes on a VOXEL grid, reaching a cell past a hole's edge and a
+# cell under the roof, and a player's head (2 m over the feet) coming down from the library has to
+# pass under them, so the lid is a cell and a couple of risers more than the head's height.
 STAIRWELL_FOOT = (np.radians(330.0), 14.8)
 STAIRWELL_HEAD = (np.radians(31.0), 6.6)
 STAIRWELL_STEPS = 35
 STAIRWELL_WIDTH = 2.4
 STAIRWELL_WALL = 0.1
-STAIRWELL_LID = 2.6
+STAIRWELL_LID = 3.05
 # The doorways this house cuts itself, each an arch (width, height): the vestibule's into the
 # living room, and the kitchen's back door and the hall's, the way out to the stair round the back.
 FRONT_DOORWAY = (2.6, 3.3)
@@ -113,6 +119,7 @@ SAND_TILE = 3.4
 CEILING_TILE = 5.9
 NET_TILE = 2.65
 BAMBOO_TILE = 2.0
+METAL_TILE = 3.5  # metres per repeat of the bedroom's wall, from the model
 QUANTIZE = 48  # colours a texture is brought down to: the flat shading of the world's own pixel textures
 TEXTURE_PAD = 8  # pixels of a texture's own edge repeated round it in the atlas, for the coarser mipmaps
 SWATCHES = {"Wringer": (118, 126, 138), "Typewriter": (58, 60, 68), "Typewriter_Buttons": (198, 198, 204)}
@@ -149,21 +156,21 @@ class Door:
 @dataclass
 class Stairwell:
     """The stair up to the library (STAIRWELL_*): its steps as the sim's boxes, each
-    [x, z, y, w, d, h, bearing] (centre, underside, size across the arc, out from the axis and up,
-    the bearing it faces) standing on the hall's floor; the hall's ceiling and the library's floor
+    [x, z, y, w, d, h, bearing] (centre, underside, size across, along and up, the bearing it
+    faces), each solid from the hall's floor up to its tread; the hall's ceiling and the library's floor
     cut over the steps, a hole per step, where the stair's roof rises through the one and the stair
     comes up through the other; that roof, a slab per step (its four corners, round in order, at
     the walls' tops); its walls and the corridor's as chords on the floor (a, b) from one height up
     to a top at each end, facing a point inside; and the walls that close the corridor against the
     hall's wall, each from a point on the floor straight out from the axis into that wall, from one
-    height up to another, facing a point inside."""
+    height up to another, facing a point inside, in a material of the model's."""
 
     steps: list[list[float]]
     ceiling_holes: list[Outline]
     library_holes: list[Outline]
     roof: list[list[np.ndarray]]
     walls: list[tuple[tuple[float, float], tuple[float, float], float, tuple[float, float], tuple[float, float]]]
-    shell_walls: list[tuple[tuple[float, float], float, float, tuple[float, float]]]
+    shell_walls: list[tuple[tuple[float, float], float, float, tuple[float, float], str]]
 
 
 @dataclass
@@ -177,6 +184,7 @@ class Interior:
     solid: list[Triangle] = field(default_factory=list)  # what the sim gets boxes for
     levels: dict[str, float] = field(default_factory=dict)
     bedroom_walls: Outline = field(default_factory=list)  # the bedroom's walls' footprint
+    bedroom_top: Outline = field(default_factory=list)  # the walls' outline at the ceiling, where they lean in
     bedroom_floor: Outline = field(default_factory=list)  # its floor's, a little past the walls
     hall_wall: list[Triangle] = field(default_factory=list)  # the hall's round wall, kept aside until its door is cut
     hall_wall_material: int = 0
@@ -340,7 +348,7 @@ def take_apart(interior: Interior) -> None:
     stock = next(d for d in interior.doors if d.id == "closet")
     for d in interior.doors:
         if d.paper:
-            foot, d.bearing, shape = opening(interior, d)
+            foot, d.bearing, shape = opening(interior, d, stock.thickness)
             d.hinge = (float(foot[0]), float(foot[2]))
             d.reach, d.height, d.thickness = 2 * shape[0][1], shape[-1][0], stock.thickness
             d.mesh = turned_by(panel(shape, stock.thickness, stock_uv(stock, d.reach, d.height)), np.pi / 2 - d.bearing)
@@ -360,20 +368,23 @@ def take_apart(interior: Interior) -> None:
     print("levels:", {k: round(v, 2) for k, v in interior.levels.items()})
     walls = [k for ks in comps(interior, "Metal_Walls") if bounds(interior, ks)[0][1] > 5 for k in ks]
     walls += [k for ks in comps(interior, "Red_Walls") for k in ks]
-    interior.bedroom_walls = shrunk(hull(np.array([p[[0, 2]] for k in walls for p, _ in interior.tris[k][0]])), -0.02)
+    pts = np.array([p for k in walls for p, _ in interior.tris[k][0]])
+    interior.bedroom_walls = shrunk(hull(pts[:, [0, 2]]), -0.02)
+    interior.bedroom_top = shrunk(hull(pts[pts[:, 1] > interior.levels["hallCeiling"] - 0.3][:, [0, 2]]), -0.02)
     interior.bedroom_floor = shrunk(hull(np.array([p[[0, 2]] for k in bedroom for p, _ in interior.tris[k][0]])), -0.02)
 
 
 Shape = list[tuple[float, float]]  # an opening's shape: (height, half-width) up its middle, floor to top
 
 
-def opening(interior: Interior, door: Door) -> tuple[np.ndarray, float, Shape]:
-    """The opening in the wall one of the model's paper-thin doors stood in, measured on the wall's
-    face the door swings toward (the model's sheets stand off their walls, short of the jambs, and
-    a wall can run askew of its sheet): the foot of the jamb on that face at the pin's end, the
-    bearing (from +x toward +z) the face runs at from there to the other jamb, and the opening's
-    outline between them as a shape (height, half-width), for a panel hung on that foot that fills
-    the opening corner for corner, its thickness into the wall."""
+def opening(interior: Interior, door: Door, thickness: float) -> tuple[np.ndarray, float, Shape]:
+    """The opening in the wall one of the model's paper-thin doors stood in, measured from the
+    wall's face the door swings toward (the model's sheets stand off their walls, short of the
+    jambs, and a wall can run askew of its sheet): the foot of the jamb on that face at the pin's
+    end, the bearing (from +x toward +z) the face runs at from there to the other jamb, and the
+    shape (height, half-width) of a panel `thickness` thick hung on that foot, into the wall: the
+    opening's outline where it is narrowest through that depth, so the panel fills it at the face
+    and nowhere comes out through the reveals, which splay and lean through the wall."""
     along = 0 if abs(np.cos(door.bearing)) > 0.5 else 2
     across = 2 - along
     forward = (np.cos(door.bearing) if along == 0 else np.sin(door.bearing)) > 0
@@ -405,31 +416,62 @@ def opening(interior: Interior, door: Door) -> tuple[np.ndarray, float, Shape]:
     run = run / reach
     bearing = float(np.arctan2(run[2], run[0]))
     normal = np.array([-run[2], 0.0, run[0]])
-    # The opening's outline on that face: the corners on it of the reveals round the opening,
-    # across the run up the jambs and sloping over the crown (the wall's other face is its
-    # thickness further in). The face itself may bend at the opening, so the outline is taken
-    # along the run from the foot, not in a plane.
-    bands: dict[float, float] = {}
-    for pts, n in zip(tris, normals):
-        off = (pts - foot) @ normal
-        u = (pts - foot) @ run
-        if (
-            abs(n @ normal) < 0.5 * np.linalg.norm(n)
-            and -0.1 < off.min()
-            and off.max() < 0.6
-            and u.max() > -0.3
-            and u.min() < reach + 0.3
-            and door.y - 0.05 < pts[:, 1].min()
-            and pts[:, 1].max() < door.y + 3.5
-        ):
-            for p, o, uu in zip(pts, off, u):
-                if o < 0.17 and -0.05 < uu < reach + 0.05:
-                    y = max(round(float(p[1] - door.y), 2), 0.0)
-                    bands[y] = max(bands.get(y, 0.0), abs(float(uu) - reach / 2))
+    # The reveals round the opening: the pieces of wall facing along the run or up and down, from
+    # the face in, over the opening's height.
+    reveals = [
+        (pts, (pts - foot) @ normal, (pts - foot) @ run)
+        for pts, n in zip(tris, normals)
+        if abs(n @ normal) < 0.5 * np.linalg.norm(n)
+        and -0.1 < ((pts - foot) @ normal).min()
+        and ((pts - foot) @ normal).max() < 0.6
+        and ((pts - foot) @ run).max() > -0.3
+        and ((pts - foot) @ run).min() < reach + 0.3
+        and door.y - 0.05 < pts[:, 1].min()
+        and pts[:, 1].max() < door.y + 3.5
+    ]
+
+    def section(depth: float) -> list[tuple[float, float, float, float]]:
+        """The opening's outline that deep into the wall: where the reveals cross that plane, as
+        pieces of line (y0, y1, u at each) along the run from the foot."""
+        pieces = []
+        for pts, off, u in reveals:
+            crossings = []
+            for i, j in ((0, 1), (1, 2), (2, 0)):
+                if (off[i] - depth) * (off[j] - depth) < 0:
+                    t = (depth - off[i]) / (off[j] - off[i])
+                    crossings.append((float(pts[i, 1] + t * (pts[j, 1] - pts[i, 1])), float(u[i] + t * (u[j] - u[i]))))
+            if len(crossings) == 2:
+                pieces.append(crossings)
+        return [(a[0], b[0], a[1], b[1]) for a, b in pieces]
+
+    def width(pieces: list[tuple[float, float, float, float]], y: float) -> float | None:
+        """How far the opening reaches either side of its middle at a height, the nearer side: the
+        pieces of outline at that height, or None where there are none."""
+        us = [
+            u0 + (y - y0) / (y1 - y0) * (u1 - u0) if y1 != y0 else u
+            for y0, y1, u0, u1 in pieces
+            for u in (u0, u1)
+            if min(y0, y1) - 1e-6 <= y <= max(y0, y1) + 1e-6
+        ]
+        left = [u for u in us if u < reach / 2]
+        right = [u for u in us if u >= reach / 2]
+        if not left or not right:
+            return None
+        return min(reach / 2 - max(left), min(right) - reach / 2)
+
+    # The narrowest of the sections the panel passes through, at every height any of them bends,
+    # up to the top of the deepest: a panel filling the face would come out through a reveal that
+    # splays inward, so the shape is the least of them at each height, and never wider higher up.
+    sections = [section(depth) for depth in (0.01, thickness / 2, thickness)]
+    top = max(max(y0, y1) for y0, y1, _, _ in sections[-1])
+    heights = sorted({round(y - door.y, 2) for pieces in sections for y0, y1, _, _ in pieces for y in (y0, y1)})
     shape: Shape = [(0.0, reach / 2)]
-    for y in sorted(bands):
-        if y > 0:
-            shape.append((y, min(bands[y], shape[-1][1])))
+    for y in heights:
+        if y <= 0 or y > top - door.y + 1e-6:
+            continue
+        widths = [w for pieces in sections if (w := width(pieces, y + door.y)) is not None]
+        if widths:
+            shape.append((y, max(0.0, min(min(widths), shape[-1][1]))))
     return foot, bearing, shape
 
 
@@ -736,6 +778,7 @@ def build_floors(
     hall, ceiling, top = levels["hall"], levels["hallCeiling"], levels["top"]
     wall = lambda a, y: skin(a, y) - LINING
     sand, net, lid, bamboo = (material(interior, n) for n in ("Sand_Floor", "Netting", "Ceiling", "Library_Bamboo"))
+    TILES = {"Library_Bamboo": BAMBOO_TILE, "Metal_Walls": METAL_TILE}
     pieces: list[tuple[list[Triangle], int]] = []
     # The library's floor is clear to its bamboo, which lines the wall from the floor up.
     library_clear = min(
@@ -769,7 +812,8 @@ def build_floors(
 
     pieces.append((round_floor(hall, floor_edge, False, [interior.bedroom_floor], SAND_TILE, round_angles), sand))
     lid_edge = lambda a: wall(a, ceiling) + 0.01
-    holes = [interior.bedroom_walls, *well.ceiling_holes]
+    # The bedroom's walls lean in at their top, so the ceiling meets them at their outline there.
+    holes = [interior.bedroom_top, *well.ceiling_holes]
     pieces.append((round_floor(ceiling, lid_edge, True, holes, CEILING_TILE, round_angles), lid))
     pieces.append((round_floor(ceiling - 0.1, lid_edge, True, holes, NET_TILE, round_angles), net))
     # The wall: the shell's inside, LINING in from the skin so it leans out with it. Where it stands
@@ -787,8 +831,8 @@ def build_floors(
     # library's floor, which it arrives through.
     for a, b, y0, tops, inner in well.walls:
         pieces.append((upright(a, b, y0, tops[0], inner, tops[1]), bamboo))
-    for a, y0, y1, inner in well.shell_walls:
-        pieces.append((to_shell(a, y0, y1, inner, wall, bands), bamboo))
+    for a, y0, y1, inner, name in well.shell_walls:
+        pieces.append((to_shell(a, y0, y1, inner, wall, bands, TILES[name]), material(interior, name)))
     for corners in well.roof:
         pieces.append((slab(corners, CEILING_TILE), lid))
     for hole in well.library_holes:
@@ -985,6 +1029,12 @@ def stairwell(
         (foot + along * (i * tread) - half, foot + along * (i * tread) + half, hall + riser * (i + 1) + STAIRWELL_LID)
         for i in range(STAIRWELL_STEPS + 1)
     ]
+    # The corridor's wall meets the flight's near side where it passes the bathroom's corner:
+    # before that the side is open to the corridor, from there on walled.
+    near = foot - half
+    corner = min(bathroom, key=lambda p: abs(float(np.cross(np.array(p) - near, along))))
+    met = float((np.array(corner) - near) @ along)
+    joint = near + along * met
     well = Stairwell([], [], [], [], [], [])
     opened = False  # past the roof's end, where the way is open through the library's floor
     for i in range(STAIRWELL_STEPS):
@@ -992,7 +1042,7 @@ def stairwell(
         top = hall + riser * (i + 1)
         centre = point((a0 + b0 + a1 + b1) / 4)
         well.steps.append(
-            [*centre, top - STAIR_THICKNESS, STAIRWELL_WIDTH + STAIRWELL_WALL, tread + 0.05, STAIR_THICKNESS, facing]
+            [*centre, hall - 0.05, STAIRWELL_WIDTH + STAIRWELL_WALL, tread + 0.05, top - hall + 0.05, facing]
         )
         corners = [point(p) for p in (a0, b0, b1, a1)]
         footprint = ccw(corners)
@@ -1014,37 +1064,41 @@ def stairwell(
         else:
             tops = (ceiling, ceiling)
         if opened or r1 > ceiling:
+            if i * tread < met:
+                raise ValueError(f"the hall's ceiling opens over step {i}, where the flight's side is still open")
             well.ceiling_holes.append(footprint)
         # Each wall is two faces, the stair's and its back, STAIRWELL_WALL apart; where the way is
         # open through the library's floor the back stops just under that floor.
         back = STAIRWELL_WALL * half / (STAIRWELL_WIDTH / 2)
         outer = (library_top - 0.01, library_top - 0.01) if opened else tops
-        well.walls.append((corners[0], corners[3], hall, tops, centre))
-        well.walls.append((point(a0 - back), point(a1 - back), hall, outer, centre))
+        if (i + 1) * tread > met:
+            a_from = a0 if i * tread >= met else joint
+            well.walls.append((point(a_from), corners[3], hall, tops, centre))
+            well.walls.append((point(a_from - back), point(a1 - back), hall, outer, centre))
         well.walls.append((corners[1], corners[2], hall, tops, centre))
         well.walls.append((point(b0 + back), point(b1 + back), hall, outer, centre))
     print(
         f"stairwell: {STAIRWELL_STEPS} steps of {tread:.2f} m at bearing {np.degrees(facing) % 360:.0f} deg, "
+        f"open along the corridor for {met:.2f} m, "
         f"{len(well.ceiling_holes)} holes in the hall's ceiling, {len(well.roof)} roof slabs, {len(well.library_holes)} holes in the library's floor"
     )
     # The corridor from the hall's door to the foot, closed all round: across from the bedroom's
-    # corner north of the door out to the hall's wall; the slot between the bedroom and the
-    # bathroom covered; from the bathroom's corner across to the flight's near wall; and from the
-    # flight's far corner out to the hall's wall. (The bathroom's wall, which the corridor runs
-    # along, is carried up to the ceiling by add_rooms.)
+    # corner past the door, where its wall turns north (so the door has a stretch of corridor
+    # before it), out to the hall's wall, in the bedroom's own steel so that end reads as the
+    # bedroom's corner; the slot between the bedroom and the bathroom covered; from the bathroom's
+    # corner across to the flight, where its near wall begins; and from the flight's far corner
+    # out to the hall's wall. (The bathroom's wall, which the corridor runs along, is carried up
+    # to the ceiling by add_rooms.)
     inward = lambda p, by: tuple(float(v) for v in np.array(p) * (1 - by / float(np.hypot(*p))))
     west = [p for p in bedroom if p[0] < -9]
-    north = min(west, key=lambda p: p[1])
     south = max(west, key=lambda p: p[1])
-    corridor = point(at(14.0, float(np.arctan2(north[0], north[1])) + np.radians(8)))
-    well.shell_walls.append((inward(north, 0.1), hall, ceiling, corridor))
+    turn = min((p for p in bedroom if p[0] < -8.5), key=lambda p: p[1])
+    corridor = point(at(14.0, float(np.arctan2(turn[0], turn[1])) + np.radians(8)))
+    well.shell_walls.append((inward(turn, 0.1), hall, ceiling, corridor, "Metal_Walls"))
     west_most = min(bathroom, key=lambda p: p[0])
     well.walls.append((point(south), point(west_most), hall, (ceiling, ceiling), corridor))
-    near = foot - half
-    corner = min(bathroom, key=lambda p: abs(float(np.cross(np.array(p) - near, along))))
-    joint = near + along * float((np.array(corner) - near) @ along)
     well.walls.append((point(corner), point(joint), hall, (ceiling, ceiling), point(foot)))
-    well.shell_walls.append((point(foot + half), hall, ceiling, point(near)))
+    well.shell_walls.append((point(foot + half), hall, ceiling, point(near), "Library_Bamboo"))
     return well
 
 
@@ -1255,29 +1309,28 @@ def to_shell(
     inside: tuple[float, float],
     wall: Callable[[float, float], float],
     heights: list[float],
+    tile: float = BAMBOO_TILE,
 ) -> list[Triangle]:
     """A wall from a point on the floor straight out from the axis into the hall's wall, from one
-    height up to another, facing the side `inside` is on: its far edge follows that wall as it
-    leans out, a piece between each pair of the heights the hall's wall is turned at, so the two
-    meet all the way up."""
+    height up to another, facing the side `inside` is on, its texture repeating every `tile`
+    metres: its far edge follows that wall as it leans out, a piece between each pair of the
+    heights the hall's wall is turned at, so the two meet all the way up."""
     bearing = float(np.arctan2(a[0], a[1]))
     out = lambda y: (wall(bearing, y) + 0.15) * np.array([np.sin(bearing), 0.0, np.cos(bearing)])
     tris = []
     for h0, h1 in pairwise(sorted({y0, y1, *(y for y in heights if y0 < y < y1)})):
         corners = [np.array([a[0], h0, a[1]]), out(h0) + [0, h0, 0], out(h1) + [0, h1, 0], np.array([a[0], h1, a[1]])]
-        tris += sheet(corners, inside)
+        tris += sheet(corners, inside, tile)
     return tris
 
 
-def sheet(corners: list[np.ndarray], inside: tuple[float, float]) -> list[Triangle]:
+def sheet(corners: list[np.ndarray], inside: tuple[float, float], tile: float = BAMBOO_TILE) -> list[Triangle]:
     """A flat piece of wall over four corners (round in order), facing the side `inside` is on,
-    the bamboo running along it from the first corner and up."""
+    its texture running along it from the first corner and up, a repeat every `tile` metres."""
     normal = np.cross(corners[1] - corners[0], corners[3] - corners[0])
     if normal @ np.array([inside[0] - corners[0][0], 0, inside[1] - corners[0][2]]) < 0:
         normal = -normal
-    tex = lambda p: np.array(
-        [float(np.hypot(p[0] - corners[0][0], p[2] - corners[0][2])) / BAMBOO_TILE, -p[1] / BAMBOO_TILE]
-    )
+    tex = lambda p: np.array([float(np.hypot(p[0] - corners[0][0], p[2] - corners[0][2])) / tile, -p[1] / tile])
     tris = []
     for tri in ([corners[0], corners[1], corners[2]], [corners[0], corners[2], corners[3]]):
         if np.cross(tri[1] - tri[0], tri[2] - tri[0]) @ normal < 0:

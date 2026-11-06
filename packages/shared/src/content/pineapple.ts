@@ -16,8 +16,9 @@
 // kitchen's back door, standing clear of the shell with rails both sides, to a balcony at the
 // hall's door. Upstairs a corridor runs from that door along the bedroom and round the bathroom,
 // walled off from the rest of the hall; the ground floor's closet and bathroom are copied off the
-// bedroom; and a straight stair walled both sides climbs from the corridor's end through the
-// hall's ceiling and a hole in the library's floor. Every door swings (sim/doors.ts), the front
+// bedroom; and a straight stair of solid steps climbs from the corridor's end through the hall's
+// ceiling and a hole in the library's floor, open along the corridor and walled both sides from
+// where the corridor's wall meets it. Every door swings (sim/doors.ts), the front
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
 import { ramp, roundFloor, roundWall, terrain, wall, type Box, type Structure } from '../sim/structures';
