@@ -29,7 +29,8 @@ portholes, and the path and flowers, and builds the rest itself:
   for the sim to swing (content/pineapple.ts);
 - flowers and path: the model's flowers round the house, each in one colour, shrunk and drawn
   see-through, and the stone path from the door down the dune, both laid on the dune;
-- interior and door-<name>: the rooms and their doors, the hatch and the slide (house_interior.py).
+- interior and door-<name>: the rooms and their doors (house_interior.py), and hatch and hatch-rim: the
+  hatch's tube and the slide, and the collar round the hatch, in steel painted here (door-hatch too).
 
 The profile the sim collides with (the shell's rings, the doorway and its door, the flat face, the
 openings through the shell, the dune, the rooms' levels, stairs and doors) comes from the same
@@ -66,7 +67,7 @@ from house_mesh import (
     lining,
     turned_by,
 )
-from PIL import Image
+from PIL import Image, ImageDraw
 
 OUTER = 20.0  # metres: the shell's radius at its widest, the keep's (content/keep.ts)
 DOOR_WIDTH = 4.0  # metres: the doorway, an arch
@@ -300,9 +301,20 @@ def main(outside: str, rooms: str) -> None:
     emit_part(MODELS_OUT / "interior.bin", rooms, {})
     for d in interior.doors:
         panel = MeshBuilder()
-        panel.add(inside.in_atlas([(t, inside.material(interior, d.material)) for t in d.mesh], places))
-        panel.add(inside.in_atlas([(t, inside.material(interior, m)) for t, m in d.trim], places))
+        if d.texture == "interior":
+            panel.add(inside.in_atlas([(t, inside.material(interior, d.material)) for t in d.mesh], places))
+            panel.add(inside.in_atlas([(t, inside.material(interior, m)) for t, m in d.trim], places))
+        else:
+            panel.add(d.mesh)
         emit_part(MODELS_OUT / f"door-{d.id}.bin", panel, {})
+    hatch_steel, hatch_rim = MeshBuilder(), MeshBuilder()
+    hatch_steel.add(interior.hatch_steel)
+    hatch_rim.add(interior.hatch_rim)
+    emit_part(MODELS_OUT / "hatch.bin", hatch_steel, {})
+    emit_part(MODELS_OUT / "hatch-rim.bin", hatch_rim, {})
+    paint_slide().save(MODELS_OUT / "slide.png", optimize=True)
+    paint_rim().save(MODELS_OUT / "hatch-rim.png", optimize=True)
+    paint_hatch_door().save(MODELS_OUT / "hatch-door.png", optimize=True)
     boxes = inside.voxel_boxes(interior.solid + [t for t, _ in through.tris])
     emit_parts_list(interior.doors)
     emit_profile(profile, [front_door, *interior.doors], interior, stones)
@@ -1006,6 +1018,83 @@ def paint_steel(size: int = 192) -> Image.Image:
 DOOR_PLANKS = 0.9  # how much of the door texture, down from the top, is the door; under it, the iron swatch
 
 
+def paint_slide(size: int = 128) -> Image.Image:
+    """One repeat of the slide's steel, as the show paints it: pale periwinkle plates, two by two
+    to the repeat, a dark seam between them with a rivet every so often along it."""
+    rng = np.random.default_rng(11)
+    img = Image.new("RGB", (size, size))
+    px = img.load()
+    plate = size // 2
+    seam = 4
+    shades = [(186, 198, 240), (178, 190, 234), (192, 204, 244), (182, 194, 238)]
+    for x in range(size):
+        for y in range(size):
+            c = shades[(x // plate + 2 * (y // plate)) % 4]
+            if rng.random() < 0.05:
+                c = (c[0] - 10, c[1] - 10, c[2] - 6)
+            if x % plate < seam or y % plate < seam:
+                c = (104, 116, 206)
+            px[x, y] = c
+    draw = ImageDraw.Draw(img)
+    for k in range(size // 16 // 2, size, size // 8):  # rivets along the seams
+        for cx, cy in ((k, seam // 2), (seam // 2, k), (k, plate + seam // 2), (plate + seam // 2, k)):
+            draw.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=(76, 88, 180))
+            draw.ellipse([cx - 2, cy - 3, cx, cy - 1], fill=(214, 222, 250))
+    return img
+
+
+def paint_rim(size: int = 64) -> Image.Image:
+    """One repeat of the collar round the hatch: dark blue steel with a lighter bevel along each
+    edge and a rivet in the middle of the repeat."""
+    img = Image.new("RGB", (size, size), (84, 96, 190))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, size - 1, 5], fill=(124, 136, 214))
+    draw.rectangle([0, size - 6, size - 1, size - 1], fill=(58, 68, 156))
+    c = size // 2
+    draw.ellipse([c - 6, c - 6, c + 6, c + 6], fill=(52, 62, 150))
+    draw.ellipse([c - 4, c - 6, c, c - 2], fill=(180, 190, 236))
+    return img
+
+
+def paint_hatch_door(size: int = 256) -> Image.Image:
+    """The hatch's door, as the show paints it, over the panel's whole face (across, and down from
+    its top): a round steel door in a dark rim studded with rivets, a porthole high in it and a
+    wheel to turn, on the plate's pale blue."""
+    img = Image.new("RGB", (size, size), (176, 188, 236))
+    draw = ImageDraw.Draw(img)
+    top = inside.HATCH_CENTRE + inside.HATCH_ACROSS / 2
+    cx, cy = size / 2, size * (1 - inside.HATCH_CENTRE / top)
+    rx, ry = size / 2, size * (inside.HATCH_ACROSS / 2) / top
+
+    def disc(
+        k: float, fill: tuple[int, int, int] | None, outline: tuple[int, int, int] | None = None, width: int = 1
+    ) -> None:
+        draw.ellipse([cx - rx * k, cy - ry * k, cx + rx * k, cy + ry * k], fill=fill, outline=outline, width=width)
+
+    disc(1.0, (84, 96, 190))
+    disc(0.86, (188, 200, 242))
+    disc(0.78, None, (146, 158, 220), 3)
+    for i in range(20):
+        a = 2 * np.pi * i / 20
+        x, y = cx + rx * 0.93 * np.cos(a), cy + ry * 0.93 * np.sin(a)
+        draw.ellipse([x - 5, y - 5, x + 5, y + 5], fill=(52, 62, 150))
+        draw.ellipse([x - 4, y - 5, x - 1, y - 2], fill=(160, 170, 226))
+    px, py, pr = cx, cy - ry * 0.42, size * 0.11
+    draw.ellipse([px - pr - 8, py - pr - 8, px + pr + 8, py + pr + 8], fill=(70, 84, 180))
+    draw.ellipse([px - pr, py - pr, px + pr, py + pr], fill=(126, 204, 238))
+    draw.ellipse([px - pr * 0.65, py - pr * 0.85, px - pr * 0.1, py - pr * 0.3], fill=(214, 242, 250))
+    wx, wy, wr = cx, cy + ry * 0.3, size * 0.13
+    draw.ellipse([wx - wr, wy - wr, wx + wr, wy + wr], outline=(60, 72, 160), width=8)
+    for a in (0.0, np.pi / 2):
+        draw.line(
+            [wx - wr * np.cos(a), wy - wr * np.sin(a), wx + wr * np.cos(a), wy + wr * np.sin(a)],
+            fill=(60, 72, 160),
+            width=7,
+        )
+    draw.ellipse([wx - 9, wy - 9, wx + 9, wy + 9], fill=(60, 72, 160))
+    return img
+
+
 def paint_door(w: int = 96, h: int = 160) -> Image.Image:
     """The door, both faces, the show's front door: upright boards of steel blue with darker seams, a
     porthole in the upper middle with a pale rim and four rivets, and a darker band across the
@@ -1057,7 +1146,9 @@ def emit_parts_list(doors: list[inside.Door]) -> None:
         ("path", "path", False, False, False, None, None, False),
         ("door-front", "door", False, False, False, None, "front", False),
         ("interior", "interior", False, True, True, None, None, False),
-        *((f"door-{d.id}", "interior", False, True, True, None, d.id, False) for d in doors),
+        ("hatch", "slide", True, False, True, None, None, False),
+        ("hatch-rim", "hatch-rim", True, False, True, None, None, False),
+        *((f"door-{d.id}", d.texture, False, d.texture == "interior", True, None, d.id, False) for d in doors),
     ]
     lines = [
         "// Generated by scripts/house-model.py; don't edit. The pineapple house's parts: each one's mesh",

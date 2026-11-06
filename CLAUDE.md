@@ -135,8 +135,8 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 11,797 pieces (5,564
-  drawn; the house's rooms are 3,991 hidden boxes and its shell 2,242 hidden ring pieces) render as
+  so draw calls stay in the tens however many pieces there are. The world's 11,680 pieces (5,564
+  drawn; the house's rooms are 3,872 hidden boxes and its shell 2,244 hidden ring pieces) render as
   77 meshes (about 15 in view at once), and a world-spanning raycast costs about 190 µs. The sim's
   grid has height bands as well as cells, so a walker's tick pays only for the pieces at its own
   height (about 70 µs inside the house). Check both numbers in the PR when a landmark adds a lot.
