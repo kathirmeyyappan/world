@@ -68,12 +68,15 @@ class Lower:
 @dataclass(frozen=True)
 class Band:
     """One of `count` bones laid along a node's length (its x, the forward of a rig that faces +x).
-    Each vertex of the node takes the bones whose share of the length it is nearest to, blended with
-    its neighbours, so a wave passing along the node bends it rather than tearing it."""
+    Each vertex in the bottom `reach` of the node's height takes the bones whose share of the length
+    it is nearest to, blended with its neighbours, so a wave passing along the node bends it rather
+    than tearing it; anything higher (a snail's eyestalks, rising out of its foot) stays with the
+    root bone, so what it carries doesn't come away from it."""
 
     node: Joint
     index: int
     count: int
+    reach: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -195,30 +198,6 @@ MODELS = {
     # both arms one on node 19, so those bones are the pieces of them, and each tentacle's lower half
     # is a bone of its own so it bends. Every part is an open shell, with its rim inside the part it
     # meets.
-    # Not skinned: a snail's rig of rigid parts on a tree of nodes. The soft body with its foot is
-    # node 4, cut into five bones along its length so the foot can ripple; the shell on its back is
-    # node 6 and the eyes on their stalks, at the front, node 5, turning on the bottom of the stalks.
-    "gary": Model(
-        "Gary (Spongebob)",
-        "Anthony Yanez",
-        0.63,  # a third of SpongeBob
-        (
-            ("body", 3),
-            ("shell", 6),
-            ("eyes", 5),
-            ("foot0", Band(4, 0, 5)),
-            ("foot1", Band(4, 1, 5)),
-            ("foot2", Band(4, 2, 5)),
-            ("foot3", Band(4, 3, 5)),
-            ("foot4", Band(4, 4, 5)),
-        ),
-        ("body",),
-        "eyes",
-        necks=("eyes",),
-        facing_x=True,
-        shell="shell",
-        texture_size=256,
-    ),
     "squidward": Model(
         "Squidward Tentacles",
         "Super Tablé",
@@ -243,6 +222,31 @@ MODELS = {
         open_shells_too=True,
         texture_size=256,
         necks=("head",),
+    ),
+    # Not skinned: a snail's rig of rigid parts on a tree of nodes. Node 4 is the foot with the
+    # eyestalks rising out of it: the foot (its bottom 30%, under 9 cm) is cut into five bones along
+    # its length so it can ripple, and the stalks stay with the body. The shell is node 6 and the
+    # eyeballs node 5, turning on their bottoms, where the stalks meet them.
+    "gary": Model(
+        "Gary (Spongebob)",
+        "Anthony Yanez",
+        0.63,  # a third of SpongeBob
+        (
+            ("body", 3),
+            ("shell", 6),
+            ("eyes", 5),
+            ("foot0", Band(4, 0, 5, reach=0.3)),
+            ("foot1", Band(4, 1, 5, reach=0.3)),
+            ("foot2", Band(4, 2, 5, reach=0.3)),
+            ("foot3", Band(4, 3, 5, reach=0.3)),
+            ("foot4", Band(4, 4, 5, reach=0.3)),
+        ),
+        ("body",),
+        "eyes",
+        necks=("eyes",),
+        facing_x=True,
+        shell="shell",
+        texture_size=256,
     ),
 }
 
@@ -357,16 +361,20 @@ def main(name: str, glb: str) -> None:
             here = bands.get(joint_index[index], [])
             if here:
                 # Hat weights over the node's length: a vertex at a band's share of it is that band's,
-                # and between two shares it is split between them, so the weights always sum to one.
+                # and between two shares it is split between them. Above the bands' reach a vertex is
+                # the root bone's; the weights always sum to one.
                 lo, hi = posed[:, 0].min(), posed[:, 0].max()
-                extents[joint_index[index]] = (lo, hi, posed[:, 1].min(), posed[:, 2].mean())
-                count = here[0][1].count
+                bottom, top = posed[:, 1].min(), posed[:, 1].max()
+                extents[joint_index[index]] = (lo, hi, bottom, posed[:, 2].mean())
+                count, reach = here[0][1].count, here[0][1].reach
                 assert len(here) == count, f"node {index}: {len(here)} bands, {count} expected"
                 t = np.clip((posed[:, 0] - lo) / (hi - lo), 0, 1) * (count - 1)
                 share = np.clip(1 - np.abs(t[:, None] - np.arange(count)), 0, None)
+                banded = (posed[:, 1] - bottom <= reach * (top - bottom)).astype(np.float64)
                 folded[:] = 0
+                folded[:, 0] = 1 - banded
                 for i, band in here:
-                    folded[:, i] = share[:, band.index]
+                    folded[:, i] = share[:, band.index] * banded
             limbs = pieces_of(joint_index[index])
             for vertices in components({"positions": posed, "triangles": triangles}) if limbs else []:
                 # The rig's left is +x, the avatar's right (see below).

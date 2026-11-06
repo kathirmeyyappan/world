@@ -26,7 +26,7 @@ export class HeldItems {
 
   // `hand` points the barrel along its local -y when raised (see the avatars), so the shapes,
   // built barrel-along-+z, are turned 90 degrees inside it, and rolled about the barrel as `avatar`
-  // holds each. `scale` is how big the tap weapons and the packs (the tanks and gear on the back) are
+  // holds each. `scale` is how big the weapons and the packs (the tanks and gear on the back) are
   // drawn on this body, for one much smaller or bigger than the shapes were drawn for.
   constructor(
     engine: Engine,
@@ -56,12 +56,15 @@ export class HeldItems {
       this.weapons.set(item, node);
       this.flashes.set(item, buildFlash(engine, `${name}-${item}`, node, muzzle));
       const spec = ITEMS[item];
-      if (spec.actions.shoot?.mode === 'tap') node.scaling.setAll(this.weaponScale);
+      node.scaling.setAll(this.weaponScale);
       if (!spec.element) continue;
       const nozzle = new TransformNode(`${name}-${item}-nozzle`, scene);
       nozzle.parent = node;
       nozzle.position.copyFrom(muzzle);
-      this.jets.set(item, createJet(engine, `${name}-${item}`, nozzle, spec.element, spec.range, coneAngle(spec)));
+      // The jet is drawn in the nozzle's frame, so a scaled weapon's jet is lengthened to match: it
+      // still reaches the item's range.
+      const length = spec.range / this.weaponScale;
+      this.jets.set(item, createJet(engine, `${name}-${item}`, nozzle, spec.element, length, coneAngle(spec)));
       const tank = buildTank(scene, `${name}-${item}`, back, pal, spec.element);
       tank.position.copyFrom(backOffset);
       tank.scaling.setAll(this.packScale);

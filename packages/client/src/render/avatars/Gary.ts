@@ -95,18 +95,20 @@ export class GaryAvatar implements Avatar {
     this.gait.update(p.x, p.z, !p.grounded, step);
     const { phase, effort } = this.gait;
     const ripple = p.grounded && !p.dead ? effort : 0;
-    this.eyes.rotation.x = p.pitch * FOLLOW;
+    this.eyes.rotation.x = p.dead ? 0 : p.pitch * FOLLOW;
     this.feet.forEach((foot, i) => {
       foot.rotation.x = RIPPLE * ripple * Math.sin(phase + i * WAVE);
     });
-    this.grip.rotation.x = p.item && !p.dead ? p.pitch * (1 - FOLLOW) - Math.PI / 2 : 0;
+    // Barrel along the look; dead, it lies level along his body rather than through the ground.
+    this.grip.rotation.x = (p.dead ? 0 : p.pitch * (1 - FOLLOW)) - Math.PI / 2;
     this.items.update(p);
 
     if (p.dead !== this.dead) {
       this.dead = p.dead;
-      // Lying on its back, lifted by the body's depth so it rests on the ground rather than through it.
-      this.base.rotation.x = p.dead ? -Math.PI / 2 : 0;
-      this.base.position.y = p.dead ? GARY_MODEL.lie : 0;
+      // Turned over onto his shell, foot up, lifted by his height so the shell rests on the ground.
+      // Tipped backwards like the bipeds he would stand on end: he is longer than he is tall.
+      this.base.rotation.z = p.dead ? Math.PI : 0;
+      this.base.position.y = p.dead ? GARY_MODEL.height : 0;
     }
     placeShadow(this.shadow, p, feetY);
     this.root.setEnabled(true);
