@@ -120,6 +120,7 @@ CEILING_TILE = 5.9
 NET_TILE = 2.65
 BAMBOO_TILE = 2.0
 METAL_TILE = 3.5  # metres per repeat of the bedroom's wall, from the model
+TILES = {"Library_Bamboo": BAMBOO_TILE, "Metal_Walls": METAL_TILE}  # a built wall's look, by the model's material
 QUANTIZE = 48  # colours a texture is brought down to: the flat shading of the world's own pixel textures
 TEXTURE_PAD = 8  # pixels of a texture's own edge repeated round it in the atlas, for the coarser mipmaps
 SWATCHES = {"Wringer": (118, 126, 138), "Typewriter": (58, 60, 68), "Typewriter_Buttons": (198, 198, 204)}
@@ -161,15 +162,16 @@ class Stairwell:
     cut over the steps, a hole per step, where the stair's roof rises through the one and the stair
     comes up through the other; that roof, a slab per step (its four corners, round in order, at
     the walls' tops); its walls and the corridor's as chords on the floor (a, b) from one height up
-    to a top at each end, facing a point inside; and the walls that close the corridor against the
-    hall's wall, each from a point on the floor straight out from the axis into that wall, from one
-    height up to another, facing a point inside, in a material of the model's."""
+    to a top at each end, facing a point inside, in a material of the model's; and the walls that
+    close the corridor against the hall's wall, each from a point on the floor straight out from
+    the axis into that wall, from one height up to another, facing a point inside, in a material
+    too."""
 
     steps: list[list[float]]
     ceiling_holes: list[Outline]
     library_holes: list[Outline]
     roof: list[list[np.ndarray]]
-    walls: list[tuple[tuple[float, float], tuple[float, float], float, tuple[float, float], tuple[float, float]]]
+    walls: list[tuple[tuple[float, float], tuple[float, float], float, tuple[float, float], tuple[float, float], str]]
     shell_walls: list[tuple[tuple[float, float], float, float, tuple[float, float], str]]
 
 
@@ -348,10 +350,12 @@ def take_apart(interior: Interior) -> None:
     stock = next(d for d in interior.doors if d.id == "closet")
     for d in interior.doors:
         if d.paper:
-            foot, d.bearing, shape = opening(interior, d, stock.thickness)
+            foot, d.bearing, front, back = opening(interior, d, stock.thickness)
             d.hinge = (float(foot[0]), float(foot[2]))
-            d.reach, d.height, d.thickness = 2 * shape[0][1], shape[-1][0], stock.thickness
-            d.mesh = turned_by(panel(shape, stock.thickness, stock_uv(stock, d.reach, d.height)), np.pi / 2 - d.bearing)
+            d.reach, d.height, d.thickness = 2 * front[0][1], front[-1][0], stock.thickness
+            d.mesh = turned_by(
+                panel(front, stock.thickness, stock_uv(stock, d.reach, d.height), back), np.pi / 2 - d.bearing
+            )
     interior.tris = [t for k, t in enumerate(interior.tris) if k not in drop]
     interior.solid = [t for t, m in interior.tris if interior.materials[m] not in ROUND_WALLS]
     # The levels, from the model: the ground floor's ceiling, the bedroom's floor and ceiling (the
@@ -377,14 +381,16 @@ def take_apart(interior: Interior) -> None:
 Shape = list[tuple[float, float]]  # an opening's shape: (height, half-width) up its middle, floor to top
 
 
-def opening(interior: Interior, door: Door, thickness: float) -> tuple[np.ndarray, float, Shape]:
+def opening(interior: Interior, door: Door, thickness: float) -> tuple[np.ndarray, float, Shape, Shape]:
     """The opening in the wall one of the model's paper-thin doors stood in, measured from the
     wall's face the door swings toward (the model's sheets stand off their walls, short of the
     jambs, and a wall can run askew of its sheet): the foot of the jamb on that face at the pin's
     end, the bearing (from +x toward +z) the face runs at from there to the other jamb, and the
-    shape (height, half-width) of a panel `thickness` thick hung on that foot, into the wall: the
-    opening's outline where it is narrowest through that depth, so the panel fills it at the face
-    and nowhere comes out through the reveals, which splay and lean through the wall."""
+    shape (height, half-width) of a panel `thickness` thick hung on that foot, into the wall, at
+    its face and at its back: the opening's outline where it is widest through that depth, so the
+    panel fills it at the face (where the wall round the crown may stand back from the jambs), and
+    where it is narrowest, so its back nowhere comes out through the reveals, which splay and lean
+    through the wall; the panel's edge is bevelled between the two."""
     along = 0 if abs(np.cos(door.bearing)) > 0.5 else 2
     across = 2 - along
     forward = (np.cos(door.bearing) if along == 0 else np.sin(door.bearing)) > 0
@@ -446,33 +452,51 @@ def opening(interior: Interior, door: Door, thickness: float) -> tuple[np.ndarra
 
     def width(pieces: list[tuple[float, float, float, float]], y: float) -> float | None:
         """How far the opening reaches either side of its middle at a height, the nearer side: the
-        pieces of outline at that height, or None where there are none."""
-        us = [
-            u0 + (y - y0) / (y1 - y0) * (u1 - u0) if y1 != y0 else u
-            for y0, y1, u0, u1 in pieces
-            for u in (u0, u1)
-            if min(y0, y1) - 1e-6 <= y <= max(y0, y1) + 1e-6
-        ]
-        left = [u for u in us if u < reach / 2]
-        right = [u for u in us if u >= reach / 2]
+        pieces of outline at that height, or None where there are none. The level pieces at that
+        height (a soffit, a step in a jamb) are joined where they touch: the opening runs the whole
+        of a run across its middle, and ends at a run to one side."""
+        left, right, level = [], [], []
+        for y0, y1, u0, u1 in pieces:
+            if abs(y1 - y0) < 1e-9:
+                if abs(y - y0) < 1e-6:
+                    level.append((min(u0, u1), max(u0, u1)))
+            elif min(y0, y1) - 1e-6 <= y <= max(y0, y1) + 1e-6:
+                (left if (u := u0 + (y - y0) / (y1 - y0) * (u1 - u0)) < reach / 2 else right).append(u)
+        runs: list[list[float]] = []
+        for lo, hi in sorted(level):
+            if runs and lo <= runs[-1][1] + 1e-3:
+                runs[-1][1] = max(runs[-1][1], hi)
+            else:
+                runs.append([lo, hi])
+        for lo, hi in runs:
+            if lo < reach / 2 <= hi:
+                left.append(lo)
+                right.append(hi)
+            elif hi < reach / 2:
+                left.append(hi)
+            else:
+                right.append(lo)
         if not left or not right:
             return None
         return min(reach / 2 - max(left), min(right) - reach / 2)
 
-    # The narrowest of the sections the panel passes through, at every height any of them bends,
-    # up to the top of the deepest: a panel filling the face would come out through a reveal that
-    # splays inward, so the shape is the least of them at each height, and never wider higher up.
+    # The widest and the narrowest of the sections the panel passes through, at every height any
+    # of them bends, neither ever wider higher up; above the deepest section's top the back closes,
+    # so the panel's flat top comes out through nothing.
     sections = [section(depth) for depth in (0.01, thickness / 2, thickness)]
-    top = max(max(y0, y1) for y0, y1, _, _ in sections[-1])
+    tops = [max(max(y0, y1) for y0, y1, _, _ in pieces) for pieces in sections]
     heights = sorted({round(y - door.y, 2) for pieces in sections for y0, y1, _, _ in pieces for y in (y0, y1)})
-    shape: Shape = [(0.0, reach / 2)]
+    front: Shape = [(0.0, reach / 2)]
+    back: Shape = [(0.0, reach / 2)]
     for y in heights:
-        if y <= 0 or y > top - door.y + 1e-6:
+        if y <= 0 or y > max(tops) - door.y + 1e-6:
             continue
         widths = [w for pieces in sections if (w := width(pieces, y + door.y)) is not None]
-        if widths:
-            shape.append((y, max(0.0, min(min(widths), shape[-1][1]))))
-    return foot, bearing, shape
+        if not widths:
+            continue
+        front.append((y, max(0.0, min(max(widths), front[-1][1]))))
+        back.append((y, max(0.0, min(min(widths) if y + door.y <= tops[-1] + 1e-6 else 0.0, back[-1][1]))))
+    return foot, bearing, front, back
 
 
 def arch_shape(width: float, top: float) -> Shape:
@@ -508,36 +532,47 @@ def stock_uv(stock: Door, reach: float, height: float) -> Callable[[float, float
     return lambda z, y: np.array([au + bu * z * stock.reach / reach, av + bv * y * stock.height / height])
 
 
-def panel(shape: Shape, thickness: float, uv: Callable[[float, float], np.ndarray]) -> list[Triangle]:
+def panel(
+    shape: Shape, thickness: float, uv: Callable[[float, float], np.ndarray], back: Shape | None = None
+) -> list[Triangle]:
     """A door panel of an opening's shape: standing on the floor with its pin edge up the y axis,
     running along +z and `thickness` thick toward -x, as the stock panel stands, its faces
-    textured by `uv(along, up)`; a flat piece per band of the shape, each wound to face out."""
+    textured by `uv(along, up)`; a flat piece per band of the shape, each wound to face out. The
+    edges take the texture folded round from the face, a thickness of it, so an edge shows grain
+    and not one column of the picture stretched across it. With `back`, a shape of the same
+    bands, the back face takes that outline and the edges bevel between the two."""
     reach, height = 2 * shape[0][1], shape[-1][0]
     middle = np.array([-thickness / 2, height / 2, reach / 2])
     left = [(reach / 2 - hw, y) for y, hw in shape]
     right = [(reach / 2 + hw, y) for y, hw in shape]
+    back_left = [(reach / 2 - hw, y) for y, hw in back or shape]
+    back_right = [(reach / 2 + hw, y) for y, hw in back or shape]
     tris: list[Triangle] = []
+    t = thickness
 
-    def add(ring: list[tuple[float, float, float]]) -> None:
-        corners = [c for i, c in enumerate(ring) if c != ring[i - 1]]
-        for tri in fan([(np.array([x, y, z]), uv(z, y)) for x, y, z in corners]):
+    def add(ring: list[tuple[float, float, float, float, float]]) -> None:
+        """A flat piece over corners (x, y, z, and the along and up of the face its texture is
+        taken from), round in order, wound to face out of the panel."""
+        corners = [c for i, c in enumerate(ring) if c[:3] != ring[i - 1][:3]]
+        for tri in fan([(np.array([x, y, z]), uv(a, u)) for x, y, z, a, u in corners]):
             p, q, r = (c for c, _ in tri)
             n = np.cross(q - p, r - p)
             if np.linalg.norm(n) < 1e-9:
                 continue
             tris.append(tri if n @ ((p + q + r) / 3 - middle) > 0 else [tri[0], tri[2], tri[1]])
 
-    for (zl0, y0), (zr0, _), (zl1, y1), (zr1, _) in zip(left, right, left[1:], right[1:]):
-        for x in (0.0, -thickness):
-            add([(x, y0, zl0), (x, y0, zr0), (x, y1, zr1), (x, y1, zl1)])
-        add([(0.0, y0, zr0), (0.0, y1, zr1), (-thickness, y1, zr1), (-thickness, y0, zr0)])
-        add([(0.0, y0, zl0), (-thickness, y0, zl0), (-thickness, y1, zl1), (0.0, y1, zl1)])
-    add(
-        [(0.0, 0.0, left[0][0]), (-thickness, 0.0, left[0][0]), (-thickness, 0.0, right[0][0]), (0.0, 0.0, right[0][0])]
-    )
-    (zl, yt), (zr, _) = left[-1], right[-1]
-    if zr - zl > 1e-6:
-        add([(0.0, yt, zl), (0.0, yt, zr), (-thickness, yt, zr), (-thickness, yt, zl)])
+    for i in range(len(shape) - 1):
+        (zl0, y0), (zr0, _), (zl1, y1), (zr1, _) = left[i], right[i], left[i + 1], right[i + 1]
+        (bl0, _), (br0, _), (bl1, _), (br1, _) = back_left[i], back_right[i], back_left[i + 1], back_right[i + 1]
+        add([(0.0, y0, zl0, zl0, y0), (0.0, y0, zr0, zr0, y0), (0.0, y1, zr1, zr1, y1), (0.0, y1, zl1, zl1, y1)])
+        add([(-t, y0, bl0, bl0, y0), (-t, y0, br0, br0, y0), (-t, y1, br1, br1, y1), (-t, y1, bl1, bl1, y1)])
+        add([(0.0, y0, zr0, zr0, y0), (0.0, y1, zr1, zr1, y1), (-t, y1, br1, br1 - t, y1), (-t, y0, br0, br0 - t, y0)])
+        add([(0.0, y0, zl0, zl0, y0), (-t, y0, bl0, bl0 + t, y0), (-t, y1, bl1, bl1 + t, y1), (0.0, y1, zl1, zl1, y1)])
+    (zl, _), (zr, _), (bl, _), (br, _) = left[0], right[0], back_left[0], back_right[0]
+    add([(0.0, 0.0, zl, zl, 0.0), (-t, 0.0, bl, bl, t), (-t, 0.0, br, br, t), (0.0, 0.0, zr, zr, 0.0)])
+    (zl, yt), (zr, _), (bl, _), (br, _) = left[-1], right[-1], back_left[-1], back_right[-1]
+    if zr - zl > 1e-6 or br - bl > 1e-6:
+        add([(0.0, yt, zl, zl, yt), (0.0, yt, zr, zr, yt), (-t, yt, br, br, yt - t), (-t, yt, bl, bl, yt - t)])
     return tris
 
 
@@ -778,7 +813,6 @@ def build_floors(
     hall, ceiling, top = levels["hall"], levels["hallCeiling"], levels["top"]
     wall = lambda a, y: skin(a, y) - LINING
     sand, net, lid, bamboo = (material(interior, n) for n in ("Sand_Floor", "Netting", "Ceiling", "Library_Bamboo"))
-    TILES = {"Library_Bamboo": BAMBOO_TILE, "Metal_Walls": METAL_TILE}
     pieces: list[tuple[list[Triangle], int]] = []
     # The library's floor is clear to its bamboo, which lines the wall from the floor up.
     library_clear = min(
@@ -829,8 +863,8 @@ def build_floors(
     interior.hall_round = {y: max(wall(a, y) for a in angles) for y, _ in rings}
     # The stairwell's and the corridor's walls and the stairwell's roof, and its holes through the
     # library's floor, which it arrives through.
-    for a, b, y0, tops, inner in well.walls:
-        pieces.append((upright(a, b, y0, tops[0], inner, tops[1]), bamboo))
+    for a, b, y0, tops, inner, name in well.walls:
+        pieces.append((upright(a, b, y0, tops[0], inner, tops[1], TILES[name]), material(interior, name)))
     for a, y0, y1, inner, name in well.shell_walls:
         pieces.append((to_shell(a, y0, y1, inner, wall, bands, TILES[name]), material(interior, name)))
     for corners in well.roof:
@@ -848,9 +882,18 @@ def build_floors(
             if p[1] > top - CAP_DROP
         ]
     )
-    cap = float(np.hypot(wall_top[:, 0], wall_top[:, 2]).min()) + 0.2
+    # The wall's top is far from round (a metre between its nearest and furthest), so the ceiling's
+    # rim follows it, a little past its face at each bearing: short of the wall anywhere, the sky
+    # would show over the wall's edge from across the room.
+    bearings = np.arctan2(wall_top[:, 0], wall_top[:, 2])
+    radii = np.hypot(wall_top[:, 0], wall_top[:, 2])
+
+    def cap(a: float) -> float:
+        near = np.abs((bearings - a + np.pi) % (2 * np.pi) - np.pi) < 1.5 * np.pi / SEGMENTS
+        return float(radii[near].max() if near.any() else radii.max()) + 0.2
+
     for drop, m, tile in ((CAP_DROP, lid, CEILING_TILE), (CAP_DROP + 0.1, net, NET_TILE)):
-        pieces.append((round_floor(top - drop, lambda a: cap, True, [], tile), m))
+        pieces.append((round_floor(top - drop, cap, True, [], tile), m))
     for tris, m in pieces:
         interior.tris += [(t, m) for t in tris]
     interior.solid += [t for tris, _ in pieces for t in tris]
@@ -1073,10 +1116,10 @@ def stairwell(
         outer = (library_top - 0.01, library_top - 0.01) if opened else tops
         if (i + 1) * tread > met:
             a_from = a0 if i * tread >= met else joint
-            well.walls.append((point(a_from), corners[3], hall, tops, centre))
-            well.walls.append((point(a_from - back), point(a1 - back), hall, outer, centre))
-        well.walls.append((corners[1], corners[2], hall, tops, centre))
-        well.walls.append((point(b0 + back), point(b1 + back), hall, outer, centre))
+            well.walls.append((point(a_from), corners[3], hall, tops, centre, "Library_Bamboo"))
+            well.walls.append((point(a_from - back), point(a1 - back), hall, outer, centre, "Library_Bamboo"))
+        well.walls.append((corners[1], corners[2], hall, tops, centre, "Library_Bamboo"))
+        well.walls.append((point(b0 + back), point(b1 + back), hall, outer, centre, "Library_Bamboo"))
     print(
         f"stairwell: {STAIRWELL_STEPS} steps of {tread:.2f} m at bearing {np.degrees(facing) % 360:.0f} deg, "
         f"open along the corridor for {met:.2f} m, "
@@ -1085,10 +1128,11 @@ def stairwell(
     # The corridor from the hall's door to the foot, closed all round: across from the bedroom's
     # corner past the door, where its wall turns north (so the door has a stretch of corridor
     # before it), out to the hall's wall, in the bedroom's own steel so that end reads as the
-    # bedroom's corner; the slot between the bedroom and the bathroom covered; from the bathroom's
-    # corner across to the flight, where its near wall begins; and from the flight's far corner
-    # out to the hall's wall. (The bathroom's wall, which the corridor runs along, is carried up
-    # to the ceiling by add_rooms.)
+    # bedroom's corner; the slot between the bedroom and the bathroom covered, in that steel too, so
+    # the corridor's inner side goes from the bedroom's wall straight to the bathroom's; from the
+    # bathroom's corner across to the flight, where its near wall begins; and from the flight's
+    # far corner out to the hall's wall. (The bathroom's wall, which the corridor runs along, is
+    # carried up to the ceiling by add_rooms.)
     inward = lambda p, by: tuple(float(v) for v in np.array(p) * (1 - by / float(np.hypot(*p))))
     west = [p for p in bedroom if p[0] < -9]
     south = max(west, key=lambda p: p[1])
@@ -1096,8 +1140,8 @@ def stairwell(
     corridor = point(at(14.0, float(np.arctan2(turn[0], turn[1])) + np.radians(8)))
     well.shell_walls.append((inward(turn, 0.1), hall, ceiling, corridor, "Metal_Walls"))
     west_most = min(bathroom, key=lambda p: p[0])
-    well.walls.append((point(south), point(west_most), hall, (ceiling, ceiling), corridor))
-    well.walls.append((point(corner), point(joint), hall, (ceiling, ceiling), point(foot)))
+    well.walls.append((point(south), point(west_most), hall, (ceiling, ceiling), corridor, "Metal_Walls"))
+    well.walls.append((point(corner), point(joint), hall, (ceiling, ceiling), point(foot), "Library_Bamboo"))
     well.shell_walls.append((point(foot + half), hall, ceiling, point(near), "Library_Bamboo"))
     return well
 
@@ -1290,16 +1334,18 @@ def upright(
     y1: float,
     inside: tuple[float, float],
     y1b: float | None = None,
+    tile: float = BAMBOO_TILE,
 ) -> list[Triangle]:
     """A wall from a to b (on the floor) from one height up to another (`y1` at a, and `y1b` at b
-    where the top slopes), facing the side `inside` is on."""
+    where the top slopes), facing the side `inside` is on, its texture repeating every `tile`
+    metres."""
     corners = [
         np.array([a[0], y0, a[1]]),
         np.array([b[0], y0, b[1]]),
         np.array([b[0], y1 if y1b is None else y1b, b[1]]),
         np.array([a[0], y1, a[1]]),
     ]
-    return sheet(corners, inside)
+    return sheet(corners, inside, tile)
 
 
 def to_shell(
