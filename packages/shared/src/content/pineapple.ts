@@ -18,7 +18,10 @@
 // walled off from the rest of the hall; the ground floor's closet and bathroom are copied off the
 // bedroom; and a straight stair of solid steps climbs from the corridor's end through the hall's
 // ceiling and a hole in the library's floor, open along the corridor and walled both sides from
-// where the corridor's wall meets it. Every door swings (sim/doors.ts), the front
+// where the corridor's wall meets it. From the library's floor a spiral climbs round its wall,
+// through a hole in its ceiling and up a brick cylinder standing on that ceiling, through the
+// fruit's crown to a railed deck on top: the attic stair, in the hollow top of the shell, which
+// nothing else can see into. Every door swings (sim/doors.ts), the front
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
 import { ramp, roundFloor, roundWall, terrain, wall, type Box, type Structure } from '../sim/structures';
@@ -101,7 +104,8 @@ const openings = (bottom: number, top: number, r: number) =>
 // the skin where it stands outermost in the band (so nothing stands inside it), with the openings
 // left out of it: the whole thickness outside the ground floor's rooms, then only a seal inside
 // the skin, behind the hall's wall; from the library's floor up, solid from its wall's inside out
-// to the skin (nothing stands between them), and above the library solid through. Where the skin
+// to the skin (nothing stands between them), and above the library's wall a seal again, round the
+// hollow top the attic stair climbs. Where the skin
 // is flattened into a face round a door the rings are open and the face's own wall stands, chord
 // by chord.
 const edges = [...new Set([...SHAPE.rings.map(([y]) => y), levels.hall, levels.library, levels.top])].sort(
@@ -126,8 +130,7 @@ const face: Box[] = SHAPE.faceWalls.map(([x1, z1, x2, z2, y0, y1]) => ({
 const shell: Structure[] = edges.slice(1).flatMap((y1, i): Structure[] => {
   const y0 = edges[i];
   const outer = Math.max(skin(y0), skin(y1));
-  if (y0 >= levels.top)
-    return roundFloor({ x: X, z: Z, r: outer, y: DUNE_HEIGHT + y1, thickness: y1 - y0, hidden: true });
+  if (y0 >= levels.top) return ring(outer - SEAL, outer, y0, y1);
   if (y0 < levels.hall) return ring(GROUND_CORE, outer, y0, y1);
   if (y0 < levels.library) return ring(outer - SEAL, outer, y0, y1);
   const [, inner] = SHAPE.library.reduce((band, next) => (next[0] <= y0 ? next : band), SHAPE.library[0]);
@@ -160,6 +163,45 @@ const piece = ([x, z, y, w, d, h, yaw]: Piece): Box => ({
   material: 'wood',
 });
 const flights: Box[] = [...SHAPE.stair.map(piece), ...SHAPE.stairwell.map(piece)];
+
+// The attic stair: its slabs and rail posts, the brick cylinder it climbs from the library's
+// ceiling to the crown, and the deck on the crown with the hole it arrives through and a rail
+// round the edge (a 50 m drop). The profile's bearings run the other way round from the world's.
+const { attic } = SHAPE;
+const DECK_RAIL = 1.0;
+const deck: Structure[] = [
+  ...attic.steps.map(piece),
+  ...roundWall({
+    x: X,
+    z: Z,
+    r: attic.cylinder.r + attic.cylinder.thickness / 2,
+    thickness: attic.cylinder.thickness,
+    y: DUNE_HEIGHT + attic.cylinder.bottom,
+    h: attic.cylinder.top - attic.cylinder.bottom,
+    segments: 48,
+    material: 'brick',
+  }),
+  ...roundFloor({
+    x: X,
+    z: Z,
+    r: attic.deck.r,
+    y: DUNE_HEIGHT + attic.deck.y,
+    thickness: attic.deck.thickness,
+    hole: { inner: attic.deck.hole.inner, from: bearing(attic.deck.hole.to), to: bearing(attic.deck.hole.from) },
+    material: 'wood',
+  }),
+  ...roundWall({
+    x: X,
+    z: Z,
+    r: attic.deck.r - 0.15,
+    thickness: 0.3,
+    y: DUNE_HEIGHT + attic.deck.y,
+    h: DECK_RAIL,
+    segments: 48,
+    material: 'wood',
+  }),
+];
+export const PINEAPPLE_DECK: Disc = { kind: 'disc', x: X, z: Z, r: attic.deck.r };
 
 // The path's flagstones, a hair above the sand, each a ramp lying with the dune's slope, so a
 // walker steps on and off them where the model draws them.
@@ -198,6 +240,7 @@ export const PINEAPPLE_HOUSE: Structure[] = [
   ...shell,
   ...face,
   ...rooms,
+  ...deck,
   ...PINEAPPLE_DOORS.flatMap((d) => doorPieces(d)),
   ...flights,
 ];

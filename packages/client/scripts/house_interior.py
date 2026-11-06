@@ -13,8 +13,11 @@ bathroom, walled off from the rest of the hall; the ground floor's closet and ba
 off the bedroom (add_rooms); and a straight stair of solid steps climbs from the corridor's end
 through the hall's ceiling and a hole in the library's floor, open along the corridor and walled
 both sides from where the corridor's wall meets it (stairwell; content/pineapple.ts stands its
-steps). The library's old door is walled up, so nothing outside its wall can be reached
-or seen.
+steps); and the attic stair spirals from the library's floor round its wall, through a hole in
+its ceiling and up a brick cylinder in the hollow top of the shell to a deck on the crown
+(attic_stair lays it out and the ceiling is cut for it; content/pineapple.ts stands the steps, the
+cylinder and the deck). The library's old door is walled up, so nothing outside its wall can be
+reached or seen.
 
 What changes in the model: the painted front door and its wheel go (our door swings at the face,
 and the model's frame stands at the back of the vestibule behind it), the door panels become doors
@@ -76,6 +79,30 @@ STAIRWELL_STEPS = 35
 STAIRWELL_WIDTH = 2.4
 STAIRWELL_WALL = 0.1
 STAIRWELL_LID = 3.05
+# The attic stair: a spiral from the library's floor round its wall, up through its ceiling into a
+# brick cylinder standing on that ceiling, and on up through the fruit's crown to a deck on top.
+# It starts at ATTIC_START (a bearing from +z toward +x), across the room from where the flight
+# from the hall arrives, climbs ATTIC_RISER a step with treads ATTIC_TREAD long along the middle of
+# the flight (a walk, not a climb), its outer edge ATTIC_CLEAR off the library's wall as that
+# leans in (and off the wall as far up as a player's head reaches, so nobody on the flight bumps
+# it) and the same off the cylinder's inside; each step a slab ATTIC_THICKNESS deep with a post
+# ATTIC_RAIL tall along its inner edge, so no one steps off the inside. The cylinder is
+# ATTIC_CYLINDER inside (the shell is r 7.7 at the crown) and ATTIC_WALL thick; the deck on the
+# crown is ATTIC_DECK thick, and the stair's holes through the ceiling and the deck cover the
+# stretch where the flight is within HEADROOM of them.
+ATTIC_START = np.radians(210.0)
+ATTIC_WIDTH = 2.4
+ATTIC_RISER = 0.25
+ATTIC_TREAD = 0.45
+ATTIC_THICKNESS = 0.3
+ATTIC_RAIL = 1.0
+ATTIC_CLEAR = 0.12
+ATTIC_TAPER = 0.08  # metres a step the flight may come in by at most
+ATTIC_EASE = 8  # steps over which it eases into coming in that fast, so it bends rather than kinks
+ATTIC_CYLINDER = 7.0
+ATTIC_WALL = 0.3
+ATTIC_DECK = 0.3
+HEADROOM = 2.7
 # The doorways this house cuts itself, each an arch (width, height): the vestibule's into the
 # living room, and the kitchen's back door and the hall's, the way out to the stair round the back.
 FRONT_DOORWAY = (2.6, 3.3)
@@ -176,6 +203,22 @@ class Stairwell:
 
 
 @dataclass
+class AtticStair:
+    """The attic stair laid out (ATTIC_*): its slabs and rail posts as the sim's boxes, each
+    [x, z, y, w, d, h, bearing] (centre, underside, size across, along and up, the bearing it
+    faces); the holes it needs in the library's ceiling, one per step through it; the cylinder it
+    climbs (inside radius, wall thickness, from the ceiling up to the deck's underside); and the
+    deck on the crown (radius, the height of its top, thickness) with the hole the stair arrives
+    through (inner radius and the bearings it runs between, increasing)."""
+
+    steps: list[list[float]]
+    ceiling_holes: list[Outline]
+    cylinder: tuple[float, float, float, float]
+    deck: tuple[float, float, float]
+    deck_hole: tuple[float, float, float]
+
+
+@dataclass
 class Interior:
     tris: list[tuple[Triangle, int]]  # every surface that stays, with its material
     materials: list[str]
@@ -196,6 +239,7 @@ class Interior:
     sealed: list[Door] = field(default_factory=list)  # the doors walled up, for where their openings are
     side_depth: float = 0.0  # how far out the side door's painted panel stood at its back: the passage's lining ends there, in the frame's band
     stairwell: Stairwell | None = None
+    attic: AtticStair | None = None
     closet: Outline = field(default_factory=list)  # the closet upstairs: its walls' footprint, a little past them
     bathroom_walls: Outline = field(default_factory=list)  # the bathroom upstairs: its walls' footprint
 
@@ -901,8 +945,30 @@ def build_floors(
         near = np.abs((bearings - a + np.pi) % (2 * np.pi) - np.pi) < 1.5 * np.pi / SEGMENTS
         return float(radii[near].max() if near.any() else radii.max()) + 0.2
 
+    # The attic stair, up round the library's wall (the books' faces, and the bamboo at the floor,
+    # by height) and on up through the ceiling, which is cut where it passes.
+    lib_pts = np.array(
+        [
+            p
+            for name in ("Library_Wall", "Library_Bamboo")
+            for ks in comps(interior, name)
+            for k in ks
+            for p, _ in interior.tris[k][0]
+        ]
+    )
+    lib_r = np.hypot(lib_pts[:, 0], lib_pts[:, 2])
+    # The wall's mesh has long triangles between its rings, so a band may hold no vertex: the
+    # radius runs straight between the bands that do, as the mesh does.
+    known = [
+        (y + 0.25, float(lib_r[band].min()))
+        for y in np.arange(levels["library"], top - CAP_DROP, 0.5)
+        if (band := (lib_pts[:, 1] >= y) & (lib_pts[:, 1] < min(y + 0.5, top - CAP_DROP))).any()
+    ]
+    wall_r = lambda y: float(np.interp(y, [y0 for y0, _ in known], [r for _, r in known]))
+    attic = attic_stair(library_top, top - CAP_DROP, max(heights), wall_r)
+    interior.attic = attic
     for drop, m, tile in ((CAP_DROP, lid, CEILING_TILE), (CAP_DROP + 0.1, net, NET_TILE)):
-        pieces.append((round_floor(top - drop, cap, True, [], tile), m))
+        pieces.append((round_floor(top - drop, cap, True, attic.ceiling_holes, tile), m))
     for tris, m in pieces:
         interior.tris += [(t, m) for t in tris]
     interior.solid += [t for tris, _ in pieces for t in tris]
@@ -1153,6 +1219,96 @@ def stairwell(
     well.walls.append((point(corner), point(joint), hall, (ceiling, ceiling), point(foot), "Library_Bamboo"))
     well.shell_walls.append((point(foot + half), hall, ceiling, point(near), "Library_Bamboo"))
     return well
+
+
+def attic_stair(floor: float, ceiling: float, crown: float, wall_r: Callable[[float], float]) -> AtticStair:
+    """The attic stair laid out (ATTIC_*) from the library's floor (`floor`, its top) past its
+    ceiling to the deck on the crown: `wall_r(y)` is how far out the library's wall stands at a
+    height (anywhere round, at its nearest), which the flight keeps ATTIC_CLEAR inside as far up
+    as a head reaches."""
+    deck_top = crown + 0.02 + ATTIC_DECK  # the deck's underside a hair over the crown, so the two never share a face
+    steps = int(np.ceil((deck_top - floor) / ATTIC_RISER))
+    riser = (deck_top - floor) / steps
+    at = lambda r, b: (float(r * np.sin(b)), float(r * np.cos(b)))
+    attic = AtticStair(
+        [],
+        [],
+        (ATTIC_CYLINDER, ATTIC_WALL, ceiling, crown + 0.02),
+        (ATTIC_CYLINDER + ATTIC_WALL + 0.4, deck_top, ATTIC_DECK),
+        (0.0, 0.0, 0.0),
+    )
+    # Where each step starts: its tread's height, how far out its edges stand and the bearing it
+    # starts at; then each step's slab runs from its own start to the next step's, so along a
+    # taper the outer edges run on continuously (a slab laid along the circle at its own radius
+    # would jut past the next by the taper).
+    tops = [floor + riser * (i + 1) for i in range(steps)]
+    # Below the ceiling the flight keeps inside the wall as far up as a head reaches, and where a
+    # head reaches the cylinder it keeps inside that too. Within those limits it comes in no faster
+    # than ATTIC_TAPER a step, easing into that over ATTIC_EASE steps, so it bends in ahead of each
+    # lean of the wall rather than kinking with it; and it never turns outward, since the straight
+    # slabs would crack open on the inside where they meet.
+    limits = []
+    for top in tops:
+        limit = ATTIC_CYLINDER - ATTIC_CLEAR
+        if top < ceiling:
+            limit = min(wall_r(y) for y in np.arange(top, min(top + 2.0, ceiling), 0.25)) - ATTIC_CLEAR
+            if top + 2.0 >= ceiling:
+                limit = min(limit, ATTIC_CYLINDER - ATTIC_CLEAR)
+        limits.append(limit)
+
+    def taper(d: int) -> float:
+        """How far out a step may stand past the one `d` steps above it."""
+        if d <= ATTIC_EASE:
+            return ATTIC_TAPER * d * d / (2 * ATTIC_EASE)
+        return ATTIC_TAPER * (d - ATTIC_EASE / 2)
+
+    outers = [min(limits[j] + taper(j - i) for j in range(i, steps)) for i in range(steps)]
+    starts: list[tuple[float, float, float, float]] = []  # (top, outer, inner, angle)
+    angle = ATTIC_START
+    for top, outer in zip(tops, outers):
+        starts.append((top, outer, outer - ATTIC_WIDTH, angle))
+        angle += ATTIC_TREAD / (outer - ATTIC_WIDTH / 2)
+    starts.append((starts[-1][0] + riser, *starts[-1][1:3], angle))  # where the last step ends
+    arriving: list[tuple[float, float, float]] = []
+    inwards: list[np.ndarray] = []  # each step's square-to-the-run direction toward the axis, and its run
+    runs: list[np.ndarray] = []
+    for i in range(steps):
+        (top, outer, inner, a0), (_, outer1, inner1, a1) = starts[i], starts[i + 1]
+        p0, p1 = np.array(at(outer, a0)), np.array(at(outer1, a1))
+        q0, q1 = np.array(at(inner, a0)), np.array(at(inner1, a1))
+        run = p1 - p0
+        length = float(np.linalg.norm(run))
+        facing = float(np.arctan2(run[0], run[1]))
+        inward = np.array([-run[1], run[0]]) / length  # square to the run, toward the axis
+        if inward @ (p0 + p1) > 0:
+            inward = -inward
+        if i > 0:
+            crack = ATTIC_WIDTH * float((inward - inwards[-1]) @ runs[-1])
+            assert crack <= 0.001, (
+                f"attic stair: step {i} turns outward and cracks the flight open {crack:.2f} m on the inside"
+            )
+        inwards.append(inward)
+        runs.append(run / length)
+        base = max(floor, top - ATTIC_THICKNESS)
+        centre = (p0 + p1) / 2 + inward * (ATTIC_WIDTH / 2)
+        attic.steps.append([float(centre[0]), float(centre[1]), base, ATTIC_WIDTH, length, top - base, facing])
+        post = (q0 + q1) / 2 - inward * 0.1
+        attic.steps.append(
+            [float(post[0]), float(post[1]), top, 0.2, float(np.linalg.norm(q1 - q0)) + 0.02, ATTIC_RAIL, facing]
+        )
+        # The hole runs on past the ceiling until a walker's reach clears the ceiling's boxes, which
+        # the sim cuts a cell coarse round a hole's edge.
+        if ceiling - HEADROOM < top < ceiling + 0.75:
+            corners = [at(inner - 0.05, a0), at(outer + 0.05, a0), at(outer1 + 0.05, a1), at(inner1 - 0.05, a1)]
+            attic.ceiling_holes.append(ccw(corners))
+        if top > deck_top - HEADROOM:
+            arriving.append((inner, a0, a1))
+    attic.deck_hole = (min(r for r, _, _ in arriving) - 0.1, arriving[0][1] - 0.05, arriving[-1][2] + 0.05)
+    print(
+        f"attic: {steps} steps of {riser:.3f} m rise, {np.degrees(angle - ATTIC_START) / 360:.2f} turns, "
+        f"{len(attic.ceiling_holes)} holes in the library's ceiling, deck hole {np.degrees(attic.deck_hole[1]) % 360:.0f}..{np.degrees(attic.deck_hole[2]) % 360:.0f} deg from r {attic.deck_hole[0]:.2f}"
+    )
+    return attic
 
 
 def add_rooms(interior: Interior, wall: Callable[[float, float], float]) -> None:
