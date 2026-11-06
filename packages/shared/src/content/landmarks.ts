@@ -7,6 +7,7 @@
 // clutter the map on the ground.
 import type { Bridge, Disc } from '../sim/world';
 import { BUILDING_FOOTPRINTS } from './buildings';
+import { PINEAPPLE_DECK } from './pineapple';
 import { STAIRCASE_FOOTPRINTS, TERRACE_RING } from './terrace';
 import { SKY_BRIDGE_FOOTPRINT, TUNG_TUNG_TOWER_FOOTPRINT, TUNG_TUNG_TOWER_ROOMS } from './tower';
 
@@ -22,4 +23,5 @@ export const HIGH_LANDMARKS: Landmark[] = [
   { kind: 'disc', ...TERRACE_RING },
   SKY_BRIDGE_FOOTPRINT,
   ...STAIRCASE_FOOTPRINTS,
+  PINEAPPLE_DECK,
 ];
