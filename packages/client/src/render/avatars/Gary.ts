@@ -51,6 +51,7 @@ export class GaryAvatar implements Avatar {
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
   private readonly gait: Gait;
+  private readonly side: number; // metres from his middle out to his left side: how high he lies on it
   private dead = false;
 
   constructor(
@@ -66,6 +67,7 @@ export class GaryAvatar implements Avatar {
     this.skin = new SkinnedBody(engine, `gary-${id}`, GARY_MODEL, 'gary', PARENTS, this.base);
     this.eyes = this.skin.node('eyes');
     this.feet = FOOT.map((bone) => this.skin.node(bone));
+    this.side = -this.skin.mesh.getBoundingInfo().boundingBox.minimum.x;
     // The foot and stalks are open sheets in the model, so they are drawn from both sides.
     this.skin.material.backFaceCulling = false;
     this.skin.material.twoSidedLighting = true;
@@ -105,10 +107,10 @@ export class GaryAvatar implements Avatar {
 
     if (p.dead !== this.dead) {
       this.dead = p.dead;
-      // Turned over onto his shell, foot up, lifted by his height so the shell rests on the ground.
-      // Tipped backwards like the bipeds he would stand on end: he is longer than he is tall.
-      this.base.rotation.z = p.dead ? Math.PI : 0;
-      this.base.position.y = p.dead ? GARY_MODEL.height : 0;
+      // Rolled onto his left side about his length, lifted so that side rests on the ground. Tipped
+      // backwards like the bipeds he would stand on end: he is longer than he is tall.
+      this.base.rotation.z = p.dead ? Math.PI / 2 : 0;
+      this.base.position.y = p.dead ? this.side : 0;
     }
     placeShadow(this.shadow, p, feetY);
     this.root.setEnabled(true);
