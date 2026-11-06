@@ -253,8 +253,8 @@ export function roundWall(opts: {
   return pieces;
 }
 
-// Steps winding around (x, z) between two radii, `turns` times round while rising from `bottom`
-// by `rise`. Each step is a slab `thickness` deep, so there's headroom beneath the flight above.
+// Steps winding around (x, z) between two radii, `turns` times round (the other way round when
+// negative) while rising from `bottom` by `rise`. Each step is a slab `thickness` deep, so there's headroom beneath the flight above.
 // With `rail`, each step also carries a post that high along its inner edge, so players can't step
 // off the inside of the flight; they get on and off at its ends. Throws if a step is taller than
 // a player can walk up.
@@ -304,7 +304,7 @@ export function spiralStairs(opts: {
       y: base,
       yaw,
       w: outer - inner,
-      d: turn * outer, // the arc at the outer edge, so steps meet there and overlap inside
+      d: Math.abs(turn) * outer, // the arc at the outer edge, so steps meet there and overlap inside
       h: top - base,
       material,
       color,
@@ -317,7 +317,7 @@ export function spiralStairs(opts: {
       y: top,
       yaw,
       w: RAIL_WIDTH,
-      d: turn * inner + 0.02,
+      d: Math.abs(turn) * inner + 0.02,
       h: rail,
       material,
       color,

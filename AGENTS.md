@@ -389,10 +389,13 @@ wire: server and client both build the world from that file.
   floor's closet and bathroom are copied off the bedroom, and a straight stair of solid steps
   climbs from the corridor's end through the hall's ceiling to a hole in the library's floor, open
   along the corridor and walled both sides and roofed over from where the corridor's wall meets it
-  (`house_interior.py` lays it out, the sim stands its steps); and from the library's floor the
-  attic stair spirals round its wall, through a hole in its ceiling and up a brick cylinder in the
-  hollow top of the shell to a railed deck on the crown (the generator lays it out and cuts the
-  ceiling, `content/pineapple.ts` stands the steps, the cylinder and the deck from the profile);
+  (`house_interior.py` lays it out, the sim stands its steps); high in the library's wall a round
+  hatch opens, with a slide down from it to the floor, as the show has them (the generator cuts the
+  wall, builds the tube, the door and the slide's trough, and gives the sim the slide as ramps);
+  through it a brick lobby outside the wall, where a flight winds up each way to a gallery round
+  the brick cylinder standing on the library's ceiling, with doorways into it, and inside the attic
+  stair spirals up through the crown to a railed deck on top (`content/pineapple.ts` stands all of
+  that from the profile, in the hollow top of the shell);
   the sim collides with boxes cut from every surface of the rooms, hidden rings for the shell,
   walls along the flat faces carved round its doors, and the path's flagstones as ramps lying with
   the dune.
@@ -432,8 +435,8 @@ wire: server and client both build the world from that file.
   rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
   never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 11,145 pieces (5,343
-  drawn; the house's rooms are 3,736 hidden boxes and its shell 2,066 hidden ring pieces) render as
+  so draw calls stay in the tens however many pieces there are. The world's 11,797 pieces (5,564
+  drawn; the house's rooms are 3,991 hidden boxes and its shell 2,242 hidden ring pieces) render as
   77 meshes (about 15 in view at once), and a world-spanning raycast costs about 190 µs. The sim's
   grid has height bands as well as cells, so a walker's tick pays only for the pieces at its own
   height (about 70 µs inside the house). Check both numbers in the PR when a landmark adds a lot.

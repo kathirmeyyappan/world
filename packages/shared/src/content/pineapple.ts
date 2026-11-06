@@ -18,13 +18,15 @@
 // walled off from the rest of the hall; the ground floor's closet and bathroom are copied off the
 // bedroom; and a straight stair of solid steps climbs from the corridor's end through the hall's
 // ceiling and a hole in the library's floor, open along the corridor and walled both sides from
-// where the corridor's wall meets it. From the library's floor a spiral climbs round its wall,
-// through a hole in its ceiling and up a brick cylinder standing on that ceiling, through the
-// fruit's crown to a railed deck on top: the attic stair, in the hollow top of the shell, which
-// nothing else can see into. Every door swings (sim/doors.ts), the front
+// where the corridor's wall meets it. High in the library's wall a round hatch opens, with a
+// slide down from it to the floor (both the model's, as the show has them); through it a brick
+// lobby, with a flight winding up each way to a gallery round the brick cylinder standing on the
+// library's ceiling, and doorways into it; inside, the attic stair climbs through the fruit's
+// crown to a railed deck on top: all in the hollow top of the shell, which nothing else can see
+// into. Every door swings (sim/doors.ts), the front
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
-import { ramp, roundFloor, roundWall, terrain, wall, type Box, type Structure } from '../sim/structures';
+import { ramp, roundFloor, roundWall, spiralStairs, terrain, wall, type Box, type Structure } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -86,6 +88,37 @@ export const PINEAPPLE_LEVELS: Region[] = [
   { kind: 'disc', x: X, z: Z, r: 4.5, y: DUNE_HEIGHT + levels.library },
 ];
 
+// The hollow top of the shell, from the hatch's sill up: the brick lobby outside the hatch, at the
+// sill's height, between a wall just inside the hatch's tube's end and the gallery's outer wall
+// GALLERY_OUT out from the axis, both WALL thick, with LANDING metres of its inner wall between
+// the flights; the gallery round the cylinder, its floor the cylinder's too (the top of the
+// library ceiling's boxes, attic.cylinder.floor) and GALLERY_HEAD under its lid; and the
+// cylinder's doorways, a quarter turn either side of the hatch. The profile's bearings run the
+// other way round from the world's.
+const { attic, hatch } = SHAPE;
+const WALL = 0.3;
+const FLOOR = 0.4;
+const GALLERY_OUT = 14;
+const GALLERY_HEAD = 2.6;
+const LANDING = 3.6;
+const TREAD = 0.32; // metres a lobby step runs at the flight's outer edge
+const DOORWAY = { width: 1.6, height: 2.4 };
+const hatchAngle = bearing(hatch.bearing);
+const lobbyFloor = DUNE_HEIGHT + hatch.sill;
+const topFloor = DUNE_HEIGHT + attic.cylinder.floor;
+const lobbyIn = hatch.outer - WALL;
+const flightTurn = (Math.ceil((topFloor - lobbyFloor) / 0.25) * TREAD) / GALLERY_OUT; // radians each flight winds
+const lobbySpan = LANDING / 2 / hatch.outer + flightTurn; // radians either side of the hatch the lobby runs
+const cylinderR = attic.cylinder.r + attic.cylinder.thickness / 2;
+const at = (r: number, angle: number) => ({ x: X + r * Math.cos(angle), z: Z + r * Math.sin(angle) });
+// The hatch's tube through the library's wall: a gap in the wall's rings at radius r.
+const hatchGap = (r: number) => ({
+  angle: hatchAngle,
+  width: (hatch.across + 0.4) / r,
+  bottom: lobbyFloor,
+  top: lobbyFloor + hatch.centre + hatch.across / 2 + 0.2,
+});
+
 // What's open through the shell's rings between two heights above the floor: the doorways (the
 // back door's and the hall's; each `width` metres across at the ring's radius) and the flat faces
 // round the doors, which have walls of their own (`faceWalls`), each as a gap.
@@ -108,10 +141,17 @@ const openings = (bottom: number, top: number, r: number) =>
 // hollow top the attic stair climbs. Where the skin
 // is flattened into a face round a door the rings are open and the face's own wall stands, chord
 // by chord.
-const edges = [...new Set([...SHAPE.rings.map(([y]) => y), levels.hall, levels.library, levels.top])].sort(
-  (a, b) => a - b,
-);
-const ring = (inner: number, outer: number, y0: number, y1: number): Box[] =>
+const edges = [
+  ...new Set([
+    ...SHAPE.rings.map(([y]) => y),
+    levels.hall,
+    levels.library,
+    hatch.sill,
+    attic.cylinder.floor,
+    levels.top,
+  ]),
+].sort((a, b) => a - b);
+const ring = (inner: number, outer: number, y0: number, y1: number, extra: ReturnType<typeof hatchGap>[] = []): Box[] =>
   roundWall({
     x: X,
     z: Z,
@@ -120,7 +160,7 @@ const ring = (inner: number, outer: number, y0: number, y1: number): Box[] =>
     y: DUNE_HEIGHT + y0,
     h: y1 - y0,
     segments: SEGMENTS,
-    gaps: openings(y0, y1, (outer + inner) / 2),
+    gaps: [...openings(y0, y1, (outer + inner) / 2), ...extra],
     hidden: true,
   });
 const face: Box[] = SHAPE.faceWalls.map(([x1, z1, x2, z2, y0, y1]) => ({
@@ -134,7 +174,13 @@ const shell: Structure[] = edges.slice(1).flatMap((y1, i): Structure[] => {
   if (y0 < levels.hall) return ring(GROUND_CORE, outer, y0, y1);
   if (y0 < levels.library) return ring(outer - SEAL, outer, y0, y1);
   const [, inner] = SHAPE.library.reduce((band, next) => (next[0] <= y0 ? next : band), SHAPE.library[0]);
-  return ring(inner, outer, y0, y1);
+  if (y0 < hatch.sill) return ring(inner, outer, y0, y1);
+  // Beside the lobby and the gallery: the library's wall alone, open for the hatch's tube, and
+  // the shell outside the gallery's wall.
+  return [
+    ...ring(inner, lobbyIn, y0, Math.min(y1, attic.cylinder.floor), [hatchGap((inner + lobbyIn) / 2)]),
+    ...ring(GALLERY_OUT + WALL, outer, y0, y1),
+  ];
 });
 
 // The rooms and everything in them.
@@ -164,23 +210,113 @@ const piece = ([x, z, y, w, d, h, yaw]: Piece): Box => ({
 });
 const flights: Box[] = [...SHAPE.stair.map(piece), ...SHAPE.stairwell.map(piece)];
 
-// The attic stair: its slabs and rail posts, the brick cylinder it climbs from the library's
-// ceiling to the crown, and the deck on the crown with the hole it arrives through and a rail
-// round the edge (a 50 m drop). The profile's bearings run the other way round from the world's.
-const { attic } = SHAPE;
+// The lobby: its floor (a ring, the rest of it sealed off behind the end walls), the wall toward
+// the library with the hatch's opening, the end walls, and a flight of solid steps up each way;
+// the gallery: its floor, open over the lobby exactly as far as the flights run, its outer wall
+// from the lobby's floor up to its lid, the lid, and the cylinder's own floor a hair over the
+// library's ceiling; and the cylinder with its doorways, the attic stair's slabs and rail posts
+// up it, and the deck on the crown with the hole the stair arrives through and a rail round the
+// edge (a 50 m drop).
 const DECK_RAIL = 1.0;
-const deck: Structure[] = [
-  ...attic.steps.map(piece),
+const top: Structure[] = [
+  ...roundFloor({
+    x: X,
+    z: Z,
+    r: GALLERY_OUT + WALL,
+    inner: lobbyIn,
+    y: lobbyFloor,
+    thickness: FLOOR,
+    material: 'brick',
+  }),
   ...roundWall({
     x: X,
     z: Z,
-    r: attic.cylinder.r + attic.cylinder.thickness / 2,
+    r: lobbyIn + WALL / 2,
+    thickness: WALL,
+    y: lobbyFloor - FLOOR,
+    h: topFloor - lobbyFloor + FLOOR,
+    segments: 48,
+    gaps: [hatchGap(lobbyIn + WALL / 2)],
+    material: 'brick',
+  }),
+  ...[-1, 1].map((side): Box => ({
+    ...wall(
+      at(lobbyIn, hatchAngle + side * lobbySpan),
+      at(GALLERY_OUT + WALL, hatchAngle + side * lobbySpan),
+      topFloor - lobbyFloor + FLOOR,
+      WALL,
+      lobbyFloor - FLOOR,
+    ),
+    material: 'brick',
+  })),
+  ...[-1, 1].flatMap((side) =>
+    spiralStairs({
+      x: X,
+      z: Z,
+      inner: hatch.outer + 0.05,
+      outer: GALLERY_OUT - 0.05,
+      bottom: lobbyFloor,
+      rise: topFloor - lobbyFloor,
+      turns: (side * flightTurn) / (2 * Math.PI),
+      start: hatchAngle + side * (lobbySpan - flightTurn),
+      thickness: Infinity,
+      material: 'brick',
+    }),
+  ),
+  ...roundFloor({
+    x: X,
+    z: Z,
+    r: GALLERY_OUT + 0.1,
+    inner: cylinderR,
+    y: topFloor,
+    thickness: FLOOR,
+    hole: { inner: lobbyIn, from: hatchAngle - lobbySpan, to: hatchAngle + lobbySpan },
+    material: 'brick',
+  }),
+  ...roundWall({
+    x: X,
+    z: Z,
+    r: GALLERY_OUT + WALL / 2,
+    thickness: WALL,
+    y: lobbyFloor - FLOOR,
+    h: topFloor + GALLERY_HEAD + FLOOR - (lobbyFloor - FLOOR),
+    segments: 48,
+    material: 'brick',
+  }),
+  ...roundFloor({
+    x: X,
+    z: Z,
+    r: GALLERY_OUT + WALL,
+    inner: cylinderR,
+    y: topFloor + GALLERY_HEAD + FLOOR,
+    thickness: FLOOR,
+    material: 'brick',
+  }),
+  ...roundFloor({
+    x: X,
+    z: Z,
+    r: attic.cylinder.r + 0.1,
+    y: topFloor,
+    thickness: attic.cylinder.floor - attic.cylinder.bottom - 0.02,
+    material: 'brick',
+  }),
+  ...roundWall({
+    x: X,
+    z: Z,
+    r: cylinderR,
     thickness: attic.cylinder.thickness,
     y: DUNE_HEIGHT + attic.cylinder.bottom,
     h: attic.cylinder.top - attic.cylinder.bottom,
     segments: 48,
+    gaps: [-1, 1].map((side) => ({
+      angle: hatchAngle + (side * Math.PI) / 2,
+      width: DOORWAY.width / cylinderR,
+      bottom: topFloor,
+      top: topFloor + DOORWAY.height,
+    })),
     material: 'brick',
   }),
+  ...attic.steps.map(piece),
   ...roundFloor({
     x: X,
     z: Z,
@@ -204,8 +340,9 @@ const deck: Structure[] = [
 export const PINEAPPLE_DECK: Disc = { kind: 'disc', x: X, z: Z, r: attic.deck.r };
 
 // The path's flagstones, a hair above the sand, each a ramp lying with the dune's slope, so a
-// walker steps on and off them where the model draws them.
-const stones: Structure[] = SHAPE.stones.map(([lx, lz, hx, hz, y, w, h]) => ({
+// walker steps on and off them where the model draws them; and the slide down from the hatch,
+// ramps the same way (the model draws its trough).
+const stones: Structure[] = [...SHAPE.stones, ...SHAPE.slide].map(([lx, lz, hx, hz, y, w, h]) => ({
   ...ramp(placed(lx, lz), placed(hx, hz), h, w, DUNE_HEIGHT + y),
   hidden: true,
 }));
@@ -240,7 +377,7 @@ export const PINEAPPLE_HOUSE: Structure[] = [
   ...shell,
   ...face,
   ...rooms,
-  ...deck,
+  ...top,
   ...PINEAPPLE_DOORS.flatMap((d) => doorPieces(d)),
   ...flights,
 ];
