@@ -97,6 +97,8 @@ ATTIC_TREAD = 0.45
 ATTIC_THICKNESS = 0.3
 ATTIC_RAIL = 1.0
 ATTIC_CLEAR = 0.12
+ATTIC_TAPER = 0.08  # metres a step the flight may come in by at most
+ATTIC_EASE = 8  # steps over which it eases into coming in that fast, so it bends rather than kinks
 ATTIC_CYLINDER = 7.0
 ATTIC_WALL = 0.3
 ATTIC_DECK = 0.3
@@ -1235,41 +1237,72 @@ def attic_stair(floor: float, ceiling: float, crown: float, wall_r: Callable[[fl
         (ATTIC_CYLINDER + ATTIC_WALL + 0.4, deck_top, ATTIC_DECK),
         (0.0, 0.0, 0.0),
     )
-    angle = ATTIC_START
-    arriving: list[tuple[float, float, float]] = []
-    for i in range(steps):
-        top = floor + riser * (i + 1)
-        # Below the ceiling the flight follows the wall, as far up as a head reaches; where a head
-        # reaches the cylinder it keeps inside that too.
-        outer = ATTIC_CYLINDER - ATTIC_CLEAR
+    # Where each step starts: its tread's height, how far out its edges stand and the bearing it
+    # starts at; then each step's slab runs from its own start to the next step's, so along a
+    # taper the outer edges run on continuously (a slab laid along the circle at its own radius
+    # would jut past the next by the taper).
+    tops = [floor + riser * (i + 1) for i in range(steps)]
+    # Below the ceiling the flight keeps inside the wall as far up as a head reaches, and where a
+    # head reaches the cylinder it keeps inside that too. Within those limits it comes in no faster
+    # than ATTIC_TAPER a step, easing into that over ATTIC_EASE steps, so it bends in ahead of each
+    # lean of the wall rather than kinking with it; and it never turns outward, since the straight
+    # slabs would crack open on the inside where they meet.
+    limits = []
+    for top in tops:
+        limit = ATTIC_CYLINDER - ATTIC_CLEAR
         if top < ceiling:
-            outer = min(wall_r(y) for y in np.arange(top, min(top + 2.0, ceiling), 0.25)) - ATTIC_CLEAR
+            limit = min(wall_r(y) for y in np.arange(top, min(top + 2.0, ceiling), 0.25)) - ATTIC_CLEAR
             if top + 2.0 >= ceiling:
-                outer = min(outer, ATTIC_CYLINDER - ATTIC_CLEAR)
-        inner = outer - ATTIC_WIDTH
-        mid = outer - ATTIC_WIDTH / 2
-        turn = ATTIC_TREAD / mid
-        a = angle + turn / 2
-        facing = a + np.pi / 2  # the way the flight runs: round with the bearing
+                limit = min(limit, ATTIC_CYLINDER - ATTIC_CLEAR)
+        limits.append(limit)
+
+    def taper(d: int) -> float:
+        """How far out a step may stand past the one `d` steps above it."""
+        if d <= ATTIC_EASE:
+            return ATTIC_TAPER * d * d / (2 * ATTIC_EASE)
+        return ATTIC_TAPER * (d - ATTIC_EASE / 2)
+
+    outers = [min(limits[j] + taper(j - i) for j in range(i, steps)) for i in range(steps)]
+    starts: list[tuple[float, float, float, float]] = []  # (top, outer, inner, angle)
+    angle = ATTIC_START
+    for top, outer in zip(tops, outers):
+        starts.append((top, outer, outer - ATTIC_WIDTH, angle))
+        angle += ATTIC_TREAD / (outer - ATTIC_WIDTH / 2)
+    starts.append((starts[-1][0] + riser, *starts[-1][1:3], angle))  # where the last step ends
+    arriving: list[tuple[float, float, float]] = []
+    inwards: list[np.ndarray] = []  # each step's square-to-the-run direction toward the axis, and its run
+    runs: list[np.ndarray] = []
+    for i in range(steps):
+        (top, outer, inner, a0), (_, outer1, inner1, a1) = starts[i], starts[i + 1]
+        p0, p1 = np.array(at(outer, a0)), np.array(at(outer1, a1))
+        q0, q1 = np.array(at(inner, a0)), np.array(at(inner1, a1))
+        run = p1 - p0
+        length = float(np.linalg.norm(run))
+        facing = float(np.arctan2(run[0], run[1]))
+        inward = np.array([-run[1], run[0]]) / length  # square to the run, toward the axis
+        if inward @ (p0 + p1) > 0:
+            inward = -inward
+        if i > 0:
+            crack = ATTIC_WIDTH * float((inward - inwards[-1]) @ runs[-1])
+            assert crack <= 0.001, (
+                f"attic stair: step {i} turns outward and cracks the flight open {crack:.2f} m on the inside"
+            )
+        inwards.append(inward)
+        runs.append(run / length)
         base = max(floor, top - ATTIC_THICKNESS)
-        attic.steps.append([*at(mid, a), base, ATTIC_WIDTH, turn * outer, top - base, float(facing)])
-        attic.steps.append([*at(inner + 0.1, a), top, 0.2, turn * inner + 0.02, ATTIC_RAIL, float(facing)])
+        centre = (p0 + p1) / 2 + inward * (ATTIC_WIDTH / 2)
+        attic.steps.append([float(centre[0]), float(centre[1]), base, ATTIC_WIDTH, length, top - base, facing])
+        post = (q0 + q1) / 2 - inward * 0.1
+        attic.steps.append(
+            [float(post[0]), float(post[1]), top, 0.2, float(np.linalg.norm(q1 - q0)) + 0.02, ATTIC_RAIL, facing]
+        )
         # The hole runs on past the ceiling until a walker's reach clears the ceiling's boxes, which
         # the sim cuts a cell coarse round a hole's edge.
         if ceiling - HEADROOM < top < ceiling + 0.75:
-            corners = [
-                at(r, b)
-                for r, b in (
-                    (inner - 0.05, angle),
-                    (outer + 0.05, angle),
-                    (outer + 0.05, angle + turn),
-                    (inner - 0.05, angle + turn),
-                )
-            ]
+            corners = [at(inner - 0.05, a0), at(outer + 0.05, a0), at(outer1 + 0.05, a1), at(inner1 - 0.05, a1)]
             attic.ceiling_holes.append(ccw(corners))
         if top > deck_top - HEADROOM:
-            arriving.append((inner, angle, angle + turn))
-        angle += turn
+            arriving.append((inner, a0, a1))
     attic.deck_hole = (min(r for r, _, _ in arriving) - 0.1, arriving[0][1] - 0.05, arriving[-1][2] + 0.05)
     print(
         f"attic: {steps} steps of {riser:.3f} m rise, {np.degrees(angle - ATTIC_START) / 360:.2f} turns, "

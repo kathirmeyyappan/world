@@ -87,6 +87,9 @@ SKIN_TILE = 8.5  # metres of shell one repeat of the pineapple pattern (two diam
 STEEL_TILE = 3.0  # metres of passage one repeat of the steel (two plates) covers
 PORTHOLE_STUB = 0.3  # metres inside the skin a porthole's tube is cut off: within the shell's wall
 GLASS_RADIUS = 3.2  # metres from a porthole's axis its glass reaches, which tells the panes from the ring's rims
+LEAVES_FROM = 46.5  # metres up: a trim part standing wholly above this is a leaf
+CANOPY_HEIGHT = 2.6  # metres over the deck the leaves are cut off, head height and some
+CANOPY_CLEAR = 1.0  # metres past the deck's edge the cut reaches
 GLASS = 56  # pixels across the glass painted in the trim texture's strip
 TRIM_TEXTURE = 512  # the model's texture is cut down to this for what's kept of it
 PATH_TEXTURE = 256  # the path's texture, cut down to this
@@ -256,10 +259,19 @@ def main(outside: str, rooms: str) -> None:
     # open: the attic stair's deck (content/pineapple.ts, from the profile) is the top of the fruit.
     trim = MeshBuilder()
     fitted = {c for cs in fittings.values() for c in cs}
+    # The leaves stand on the crown, through the deck: within CANOPY_CLEAR of the deck's edge they
+    # are cut off below CANOPY_HEIGHT over it, so the deck stands under a canopy, not in a thicket.
+    if interior.attic is None:
+        raise SystemExit("the interior has no attic stair")
+    canopy = interior.attic.deck[1] + CANOPY_HEIGHT
+    clear = interior.attic.deck[0] + CANOPY_CLEAR
     for k in range(len(parts)):
         if k == shell or k in on_door or k in portholes or k in fitted:
             continue
-        trim.add(model_triangles(points, uv, tris[of == k], s, squeeze))
+        part_tris = model_triangles(points, uv, tris[of == k], s, squeeze)
+        if (points[parts[k]][:, 1] * s).min() > LEAVES_FROM:
+            part_tris = [t for tri in part_tris for t in canopy_cut(tri, canopy, clear)]
+        trim.add(part_tris)
     for k, cs in fittings.items():
         trim.add(porthole(points, uv, tris, of, parts, [k, *cs], s, squeeze, profile, glass))
     door_part, front_door = build_door(profile)
@@ -399,6 +411,18 @@ def lathe_angles() -> list[float]:
     for face in FACES[1:]:
         fine |= {(face.bearing + np.radians(d)) % (2 * np.pi) for d in range(-DOOR_FINE_SPAN, DOOR_FINE_SPAN + 1)}
     return sorted(whole | fine | {2 * np.pi})
+
+
+def canopy_cut(tri: Triangle, canopy: float, clear: float) -> list[Triangle]:
+    """A leaf's triangle with the block under `canopy` within `clear` of the axis taken out: what
+    stands above the canopy, and what stands below it outside that radius."""
+    pts = np.array([p for p, _ in tri])
+    if (pts[:, 1] >= canopy).all() or (np.hypot(pts[:, 0], pts[:, 2]) >= clear).all():
+        return [tri]
+    above = clip_at(list(tri), lambda p: canopy - p[1], 0.0)
+    below = clip_at(list(tri), lambda p: p[1] - canopy, 0.0)
+    outside = clip_at(below, lambda p: clear - float(np.hypot(p[0], p[2])), 0.0)
+    return [t for poly in (above, outside) if len(poly) >= 3 for t in fan(poly)]
 
 
 def model_triangles(points: np.ndarray, uv: np.ndarray, tris: np.ndarray, s: float, squeeze: float) -> list[Triangle]:
