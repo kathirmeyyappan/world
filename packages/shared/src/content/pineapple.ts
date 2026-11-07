@@ -306,12 +306,12 @@ const top: Structure[] = [
       z: Z,
       inner: hatch.outer + 0.05,
       outer: GALLERY_OUT - 0.05,
-      bottom: lobbyFloor,
-      rise: topFloor - IN_SLAB - lobbyFloor,
+      bottom: lobbyFloor - UNDER_TUBE, // resting on the lobby's floor
+      rise: topFloor - IN_SLAB - (lobbyFloor - UNDER_TUBE),
       turns: (side * flightTurn) / (2 * Math.PI),
       start: hatchAngle + side * (lobbySpan - flightTurn),
       thickness: Infinity,
-      material: 'brick',
+      material: 'wood',
     }),
   ),
   ...roundFloor({
