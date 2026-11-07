@@ -25,6 +25,7 @@ from .protocol import Player, Vec3
 
 MAP_PATH = Path(__file__).with_name("world_map.json.gz")
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
+SPEEDY_MULTIPLIER = 1.8  # a /speedy's walk, as a multiple of the walk's (SPEEDY_MULTIPLIER there too)
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
 JUMP_COST = 2.0  # metres of walking a route would rather take than one jump

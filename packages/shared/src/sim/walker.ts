@@ -74,7 +74,16 @@ export function stepWalker(
   // footing, nothing from a slippery one.
   const jumping = !!input?.jump && grounded && !p.dead && !p.scoped;
   const takeoff = jumping ? structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS) : null;
-  if (jumping) p.vy = JUMP_VELOCITY;
+  if (takeoff && SURFACES[takeoff.surface].grip === Infinity) p.vy = JUMP_VELOCITY;
+  else if (takeoff) {
+    // Ice pushes back only square to itself, so the feet push off it along its normal: straight up
+    // on the flat, and on a slope partly downhill, shedding whatever climb the walk had.
+    const { x: sx, z: sz } = takeoff.slope;
+    const len = Math.hypot(sx, 1, sz);
+    p.vx -= (JUMP_VELOCITY * sx) / len;
+    p.vz -= (JUMP_VELOCITY * sz) / len;
+    p.vy = JUMP_VELOCITY / len;
+  }
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
 
   // Vertical: fall (or brake and rise on the gear's push), stop the head at any underside above it,

@@ -158,9 +158,10 @@ sounds like: `thud` or `crunch`). On a footing with finite grip the walker keeps
 slow it at that rate with none held, and gravity pulls it down any slope harder than they can hold
 (`walker.ts` `slide`, capped at `SLIDE_SPEED`), so an icy 15° slope can't be climbed and the
 library's slide is ridden. In the air there's nothing to push against, so the walk keeps the
-velocity it took off with: a jump launches where the keys point from a sure footing, and with
-whatever the walk had from a slippery one, so hopping up the slide gets nowhere; a jetpack's
-thrust is something to push against, so it steers. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
+velocity it took off with: a jump launches where the keys point from a sure footing, and from a
+slippery one with whatever the walk had, pushed off square to the ice (straight up on the flat,
+partly downhill on a slope), so hopping up the slide sheds the climb it had; a jetpack's thrust
+is something to push against, so it steers. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
 and its slope at a spot, and the client's `Footsteps` asks it at each footfall for the sound
 (`FOOTFALLS` there maps a footfall to its recordings; a gait with sounds of its own keeps them).
 The legs, footsteps and head bob are paced by `PlayerState.walk`, how fast the feet walk: the

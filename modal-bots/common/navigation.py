@@ -64,8 +64,10 @@ class Route:
         node = self.world.nodes[self.path[i]]
         return Vec3(node.x, node.y + EYE_HEIGHT, node.z)
 
-    def steer(self, eye: Vec3, tick: int, controls: Controls, speed: float = 1) -> bool:
-        """Move along the route (``eye`` is the bot's ``pos``); False once at the end."""
+    def steer(self, eye: Vec3, tick: int, controls: Controls, speed: float = 1, boost: float = 1) -> bool:
+        """Move along the route (``eye`` is the bot's ``pos``) at ``speed`` (0 to 1 of the walk's),
+        with ``boost`` the multiple the walk is sped up by just now (a /speedy's); False once at
+        the end."""
         feet = Vec3(eye.x, eye.y - EYE_HEIGHT, eye.z)
         while not self.done and (self._reached(feet) or self._passed(feet)):
             self.next += 1
@@ -90,11 +92,12 @@ class Route:
             if tick - self._settled_at < JUMP_SETTLE_TICKS:
                 controls.stop()
                 return True
-            # Off at the map's pace for this jump: the jump keeps it, so a faster one sails past.
+            # Off at the map's pace for this jump: the jump keeps it, so a faster one (a sped-up
+            # walk's included) sails past.
             controls.jump()
             self._jumped = True
             pace = self.world.jump_paces[self.path[self.next - 1]][self.path[self.next]]
-            controls.walk_toward(eye, self.ahead(eye), speed * pace)
+            controls.walk_toward(eye, self.ahead(eye), speed * pace / boost)
             return True
         controls.walk_toward(eye, self.ahead(eye), speed)
         return True
