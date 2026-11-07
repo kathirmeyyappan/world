@@ -40,11 +40,6 @@ const MAP_STRUCTURES = new Structures(STRUCTURES.filter((s) => !s.door));
 const SPACING = 1; // metres between grid columns: under a doorway's clear width (1.2 m less a body)
 const WALL_CLEARANCE = 0.05; // metres a node's body may be pushed by a wall before it doesn't count
 const MAX_RISE = 1.5; // metres between neighbouring nodes worth trying an edge across
-// Metres past its node a walk may come down, on the node's floor and line, and still count as
-// reaching it: a jump or a drop flies on with the walk's speed once past the node (there's no
-// stopping in the air), as far as a full jump carries.
-const OVERSHOOT = 6.5;
-const STUCK_TICKS = 3; // ticks a walk stands still short of its node before it's taken as blocked: one can happen brushing a corner
 const SIGHT_CHECKS = 64;
 // A lookout stands this high or more, on floor (walks to at least LOOKOUT_FLOOR of its eight
 // neighbours, so not along a rail or parapet top), and at eye level sees this far out along this many of a ring of level sight
@@ -71,8 +66,7 @@ export interface BotMap {
   structures: Structure[]; // as content/structures.ts lists them, without their looks
   nodes: [number, number, number][]; // feet x, y, z
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
-  jumps: number[][]; // per node, the ones only a jump toward them reaches
-  jumpPaces: number[][]; // per node, the pace of each of those jumps (hopPace), in the same order
+  jumps: number[][]; // per node, the ones only a running jump toward them reaches
   lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
   lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
@@ -102,7 +96,6 @@ export function botMapSource(): number {
     SPACING,
     WALL_CLEARANCE,
     MAX_RISE,
-    OVERSHOOT,
     SIGHT_CHECKS,
     LOOKOUT_HEIGHT,
     LOOKOUT_RANGE,
@@ -138,23 +131,17 @@ export function buildBotMap(): BotMap {
   });
   const edges: number[][] = [];
   const jumps: number[][] = [];
-  const jumpPaces: number[][] = [];
   for (const a of nodes) {
     const walk: number[] = [];
     const jump: number[] = [];
-    const paces: number[] = [];
     for (const [di, dj] of NEIGHBOURS)
       for (const j of columns.get(columnKey(a.x + di * SPACING, a.z + dj * SPACING)) ?? []) {
         if (Math.abs(nodes[j].y - a.y) > MAX_RISE) continue;
         if (reaches(a, nodes[j], false)) walk.push(j);
-        else if (reaches(a, nodes[j], true)) {
-          jump.push(j);
-          paces.push(hopPace(a, nodes[j]));
-        }
+        else if (reaches(a, nodes[j], true)) jump.push(j);
       }
     edges.push(walk);
     jumps.push(jump);
-    jumpPaces.push(paces);
   }
   const found = lookouts(nodes, edges, jumps);
   return {
@@ -163,7 +150,6 @@ export function buildBotMap(): BotMap {
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
     edges,
     jumps,
-    jumpPaces,
     lookouts: found,
     lookoutPlaces: found.map((i) => placeOf(nodes[i])),
     hitboxes: hitboxes(),
@@ -221,27 +207,13 @@ function topAt(s: Structure, x: number, z: number): number[] {
   return [(s.y ?? 0) + surfaceOf(s).top(lx, lz)];
 }
 
-// The pace, as a share of the full walk, of a jump from a that comes down at b's height right at b
-// (on the way down), since a jump flies on at the pace it took off at: how a bot hops over a rail
-// onto the next cell rather than sailing over it.
-export function hopPace(a: Vec3, b: Vec3): number {
-  const rise = b.y - a.y;
-  const flight = JUMP_VELOCITY * JUMP_VELOCITY - 2 * GRAVITY * rise;
-  if (flight < 0) return 1;
-  const seconds = (JUMP_VELOCITY + Math.sqrt(flight)) / GRAVITY;
-  return Math.min(1, Math.hypot(b.x - a.x, b.z - a.z) / (seconds * MOVE_SPEED));
-}
-
-// Whether a player heading straight for b from a at full speed (taking off at hopPace, if
-// `jump`) and letting go once past b's column comes to stand on b's floor, within a hand of its
-// line, at b or carried past it by no more than OVERSHOOT, in about the time the walk and a jump
-// take plus a second's flight. One stopped short, against a wall, fails once it has stood still
-// STUCK_TICKS.
+// Whether a player heading straight for b from a at full speed (jumping as they set off, if
+// `jump`) and letting go once past b's column comes to stand there: within a hand of its line, at
+// its height, in about the time the walk and a jump take.
 function reaches(a: Vec3, b: Vec3, jump: boolean): boolean {
   const p = createPlayer('map', 'map', '#000', { x: a.x, y: a.y + EYE_HEIGHT, z: a.z });
   const yaw = Math.atan2(b.x - a.x, b.z - a.z);
   const length = Math.hypot(b.x - a.x, b.z - a.z);
-  const pace = jump ? hopPace(a, b) : 1;
   const frame = (my: number, jumping: boolean) => ({
     seq: 0,
     mx: 0,
@@ -253,23 +225,14 @@ function reaches(a: Vec3, b: Vec3, jump: boolean): boolean {
     actions: [],
   });
   const ticks =
-    2 * Math.ceil(length / (MOVE_SPEED * TICK_DT)) +
-    (jump ? Math.ceil((2 * JUMP_VELOCITY) / GRAVITY / TICK_DT) : 0) +
-    Math.ceil(1 / TICK_DT);
+    2 * Math.ceil(length / (MOVE_SPEED * TICK_DT)) + (jump ? Math.ceil((2 * JUMP_VELOCITY) / GRAVITY / TICK_DT) : 0);
   let along = 0;
-  let stuck = 0;
   for (let tick = 0; tick < ticks; tick++) {
-    stepPlayer(p, along < length ? frame(tick === 0 ? pace : 1, jump && tick === 0) : frame(0, false), TICK_DT);
+    stepPlayer(p, along < length ? frame(1, jump && tick === 0) : frame(0, false), TICK_DT);
     along = ((p.pos.x - a.x) * (b.x - a.x) + (p.pos.z - a.z) * (b.z - a.z)) / length;
-    const still = p.vx === 0 && p.vz === 0 && p.vy === 0 && isGrounded(p);
-    if (along < length) {
-      stuck = still ? stuck + 1 : 0;
-      if (stuck >= STUCK_TICKS) return false;
-      continue;
-    }
-    if (!still) continue;
+    if (along < length || p.vy !== 0 || !isGrounded(p)) continue;
     const off = Math.abs((p.pos.x - a.x) * (b.z - a.z) - (p.pos.z - a.z) * (b.x - a.x)) / length;
-    return off < 0.2 && along < length + OVERSHOOT && Math.abs(p.pos.y - EYE_HEIGHT - b.y) < 0.3;
+    return off < 0.2 && along < length + 0.4 && Math.abs(p.pos.y - EYE_HEIGHT - b.y) < 0.3;
   }
   return false;
 }
