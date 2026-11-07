@@ -318,7 +318,7 @@ const top: Structure[] = [
     y: topFloor,
     thickness: FLOOR,
     hole: { inner: lobbyIn, from: hatchAngle - lobbySpan, to: hatchAngle + lobbySpan, exact: true },
-    material: 'brick',
+    material: 'red-tile',
   }),
   ...roundWall({
     x: X,
@@ -346,7 +346,7 @@ const top: Structure[] = [
     r: attic.cylinder.r + 0.1,
     y: topFloor,
     thickness: attic.cylinder.floor - attic.cylinder.bottom - 0.02,
-    material: 'brick',
+    material: 'red-tile',
   }),
   ...roundWall({
     x: X,
