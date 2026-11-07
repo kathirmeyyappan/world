@@ -337,9 +337,10 @@ export function spiralStairs(opts: {
 // coming up from below) removes every sector of the outer ring, from the hole's `inner` out to r,
 // that touches the angles `from`..`to`; the hole is never smaller than asked, and the ring's sectors
 // start at `to`, so it ends exactly there (where a stair arriving through it ends, with nothing open
-// past its top step) and only runs over at `from`. With `inner`, only the ring from there out to r
-// is built (a balcony round a tower, a roof open in the middle). Sectors are at most `chord` metres
-// along the circle.
+// past its top step) and only runs over at `from`; an `exact` hole has the sectors laid out over
+// the arc outside it alone, so it ends exactly at both (a stair arriving at each end). With `inner`,
+// only the ring from there out to r is built (a balcony round a tower, a roof open in the middle).
+// Sectors are at most `chord` metres along the circle.
 export function roundFloor(opts: {
   x: number;
   z: number;
@@ -347,7 +348,7 @@ export function roundFloor(opts: {
   y: number;
   thickness?: number;
   inner?: number;
-  hole?: { inner: number; from: number; to: number };
+  hole?: { inner: number; from: number; to: number; exact?: boolean };
   chord?: number;
   material?: StructureMaterial;
   color?: string;
@@ -360,13 +361,14 @@ export function roundFloor(opts: {
   const pieces: Box[] =
     inner === undefined ? [{ kind: 'box', x, z, w: 2 * core + 0.1, d: 2 * core + 0.1, ...slab }] : [];
   const ring = (a: number, b: number, holed: boolean) => {
-    const count = Math.max(8, Math.ceil((2 * Math.PI * b) / chord));
-    const span = (2 * Math.PI) / count;
+    const arc = holed && hole?.exact ? 2 * Math.PI - (hole.to - hole.from) : 2 * Math.PI;
+    const count = Math.max(8, Math.ceil((arc * b) / chord));
+    const span = arc / count;
     const inset = a * (1 - Math.cos(span / 2)) + 0.05; // reach far enough in to meet the ring inside
     const phase = holed && hole ? hole.to : 0;
     for (let k = 0; k < count; k++) {
       const angle = phase + (k + 0.5) * span;
-      if (holed && hole) {
+      if (holed && hole && !hole.exact) {
         const middle = (hole.from + hole.to) / 2;
         const off = Math.abs(((((angle - middle) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
         if (off < span / 2 + (hole.to - hole.from) / 2 - 1e-9) continue; // the sector just past `to` only touches it

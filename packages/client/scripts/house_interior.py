@@ -1463,21 +1463,6 @@ def cut_hatch(interior: Interior) -> tuple[int, list[str]]:
     return len(opened), sorted(interior.materials[m] for m in by_material)
 
 
-def hatch_plate() -> list[Triangle]:
-    """The plate round the tube's far end, a hair proud of the lobby's wall there, over the wall's
-    opening round the tube; in the hatch's frame."""
-    hw, top = HATCH_ACROSS / 2, hatch_shape()[-1][0]
-    lap = 0.2
-    plate = fan(
-        [
-            (np.array([x, y, HATCH_OUT + 0.02]), np.array([x / SLIDE_TILE, y / SLIDE_TILE]))
-            for x, y in ((-hw - lap, -0.3), (hw + lap, -0.3), (hw + lap, top + lap), (-hw - lap, top + lap))
-        ]
-    )
-    plate, _ = cut_out(plate, outline_of(hatch_shape()), flat_xy, lambda tri: True)
-    return facing(plate, lambda mid: np.array([0.0, 0.0, 1.0]))
-
-
 def hatch_ring() -> list[Triangle]:
     """The frame: a ring HATCH_FRAME wide on the mouth's face, bevelled in the rim's look (lighter
     at its inner edge, darker at its outer), a skirt back from its outer edge HATCH_SKIRT into
@@ -1556,13 +1541,14 @@ def hatch_door(interior: Interior) -> None:
 def hatch(interior: Interior) -> None:
     """The hatch high in the library's wall (HATCH_*), as the show has it: the wall cut through
     along its bearing, a steel tube of the hatch's section run through the cut from the frame's
-    face, HATCH_PROUD out from the shelves, to HATCH_OUT, with the bolted ring round its mouth,
-    the plate at its far end where it meets the lobby's wall, and a round steel door just inside
-    the ring (porthole and wheel and all). The sim gets the tube as boxes; the wall itself is the
-    content's rings, which open for the tube there. `slide` adds the way down from it."""
+    face, HATCH_PROUD out from the shelves, to HATCH_OUT, a little past the lobby's wall (which
+    content/pineapple.ts closes round the tube in brick), with the bolted ring round its mouth
+    and a round steel door just inside the ring (porthole and wheel and all). The sim gets the
+    tube as boxes; the wall itself is the content's rings, which open for the tube there. `slide`
+    adds the way down from it."""
     cut, cut_names = cut_hatch(interior)
     inside, outside = tube(outline_of(hatch_shape()), HATCH_MOUTH, HATCH_OUT + 0.05, SLIDE_TILE)
-    interior.hatch_steel += at_hatch(inside + outside + hatch_plate())
+    interior.hatch_steel += at_hatch(inside + outside)
     interior.solid += at_hatch(inside)
     interior.hatch_rim += at_hatch(hatch_ring())
     hatch_door(interior)
