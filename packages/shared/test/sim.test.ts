@@ -305,6 +305,21 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
   assert.ok(q.pos.z < 0 && q.pos.y === EYE_HEIGHT, `slid off the bottom to z ${q.pos.z.toFixed(2)}`);
   walk(q, 0, 90, slope);
   assert.ok(q.pos.y - EYE_HEIGHT < 0.5, `three seconds of trying gets ${(q.pos.y - EYE_HEIGHT).toFixed(2)} m up`);
+  // Nor by hopping: the feet can't push off ice, though the same slope in stone launches a jump.
+  const hop = (surface?: 'ice') => {
+    const piece = ramp({ x: 0, z: 0 }, { x: 0, z: 3.46 }, 2, 3);
+    const h = createPlayer('c', 'c', '#fff', { x: 0, y: 1 + EYE_HEIGHT, z: 1.73 });
+    stepPlayer(
+      h,
+      frame(1, { jump: true }),
+      TICK_DT,
+      WORLD_SHAPE,
+      new Structures([surface ? { ...piece, surface } : piece]),
+    );
+    return h.vy;
+  };
+  assert.equal(hop('ice'), 0, 'a jump pressed on the icy slope does nothing');
+  assert.ok(hop() > 0, 'while the same slope in stone launches it');
 });
 
 test("what's underfoot: the material's surface, ice wherever a top is frosted, and the slope", () => {

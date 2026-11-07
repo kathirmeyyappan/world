@@ -70,7 +70,7 @@ export function stepWalker(
     (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
-  if (input?.jump && grounded && !p.dead && !p.scoped) p.vy = JUMP_VELOCITY;
+  if (input?.jump && grounded && !p.dead && !p.scoped && canPushOff(p, structures)) p.vy = JUMP_VELOCITY;
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
 
   // Vertical: fall (or brake and rise on the gear's push), stop the head at any underside above it,
@@ -138,6 +138,13 @@ export function stepWalker(
   const pace = grip < Infinity ? Math.hypot(wantX, wantZ) : Math.hypot(p.vx, p.vz);
   p.walk = Math.round(pace * 10) / 10;
   return landing;
+}
+
+// Whether the feet can push off what they stand on, for a jump: a sure footing. On ice they slip,
+// so an icy slope can't be hopped up.
+function canPushOff(p: PlayerState, structures: Structures): boolean {
+  const footing = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
+  return SURFACES[footing.surface].grip === Infinity;
 }
 
 // One tick of a walk on a slippery footing, where the walk keeps its momentum (vx, vz). Gravity
