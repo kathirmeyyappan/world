@@ -101,7 +101,7 @@ export class StandardAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
     this.head.rotation.x = p.pitch * 0.6;
 
-    this.gait.update(p.x, p.z, airborne, step);
+    this.gait.update(p.walk, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.35 : Math.sin(phase) * effort * 0.7;
     this.legL.rotation.x = swing;

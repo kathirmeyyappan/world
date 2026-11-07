@@ -18,6 +18,10 @@ export interface PlayerState {
   vy: number;
   vx: number; // the walk's velocity across the floor, m/s: what it keeps on a slippery footing (walker.ts)
   vz: number;
+  // How fast the feet are walking, m/s: what paces the legs and the footsteps. The walk the keys
+  // ask for on a slippery footing (the feet work however the body slides), else the walk the body
+  // makes (none against a wall); 0 for a class that doesn't walk.
+  walk: number;
   yaw: number;
   pitch: number;
   lastSeq: number;

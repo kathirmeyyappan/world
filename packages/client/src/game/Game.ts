@@ -139,7 +139,6 @@ export class Game {
   private wearing: string | null = null; // the avatar and item the player was last seen with, for dropping the scope
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
-  private lastFeet: { x: number; z: number } | null = null; // where the predicted body was last frame, for its speed
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
@@ -670,11 +669,9 @@ export class Game {
     }
     const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
     if (!this.scoped) this.camera.fov = this.wornFov();
-    // The bob follows the body's own speed across the ground, so it fades out against a wall and
-    // stops in the air, down the scope and in death; its dip is deepest as each step lands.
-    const speed = this.lastFeet && dt > 0 ? Math.hypot(p.x - this.lastFeet.x, p.z - this.lastFeet.z) / dt : 0;
-    this.lastFeet = { x: p.x, z: p.z };
-    const walking = !this.dead && !this.scoped && isGrounded(self) ? Math.sqrt(Math.min(1, speed / MOVE_SPEED)) : 0;
+    // The bob follows the feet's own walk, so it fades out against a wall and stops in the air,
+    // down the scope and in death; its dip is deepest as each step lands.
+    const walking = !this.dead && !this.scoped && isGrounded(self) ? Math.sqrt(Math.min(1, self.walk / MOVE_SPEED)) : 0;
     this.bobbing += (walking - this.bobbing) * Math.min(1, dt / BOB_EASE);
     const dip =
       ((BOB * this.stature * this.bobbing) / 2) * (1 + Math.cos(2 * Math.PI * this.footsteps.phase(this.myId)));
@@ -722,23 +719,28 @@ export class Game {
       this.dead || this.hud.isChatOpen(),
     );
 
-    const stepLoops = this.footsteps.update([
-      {
-        id: this.myId,
-        pos: self.pos,
-        avatar: self.avatar,
-        grounded: !this.dead && isGrounded(self),
-        falling: -self.vy,
-        self: true,
-      },
-      ...sampled.players.map((rp) => ({
-        id: rp.id,
-        pos: { x: rp.x, y: rp.y, z: rp.z },
-        avatar: rp.avatar,
-        grounded: rp.grounded && !rp.dead,
-        self: false,
-      })),
-    ]);
+    const stepLoops = this.footsteps.update(
+      [
+        {
+          id: this.myId,
+          pos: self.pos,
+          walk: self.walk,
+          avatar: self.avatar,
+          grounded: !this.dead && isGrounded(self),
+          falling: -self.vy,
+          self: true,
+        },
+        ...sampled.players.map((rp) => ({
+          id: rp.id,
+          pos: { x: rp.x, y: rp.y, z: rp.z },
+          walk: rp.walk,
+          avatar: rp.avatar,
+          grounded: rp.grounded && !rp.dead,
+          self: false,
+        })),
+      ],
+      dt,
+    );
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -869,6 +871,7 @@ export class Game {
         firing: self.firing,
         gear: self.gear?.id ?? null,
         thrusting: self.thrusting,
+        walk: self.walk,
         chilled: self.chilled > 0,
         dead: this.dead,
         avatar: self.avatar,

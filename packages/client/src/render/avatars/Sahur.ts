@@ -140,7 +140,7 @@ export class SahurAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
 
     // Stilted walk: stiff legs swing from the hip and the log bobs; the arms keep hanging.
-    this.gait.update(p.x, p.z, airborne, step);
+    this.gait.update(p.walk, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.15 : Math.sin(phase) * 0.32 * effort;
     this.legL.rotation.x = swing;

@@ -111,7 +111,7 @@ export class BodyAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
     this.body.rotation.x = p.pitch * follow;
 
-    this.gait.update(p.x, p.z, airborne, step);
+    this.gait.update(p.walk, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.4 : Math.sin(phase) * effort * legSwing;
     this.legL.rotation.x = swing;
