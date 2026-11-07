@@ -25,6 +25,7 @@ from .protocol import Player, Vec3
 
 MAP_PATH = Path(__file__).with_name("world_map.json.gz")
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
+SPEEDY_MULTIPLIER = 1.8  # a /speedy's walk, as a multiple of the walk's (SPEEDY_MULTIPLIER there too)
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
 JUMP_COST = 2.0  # metres of walking a route would rather take than one jump
@@ -100,6 +101,12 @@ class WorldMap:
         self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in data["nodes"])
         self.edges = tuple(tuple(int(j) for j in out) for out in data["edges"])
         self.jumps = tuple(frozenset(int(j) for j in out) for out in data["jumps"])
+        # Each jump's pace, as a share of the full walk: a jump flies on at the pace it took off
+        # at, and this one comes down right at its node.
+        self.jump_paces: tuple[dict[int, float], ...] = tuple(
+            {int(j): float(pace) for j, pace in zip(out, paces, strict=True)}
+            for out, paces in zip(data["jumps"], data["jumpPaces"], strict=True)
+        )
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
         self.lookouts = tuple(int(i) for i in data["lookouts"])
         # The lookouts by where they are: "tower" (its balconies and roof), "building" (a building's

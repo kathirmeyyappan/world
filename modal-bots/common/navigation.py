@@ -46,22 +46,28 @@ class Route:
 
     def ahead(self, eye: Vec3) -> Vec3:
         """Where the route is steering from ``eye``, at eye height: the furthest node within
-        LOOKAHEAD of the bot, short of any jump (a jump has to start from its own take-off spot),
-        or a jump's landing while it's on one."""
+        LOOKAHEAD of the bot along the way (not as the crow flies: where the way doubles back on
+        itself, a node near the bot can be far along it, and steering at it turns the bot round),
+        short of any jump (a jump has to start from its own take-off spot), or a jump's landing
+        while it's on one."""
         feet = Vec3(eye.x, eye.y - EYE_HEIGHT, eye.z)
         i = min(self.next, len(self.path) - 1)
+        way = _across(feet, self.world.nodes[self.path[i]])
         while (
             not self._jumping
             and i + 1 < len(self.path)
             and self.path[i + 1] not in self.world.jumps[self.path[i]]
-            and _across(feet, self.world.nodes[self.path[i + 1]]) <= LOOKAHEAD
+            and way + _across(self.world.nodes[self.path[i]], self.world.nodes[self.path[i + 1]]) <= LOOKAHEAD
         ):
+            way += _across(self.world.nodes[self.path[i]], self.world.nodes[self.path[i + 1]])
             i += 1
         node = self.world.nodes[self.path[i]]
         return Vec3(node.x, node.y + EYE_HEIGHT, node.z)
 
-    def steer(self, eye: Vec3, tick: int, controls: Controls, speed: float = 1) -> bool:
-        """Move along the route (``eye`` is the bot's ``pos``); False once at the end."""
+    def steer(self, eye: Vec3, tick: int, controls: Controls, speed: float = 1, boost: float = 1) -> bool:
+        """Move along the route (``eye`` is the bot's ``pos``) at ``speed`` (0 to 1 of the walk's),
+        with ``boost`` the multiple the walk is sped up by just now (a /speedy's); False once at
+        the end."""
         feet = Vec3(eye.x, eye.y - EYE_HEIGHT, eye.z)
         while not self.done and (self._reached(feet) or self._passed(feet)):
             self.next += 1
@@ -86,8 +92,13 @@ class Route:
             if tick - self._settled_at < JUMP_SETTLE_TICKS:
                 controls.stop()
                 return True
+            # Off at the map's pace for this jump: the jump keeps it, so a faster one (a sped-up
+            # walk's included) sails past.
             controls.jump()
             self._jumped = True
+            pace = self.world.jump_paces[self.path[self.next - 1]][self.path[self.next]]
+            controls.walk_toward(eye, self.ahead(eye), speed * pace / boost)
+            return True
         controls.walk_toward(eye, self.ahead(eye), speed)
         return True
 
