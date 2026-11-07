@@ -96,10 +96,39 @@ export function cellOf(u: number, v: number): [number, number] {
   return [Math.floor(u / FROST_CELL), Math.floor(v / FROST_CELL)];
 }
 
+// A face's reach: metres along it and up (or across) it from its corner.
+function faceSize(s: Structure, face: Face): [number, number] {
+  const { height } = surfaceOf(s);
+  return face <= 1 ? [s.w, s.d] : face <= 3 ? [s.d, height] : [s.w, height];
+}
+
+// Whether a face has such a cell: the floor has every cell; a piece's face has those inside its
+// reach, cut to it at the edge, and on a side, those not wholly above the top's slope; a terrain
+// has only its top (its sides and underside are never drawn).
+export function hasCell(s: Structure | null, piece: number, face: Face, i: number, j: number): boolean {
+  if (!s) return piece === FLOOR && face === 0;
+  if (s.kind === 'terrain' && face !== 0) return false;
+  const [along, up] = faceSize(s, face);
+  const u0 = i * FROST_CELL;
+  const v0 = j * FROST_CELL;
+  const u1 = Math.min(along, u0 + FROST_CELL);
+  const v1 = Math.min(up, v0 + FROST_CELL);
+  if (u0 < 0 || v0 < 0 || u1 - u0 < 1e-6 || v1 - v0 < 1e-6) return false;
+  if (face <= 1) return true;
+  const { top } = surfaceOf(s);
+  const hw = s.w / 2;
+  const hd = s.d / 2;
+  const crest =
+    face <= 3
+      ? Math.max(top(face === 2 ? hw : -hw, u0 - hd), top(face === 2 ? hw : -hw, u1 - hd))
+      : Math.max(top(u0 - hw, face === 4 ? hd : -hd), top(u1 - hw, face === 4 ? hd : -hd));
+  return crest > v0 + 1e-6;
+}
+
 // What a cell is drawn as: its four corners, FROST_LIFT off the face, in world space, the face's
 // normal there, and the cell's reach along the face (u0, v0, u1, v1), for a crust that runs on
 // across its neighbours. A cell past the face's edge, or above a ramp's slope, is cut to it; one
-// with nothing left (or on a terrain's sides or underside, which are never drawn) is null.
+// the face hasn't (hasCell) is null.
 export function frostQuad(
   s: Structure | null,
   piece: number,
@@ -107,8 +136,8 @@ export function frostQuad(
   i: number,
   j: number,
 ): { corners: Vec3[]; normal: Vec3; uv: [number, number, number, number] } | null {
+  if (!hasCell(s, piece, face, i, j)) return null;
   if (!s) {
-    if (piece !== FLOOR || face !== 0) return null;
     const u0 = i * FROST_CELL;
     const v0 = j * FROST_CELL;
     const u1 = u0 + FROST_CELL;
@@ -124,16 +153,14 @@ export function frostQuad(
       uv: [u0, v0, u1, v1],
     };
   }
-  if (s.kind === 'terrain' && face !== 0) return null;
-  const { top, height } = surfaceOf(s);
+  const { top } = surfaceOf(s);
   const hw = s.w / 2;
   const hd = s.d / 2;
-  const [along, up] = face <= 1 ? [s.w, s.d] : face <= 3 ? [s.d, height] : [s.w, height];
+  const [along, up] = faceSize(s, face);
   const u0 = i * FROST_CELL;
   const v0 = j * FROST_CELL;
   const u1 = Math.min(along, u0 + FROST_CELL);
   const v1 = Math.min(up, v0 + FROST_CELL);
-  if (u0 < 0 || v0 < 0 || u1 - u0 < 1e-6 || v1 - v0 < 1e-6) return null;
   // The corner at face coordinates (u, v) in the piece's frame, and the face's normal there.
   let at: (u: number, v: number) => [number, number, number];
   let normal: [number, number, number];
@@ -169,8 +196,6 @@ export function frostQuad(
     }
   }
   const local = [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
-  // A side cell wholly above the slope has its top corners cut down onto its bottom ones.
-  if (face >= 2 && local[2][1] - local[1][1] < 1e-6 && local[3][1] - local[0][1] < 1e-6) return null;
   const yaw = s.yaw ?? 0;
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
@@ -226,7 +251,7 @@ export function splat(
       const q = (dv * dirU - du * dirV) / across;
       if (p * p + q * q > 1) continue;
       const cell: FrostCell = [piece, face, i, j];
-      if (!frostQuad(s, piece, face, i, j) || !allowed(cell)) continue;
+      if (!hasCell(s, piece, face, i, j) || !allowed(cell)) continue;
       if (frost.set(cell, on)) changed.push(cell);
     }
   return changed;

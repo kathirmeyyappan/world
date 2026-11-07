@@ -14,6 +14,15 @@ import type { Vec3 } from './types';
 // shell band by band) cost it nothing.
 const CELL = 8;
 const RAY_STEP = 0.05; // metres between samples when a ray crosses a sloped top
+// Where a body's footing is read for frost, as shares of its radius from its middle: the middle
+// and the four sides.
+const PROBES = [
+  [0, 0],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
 // Metres of a ray tried at a time: the pieces in the grid cells that stretch's box crosses, so a
 // ray through empty cells costs next to nothing and a spray's rays try only what's in front of it.
 const RAY_STRETCH = 4 * CELL;
@@ -135,27 +144,22 @@ export class Structures {
   // ice slips, so a hole in the frost smaller than a body doesn't catch.
   footing(x: number, z: number, reach: number, radius = 0): Footing {
     const { y, piece, lx, lz } = this.ground(x, z, reach);
-    const probes =
-      radius > 0
-        ? [
-            [0, 0],
-            [radius, 0],
-            [-radius, 0],
-            [0, radius],
-            [0, -radius],
-          ]
-        : [[0, 0]];
+    const probes = radius > 0 ? PROBES.length : 1;
     if (piece === null) {
-      const frosted = probes.some(([dx, dz]) => this.frost.has(FLOOR, 0, ...cellOf(x + dx, z + dz)));
+      let frosted = false;
+      for (let k = 0; k < probes && !frosted; k++)
+        frosted = this.frost.has(FLOOR, 0, ...cellOf(x + PROBES[k][0] * radius, z + PROBES[k][1] * radius));
       return { y, piece, surface: frosted ? 'ice' : 'hard', slope: { x: 0, z: 0 } };
     }
     const p = this.placed[piece];
     const s = this.list[piece];
-    const frosted = probes.some(([dx, dz]) => {
-      const [px, pz] = [lx + dx, lz + dz];
-      if (Math.abs(px) > p.hw || Math.abs(pz) > p.hd) return false;
-      return this.frost.has(piece, 0, ...cellOf(...faceCoords(s, 0, px, 0, pz)));
-    });
+    let frosted = false;
+    for (let k = 0; k < probes && !frosted; k++) {
+      const px = lx + PROBES[k][0] * radius;
+      const pz = lz + PROBES[k][1] * radius;
+      if (Math.abs(px) > p.hw || Math.abs(pz) > p.hd) continue;
+      frosted = this.frost.has(piece, 0, ...cellOf(...faceCoords(s, 0, px, 0, pz)));
+    }
     const surface = frosted ? 'ice' : surfaceOfStructure(s);
     // The top's rise per metre in the piece's own axes, then in the world's.
     const [wx, wz] = world(p, rise(p, lx, lz, 1, 0), rise(p, lx, lz, 0, 1));
