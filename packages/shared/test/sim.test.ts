@@ -306,11 +306,14 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
   walk(q, 0, 90, slope);
   assert.ok(q.pos.y - EYE_HEIGHT < 0.5, `three seconds of trying gets ${(q.pos.y - EYE_HEIGHT).toFixed(2)} m up`);
   // Nor does hopping: the feet push off ice square to it, so a hop on the slope is thrown partly
-  // downhill, and the keys bend the flight no faster than the ice let them. A running jump off the
-  // stone below gets some way up, and no further.
+  // downhill, and thrown, the keys bend the flight no faster than the ice let them. A running jump
+  // off the stone below gets some way up, and no further.
   const h = createPlayer('c', 'c', '#fff', { x: 0, y: 3.46 + EYE_HEIGHT, z: 6 });
   stepPlayer(h, frame(1, { my: 1, jump: true }), TICK_DT, WORLD_SHAPE, slope);
-  assert.ok(h.vz < -JUMP_VELOCITY / 4 && h.vy > 0 && h.adrift > 0, `the hop is thrown downhill: vz ${h.vz.toFixed(2)}`);
+  assert.ok(
+    h.vz < -JUMP_VELOCITY / 4 && h.vy > 0 && h.thrown === SURFACES.ice.grip,
+    `thrown downhill: vz ${h.vz.toFixed(2)}`,
+  );
   let furthest = h.pos.z;
   for (let i = 0; i < 90; i++) {
     stepPlayer(h, frame(h.lastSeq + 1, { my: 1, jump: true }), TICK_DT, WORLD_SHAPE, slope);
@@ -329,7 +332,18 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
   const g = createPlayer('f', 'f', '#fff', { x: 0, y: 0.3 + EYE_HEIGHT, z: -4 });
   stepPlayer(g, frame(1, { jump: true }), TICK_DT, WORLD_SHAPE, rink);
   stepPlayer(g, frame(2, { mx: 1 }), TICK_DT, WORLD_SHAPE, rink);
-  assert.ok(g.vy > 0 && g.adrift === 0 && g.vx === MOVE_SPEED, 'a jump off stone steers in the air at once');
+  assert.ok(g.vy > 0 && g.thrown === null && g.vx === MOVE_SPEED, 'a jump off stone steers in the air at once');
+  // Stepping off ice throws the walk too: over the edge of an icy ledge, the keys bend the fall
+  // only at the ice's grip.
+  const ledge = new Structures([{ kind: 'box', x: 0, z: 0, w: 4, d: 4, h: 2, surface: 'ice' }]);
+  const s = createPlayer('g', 'g', '#fff', { x: 0, y: 2 + EYE_HEIGHT, z: -1 });
+  walk(s, 0, 40, ledge); // 1.3 s: over the far edge at a slide's pace, still falling
+  assert.ok(
+    s.pos.z > 2 && s.pos.y < 2 + EYE_HEIGHT && s.thrown === SURFACES.ice.grip,
+    `over the edge, thrown: z ${s.pos.z.toFixed(2)}`,
+  );
+  stepPlayer(s, frame(s.lastSeq + 1, { mx: 1 }), TICK_DT, WORLD_SHAPE, ledge);
+  assert.ok(s.vx > 0 && s.vx < 1, `the keys bend the fall, slowly: vx ${s.vx.toFixed(2)}`);
 });
 
 test("what's underfoot: the material's surface, ice wherever a top is frosted, and the slope", () => {
