@@ -174,8 +174,10 @@ export class Sfx {
       }
       void this.ctx.resume();
     };
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
+    // A finger going down isn't a gesture the browser lets start sound on a touchscreen; the end of
+    // a tap is. Captured, so a handler that stops one from bubbling can't keep it from here.
+    for (const event of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
+      window.addEventListener(event, unlock, { capture: true });
   }
 
   // Where the listener is and which way they face (yaw 0 faces +z, like everything else).
