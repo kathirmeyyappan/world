@@ -301,6 +301,19 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
   assert.ok(q.pos.z < 0 && q.pos.y === EYE_HEIGHT, `slid off the bottom to z ${q.pos.z.toFixed(2)}`);
   walk(q, 0, 90, slope);
   assert.ok(q.pos.y - EYE_HEIGHT < 0.5, `three seconds of trying gets ${(q.pos.y - EYE_HEIGHT).toFixed(2)} m up`);
+  // Nor does hopping: a jump off ice launches with the slip the walk had, and the air adds nothing.
+  const h = createPlayer('c', 'c', '#fff', { x: 0, y: 1 + EYE_HEIGHT, z: 1.73 });
+  let furthest = h.pos.z;
+  for (let i = 0; i < 90; i++) {
+    stepPlayer(h, frame(h.lastSeq + 1, { my: 1, jump: true }), TICK_DT, WORLD_SHAPE, slope);
+    furthest = Math.max(furthest, h.pos.z);
+  }
+  assert.ok(furthest < 1.73 + 0.3 && h.pos.z < 1.73, `hopping up it only slips down: got to z ${furthest.toFixed(2)}`);
+  // Off a sure footing a jump launches where the keys point and flies on with it, keys or no keys.
+  const r = createPlayer('d', 'd', '#fff', { x: 0, y: 0.3 + EYE_HEIGHT, z: -4 });
+  stepPlayer(r, frame(1, { my: 1, jump: true }), TICK_DT, WORLD_SHAPE, rink);
+  for (let i = 0; i < 20; i++) stepPlayer(r, frame(r.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, rink);
+  assert.ok(r.pos.y > 0.3 + EYE_HEIGHT + 0.3 && r.pos.z > 1, `still in the air ${(r.pos.z + 4).toFixed(1)} m on`);
 });
 
 test("what's underfoot: the material's surface, ice wherever a top is frosted, and the slope", () => {
