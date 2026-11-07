@@ -299,12 +299,37 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
   assert.equal(p.walk, MOVE_SPEED, "the feet walk at the keys' full pace however the body slides");
 
   // An icy 30° slope: standing still on it slides you down, and from the bottom there's no way up.
-  const slope = new Structures([{ ...ramp({ x: 0, z: 0 }, { x: 0, z: 3.46 }, 2, 3), surface: 'ice' }]);
+  const slope = new Structures([{ ...ramp({ x: 0, z: 0 }, { x: 0, z: 8 }, 4.62, 3), surface: 'ice' }]);
   const q = createPlayer('b', 'b', '#fff', { x: 0, y: 1 + EYE_HEIGHT, z: 1.73 });
   for (let i = 0; i < 60; i++) stepPlayer(q, frame(q.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, slope);
   assert.ok(q.pos.z < 0 && q.pos.y === EYE_HEIGHT, `slid off the bottom to z ${q.pos.z.toFixed(2)}`);
   walk(q, 0, 90, slope);
   assert.ok(q.pos.y - EYE_HEIGHT < 0.5, `three seconds of trying gets ${(q.pos.y - EYE_HEIGHT).toFixed(2)} m up`);
+  // Nor does hopping: the feet push off ice square to it, so a hop on the slope is thrown partly
+  // downhill, and the keys can't steer it until it lands. A running jump off the stone below gets
+  // some way up, and no further.
+  const h = createPlayer('c', 'c', '#fff', { x: 0, y: 3.46 + EYE_HEIGHT, z: 6 });
+  stepPlayer(h, frame(1, { my: 1, jump: true }), TICK_DT, WORLD_SHAPE, slope);
+  assert.ok(h.vz < -JUMP_VELOCITY / 4 && h.vy > 0 && h.adrift, `the hop is thrown downhill: vz ${h.vz.toFixed(2)}`);
+  let furthest = h.pos.z;
+  for (let i = 0; i < 90; i++) {
+    stepPlayer(h, frame(h.lastSeq + 1, { my: 1, jump: true }), TICK_DT, WORLD_SHAPE, slope);
+    furthest = Math.max(furthest, h.pos.z);
+  }
+  assert.ok(furthest < 6 + 0.3 && h.pos.z < 6, `hopping up it only slips down: got to z ${furthest.toFixed(2)}`);
+  // On the flat the push is straight up: a hop off the rink's ice keeps the slide it had, and off
+  // the stone before it the keys steer the air as anywhere.
+  const f = createPlayer('e', 'e', '#fff', { x: 0, y: 0.3 + EYE_HEIGHT, z: -4 });
+  walk(f, 0, 36, rink);
+  stepPlayer(f, frame(f.lastSeq + 1, { jump: true }), TICK_DT, WORLD_SHAPE, rink);
+  assert.ok(
+    f.vy > 0 && Math.abs(f.vz - MOVE_SPEED) < 1e-9 && f.vx === 0,
+    `up off the flat with its slide kept: vz ${f.vz}`,
+  );
+  const g = createPlayer('f', 'f', '#fff', { x: 0, y: 0.3 + EYE_HEIGHT, z: -4 });
+  stepPlayer(g, frame(1, { jump: true }), TICK_DT, WORLD_SHAPE, rink);
+  stepPlayer(g, frame(2, { mx: 1 }), TICK_DT, WORLD_SHAPE, rink);
+  assert.ok(g.vy > 0 && !g.adrift && g.vx > 0, 'a jump off stone steers in the air');
 });
 
 test("what's underfoot: the material's surface, ice wherever a top is frosted, and the slope", () => {
