@@ -14,11 +14,11 @@ off the bedroom (add_rooms); and a straight stair of solid steps climbs from the
 through the hall's ceiling and a hole in the library's floor, open along the corridor and walled
 both sides from where the corridor's wall meets it (stairwell; content/pineapple.ts stands its
 steps). High in the library's wall a round hatch opens, as the show has it, with a slide down
-from it to the floor (hatch_and_slide: a steel tube through the wall, its door, and the slide's
-trough); beyond it content/pineapple.ts stands a brick lobby and a gallery round the cylinder in
-the hollow top of the shell, which the attic stair climbs to a deck on the crown (attic_stair
-lays the stair out; the content stands it, the cylinder and the deck). The library's old door is
-walled up.
+from it to the floor (hatch: a steel tube through the wall, its ring and its door; slide: the
+platform and the trough); beyond it content/pineapple.ts stands a brick lobby and a gallery round
+the cylinder in the hollow top of the shell, which the attic stair climbs to a deck on the crown
+(attic_stair lays the stair out; the content stands it, the cylinder and the deck). The library's
+old door is walled up.
 
 What changes in the model: the painted front door and its wheel go (our door swings at the face,
 and the model's frame stands at the back of the vestibule behind it), the door panels become doors
@@ -106,12 +106,13 @@ HATCH_PROUD = 0.35
 HATCH_FRAME = 0.45
 HATCH_BOLTS = 20
 HATCH_SKIRT = 1.5
+HATCH_MOUTH = HATCH_IN - HATCH_PROUD  # metres from the axis to the frame's face, where the tube begins
 PLATFORM_WIDTH = 3.0
 PLATFORM_DEPTH = 2.4
+PLATFORM_THICKNESS = 0.3
 SLIDE_SWEEP = -1.0
 SLIDE_RUN = 14.0
 SLIDE_BEND = 0.4
-SLIDE_WIDTH = 2.4
 SLIDE_SIDE = 0.6
 SLIDE_LIP = 0.12
 SLIDE_RUNOUT = 1.5
@@ -1418,34 +1419,27 @@ def facing(tris: list[Triangle], out: Callable[[np.ndarray], np.ndarray]) -> lis
     return kept
 
 
-def hatch_and_slide(interior: Interior) -> None:
-    """The hatch high in the library's wall and the slide down from it (HATCH_*, PLATFORM_*,
-    SLIDE_*), as the show has them: the wall and the shelves cut through along the hatch's
-    bearing by its circle, and a steel tube of that section run through the cut from the frame's
-    face, HATCH_PROUD out from the shelves, to HATCH_OUT; a bolted ring round the mouth with a
-    skirt back into the wall; a round steel door just inside the ring, swinging into the room
-    (painted, porthole and wheel and all, by house-model.py); a plate round the tube's far end
-    where it meets the lobby's wall; a railed platform outside the frame at the sill; and off
-    the platform's side the slide, a steel trough with sides, sweeping round the room along the
-    wall and down an S to the floor, running out level there. The sim gets the tube, the platform
-    and the sides as boxes, and the slide's floor as ramps (`Hatch.slide`); the wall itself is the
-    content's rings, which open for the tube there."""
-    sill, bearing = HATCH_SILL, HATCH_BEARING
-    shape = hatch_shape()
-    outline = outline_of(shape)
-    hw, top = HATCH_ACROSS / 2, shape[-1][0]
-    mouth = HATCH_IN - HATCH_PROUD
-    # The wall, shelves, pillars and all, cut along the hatch's bearing by the frame's circle (the
-    # frame and its skirt cover the cut round the tube) from in front of the frame to the tube's end.
-    turned = turned_by([tri for tri, _ in interior.tris], -bearing)
-    frame = outline_of(hatch_shape(hw + HATCH_FRAME))
-    raised = [(x, sill + y) for x, y in frame]
-    reach = hw + HATCH_FRAME
+def at_hatch(tris: list[Triangle]) -> list[Triangle]:
+    """Triangles laid out in the hatch's frame (its bearing along +z, the sill at 0) lifted and
+    turned into the house's."""
+    lift = np.array([0.0, HATCH_SILL, 0.0])
+    return turned_by([[(p + lift, q) for p, q in t] for t in tris], HATCH_BEARING)
+
+
+def cut_hatch(interior: Interior) -> tuple[int, list[str]]:
+    """The wall, shelves, pillars and all, cut along the hatch's bearing by the frame's circle (the
+    frame and its skirt cover the cut round the tube) from in front of the frame to the tube's
+    end; the sim's boxes follow. Returns how many triangles the cut left and the materials it
+    went through."""
+    sill, top = HATCH_SILL, hatch_shape()[-1][0]
+    turned = turned_by([tri for tri, _ in interior.tris], -HATCH_BEARING)
+    reach = HATCH_ACROSS / 2 + HATCH_FRAME
+    raised = [(x, sill + y) for x, y in outline_of(hatch_shape(reach))]
 
     def near(tri: Triangle) -> bool:
         pts = np.array([p for p, _ in tri])
         return bool(
-            pts[:, 2].max() > mouth - 0.8
+            pts[:, 2].max() > HATCH_MOUTH - 0.8
             and pts[:, 2].min() < HATCH_OUT + 0.3
             and pts[:, 0].max() > -reach - 0.3
             and pts[:, 0].min() < reach + 0.3
@@ -1461,19 +1455,18 @@ def hatch_and_slide(interior: Interior) -> None:
     opened: list[tuple[Triangle, int]] = []
     for m, ks in by_material.items():
         cut, rest = cut_out([turned[k] for k in ks], raised, flat_xy, lambda tri: True)
-        opened += [(t, m) for t in turned_by(cut + rest, bearing)]
+        opened += [(t, m) for t in turned_by(cut + rest, HATCH_BEARING)]
     interior.tris = [t for k, t in enumerate(interior.tris) if k not in which] + opened
     interior.solid = [t for t in interior.solid if id(t) not in gone] + [
         t for t, m in opened if interior.materials[m] not in ROUND_WALLS
     ]
-    cut_names = sorted(interior.materials[m] for m in by_material)
-    # Everything here is laid out with the hatch's bearing along +z and the sill at 0, then lifted
-    # and turned into place.
-    lift = np.array([0.0, sill, 0.0])
-    placed = lambda tris: turned_by([[(p + lift, q) for p, q in t] for t in tris], bearing)
-    # The tube through the cut, both its faces, and the plate at its far end, a hair proud of the
-    # lobby's wall there, over the wall's opening round the tube.
-    inside, outside = tube(outline, mouth, HATCH_OUT + 0.05, SLIDE_TILE)
+    return len(opened), sorted(interior.materials[m] for m in by_material)
+
+
+def hatch_plate() -> list[Triangle]:
+    """The plate round the tube's far end, a hair proud of the lobby's wall there, over the wall's
+    opening round the tube; in the hatch's frame."""
+    hw, top = HATCH_ACROSS / 2, hatch_shape()[-1][0]
     lap = 0.2
     plate = fan(
         [
@@ -1481,15 +1474,18 @@ def hatch_and_slide(interior: Interior) -> None:
             for x, y in ((-hw - lap, -0.3), (hw + lap, -0.3), (hw + lap, top + lap), (-hw - lap, top + lap))
         ]
     )
-    plate, _ = cut_out(plate, outline, flat_xy, lambda tri: True)
-    plate = facing(plate, lambda mid: np.array([0.0, 0.0, 1.0]))
-    interior.hatch_steel += placed(inside + outside + plate)
-    interior.solid += placed(inside)
-    # The frame: a ring HATCH_FRAME wide on the mouth's face, bevelled in the rim's look (lighter
-    # at its inner edge, darker at its outer), a skirt back from its outer edge HATCH_SKIRT into
-    # the wall, and HATCH_BOLTS six-sided bolts standing out of the ring; all above the sill only.
+    plate, _ = cut_out(plate, outline_of(hatch_shape()), flat_xy, lambda tri: True)
+    return facing(plate, lambda mid: np.array([0.0, 0.0, 1.0]))
+
+
+def hatch_ring() -> list[Triangle]:
+    """The frame: a ring HATCH_FRAME wide on the mouth's face, bevelled in the rim's look (lighter
+    at its inner edge, darker at its outer), a skirt back from its outer edge HATCH_SKIRT into
+    the wall, and HATCH_BOLTS six-sided bolts standing out of the ring; all above the sill only,
+    in the hatch's frame."""
+    hw = HATCH_ACROSS / 2
     r_in, r_out, r_bolt = hw, hw + HATCH_FRAME, hw + HATCH_FRAME / 2
-    z_back = mouth + HATCH_SKIRT
+    z_back = HATCH_MOUTH + HATCH_SKIRT
     ring_point = lambda r, a, z: np.array([r * np.cos(a), HATCH_CENTRE + r * np.sin(a), z])
     above = lambda poly: clip_at(poly, lambda p: -p[1], 0.0)
     axis_out = lambda mid: np.array([mid[0], mid[1] - HATCH_CENTRE, 0.0])
@@ -1498,14 +1494,14 @@ def hatch_and_slide(interior: Interior) -> None:
         a0, a1 = 2 * np.pi * k / 48, 2 * np.pi * (k + 1) / 48
         u0, u1 = a0 * r_out / RIM_TILE, a1 * r_out / RIM_TILE
         face = [
-            (ring_point(r_in, a0, mouth), np.array([u0, 0.0])),
-            (ring_point(r_out, a0, mouth), np.array([u0, 1.0])),
-            (ring_point(r_out, a1, mouth), np.array([u1, 1.0])),
-            (ring_point(r_in, a1, mouth), np.array([u1, 0.0])),
+            (ring_point(r_in, a0, HATCH_MOUTH), np.array([u0, 0.0])),
+            (ring_point(r_out, a0, HATCH_MOUTH), np.array([u0, 1.0])),
+            (ring_point(r_out, a1, HATCH_MOUTH), np.array([u1, 1.0])),
+            (ring_point(r_in, a1, HATCH_MOUTH), np.array([u1, 0.0])),
         ]
         skirt = [
-            (ring_point(r_out, a0, mouth), np.array([u0, 0.3])),
-            (ring_point(r_out, a1, mouth), np.array([u1, 0.3])),
+            (ring_point(r_out, a0, HATCH_MOUTH), np.array([u0, 0.3])),
+            (ring_point(r_out, a1, HATCH_MOUTH), np.array([u1, 0.3])),
             (ring_point(r_out, a1, z_back), np.array([u1, 0.7])),
             (ring_point(r_out, a0, z_back), np.array([u0, 0.7])),
         ]
@@ -1514,7 +1510,7 @@ def hatch_and_slide(interior: Interior) -> None:
     bolt, proud = 0.09, 0.1
     for k in range(HATCH_BOLTS):
         a = 2 * np.pi * (k + 0.5) / HATCH_BOLTS
-        c = ring_point(r_bolt, a, mouth)
+        c = ring_point(r_bolt, a, HATCH_MOUTH)
         if c[1] < bolt:
             continue
         corners = [
@@ -1533,16 +1529,21 @@ def hatch_and_slide(interior: Interior) -> None:
                 (q0 - [0, 0, proud], np.array([0.0, 0.1])),
             ]
             rim += facing(fan(side), lambda mid, c=c: np.array([mid[0] - c[0], mid[1] - c[1], 0.0]))
-    interior.hatch_rim += placed(rim)
-    # The door: just inside the ring, swinging into the room (the tube is shorter than the door,
-    # so swung out it would stand across the lobby), painted whole.
+    return rim
+
+
+def hatch_door(interior: Interior) -> None:
+    """The door: just inside the ring, swinging into the room (the tube is shorter than the door,
+    so swung out it would stand across the lobby), painted whole by house-model.py."""
+    shape = hatch_shape()
+    top = shape[-1][0]
     thickness = next(d for d in interior.doors if d.id == "closet").thickness
     new_door(
         interior,
         "hatch",
-        bearing,
-        mouth + thickness + 0.02,
-        sill,
+        HATCH_BEARING,
+        HATCH_MOUTH + thickness + 0.02,
+        HATCH_SILL,
         False,
         shape,
         uv=lambda along, up: np.array([along / HATCH_ACROSS, 1.0 - up / top]),
@@ -1550,33 +1551,116 @@ def hatch_and_slide(interior: Interior) -> None:
         texture="hatch-door",
         hinge=-SLIDE_SWEEP,  # away from the side the slide leaves by, so open it stands clear of it
     )
-    # The platform outside the frame at the sill, a hair under the tube's floor so the two never
-    # share a face, its sides running in toward the axis, a rail along its front and its far
-    # side; off its near side the slide: its floor along the circle through the platform's
-    # middle, dropping down the S, a rail along each edge rising with it, and the level run-out
-    # at the foot. A rail is a lip SLIDE_LIP thick and SLIDE_SIDE tall: its inside, its top and
-    # its outside. The sim gets the platform's top and the rails' insides as boxes. Points are
-    # polar about the axis: a radius, a turn past the hatch's bearing, a height over the sill.
-    floor = max(float(p[1]) for ks in comps(interior, "Library_Floor") for k in ks for p, _ in interior.tris[k][0])
+
+
+def hatch(interior: Interior) -> None:
+    """The hatch high in the library's wall (HATCH_*), as the show has it: the wall cut through
+    along its bearing, a steel tube of the hatch's section run through the cut from the frame's
+    face, HATCH_PROUD out from the shelves, to HATCH_OUT, with the bolted ring round its mouth,
+    the plate at its far end where it meets the lobby's wall, and a round steel door just inside
+    the ring (porthole and wheel and all). The sim gets the tube as boxes; the wall itself is the
+    content's rings, which open for the tube there. `slide` adds the way down from it."""
+    cut, cut_names = cut_hatch(interior)
+    inside, outside = tube(outline_of(hatch_shape()), HATCH_MOUTH, HATCH_OUT + 0.05, SLIDE_TILE)
+    interior.hatch_steel += at_hatch(inside + outside + hatch_plate())
+    interior.solid += at_hatch(inside)
+    interior.hatch_rim += at_hatch(hatch_ring())
+    hatch_door(interior)
+    interior.hatch = Hatch(HATCH_BEARING, HATCH_SILL, HATCH_ACROSS, HATCH_CENTRE, HATCH_MOUTH, HATCH_OUT, [])
+    print(f"hatch: at {np.degrees(HATCH_BEARING):.0f} deg, sill {HATCH_SILL:.2f}, {cut} triangles cut over {cut_names}")
+
+
+@dataclass
+class SlideWay:
+    """The way down from the hatch, polar about the house's axis in the hatch's frame (a radius,
+    a turn past the hatch's bearing, a height over the sill): the platform's sector between
+    `r_in` and `r_out` from `near_t` to `far_t`, its deck at `deck`; and off its near side the
+    trough's floor, at `heights` over the sill `alongs` metres along the circle through the
+    platform's middle, from the top down to the run-out (its two ends the last two, level)."""
+
+    r_in: float
+    r_out: float
+    near_t: float
+    far_t: float
+    deck: float
+    alongs: list[float]
+    heights: list[float]
+
+    @property
+    def r_mid(self) -> float:
+        return (self.r_in + self.r_out) / 2
+
+    def turn_at(self, along: float) -> float:
+        """The turn past the hatch's bearing `along` metres from the platform's side."""
+        return self.near_t + SLIDE_SWEEP * along / self.r_mid
+
+
+def slide_way(floor: float) -> SlideWay:
+    """The way laid out: the platform a sector PLATFORM_WIDTH wide at the frame and
+    PLATFORM_DEPTH deep, a hair under the tube's floor so the two never share a face; the S
+    (slide_profile) from its near side down to the library's floor at `floor`, a piece a metre;
+    then SLIDE_RUNOUT level."""
+    side = np.arctan2(PLATFORM_WIDTH / 2, HATCH_MOUTH)
+    near_t, far_t = SLIDE_SWEEP * side, -SLIDE_SWEEP * side  # the slide leaves by the near side
     deck = -0.01
-    pol = lambda r, t, y: np.array([r * np.sin(t), y, r * np.cos(t)])
-    radial = lambda t: np.array([np.sin(t), 0.0, np.cos(t)])
-    up = np.array([0.0, 1.0, 0.0])
-    plates = lambda p: np.array([p[0] / SLIDE_TILE, p[2] / SLIDE_TILE])
-    steel: list[Triangle] = []
-    dark: list[Triangle] = []
-    solid: list[Triangle] = []
+    drop = HATCH_SILL + deck - (floor + 0.02)
+    pieces = int(np.ceil(SLIDE_RUN / 1.0))
+    profile = slide_profile(SLIDE_RUN, drop, pieces)
+    heights = [floor + 0.02 - HATCH_SILL + h for _, h in reversed(profile)]  # from the top down
+    alongs = [SLIDE_RUN - a for a, _ in reversed(profile)]
+    alongs.append(SLIDE_RUN + SLIDE_RUNOUT)
+    heights.append(heights[-1])
+    return SlideWay(HATCH_MOUTH - PLATFORM_DEPTH, HATCH_MOUTH, near_t, far_t, deck, alongs, heights)
 
-    def deck_piece(corners: list[np.ndarray], drawn: list[Triangle]) -> None:
-        """A floor piece over four corners (round in order), facing up, with its underside."""
+
+UP = np.array([0.0, 1.0, 0.0])
+
+
+def pol(r: float, t: float, y: float) -> np.ndarray:
+    """A point in the hatch's frame: a radius from the axis, a turn past the hatch's bearing, a
+    height over the sill."""
+    return np.array([r * np.sin(t), y, r * np.cos(t)])
+
+
+def radial(t: float) -> np.ndarray:
+    """The level unit direction out from the axis at a turn."""
+    return np.array([np.sin(t), 0.0, np.cos(t)])
+
+
+def plates(p: np.ndarray) -> np.ndarray:
+    """The slide's plate texture laid flat over a floor."""
+    return np.array([p[0] / SLIDE_TILE, p[2] / SLIDE_TILE])
+
+
+def along_uv(a: np.ndarray) -> Callable[[np.ndarray], np.ndarray]:
+    """The slide's plate texture up a face standing on the floor at `a`: along the face from
+    there, and down it."""
+    return lambda p: np.array([float(np.hypot(p[0] - a[0], p[2] - a[2])) / SLIDE_TILE, -p[1] / SLIDE_TILE])
+
+
+@dataclass
+class Steelwork:
+    """The slide's steel as it's laid, in the hatch's frame: the plates drawn in the slide's look,
+    its floor's in the darker shade, and the faces the sim gets as boxes (what's walked on and the
+    rails' insides, which keep a walker in)."""
+
+    steel: list[Triangle] = field(default_factory=list)
+    dark: list[Triangle] = field(default_factory=list)
+    solid: list[Triangle] = field(default_factory=list)
+
+    def deck(self, corners: list[np.ndarray], drawn: list[Triangle]) -> None:
+        """A floor piece over four corners (round in order), facing up, into `drawn`, with its
+        underside."""
         tris = fan([(p, plates(p)) for p in corners])
-        drawn += facing(tris, lambda mid: up)
-        steel.extend(facing([list(t) for t in tris], lambda mid: -up))
+        drawn += facing(tris, lambda mid: UP)
+        self.steel.extend(facing([list(t) for t in tris], lambda mid: -UP))
 
-    def lip(a: np.ndarray, b: np.ndarray, out_a: np.ndarray, out_b: np.ndarray) -> None:
-        """A rail along an edge from a to b, `out_a` and `out_b` the level unit directions off the floor there."""
+    def rail(self, a: np.ndarray, b: np.ndarray, out_a: np.ndarray, out_b: np.ndarray) -> None:
+        """A rail along an edge from a to b, `out_a` and `out_b` the level unit directions off the
+        floor there: a lip SLIDE_LIP thick and SLIDE_SIDE tall, its inside, its top and its
+        outside."""
         rise = np.array([0.0, SLIDE_SIDE, 0.0])
-        tex = lambda p: np.array([float(np.hypot(p[0] - a[0], p[2] - a[2])) / SLIDE_TILE, -p[1] / SLIDE_TILE])
+        tex = along_uv(a)
         inner = [a, b, b + rise, a + rise]
         top_face = [a + rise, b + rise, b + out_b * SLIDE_LIP + rise, a + out_a * SLIDE_LIP + rise]
         outer = [
@@ -1587,62 +1671,47 @@ def hatch_and_slide(interior: Interior) -> None:
         ]
         inward = -(out_a + out_b) / 2
         inside_faces = facing(fan([(p, tex(p)) for p in inner]), lambda mid: inward)
-        steel.extend(inside_faces)
-        solid.extend(inside_faces)
-        steel.extend(facing(fan([(p, tex(p)) for p in top_face]), lambda mid: up))
-        steel.extend(facing(fan([(p, tex(p)) for p in outer]), lambda mid: -inward))
+        self.steel.extend(inside_faces)
+        self.solid.extend(inside_faces)
+        self.steel.extend(facing(fan([(p, tex(p)) for p in top_face]), lambda mid: UP))
+        self.steel.extend(facing(fan([(p, tex(p)) for p in outer]), lambda mid: -inward))
 
-    def apron(a: np.ndarray, b: np.ndarray, out: np.ndarray) -> None:
+    def apron(self, a: np.ndarray, b: np.ndarray, out: np.ndarray) -> None:
         """The side of a floor piece from a to b, down to its underside, facing `out`."""
-        under = np.array([0.0, -0.3, 0.0])
-        steel.extend(
-            facing(
-                fan(
-                    [
-                        (p, np.array([float(np.hypot(p[0] - a[0], p[2] - a[2])) / SLIDE_TILE, -p[1] / SLIDE_TILE]))
-                        for p in (a, b, b + under, a + under)
-                    ]
-                ),
-                lambda mid: out,
-            )
-        )
+        under = np.array([0.0, -PLATFORM_THICKNESS, 0.0])
+        tex = along_uv(a)
+        self.steel.extend(facing(fan([(p, tex(p)) for p in (a, b, b + under, a + under)]), lambda mid: out))
 
-    # The platform: a sector, PLATFORM_WIDTH wide at the frame.
-    side = np.arctan2(PLATFORM_WIDTH / 2, mouth)
-    r_in, r_out = mouth - PLATFORM_DEPTH, mouth
-    near_t, far_t = SLIDE_SWEEP * side, -SLIDE_SWEEP * side  # the slide leaves by the near side
+
+def platform(way: SlideWay, work: Steelwork) -> None:
+    """The platform outside the frame at the sill: its deck, a rail along its front and its far
+    side (the slide leaves by the near one), aprons down from those edges, and its underside."""
+    r_in, r_out, near_t, far_t, deck = way.r_in, way.r_out, way.near_t, way.far_t, way.deck
     corners = [pol(r_out, near_t, deck), pol(r_out, far_t, deck), pol(r_in, far_t, deck), pol(r_in, near_t, deck)]
     top_faces: list[Triangle] = []
-    deck_piece(corners, top_faces)
-    steel.extend(top_faces)
-    solid.extend(top_faces)
-    lip(corners[2], corners[3], -radial(far_t), -radial(near_t))  # along the front
+    work.deck(corners, top_faces)
+    work.steel.extend(top_faces)
+    work.solid.extend(top_faces)
+    work.rail(corners[2], corners[3], -radial(far_t), -radial(near_t))  # along the front
     far_out = np.array([np.cos(far_t), 0.0, -np.sin(far_t)]) * -SLIDE_SWEEP  # level, off the far side
-    lip(corners[1], corners[2], far_out, far_out)
-    apron(corners[3], corners[2], -radial((near_t + far_t) / 2))
-    apron(corners[1], corners[2], far_out)
-    under = np.array([0.0, -0.3, 0.0])
-    steel.extend(facing(fan([(p + under, plates(p)) for p in corners]), lambda mid: -up))
-    # The slide: round the circle through the platform's middle from its near side, the S laid
-    # along the way (the profile runs from the foot up), then the run-out.
-    r_mid = (r_in + r_out) / 2
-    drop = sill + deck - (floor + 0.02)
-    pieces = int(np.ceil(SLIDE_RUN / 1.0))
-    profile = slide_profile(SLIDE_RUN, drop, pieces)
-    turn_at = lambda along: (
-        near_t + SLIDE_SWEEP * along / r_mid
-    )  # the turn past the hatch's bearing, `along` metres from the platform's side
-    heights = [floor + 0.02 - sill + h for _, h in reversed(profile)]  # from the top down
-    alongs = [SLIDE_RUN - a for a, _ in reversed(profile)]
-    alongs.append(SLIDE_RUN + SLIDE_RUNOUT)
-    heights.append(heights[-1])
-    for (s0, y0), (s1, y1) in pairwise(zip(alongs, heights)):
-        t0, t1 = turn_at(s0), turn_at(s1)
-        deck_piece([pol(r_out, t0, y0), pol(r_out, t1, y1), pol(r_in, t1, y1), pol(r_in, t0, y0)], dark)
-        lip(pol(r_in, t0, y0), pol(r_in, t1, y1), -radial(t0), -radial(t1))
-        lip(pol(r_out, t0, y0), pol(r_out, t1, y1), radial(t0), radial(t1))
-    # The rails' ends at the foot; the way onto the run-out between them is open.
-    t_end, y_end = turn_at(alongs[-1]), heights[-1]
+    work.rail(corners[1], corners[2], far_out, far_out)
+    work.apron(corners[3], corners[2], -radial((near_t + far_t) / 2))
+    work.apron(corners[1], corners[2], far_out)
+    under = np.array([0.0, -PLATFORM_THICKNESS, 0.0])
+    work.steel.extend(facing(fan([(p + under, plates(p)) for p in corners]), lambda mid: -UP))
+
+
+def trough(way: SlideWay, work: Steelwork) -> None:
+    """The slide off the platform's near side: its floor a piece of the way at a time, a rail
+    along each edge rising with it, and at the foot each rail's end (the way onto the run-out
+    between them is open)."""
+    r_in, r_out = way.r_in, way.r_out
+    for (s0, y0), (s1, y1) in pairwise(zip(way.alongs, way.heights)):
+        t0, t1 = way.turn_at(s0), way.turn_at(s1)
+        work.deck([pol(r_out, t0, y0), pol(r_out, t1, y1), pol(r_in, t1, y1), pol(r_in, t0, y0)], work.dark)
+        work.rail(pol(r_in, t0, y0), pol(r_in, t1, y1), -radial(t0), -radial(t1))
+        work.rail(pol(r_out, t0, y0), pol(r_out, t1, y1), radial(t0), radial(t1))
+    t_end, y_end = way.turn_at(way.alongs[-1]), way.heights[-1]
     cap_out = np.array([np.cos(t_end), 0.0, -np.sin(t_end)]) * SLIDE_SWEEP
     for ra, rb in ((r_in - SLIDE_LIP, r_in), (r_out, r_out + SLIDE_LIP)):
         end = [
@@ -1651,22 +1720,23 @@ def hatch_and_slide(interior: Interior) -> None:
             pol(rb, t_end, y_end + SLIDE_SIDE),
             pol(ra, t_end, y_end + SLIDE_SIDE),
         ]
-        steel.extend(
+        work.steel.extend(
             facing(fan([(p, np.array([p[0] / SLIDE_TILE, -p[1] / SLIDE_TILE])) for p in end]), lambda mid: cap_out)
         )
-    interior.hatch_steel += placed(steel)
-    interior.slide_floor += placed(dark)
-    interior.solid += placed(solid)
-    # The sim's ramps, one a piece of the way (a wedge under each, shallow), each run on a little
-    # past its ends so the wedges meet where the way bends, and the level run-out.
-    out = np.array([np.sin(bearing), 0.0, np.cos(bearing)])
-    across = np.array([np.cos(bearing), 0.0, -np.sin(bearing)])
+
+
+def slide_ramps(way: SlideWay, floor: float) -> list[list[float]]:
+    """The sim's ramps under the slide's floor (Hatch.slide), in the house's frame: one a piece
+    of the way (a wedge under each, shallow), each run on a little past its ends so the wedges
+    meet where the way bends, and the level run-out on the library's floor at `floor`."""
+    out = np.array([np.sin(HATCH_BEARING), 0.0, np.cos(HATCH_BEARING)])
+    across = np.array([np.cos(HATCH_BEARING), 0.0, -np.sin(HATCH_BEARING)])
     world = lambda p: p[0] * across + p[2] * out
     ramps: list[list[float]] = []
     lap = 0.25
-    for (s0, y0), (s1, y1) in pairwise(zip(alongs[:-1], heights[:-1])):
+    for (s0, y0), (s1, y1) in pairwise(zip(way.alongs[:-1], way.heights[:-1])):
         (sa, ya), (sb, yb) = sorted(((s0, y0), (s1, y1)), key=lambda e: e[1])  # the lower end first
-        low, high = pol(r_mid, turn_at(sa), 0.0), pol(r_mid, turn_at(sb), 0.0)
+        low, high = pol(way.r_mid, way.turn_at(sa), 0.0), pol(way.r_mid, way.turn_at(sb), 0.0)
         run = high - low
         length = float(np.linalg.norm(run))
         run /= length
@@ -1678,19 +1748,39 @@ def hatch_and_slide(interior: Interior) -> None:
                 float(low[2]),
                 float(high[0]),
                 float(high[2]),
-                sill + ya - slope * lap,
+                HATCH_SILL + ya - slope * lap,
                 PLATFORM_DEPTH,
                 slope * (length + 2 * lap),
             ]
         )
-    low, high = world(pol(r_mid, t_end, 0.0)), world(pol(r_mid, turn_at(SLIDE_RUN), 0.0))
+    t_end = way.turn_at(way.alongs[-1])
+    low, high = world(pol(way.r_mid, t_end, 0.0)), world(pol(way.r_mid, way.turn_at(SLIDE_RUN), 0.0))
     ramps.append([float(low[0]), float(low[2]), float(high[0]), float(high[2]), floor, PLATFORM_DEPTH, 0.02])
-    interior.hatch = Hatch(bearing, sill, HATCH_ACROSS, HATCH_CENTRE, mouth, HATCH_OUT, ramps)
-    steepest = max(np.degrees(np.arctan2(h1 - h0, s1 - s0)) for (s0, h0), (s1, h1) in pairwise(profile))
+    return ramps
+
+
+def slide(interior: Interior) -> None:
+    """The slide down from the hatch (PLATFORM_*, SLIDE_*), as the show has it, after `hatch`: a
+    railed platform outside the frame at the sill, and off its side a steel trough with sides,
+    sweeping round the room along the wall and down an S to the library's floor, running out
+    level there. The sim gets the platform and the rails' insides as boxes and the slide's
+    floor as ramps (`Hatch.slide`)."""
+    floor = max(float(p[1]) for ks in comps(interior, "Library_Floor") for k in ks for p, _ in interior.tris[k][0])
+    way = slide_way(floor)
+    work = Steelwork()
+    platform(way, work)
+    trough(way, work)
+    interior.hatch_steel += at_hatch(work.steel)
+    interior.slide_floor += at_hatch(work.dark)
+    interior.solid += at_hatch(work.solid)
+    interior.hatch.slide = slide_ramps(way, floor)
+    steepest = max(
+        np.degrees(np.arctan2(y0 - y1, s1 - s0)) for (s0, y0), (s1, y1) in pairwise(zip(way.alongs, way.heights))
+    )
     print(
-        f"hatch: at {np.degrees(bearing):.0f} deg, sill {sill:.2f}, {len(opened)} triangles cut over {cut_names}; "
-        f"slide {SLIDE_RUN:.0f} m round at r {r_mid:.1f} ({np.degrees(SLIDE_RUN / r_mid):.0f} deg) dropping {drop:.1f} m, "
-        f"{steepest:.0f} deg at its steepest, {len(ramps)} ramps"
+        f"slide: {SLIDE_RUN:.0f} m round at r {way.r_mid:.1f} ({np.degrees(SLIDE_RUN / way.r_mid):.0f} deg) "
+        f"dropping {way.heights[0] - way.heights[-1]:.1f} m, {steepest:.0f} deg at its steepest, "
+        f"{len(interior.hatch.slide)} ramps"
     )
 
 

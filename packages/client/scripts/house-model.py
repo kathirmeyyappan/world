@@ -195,7 +195,8 @@ def main(outside: str, rooms: str) -> None:
     inside.add_rooms(interior, lambda a, y: skin_r(a, y) - inside.LINING)
     inside.build_floors(interior, skin_r, lathe_angles(), [y for y, _ in profile])
     inside.seal_library(interior)
-    inside.hatch_and_slide(interior)
+    inside.hatch(interior)
+    inside.slide(interior)
 
     # The skin, with the doorway cut out of it, and the vestibule behind.
     skin_tris = lathe(profile, SKIN_TILE, lambda a, y: surface(profile, a, y), lathe_angles())
