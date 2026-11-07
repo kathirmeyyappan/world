@@ -73,7 +73,7 @@ from common import (
 )
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
-from common.world import EYE_HEIGHT, SPEEDY_MULTIPLIER, Hitbox
+from common.world import EYE_HEIGHT, Hitbox
 
 GRACE_TICKS = (3, 10)  # a target must stay in sight this long (inclusive range) before a shot
 HIT_COOLDOWN_SECONDS = 3.0  # no shot for this long after one that hit
@@ -297,8 +297,7 @@ class Sniper:
             controls.look_at(self.world.eye_of(me), chest(target))
         elif self.route is not None and not self.route.done:
             controls.look_at(me.pos, self.route.ahead(me.pos))
-        boost = SPEEDY_MULTIPLIER if me.boost > 0 else 1.0
-        if self.route is None or not self.route.steer(me.pos, tick, controls, boost=boost):
+        if self.route is None or not self.route.steer(me.pos, tick, controls):
             controls.stop()
             if self.route is not None and self.arrived_at is None:
                 self.arrived_at = tick

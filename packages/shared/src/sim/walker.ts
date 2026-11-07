@@ -70,19 +70,21 @@ export function stepWalker(
     (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
-  // A jump takes off with what the footing lets the feet push for: the keys' walk from a sure
-  // footing, nothing from a slippery one.
-  const jumping = !!input?.jump && grounded && !p.dead && !p.scoped;
-  const takeoff = jumping ? structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS) : null;
-  if (takeoff && SURFACES[takeoff.surface].grip === Infinity) p.vy = JUMP_VELOCITY;
-  else if (takeoff) {
-    // Ice pushes back only square to itself, so the feet push off it along its normal: straight up
-    // on the flat, and on a slope partly downhill, shedding whatever climb the walk had.
-    const { x: sx, z: sz } = takeoff.slope;
-    const len = Math.hypot(sx, 1, sz);
-    p.vx -= (JUMP_VELOCITY * sx) / len;
-    p.vz -= (JUMP_VELOCITY * sz) / len;
-    p.vy = JUMP_VELOCITY / len;
+  if (input?.jump && grounded && !p.dead && !p.scoped) {
+    const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
+    const grip = SURFACES[takeoff.surface].grip;
+    if (grip === Infinity) p.vy = JUMP_VELOCITY;
+    else {
+      // Ice pushes back only square to itself, so the feet push off it along its normal: straight
+      // up on the flat, and on a slope partly downhill, shedding whatever climb the walk had. Aloft
+      // the keys bend that throw no faster than the ice let them.
+      const { x: sx, z: sz } = takeoff.slope;
+      const len = Math.hypot(sx, 1, sz);
+      p.vx -= (JUMP_VELOCITY * sx) / len;
+      p.vz -= (JUMP_VELOCITY * sz) / len;
+      p.vy = JUMP_VELOCITY / len;
+      p.adrift = grip;
+    }
   }
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
 
@@ -105,11 +107,12 @@ export function stepWalker(
     p.vy = 0;
   }
   const standing = p.pos.y <= floor;
+  if (standing) p.adrift = 0;
 
-  // Across the floor: where the keys send the walk, at its speed. On a sure footing that's the walk
-  // itself, and so is the launch off one; on a slippery one the feet only bend the momentum the walk
-  // has. In the air there's nothing to push against, so the walk keeps its momentum, unless a jet's
-  // push is something to push against.
+  // Across the floor: where the keys send the walk, at its speed. On a sure footing, and in the
+  // air, that's the walk itself; on a slippery one the feet only bend the momentum the walk has,
+  // and adrift off ice they bend its throw at the ice's grip, unless a jet's push is something to
+  // push against.
   let wantX = 0;
   let wantZ = 0;
   if (input && !p.dead && (input.mx !== 0 || input.my !== 0)) {
@@ -128,9 +131,10 @@ export function stepWalker(
   const feetNow = p.pos.y - EYE_HEIGHT;
   const footing = standing ? structures.footing(p.pos.x, p.pos.z, feetNow + STEP_UP, PLAYER_RADIUS) : null;
   const grip = footing ? SURFACES[footing.surface].grip : Infinity;
-  const launch = takeoff !== null && SURFACES[takeoff.surface].grip === Infinity;
   if (footing && grip < Infinity) slide(p, wantX, wantZ, grip, footing.slope, dt);
-  else if (standing || launch || push) {
+  else if (p.adrift > 0 && !push) {
+    if (wantX !== 0 || wantZ !== 0) [p.vx, p.vz] = bend(p.vx, p.vz, wantX, wantZ, p.adrift, dt);
+  } else {
     p.vx = wantX;
     p.vz = wantZ;
   }
@@ -157,10 +161,9 @@ export function stepWalker(
 }
 
 // One tick of a walk on a slippery footing, where the walk keeps its momentum (vx, vz). Gravity
-// pulls it down the slope first; then the feet push it toward where the keys send it, at the
-// footing's grip, never faster than the keys ask or than it already goes, or with no keys held,
-// slow it at that rate. A slope gravity pulls down harder than the feet can push is a slide, up to
-// SLIDE_SPEED.
+// pulls it down the slope first; then the feet bend it toward where the keys send it, at the
+// footing's grip, or with no keys held, slow it at that rate. A slope gravity pulls down harder
+// than the feet can push is a slide, up to SLIDE_SPEED.
 function slide(
   p: PlayerState,
   wantX: number,
@@ -174,17 +177,8 @@ function slide(
   let vx = p.vx - ((GRAVITY * slope.x) / steep) * dt;
   let vz = p.vz - ((GRAVITY * slope.z) / steep) * dt;
   const had = Math.hypot(vx, vz);
-  const want = Math.hypot(wantX, wantZ);
-  if (want > 0) {
-    vx += (wantX / want) * grip * dt;
-    vz += (wantZ / want) * grip * dt;
-    const limit = Math.max(want, had);
-    const now = Math.hypot(vx, vz);
-    if (now > limit) {
-      vx *= limit / now;
-      vz *= limit / now;
-    }
-  } else if (had > 0) {
+  if (wantX !== 0 || wantZ !== 0) [vx, vz] = bend(vx, vz, wantX, wantZ, grip, dt);
+  else if (had > 0) {
     const left = Math.max(0, had - grip * dt) / had;
     vx *= left;
     vz *= left;
@@ -196,4 +190,15 @@ function slide(
   }
   p.vx = vx;
   p.vz = vz;
+}
+
+// A velocity bent toward where the keys send it (wantX, wantZ, not both 0) by one tick of the feet
+// pushing at `grip`, never faster than the keys ask or than it already goes.
+function bend(vx: number, vz: number, wantX: number, wantZ: number, grip: number, dt: number): [number, number] {
+  const want = Math.hypot(wantX, wantZ);
+  const limit = Math.max(want, Math.hypot(vx, vz));
+  vx += (wantX / want) * grip * dt;
+  vz += (wantZ / want) * grip * dt;
+  const now = Math.hypot(vx, vz);
+  return now > limit ? [(vx * limit) / now, (vz * limit) / now] : [vx, vz];
 }
