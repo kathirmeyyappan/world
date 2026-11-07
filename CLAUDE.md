@@ -169,10 +169,12 @@ Room like the doors (`Structures.frost`, its own per room) and sent to every cli
 then `frost` messages with the cells that turned). It lies in `FROST_CELL` squares on a grid from
 the corner of each face of a piece (its top, underside and four sides, numbered 0 to 5; the floor
 from the origin, as piece `FLOOR`), a cell on the wire as `[piece, face, i, j]`. A frosted top is ice
-underfoot whatever the piece is made of. On every shot of a hold weapon with an element the Room
-casts `sprayFrost`: a fan of rays through the cone, turned a little each tick, each landing
-(`Structures.touch`, which says which face) turning the cells within `SPLAT` of the spot on that
-face, so a spray held on a wall covers it in a second or two. Doors never frost (they swing); hidden
+underfoot whatever the piece is made of, under the spot or under any of the body's width round it,
+so a hole smaller than a body doesn't catch a slide. On every shot of a hold weapon with an
+element the Room casts `sprayFrost`: a dozen rays spread over the cone (a low-discrepancy sequence,
+each shot's between the last ones'), each landing (`Structures.touch`, which says which face)
+turning the cells round the spot on that face, wider the farther it flew (`SPLAT` at the least,
+`SPREAD` of the spray's width there), so a shot or two frosts the patch in front of you solid. Doors never frost (they swing); hidden
 pieces do, so the house's rooms frost where the model draws them. Frost never thaws by itself; past
 `MAX_FROST` cells the oldest melt. The client draws every cell as a crust a hair off its face
 (`render/Frost.ts`, from `frostQuad`, merged by region like the structures and rebuilt the frame

@@ -5,7 +5,7 @@
 // from the origin, and a cell is frosted or not. A frosted top is ice underfoot whatever the
 // piece is made of (collision.ts `footing`), and the client draws every frosted cell as a crust on
 // its face (render/Frost.ts, from `frostQuad`). A spray's touch is a fan of rays through its cone
-// (`sprayFrost`): where each lands, the cells within SPLAT of the spot on that face turn, so a
+// (`sprayFrost`): where each lands, the cells within its splat of the spot on that face turn, so a
 // spray held on a wall covers it in a second or two and a flame clears it the same way. Frost
 // never thaws on its own; past MAX_FROST cells the oldest melt first.
 import type { Structures } from './collision';
@@ -13,12 +13,17 @@ import { surfaceOf, type Structure } from './structures';
 import type { Vec3 } from './types';
 
 export const FROST_CELL = 0.5; // metres along each side of a cell
-export const MAX_FROST = 20000; // cells a room keeps, about the main disc's floor over
+export const MAX_FROST = 40000; // cells a room keeps: 10,000 m², the main disc's floor and more
 export const FLOOR = -1; // the "piece" that is the bare floor
 export const FROST_LIFT = 0.02; // metres a cell's crust stands off its face, so the two never share a plane
-const SPLAT = 0.75; // metres round where a ray lands that its touch reaches
-const RAYS = 8; // rays in a spray's fan, spread over its cone by the golden angle
-const GOLDEN = 2.399963;
+const SPLAT = 0.75; // metres round where a ray lands that its touch reaches, at the least
+// A ray's splat grows with the spray's own width where it lands, this share of it: a spray fans
+// out, and the dozen rays stand for all of it, so a shot or two frosts the whole patch solid.
+const SPREAD = 0.3;
+const RAYS = 12;
+// The R2 sequence (Roberts): point n of it spreads evenly among the ones before, so a spray's
+// rays cover its cone without rings or gaps, shot after shot.
+const R2 = [0.7548776662466927, 0.5698402909980532];
 
 // A piece's top, its underside, and its +x, -x, +z and -z sides, in its own frame.
 export type Face = 0 | 1 | 2 | 3 | 4 | 5;
@@ -185,7 +190,7 @@ export function frostQuad(
   };
 }
 
-// Turns every cell of a face within SPLAT of its point (u, v) `on` or off; `allowed` keeps a floor
+// Turns every cell of a face within `radius` of its point (u, v) `on` or off; `allowed` keeps a floor
 // splat inside the world. Returns the cells that changed.
 export function splat(
   frost: Frost,
@@ -194,17 +199,18 @@ export function splat(
   face: Face,
   u: number,
   v: number,
+  radius: number,
   on: boolean,
   allowed: (cell: FrostCell) => boolean = () => true,
 ): FrostCell[] {
   const changed: FrostCell[] = [];
-  const [i0, j0] = cellOf(u - SPLAT, v - SPLAT);
-  const [i1, j1] = cellOf(u + SPLAT, v + SPLAT);
+  const [i0, j0] = cellOf(u - radius, v - radius);
+  const [i1, j1] = cellOf(u + radius, v + radius);
   for (let i = i0; i <= i1; i++)
     for (let j = j0; j <= j1; j++) {
       const du = (i + 0.5) * FROST_CELL - u;
       const dv = (j + 0.5) * FROST_CELL - v;
-      if (du * du + dv * dv > SPLAT * SPLAT) continue;
+      if (du * du + dv * dv > radius * radius) continue;
       const cell: FrostCell = [piece, face, i, j];
       if (!frostQuad(s, piece, face, i, j) || !allowed(cell)) continue;
       if (frost.set(cell, on)) changed.push(cell);
@@ -212,10 +218,11 @@ export function splat(
   return changed;
 }
 
-// Where a spray from `o` along `d` lands: RAYS rays fanned over its cone (`halfAngle`, out to
-// `range`), turned round by `spin` so one spray after another lands between the last one's; each
-// frosts (`on`) or melts the face it reaches, the floor included where `floor` says there is one
-// (inside the world's outline), doors excepted (they swing). Returns the cells that changed.
+// Where a spray from `o` along `d` lands: RAYS rays spread over its cone (`halfAngle`, out to
+// `range`), the `shot`th spray's between the last ones', each frosting (`on`) or melting the face
+// it reaches round where it lands, wider the farther it flew, the floor included where `floor`
+// says there is one (inside the world's outline), doors excepted (they swing). Returns the cells
+// that changed.
 export function sprayFrost(
   structures: Structures,
   floor: (x: number, z: number) => boolean,
@@ -223,7 +230,7 @@ export function sprayFrost(
   d: Vec3,
   halfAngle: number,
   range: number,
-  spin: number,
+  shot: number,
   on: boolean,
 ): FrostCell[] {
   // Two unit vectors across the spray, to fan the rays round it.
@@ -231,9 +238,11 @@ export function sprayFrost(
   const a = unit(cross(d, ref));
   const b = cross(d, a);
   const changed: FrostCell[] = [];
+  const reach = (t: number) => Math.max(SPLAT, t * Math.tan(halfAngle) * SPREAD);
   for (let k = 0; k < RAYS; k++) {
-    const r = halfAngle * Math.sqrt((k + 0.5) / RAYS);
-    const theta = k * GOLDEN + spin;
+    const n = shot * RAYS + k;
+    const r = halfAngle * Math.sqrt((0.5 + n * R2[0]) % 1);
+    const theta = 2 * Math.PI * ((0.5 + n * R2[1]) % 1);
     const across = Math.sin(r);
     const dir = {
       x: d.x * Math.cos(r) + (a.x * Math.cos(theta) + b.x * Math.sin(theta)) * across,
@@ -247,7 +256,7 @@ export function sprayFrost(
       const z = o.z + dir.z * floorT;
       if (!floor(x, z)) continue;
       const inside = ([, , i, j]: FrostCell) => floor((i + 0.5) * FROST_CELL, (j + 0.5) * FROST_CELL);
-      changed.push(...splat(structures.frost, null, FLOOR, 0, x, z, on, inside));
+      changed.push(...splat(structures.frost, null, FLOOR, 0, x, z, reach(floorT), on, inside));
       continue;
     }
     if (!hit || hit.face === null) continue;
@@ -259,7 +268,7 @@ export function sprayFrost(
     const lx = dx * Math.cos(yaw) - dz * Math.sin(yaw);
     const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
     const [u, v] = faceCoords(s, hit.face, lx, hit.point.y - (s.y ?? 0), lz);
-    changed.push(...splat(structures.frost, s, hit.piece, hit.face, u, v, on));
+    changed.push(...splat(structures.frost, s, hit.piece, hit.face, u, v, reach(hit.t), on));
   }
   return changed;
 }

@@ -111,7 +111,7 @@ export function stepWalker(
     wantZ *= speed;
   }
   const feetNow = p.pos.y - EYE_HEIGHT;
-  const footing = standing ? structures.footing(p.pos.x, p.pos.z, feetNow + STEP_UP) : null;
+  const footing = standing ? structures.footing(p.pos.x, p.pos.z, feetNow + STEP_UP, PLAYER_RADIUS) : null;
   const grip = footing ? SURFACES[footing.surface].grip : Infinity;
   if (footing && grip < Infinity) slide(p, wantX, wantZ, grip, footing.slope, dt);
   else {

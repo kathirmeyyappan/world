@@ -130,17 +130,33 @@ export class Structures {
   }
 
   // What's underfoot at (x, z) for feet that reach up to `reach`: the ground there (groundAt), the
-  // piece it is, its surface (ice wherever its top is frosted, the floor's included) and its slope.
-  footing(x: number, z: number, reach: number): Footing {
+  // piece it is, its surface and its slope. It's ice wherever the top is frosted (the floor's
+  // included) under the spot or, with `radius`, under any of a body that wide round it: a foot on
+  // ice slips, so a hole in the frost smaller than a body doesn't catch.
+  footing(x: number, z: number, reach: number, radius = 0): Footing {
     const { y, piece, lx, lz } = this.ground(x, z, reach);
+    const probes =
+      radius > 0
+        ? [
+            [0, 0],
+            [radius, 0],
+            [-radius, 0],
+            [0, radius],
+            [0, -radius],
+          ]
+        : [[0, 0]];
     if (piece === null) {
-      const [i, j] = cellOf(x, z);
-      return { y, piece, surface: this.frost.has(FLOOR, 0, i, j) ? 'ice' : 'hard', slope: { x: 0, z: 0 } };
+      const frosted = probes.some(([dx, dz]) => this.frost.has(FLOOR, 0, ...cellOf(x + dx, z + dz)));
+      return { y, piece, surface: frosted ? 'ice' : 'hard', slope: { x: 0, z: 0 } };
     }
     const p = this.placed[piece];
     const s = this.list[piece];
-    const [i, j] = cellOf(...faceCoords(s, 0, lx, 0, lz));
-    const surface = this.frost.has(piece, 0, i, j) ? 'ice' : surfaceOfStructure(s);
+    const frosted = probes.some(([dx, dz]) => {
+      const [px, pz] = [lx + dx, lz + dz];
+      if (Math.abs(px) > p.hw || Math.abs(pz) > p.hd) return false;
+      return this.frost.has(piece, 0, ...cellOf(...faceCoords(s, 0, px, 0, pz)));
+    });
+    const surface = frosted ? 'ice' : surfaceOfStructure(s);
     // The top's rise per metre in the piece's own axes, then in the world's.
     const [wx, wz] = world(p, rise(p, lx, lz, 1, 0), rise(p, lx, lz, 0, 1));
     return { y, piece, surface, slope: { x: wx, z: wz } };
