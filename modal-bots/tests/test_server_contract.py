@@ -283,15 +283,17 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
 ) -> None:
     # Chest shots only: a headshot kills at once and there'd be no second shot to time.
     monkeypatch.setattr(sniper_bot, "AIM_ZONES", {"chest": 1.0})
+    monkeypatch.setattr(sniper_bot, "PLACES", {"indoors": 1.0})
 
     async def scenario() -> tuple[list[int], dict[str, Any]]:
         person = await seat_person(room_server, "python-sniper")
         me = next(p for p in person.welcome.players if p.id == person.id)
-        # It starts on a tower floor; here the only "floor" is a spot on the open main disc, 20 m
-        # nearer its middle than the person, with nothing in the way.
+        # It starts on a floor indoors; here the only one is a patch of the open main disc, 20 m
+        # nearer its middle than the person, with nothing in the way, and the only place it may
+        # perch, so it stands its ground there.
         away = 20 / max(1.0, math.hypot(me.pos.x, me.pos.z))
         world = copy.copy(load_world_map())
-        world.tower_inside = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0),)
+        world.insides = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0, r=2),)
         sniper = asyncio.create_task(run_sniper_bot("python-sniper", seconds=8, world=world, direct_ws_url=room_server))
         shot_ticks: list[int] = []
         tick = person.welcome.tick

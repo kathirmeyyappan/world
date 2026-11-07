@@ -43,6 +43,13 @@ class Region:
     w: float = 0
     d: float = 0
 
+    def covers(self, x: float, z: float) -> bool:
+        """Whether the spot (x, z) is over it."""
+        dx, dz = x - self.x, z - self.z
+        if self.kind == "disc":
+            return math.hypot(dx, dz) <= self.r
+        return abs(dx) <= self.w / 2 and abs(dz) <= self.d / 2
+
     def random_point(self, margin: float, rng: random.Random) -> Vec3:
         """A spot on it at least ``margin`` from its edge, uniform over its area."""
         if self.kind == "disc":
@@ -105,8 +112,8 @@ class WorldMap:
             for avatar, h in data["hitboxes"].items()
         }
         self.eyes = {avatar: float(e) for avatar, e in data["eyes"].items()}
-        # The tower's four floors inside its wall, ground floor first.
-        self.tower_inside = tuple(
+        # The floors indoors: the tower's four inside its wall, ground floor first, then each keep's.
+        self.insides = tuple(
             Region(
                 kind=str(r["kind"]),
                 x=float(r["x"]),
@@ -116,8 +123,10 @@ class WorldMap:
                 w=float(r.get("w", 0)),
                 d=float(r.get("d", 0)),
             )
-            for r in data["towerInside"]
+            for r in data["insides"]
         )
+        # Every node inside a building's wall, the stairs between its floors included.
+        self.indoors = frozenset(int(i) for i in data["indoors"])
         self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):
@@ -159,6 +168,10 @@ class WorldMap:
                     if distance < best_distance:
                         best, best_distance = i, distance
         return best
+
+    def nodes_in(self, region: Region, rise: float = 0.6) -> list[int]:
+        """Every node standing on ``region``: over it and within ``rise`` of its height."""
+        return [i for i, n in enumerate(self.nodes) if abs(n.y - region.y) <= rise and region.covers(n.x, n.z)]
 
     def nodes_near(self, feet: Vec3, radius: float, rise: float = 3) -> list[int]:
         """Every node within ``radius`` metres across the floor of ``feet`` and ``rise`` up or down:

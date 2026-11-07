@@ -449,8 +449,9 @@ Bots must use the modules under `modal-bots/common/`:
   controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
   `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
   `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the
-  same by where they are (`tower`, `building` or `elsewhere`), and
-  `world.hitbox(avatar)` is what a shot at that avatar has to land in (head band included).
+  same by where they are (`tower`, `building` or `elsewhere`), `world.insides` the floors inside
+  the tower's and the keeps' walls and `world.indoors` every spot within those walls (the stairs
+  too), and `world.hitbox(avatar)` is what a shot at that avatar has to land in (head band included).
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.
@@ -615,7 +616,7 @@ Use an isolated room such as `bot-smoke`, not `global`, for automated or manual 
 
 `/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
 of them across the floor and at their height: on whatever is there within a step, or in the air to
-fall from, never inside a wall. The sniper ignores the spot and starts inside the tower. The `-bot` is optional where the bare word
+fall from, never inside a wall. The sniper ignores the spot and starts indoors, in the tower or a keep. The `-bot` is optional where the bare word
 isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
 (`--time` for `-t`):
 
