@@ -157,12 +157,14 @@ sounds like: `thud` or `crunch`). On a footing with finite grip the walker keeps
 (`PlayerState.vx`, `vz`): the feet push toward the keys at the grip, never past the walk's speed,
 slow it at that rate with none held, and gravity pulls it down any slope harder than they can hold
 (`walker.ts` `slide`, capped at `SLIDE_SPEED`), so an icy 15° slope can't be climbed and the
-library's slide is ridden. The keys steer the walk in the air as on the ground, except off ice:
-ice pushes back only square to itself, so a jump off it goes along the ice's normal (straight up
-on the flat, partly downhill on a slope) with what the walk had, and until it lands the keys bend
-that flight only at the ice's grip (`PlayerState.adrift`), so a hop up a steep icy slope is thrown
-back down while a shallow one can be hopped up; a jetpack's thrust is something to push against,
-so it steers. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
+library's slide is ridden. The keys steer the walk in the air as on the ground, unless it was
+thrown (`PlayerState.thrown`, `walker.ts` `throwWalker`): a throw joins a velocity to the walk's
+and, until it lands, leaves the keys only the throw's grip to bend the flight with. Ice throws:
+it pushes back only square to itself, so a jump off it goes along the ice's normal (straight up
+on the flat, partly downhill on a slope) with what the walk had, stepping off it is a throw too,
+and both leave the keys the ice's grip, so a hop up a steep icy slope is thrown back down while a
+shallow one can be hopped up. A weapon's knockback or a bounce is a `throwWalker` call with the
+grip it leaves. A jetpack's thrust is something to push against, so it steers through any throw. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
 and its slope at a spot, and the client's `Footsteps` asks it at each footfall for the sound
 (`FOOTFALLS` there maps a footfall to its recordings; a gait with sounds of its own keeps them).
 The legs, footsteps and head bob are paced by `PlayerState.walk`, how fast the feet walk: the
@@ -353,7 +355,8 @@ actions and their keys, the shape of its fire, its `element` and its tank), a sh
 `render/Weapons.ts`, and a sound in `audio/Sfx.ts` (`ITEM_SOUNDS`). A hold weapon with an element
 gets its tank on the back and its jet at the nozzle from that alone, on every avatar and in the
 viewmodel (`render/Jet.ts`: blocks of fire, or for ice the "+" crystals of a corpse's poof, drawn as
-one particle system). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`):
+one particle system). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`;
+a hit that throws its victim is a `throwWalker` there, see Surfaces and frost):
 ice chills for `CHILL_SECONDS` from the last touch (`sim/constants.ts`), a walk at
 `CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees, and fire's touch
 thaws it at once, as it melts frost (see Surfaces and frost). On the client

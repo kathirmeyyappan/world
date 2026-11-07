@@ -18,9 +18,9 @@ export interface PlayerState {
   vy: number;
   vx: number; // the walk's velocity across the floor, m/s: what it keeps on a slippery footing (walker.ts)
   vz: number;
-  // In the air off ice: the grip the keys bend the flight with, m/s² (that ice's), and 0 on the
-  // ground or in the air off anything else (walker.ts).
-  adrift: number;
+  // Thrown (by ice, or by a weapon): in the air with the keys given only this much grip on the
+  // flight, m/s² (0: none), until it lands; null on its own feet (walker.ts `throwWalker`).
+  thrown: number | null;
   // How fast the feet are walking, m/s: what paces the legs and the footsteps. The walk the keys
   // ask for on a slippery footing (the feet work however the body slides), else the walk the body
   // makes (none against a wall); 0 for a class that doesn't walk.
