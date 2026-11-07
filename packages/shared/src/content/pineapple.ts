@@ -109,7 +109,7 @@ const DOORWAY = { width: 2.8, height: 4.4 };
 const DOORWAYS = [90, 210, 330];
 const COLLAR_ROW = 0.1; // metres tall each brick row of the lobby's wall round the hatch's tube is: the hole's steps
 const IN_SLAB = 0.02; // metres a wall or flight under a floor of another look stops short of its top, inside its slab, so the two never share a plane
-const UNDER_TUBE = 0.01; // metres the lobby's floor, and its wall under the tube, sit below the tube's floor, so no two faces share a plane
+const UNDER_TUBE = 0.01; // metres the lobby's floor sits below the tube's floor, so no two faces share a plane; the flights and the collar stand on it
 const hatchAngle = bearing(hatch.bearing);
 const lobbyFloor = DUNE_HEIGHT + hatch.sill;
 const topFloor = DUNE_HEIGHT + attic.cylinder.floor;
@@ -137,8 +137,8 @@ const hatchGap = (r: number) => ({
 // The lobby's wall closed round the tube: brick rows COLLAR_ROW tall, each running along the
 // wall's circle from its gap (a little into the wall beside it, so the two meet) to the tube's
 // side at the row's widest, so the brick never enters the tube, leaving a stepped round hole the
-// tube passes through; the wall's own pieces take over above the tube's top, and under its floor
-// (UNDER_TUBE below it, like the lobby's floor).
+// tube passes through; the wall's own pieces take over above the tube's top, and the lobby's floor
+// alone runs under it.
 const hatchCollar = (): Box[] => {
   const r = lobbyIn + WALL / 2;
   const radius = hatch.across / 2;
@@ -282,7 +282,7 @@ const top: Structure[] = [
     gaps: [
       {
         ...hatchGap(lobbyIn + WALL / 2),
-        bottom: lobbyFloor - UNDER_TUBE,
+        bottom: lobbyFloor - FLOOR,
         top: lobbyFloor + hatch.centre + hatch.across / 2,
       },
       beyondLobby(lobbyFloor - FLOOR, topFloor),
@@ -294,7 +294,7 @@ const top: Structure[] = [
     ...wall(
       at(lobbyIn, hatchAngle + side * lobbySpan),
       at(GALLERY_OUT + WALL, hatchAngle + side * lobbySpan),
-      topFloor - IN_SLAB - (lobbyFloor - FLOOR),
+      topFloor - 2 * IN_SLAB - (lobbyFloor - FLOOR), // under the flights' top steps as well as the floor
       WALL,
       lobbyFloor - FLOOR,
     ),
@@ -366,7 +366,7 @@ const top: Structure[] = [
       bottom: topFloor - IN_SLAB,
       top: topFloor + DOORWAY.height,
     })),
-    material: 'brick',
+    material: 'plaster',
   }),
   ...attic.steps.map(piece),
   // The deck in two: inside the cylinder's wall, with the hole the stair arrives through; and from

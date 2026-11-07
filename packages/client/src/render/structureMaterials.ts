@@ -125,12 +125,39 @@ const sand: MaterialSpec = {
   },
 };
 
+// Plaster: a smooth limewashed wall with no joints, mottled in soft patches a shade off the base
+// and flecked here and there, kept gentle so a tall curve of it doesn't shimmer.
+const plaster: MaterialSpec = {
+  tile: 3,
+  worldTop: true,
+  paint(px, rng) {
+    const base = '#e4e0d7';
+    const tones = ['#eae6dd', '#dedad1', '#e7e3da', '#e0dcd3'];
+    // Patches that wrap round the tile's edges, so the repeat is seamless.
+    const patches = Array.from({ length: 12 }, () => ({
+      x: rng() * TEXELS,
+      y: rng() * TEXELS,
+      r: 3 + rng() * 4,
+      color: pick(rng, tones),
+    }));
+    const wrap = (d: number) => Math.min(Math.abs(d), TEXELS - Math.abs(d));
+    for (let y = 0; y < TEXELS; y++) {
+      for (let x = 0; x < TEXELS; x++) {
+        let color = base;
+        for (const q of patches) if (wrap(x - q.x) ** 2 + wrap(y - q.y) ** 2 < q.r * q.r) color = q.color;
+        px(x, y, rng() < 0.03 ? '#cfcabf' : color);
+      }
+    }
+  },
+};
+
 export const MATERIALS: Record<StructureMaterial, MaterialSpec> = {
   brick,
   wood,
   'red-tile': redTile,
   flagstone,
   sand,
+  plaster,
 };
 
 // One material's texture as canvas pixels, deterministic for a given material.
