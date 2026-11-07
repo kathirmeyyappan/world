@@ -96,9 +96,7 @@ Use:
 - `load_world_map()` (`common/world.py`) for the world's structures and walkable ground, shared by
   every bot in the process: `world.clear(a, b)` is the sim's line of sight, and `world.node_at(feet)`
   and `world.path(start, goal)` find a way over a 1 m grid of standing spots, up the stair and over
-  its rail where only a jump gets there (each jump at the pace the map worked out for it,
-  `world.jump_paces`: a jump flies on at the pace it took off at, so a hop onto the next cell is a
-  slow one). `Route(world, path, tick)` (`common/navigation.py`) walks
+  its rail where only a jump gets there. `Route(world, path, tick)` (`common/navigation.py`) walks
   it: `route.steer(me.pos, tick, controls)` on every snapshot after `look`, and plan again when
   `route.stuck(tick)`. `controls.walk_toward(origin, target)` moves toward a point whatever the look.
   `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the same
