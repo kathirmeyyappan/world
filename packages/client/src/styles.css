@@ -1392,7 +1392,7 @@ body {
     height: 6px;
   }
   #command-hint {
-    top: 26%;
+    top: max(26%, 140px); /* clear of the CMDS button in landscape */
     padding: 8px 16px;
   }
   #command-hint .text {
