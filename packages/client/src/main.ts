@@ -1,5 +1,6 @@
 import { showHome } from './app/home';
 import type { Game } from './game/Game';
+import { IS_TOUCH, onTap } from './input/touch';
 import { forgetRoom, homeUrl } from './net/lobby';
 
 declare global {
@@ -32,6 +33,13 @@ async function main(): Promise<void> {
   });
   game.start();
   requestAnimationFrame(() => loading.classList.add('hidden'));
+  // A touchscreen lets the page start sound only on a tap, never a drag (looking round, the pad),
+  // so on one the world waits behind a tap; Sfx unlocks on it.
+  if (IS_TOUCH) {
+    const gate = document.getElementById('tap-to-play')!;
+    gate.classList.remove('hidden');
+    onTap(gate, () => gate.remove());
+  }
 }
 
 main().catch((err) => {
