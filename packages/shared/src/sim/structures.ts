@@ -226,15 +226,21 @@ export function roundWall(opts: {
       const t = offset / (step * 1.04) + 0.5;
       return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
     };
-    // Each gap's reach over this piece, as offsets from its middle.
+    // Each gap's reach over this piece, as offsets from its middle, and up it, within its height.
     const cuts = gaps
       .map((g) => {
         const centre = g.width === undefined ? Math.round(g.angle / step) * step : g.angle;
         const half = (g.width ?? step) / 2;
         const off = Math.atan2(Math.sin(centre - mid), Math.cos(centre - mid));
-        return { ...g, from: Math.max(off - half, -step / 2), to: Math.min(off + half, step / 2) };
+        return {
+          ...g,
+          bottom: Math.max(g.bottom, y),
+          top: Math.min(g.top, y + h),
+          from: Math.max(off - half, -step / 2),
+          to: Math.min(off + half, step / 2),
+        };
       })
-      .filter((g) => g.to - g.from > 1e-6)
+      .filter((g) => g.to - g.from > 1e-6 && g.top - g.bottom > 1e-6)
       .sort((p, q) => p.bottom - q.bottom);
     let from = y;
     const spans: [number, number][] = [];
@@ -253,8 +259,8 @@ export function roundWall(opts: {
   return pieces;
 }
 
-// Steps winding around (x, z) between two radii, `turns` times round while rising from `bottom`
-// by `rise`. Each step is a slab `thickness` deep, so there's headroom beneath the flight above.
+// Steps winding around (x, z) between two radii, `turns` times round (the other way round when
+// negative) while rising from `bottom` by `rise`. Each step is a slab `thickness` deep, so there's headroom beneath the flight above.
 // With `rail`, each step also carries a post that high along its inner edge, so players can't step
 // off the inside of the flight; they get on and off at its ends. Throws if a step is taller than
 // a player can walk up.
@@ -304,7 +310,7 @@ export function spiralStairs(opts: {
       y: base,
       yaw,
       w: outer - inner,
-      d: turn * outer, // the arc at the outer edge, so steps meet there and overlap inside
+      d: Math.abs(turn) * outer, // the arc at the outer edge, so steps meet there and overlap inside
       h: top - base,
       material,
       color,
@@ -317,7 +323,7 @@ export function spiralStairs(opts: {
       y: top,
       yaw,
       w: RAIL_WIDTH,
-      d: turn * inner + 0.02,
+      d: Math.abs(turn) * inner + 0.02,
       h: rail,
       material,
       color,

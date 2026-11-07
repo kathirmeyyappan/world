@@ -13,11 +13,12 @@ bathroom, walled off from the rest of the hall; the ground floor's closet and ba
 off the bedroom (add_rooms); and a straight stair of solid steps climbs from the corridor's end
 through the hall's ceiling and a hole in the library's floor, open along the corridor and walled
 both sides from where the corridor's wall meets it (stairwell; content/pineapple.ts stands its
-steps); and the attic stair spirals from the library's floor round its wall, through a hole in
-its ceiling and up a brick cylinder in the hollow top of the shell to a deck on the crown
-(attic_stair lays it out and the ceiling is cut for it; content/pineapple.ts stands the steps, the
-cylinder and the deck). The library's old door is walled up, so nothing outside its wall can be
-reached or seen.
+steps). High in the library's wall a round hatch opens, as the show has it, with a slide down
+from it to the floor (hatch: a steel tube through the wall, its ring and its door; slide: the
+platform and the trough); beyond it content/pineapple.ts stands a brick lobby and a gallery round
+the cylinder in the hollow top of the shell, which the attic stair climbs to a deck on the crown
+(attic_stair lays the stair out; the content stands it, the cylinder and the deck). The library's
+old door is walled up.
 
 What changes in the model: the painted front door and its wheel go (our door swings at the face,
 and the model's frame stands at the back of the vestibule behind it), the door panels become doors
@@ -47,12 +48,13 @@ from pathlib import Path
 
 import numpy as np
 from glb import accessor, components, local_matrix, read_glb
-from house_mesh import Outline, Triangle, arch, area, cut_out, disc, fan, lathe, turned_by
+from house_mesh import Outline, Triangle, arch, area, clip_at, cut_out, disc, fan, lathe, turned_by
 from PIL import Image
 
 INTERIOR_SCALE = 0.5  # metres per unit of the model: its doors come out 3 m tall, players SpongeBob's size
 FLOOR_LIFT = 0.02  # metres the rooms stand above the dune's top
 VOXEL = 0.25  # metres: the grid the sim's boxes are cut on
+VOXEL_ORIGIN = -1.0  # metres: the height the grid's cells are counted up from
 SILL = 0.02  # metres a stair's head and a platform sit below the floor they meet, so no two tops share a height
 LINING = 0.35  # metres inside the shell's skin the hall's wall stands
 SEGMENTS = 72
@@ -79,26 +81,58 @@ STAIRWELL_STEPS = 35
 STAIRWELL_WIDTH = 2.4
 STAIRWELL_WALL = 0.1
 STAIRWELL_LID = 3.05
-# The attic stair: a spiral from the library's floor round its wall, up through its ceiling into a
-# brick cylinder standing on that ceiling, and on up through the fruit's crown to a deck on top.
-# It starts at ATTIC_START (a bearing from +z toward +x), across the room from where the flight
-# from the hall arrives, climbs ATTIC_RISER a step with treads ATTIC_TREAD long along the middle of
-# the flight (a walk, not a climb), its outer edge ATTIC_CLEAR off the library's wall as that
-# leans in (and off the wall as far up as a player's head reaches, so nobody on the flight bumps
-# it) and the same off the cylinder's inside; each step a slab ATTIC_THICKNESS deep with a post
-# ATTIC_RAIL tall along its inner edge, so no one steps off the inside. The cylinder is
-# ATTIC_CYLINDER inside (the shell is r 7.7 at the crown) and ATTIC_WALL thick; the deck on the
-# crown is ATTIC_DECK thick, and the stair's holes through the ceiling and the deck cover the
-# stretch where the flight is within HEADROOM of them.
-ATTIC_START = np.radians(210.0)
+# The hatch high in the library's wall, as the show has it, and the slide down from it. The hatch:
+# its bearing (from +z toward +x, to the left of the walled-up doorway as the show has it), the
+# height of its sill (on the sim's grid, so the platform's boxes top out at it; the tiers of
+# shelves there stand nearly upright, so a round door fits the wall), the circle it is cut to
+# (across, and how high over the sill its centre stands: the sill cuts the circle's bottom off),
+# how far out from the axis the shelves' face stands there (HATCH_IN) and the lobby's wall beyond
+# (HATCH_OUT), and the frame round its mouth: how far it stands proud of the shelves, how wide its
+# ring is, how many bolts stud it, and how deep its skirt runs back into the wall. The platform
+# outside the frame at the sill, how wide at the frame (its sides run in toward the axis) and how
+# deep, which is the slide's width: the slide leaves it sideways, round the room along the wall
+# (the way SLIDE_SWEEP says, from +z toward +x or back) on the circle through the platform's
+# middle, SLIDE_RUN along, bending down an S (the slope's steepest in the middle, shallow at both
+# ends: SLIDE_BEND is the S's sharpness, in 1/m), with sides so tall and thick, and running out
+# level at its foot. The steel is painted by house-model.py: the plates repeat every SLIDE_TILE
+# metres, the frame's rim every RIM_TILE.
+HATCH_BEARING = np.radians(1.2)  # midway between two of the shelves' bamboo pillars, clear of both
+HATCH_SILL = 26.75
+HATCH_ACROSS = 3.6
+HATCH_CENTRE = 1.5
+HATCH_IN = 10.2
+HATCH_OUT = 11.65
+HATCH_PROUD = 0.35
+HATCH_FRAME = 0.45
+HATCH_BOLTS = 20
+HATCH_SKIRT = 1.5
+HATCH_MOUTH = HATCH_IN - HATCH_PROUD  # metres from the axis to the frame's face, where the tube begins
+PLATFORM_WIDTH = 3.0
+PLATFORM_DEPTH = 2.4
+PLATFORM_THICKNESS = 0.3
+SLIDE_SWEEP = -1.0
+SLIDE_RUN = 14.0
+SLIDE_BEND = 0.4
+SLIDE_SIDE = 0.6
+SLIDE_LIP = 0.12
+SLIDE_RUNOUT = 1.5
+SLIDE_TILE = 1.6
+RIM_TILE = 0.8
+# The attic stair: a spiral up the brick cylinder standing on the library's ceiling, through the
+# fruit's crown to a deck on top. It starts at ATTIC_START (a bearing from +z toward +x: past the
+# first of the cylinder's doorways, so the flight stands clear of both), climbs ATTIC_RISER a step
+# with treads ATTIC_TREAD long along the middle of the flight (a walk, not a climb), its outer
+# edge ATTIC_CLEAR off the cylinder's inside; each step a slab ATTIC_THICKNESS deep with a post
+# ATTIC_RAIL tall along its inner edge. The cylinder is ATTIC_CYLINDER across inside with a wall
+# ATTIC_WALL thick; the deck is ATTIC_DECK thick, and a floor needs HEADROOM over the flight below
+# its hole.
+ATTIC_START = HATCH_BEARING + np.radians(120.0)
 ATTIC_WIDTH = 2.4
 ATTIC_RISER = 0.25
 ATTIC_TREAD = 0.45
 ATTIC_THICKNESS = 0.3
 ATTIC_RAIL = 1.0
 ATTIC_CLEAR = 0.12
-ATTIC_TAPER = 0.08  # metres a step the flight may come in by at most
-ATTIC_EASE = 8  # steps over which it eases into coming in that fast, so it bends rather than kinks
 ATTIC_CYLINDER = 7.0
 ATTIC_WALL = 0.3
 ATTIC_DECK = 0.3
@@ -179,6 +213,11 @@ class Door:
     swing: float  # radians it turns to open, the same way round as the bearing
     mesh: list[Triangle]  # the panel about its pin on the floor, textured in the atlas
     paper: bool = False  # the model made the panel a sheet with no thickness
+    material: str = "Doors"  # the model's material the panel is textured in
+    texture: str = "interior"  # the rooms' atlas, or a texture of the panel's own, painted by house-model.py
+    trim: list[tuple[Triangle, str]] = field(
+        default_factory=list
+    )  # pieces on the panel in other looks, about its pin like the mesh
 
 
 @dataclass
@@ -206,16 +245,31 @@ class Stairwell:
 class AtticStair:
     """The attic stair laid out (ATTIC_*): its slabs and rail posts as the sim's boxes, each
     [x, z, y, w, d, h, bearing] (centre, underside, size across, along and up, the bearing it
-    faces); the holes it needs in the library's ceiling, one per step through it; the cylinder it
-    climbs (inside radius, wall thickness, from the ceiling up to the deck's underside); and the
-    deck on the crown (radius, the height of its top, thickness) with the hole the stair arrives
-    through (inner radius and the bearings it runs between, increasing)."""
+    faces); the cylinder it climbs (inside radius, wall thickness, from the ceiling it stands on,
+    the floor inside it, which is the top of that ceiling's boxes, up to the deck's underside); and
+    the deck on the crown (radius, the height of its top, thickness) with the hole the stair
+    arrives through (inner radius and the bearings it runs between, increasing)."""
 
     steps: list[list[float]]
-    ceiling_holes: list[Outline]
-    cylinder: tuple[float, float, float, float]
+    cylinder: tuple[float, float, float, float, float]
     deck: tuple[float, float, float]
     deck_hole: tuple[float, float, float]
+
+
+@dataclass
+class Hatch:
+    """The hatch high in the library's wall (HATCH_*): its bearing, the height of its sill, the
+    circle it is cut to (across, and its centre's height over the sill), and the radii its tube
+    runs between; and the slide down from it as the sim's ramps, each [lx, lz, hx, hz, y, w, h]
+    (its low end and its high end on the floor, its underside, its width, its rise)."""
+
+    bearing: float
+    sill: float
+    across: float
+    centre: float
+    inner: float
+    outer: float
+    slide: list[list[float]]
 
 
 @dataclass
@@ -240,6 +294,14 @@ class Interior:
     side_depth: float = 0.0  # how far out the side door's painted panel stood at its back: the passage's lining ends there, in the frame's band
     stairwell: Stairwell | None = None
     attic: AtticStair | None = None
+    hatch: Hatch | None = None
+    hatch_steel: list[Triangle] = field(
+        default_factory=list
+    )  # the hatch's tube and plate, the platform and the slide's sides, in the slide's steel
+    slide_floor: list[Triangle] = field(default_factory=list)  # the slide's floor, in that steel a shade darker
+    hatch_rim: list[Triangle] = field(
+        default_factory=list
+    )  # the frame round the hatch's mouth, bolts and all, in its rim
     closet: Outline = field(default_factory=list)  # the closet upstairs: its walls' footprint, a little past them
     bathroom_walls: Outline = field(default_factory=list)  # the bathroom upstairs: its walls' footprint
 
@@ -577,15 +639,21 @@ def stock_uv(stock: Door, reach: float, height: float) -> Callable[[float, float
 
 
 def panel(
-    shape: Shape, thickness: float, uv: Callable[[float, float], np.ndarray], back: Shape | None = None
+    shape: Shape,
+    thickness: float,
+    uv: Callable[[float, float], np.ndarray],
+    back: Shape | None = None,
+    reach: float | None = None,
 ) -> list[Triangle]:
     """A door panel of an opening's shape: standing on the floor with its pin edge up the y axis,
     running along +z and `thickness` thick toward -x, as the stock panel stands, its faces
     textured by `uv(along, up)`; a flat piece per band of the shape, each wound to face out. The
     edges take the texture folded round from the face, a thickness of it, so an edge shows grain
     and not one column of the picture stretched across it. With `back`, a shape of the same
-    bands, the back face takes that outline and the edges bevel between the two."""
-    reach, height = 2 * shape[0][1], shape[-1][0]
+    bands, the back face takes that outline and the edges bevel between the two. The panel runs
+    `reach` from its pin (its bottom's width unless given: a wider reach puts the pin out past the
+    bottom's corner, where a round panel is widest)."""
+    reach, height = reach or 2 * shape[0][1], shape[-1][0]
     middle = np.array([-thickness / 2, height / 2, reach / 2])
     left = [(reach / 2 - hw, y) for y, hw in shape]
     right = [(reach / 2 + hw, y) for y, hw in shape]
@@ -683,6 +751,12 @@ def new_door(
     shape: Shape,
     turn: float = np.pi / 2,
     across: float = 0.0,
+    material: str = "Doors",
+    uv: Callable[[float, float], np.ndarray] | None = None,
+    trim: list[tuple[Triangle, str]] | None = None,
+    reach: float | None = None,
+    texture: str = "interior",
+    hinge: float | None = None,
 ) -> Door:
     """A door of this house's own filling an opening of `shape` through a wall standing `depth`
     out from the axis at a bearing (from +z toward +x), its middle `across` from the bearing's line
@@ -691,18 +765,31 @@ def new_door(
     the face it swings toward, as a real door is, so swung square it stands clear of its jamb:
     out, at the opening's +x edge on the wall's outer face, running across to -x; in, at the -x
     edge on the inner face, running to +x. Either way the panel (to the left of its run,
-    make_door) fills the opening just inside the wall's surface."""
+    make_door) fills the opening just inside the wall's surface. With `material` and `uv` the
+    panel takes that look instead of the stock door's, `uv(along, up)` its mapping; `trim` is
+    pieces in other looks, about the panel's pin as `panel` lays it (x out of its face, y up, z
+    along its run), `reach` how far the panel runs from its pin (panel), `texture` the image the
+    panel is drawn in, the rooms' atlas unless it has one of its own, and `hinge` which edge the
+    pin is at, +1 the +x edge or -1 the -x (looking out), where a door must open clear of
+    something on the usual side."""
     stock = next(d for d in interior.doors if d.id == "closet")
-    reach, height = 2 * shape[0][1], shape[-1][0]
+    reach, height = reach or 2 * shape[0][1], shape[-1][0]
     edge = reach / 2
-    local = np.array([across + edge, 0.0, depth]) if out else np.array([across - edge, 0.0, depth - stock.thickness])
-    pin, along = (
-        turned_by([[(p, np.zeros(2))]], bearing)[0][0][0] for p in (local, np.array([-1.0 if out else 1.0, 0.0, 0.0]))
-    )
+    hinge = hinge if hinge is not None else (1.0 if out else -1.0)
+    # The panel's body lies just inside the wall's surface either way: behind the pin's plane when
+    # it runs to -x, in front of it when it runs to +x.
+    local = np.array([across + hinge * edge, 0.0, depth if hinge > 0 else depth - stock.thickness])
+    pin, along = (turned_by([[(p, np.zeros(2))]], bearing)[0][0][0] for p in (local, np.array([-hinge, 0.0, 0.0])))
     run = float(np.arctan2(along[2], along[0]))
-    swing = -turn  # toward the right of the run: the way the pin's face looks
-    mesh = turned_by(panel(shape, stock.thickness, stock_uv(stock, reach, height)), np.pi / 2 - run)
+    # Toward the right of the run, the way the pin's face looks, for a door hung the usual way;
+    # hung on the other edge it turns the other way round to open the same way.
+    swing = -turn if (hinge > 0) == out else turn
+    look = uv or stock_uv(stock, reach, height)
+    mesh = turned_by(panel(shape, stock.thickness, look, reach=reach), np.pi / 2 - run)
     door = Door(id_, (float(pin[0]), float(pin[2])), y, run, reach, height, stock.thickness, swing, mesh)
+    door.material = material
+    door.texture = texture
+    door.trim = [(t, m) for tris, m in ((turned_by([tri], np.pi / 2 - run), m) for tri, m in trim or []) for t in tris]
     interior.doors.append(door)
     return door
 
@@ -945,33 +1032,25 @@ def build_floors(
         near = np.abs((bearings - a + np.pi) % (2 * np.pi) - np.pi) < 1.5 * np.pi / SEGMENTS
         return float(radii[near].max() if near.any() else radii.max()) + 0.2
 
-    # The attic stair, up round the library's wall (the books' faces, and the bamboo at the floor,
-    # by height) and on up through the ceiling, which is cut where it passes.
-    lib_pts = np.array(
-        [
-            p
-            for name in ("Library_Wall", "Library_Bamboo")
-            for ks in comps(interior, name)
-            for k in ks
-            for p, _ in interior.tris[k][0]
-        ]
-    )
-    lib_r = np.hypot(lib_pts[:, 0], lib_pts[:, 2])
-    # The wall's mesh has long triangles between its rings, so a band may hold no vertex: the
-    # radius runs straight between the bands that do, as the mesh does.
-    known = [
-        (y + 0.25, float(lib_r[band].min()))
-        for y in np.arange(levels["library"], top - CAP_DROP, 0.5)
-        if (band := (lib_pts[:, 1] >= y) & (lib_pts[:, 1] < min(y + 0.5, top - CAP_DROP))).any()
-    ]
-    wall_r = lambda y: float(np.interp(y, [y0 for y0, _ in known], [r for _, r in known]))
-    attic = attic_stair(library_top, top - CAP_DROP, max(heights), wall_r)
+    # The attic stair, up the cylinder standing on the ceiling.
+    attic = attic_stair(top - CAP_DROP, boxes_top(top - CAP_DROP), max(heights))
     interior.attic = attic
     for drop, m, tile in ((CAP_DROP, lid, CEILING_TILE), (CAP_DROP + 0.1, net, NET_TILE)):
-        pieces.append((round_floor(top - drop, cap, True, attic.ceiling_holes, tile), m))
+        pieces.append((round_floor(top - drop, cap, True, [], tile), m))
     for tris, m in pieces:
         interior.tris += [(t, m) for t in tris]
     interior.solid += [t for tris, _ in pieces for t in tris]
+    # Nothing of the wall or its pillars stands past the ceiling, whose top is the cylinder's floor.
+    lid_y = top - CAP_DROP
+    clipped = {material(interior, "Library_Wall"), material(interior, "Library_Bamboo")}
+    kept: list[tuple[Triangle, int]] = []
+    for tri, m in interior.tris:
+        if m in clipped and any(p[1] > lid_y + 0.001 for p, _ in tri):
+            poly = clip_at(list(tri), lambda p: p[1] - lid_y, 0.0)
+            kept += [(t, m) for t in fan(poly)] if len(poly) >= 3 else []
+        else:
+            kept.append((tri, m))
+    interior.tris = kept
 
 
 def faced_wall(interior: Interior) -> list[Triangle]:
@@ -1221,74 +1300,35 @@ def stairwell(
     return well
 
 
-def attic_stair(floor: float, ceiling: float, crown: float, wall_r: Callable[[float], float]) -> AtticStair:
-    """The attic stair laid out (ATTIC_*) from the library's floor (`floor`, its top) past its
-    ceiling to the deck on the crown: `wall_r(y)` is how far out the library's wall stands at a
-    height (anywhere round, at its nearest), which the flight keeps ATTIC_CLEAR inside as far up
-    as a head reaches."""
+def attic_stair(ceiling: float, floor: float, crown: float) -> AtticStair:
+    """The attic stair laid out (ATTIC_*) up the cylinder standing on the library's `ceiling`,
+    from the `floor` inside it (the top of the ceiling's boxes) to the deck on the crown."""
     deck_top = crown + 0.02 + ATTIC_DECK  # the deck's underside a hair over the crown, so the two never share a face
     steps = int(np.ceil((deck_top - floor) / ATTIC_RISER))
     riser = (deck_top - floor) / steps
-    at = lambda r, b: (float(r * np.sin(b)), float(r * np.cos(b)))
+    outer = ATTIC_CYLINDER - ATTIC_CLEAR
+    inner = outer - ATTIC_WIDTH
+    at = lambda r, b: np.array([r * np.sin(b), r * np.cos(b)])
     attic = AtticStair(
         [],
-        [],
-        (ATTIC_CYLINDER, ATTIC_WALL, ceiling, crown + 0.02),
+        (ATTIC_CYLINDER, ATTIC_WALL, ceiling, floor, crown + 0.02),
         (ATTIC_CYLINDER + ATTIC_WALL + 0.4, deck_top, ATTIC_DECK),
         (0.0, 0.0, 0.0),
     )
-    # Where each step starts: its tread's height, how far out its edges stand and the bearing it
-    # starts at; then each step's slab runs from its own start to the next step's, so along a
-    # taper the outer edges run on continuously (a slab laid along the circle at its own radius
-    # would jut past the next by the taper).
-    tops = [floor + riser * (i + 1) for i in range(steps)]
-    # Below the ceiling the flight keeps inside the wall as far up as a head reaches, and where a
-    # head reaches the cylinder it keeps inside that too. Within those limits it comes in no faster
-    # than ATTIC_TAPER a step, easing into that over ATTIC_EASE steps, so it bends in ahead of each
-    # lean of the wall rather than kinking with it; and it never turns outward, since the straight
-    # slabs would crack open on the inside where they meet.
-    limits = []
-    for top in tops:
-        limit = ATTIC_CYLINDER - ATTIC_CLEAR
-        if top < ceiling:
-            limit = min(wall_r(y) for y in np.arange(top, min(top + 2.0, ceiling), 0.25)) - ATTIC_CLEAR
-            if top + 2.0 >= ceiling:
-                limit = min(limit, ATTIC_CYLINDER - ATTIC_CLEAR)
-        limits.append(limit)
-
-    def taper(d: int) -> float:
-        """How far out a step may stand past the one `d` steps above it."""
-        if d <= ATTIC_EASE:
-            return ATTIC_TAPER * d * d / (2 * ATTIC_EASE)
-        return ATTIC_TAPER * (d - ATTIC_EASE / 2)
-
-    outers = [min(limits[j] + taper(j - i) for j in range(i, steps)) for i in range(steps)]
-    starts: list[tuple[float, float, float, float]] = []  # (top, outer, inner, angle)
-    angle = ATTIC_START
-    for top, outer in zip(tops, outers):
-        starts.append((top, outer, outer - ATTIC_WIDTH, angle))
-        angle += ATTIC_TREAD / (outer - ATTIC_WIDTH / 2)
-    starts.append((starts[-1][0] + riser, *starts[-1][1:3], angle))  # where the last step ends
-    arriving: list[tuple[float, float, float]] = []
-    inwards: list[np.ndarray] = []  # each step's square-to-the-run direction toward the axis, and its run
-    runs: list[np.ndarray] = []
+    # Each step's slab runs from its own start to the next step's, so the slabs meet at the outer
+    # edge and overlap on the inside, where the rail's posts stand.
+    turn = ATTIC_TREAD / (outer - ATTIC_WIDTH / 2)
+    arriving: list[tuple[float, float]] = []
     for i in range(steps):
-        (top, outer, inner, a0), (_, outer1, inner1, a1) = starts[i], starts[i + 1]
-        p0, p1 = np.array(at(outer, a0)), np.array(at(outer1, a1))
-        q0, q1 = np.array(at(inner, a0)), np.array(at(inner1, a1))
+        top = floor + riser * (i + 1)
+        a0, a1 = ATTIC_START + turn * i, ATTIC_START + turn * (i + 1)
+        p0, p1, q0, q1 = at(outer, a0), at(outer, a1), at(inner, a0), at(inner, a1)
         run = p1 - p0
         length = float(np.linalg.norm(run))
         facing = float(np.arctan2(run[0], run[1]))
         inward = np.array([-run[1], run[0]]) / length  # square to the run, toward the axis
         if inward @ (p0 + p1) > 0:
             inward = -inward
-        if i > 0:
-            crack = ATTIC_WIDTH * float((inward - inwards[-1]) @ runs[-1])
-            assert crack <= 0.001, (
-                f"attic stair: step {i} turns outward and cracks the flight open {crack:.2f} m on the inside"
-            )
-        inwards.append(inward)
-        runs.append(run / length)
         base = max(floor, top - ATTIC_THICKNESS)
         centre = (p0 + p1) / 2 + inward * (ATTIC_WIDTH / 2)
         attic.steps.append([float(centre[0]), float(centre[1]), base, ATTIC_WIDTH, length, top - base, facing])
@@ -1296,19 +1336,452 @@ def attic_stair(floor: float, ceiling: float, crown: float, wall_r: Callable[[fl
         attic.steps.append(
             [float(post[0]), float(post[1]), top, 0.2, float(np.linalg.norm(q1 - q0)) + 0.02, ATTIC_RAIL, facing]
         )
-        # The hole runs on past the ceiling until a walker's reach clears the ceiling's boxes, which
-        # the sim cuts a cell coarse round a hole's edge.
-        if ceiling - HEADROOM < top < ceiling + 0.75:
-            corners = [at(inner - 0.05, a0), at(outer + 0.05, a0), at(outer1 + 0.05, a1), at(inner1 - 0.05, a1)]
-            attic.ceiling_holes.append(ccw(corners))
         if top > deck_top - HEADROOM:
-            arriving.append((inner, a0, a1))
-    attic.deck_hole = (min(r for r, _, _ in arriving) - 0.1, arriving[0][1] - 0.05, arriving[-1][2] + 0.05)
+            arriving.append((a0, a1))
+    attic.deck_hole = (inner - 0.1, arriving[0][0] - 0.05, arriving[-1][1] + 0.05)
     print(
-        f"attic: {steps} steps of {riser:.3f} m rise, {np.degrees(angle - ATTIC_START) / 360:.2f} turns, "
-        f"{len(attic.ceiling_holes)} holes in the library's ceiling, deck hole {np.degrees(attic.deck_hole[1]) % 360:.0f}..{np.degrees(attic.deck_hole[2]) % 360:.0f} deg from r {attic.deck_hole[0]:.2f}"
+        f"attic: {steps} steps of {riser:.3f} m rise from {floor:.2f}, {np.degrees(turn * steps) / 360:.2f} turns, "
+        f"deck hole {np.degrees(attic.deck_hole[1]) % 360:.0f}..{np.degrees(attic.deck_hole[2]) % 360:.0f} deg from r {attic.deck_hole[0]:.2f}"
     )
     return attic
+
+
+def boxes_top(y: float) -> float:
+    """The top of the sim's boxes behind a surface at a height facing down (voxel_boxes): the two
+    cells above the one it lies in."""
+    return VOXEL_ORIGIN + (np.floor((y - VOXEL_ORIGIN) / VOXEL) + 2) * VOXEL
+
+
+def hatch_shape(r: float = HATCH_ACROSS / 2) -> Shape:
+    """The hatch's opening: a circle of radius r (the hatch's own unless given) with its centre
+    HATCH_CENTRE over the sill, which cuts its bottom off; as (height, half-width) bands from the
+    sill to the top."""
+    top = HATCH_CENTRE + r
+    ys = [0.0, *(float(y) for y in np.linspace(0.0, top, ARCH_STEPS + 1)[1:-1]), top]
+    return [(y, float(np.sqrt(max(r * r - (y - HATCH_CENTRE) ** 2, 0.0)))) for y in ys]
+
+
+def outline_of(shape: Shape) -> Outline:
+    """A shape's outline in its wall's plane (across, up), counter-clockwise from the bottom left."""
+    right = [(hw, y) for y, hw in shape]
+    left = [(-hw, y) for y, hw in reversed(shape[1:-1])]
+    return [(-shape[0][1], shape[0][0]), *right, *left]
+
+
+def tube(outline: Outline, z0: float, z1: float, tile: float) -> tuple[list[Triangle], list[Triangle]]:
+    """A tube of an outline's section from z0 to z1 along +z (the outline in its (x, y) plane,
+    round in order), its texture running round and along it, a repeat every `tile` metres: its
+    faces looking in, and the same looking out."""
+    axis = np.array([0.0, float(np.mean([y for _, y in outline])), (z0 + z1) / 2])
+    inside: list[Triangle] = []
+    outside: list[Triangle] = []
+    s = 0.0
+    for i in range(len(outline)):
+        (xa, ya), (xb, yb) = outline[i], outline[(i + 1) % len(outline)]
+        step = float(np.hypot(xb - xa, yb - ya))
+        corners = [
+            (np.array([xa, ya, z0]), (s, z0)),
+            (np.array([xb, yb, z0]), (s + step, z0)),
+            (np.array([xb, yb, z1]), (s + step, z1)),
+            (np.array([xa, ya, z1]), (s, z1)),
+        ]
+        for tri in fan([(p, np.array([u / tile, v / tile])) for p, (u, v) in corners]):
+            p, q, r = (c for c, _ in tri)
+            flipped: Triangle = [tri[0], tri[2], tri[1]]
+            if np.cross(q - p, r - p) @ (axis - (p + q + r) / 3) > 0:
+                inside.append(tri)
+                outside.append(flipped)
+            else:
+                inside.append(flipped)
+                outside.append(tri)
+        s += step
+    return inside, outside
+
+
+def slide_profile(run: float, drop: float, pieces: int) -> list[tuple[float, float]]:
+    """The slide's floor from its foot to its top, (along, height over the foot) at the ends of
+    `pieces` equal runs: an S, shallow at the foot and at the top and steepest in the middle, the
+    logistic curve bent SLIDE_BEND, pinned to the floor at the foot and the drop at the top."""
+    sig = lambda t: 1 / (1 + np.exp(-t))
+    lo, hi = sig(-SLIDE_BEND * run / 2), sig(SLIDE_BEND * run / 2)
+    return [
+        (float(s), float(drop * (sig(SLIDE_BEND * (s - run / 2)) - lo) / (hi - lo)))
+        for s in np.linspace(0, run, pieces + 1)
+    ]
+
+
+def facing(tris: list[Triangle], out: Callable[[np.ndarray], np.ndarray]) -> list[Triangle]:
+    """The triangles wound so each faces the way `out` gives at its middle."""
+    kept = []
+    for tri in tris:
+        p, q, r = (c for c, _ in tri)
+        kept.append(tri if np.cross(q - p, r - p) @ out((p + q + r) / 3) > 0 else [tri[0], tri[2], tri[1]])
+    return kept
+
+
+def at_hatch(tris: list[Triangle]) -> list[Triangle]:
+    """Triangles laid out in the hatch's frame (its bearing along +z, the sill at 0) lifted and
+    turned into the house's."""
+    lift = np.array([0.0, HATCH_SILL, 0.0])
+    return turned_by([[(p + lift, q) for p, q in t] for t in tris], HATCH_BEARING)
+
+
+def cut_hatch(interior: Interior) -> tuple[int, list[str]]:
+    """The wall, shelves, pillars and all, cut along the hatch's bearing by the frame's circle (the
+    frame and its skirt cover the cut round the tube) from in front of the frame to the tube's
+    end; the sim's boxes follow. Returns how many triangles the cut left and the materials it
+    went through."""
+    sill, top = HATCH_SILL, hatch_shape()[-1][0]
+    turned = turned_by([tri for tri, _ in interior.tris], -HATCH_BEARING)
+    reach = HATCH_ACROSS / 2 + HATCH_FRAME
+    raised = [(x, sill + y) for x, y in outline_of(hatch_shape(reach))]
+
+    def near(tri: Triangle) -> bool:
+        pts = np.array([p for p, _ in tri])
+        return bool(
+            pts[:, 2].max() > HATCH_MOUTH - 0.8
+            and pts[:, 2].min() < HATCH_OUT + 0.3
+            and pts[:, 0].max() > -reach - 0.3
+            and pts[:, 0].min() < reach + 0.3
+            and pts[:, 1].max() > sill - 0.3
+            and pts[:, 1].min() < sill + top + HATCH_FRAME + 0.3
+        )
+
+    which = {k for k, tri in enumerate(turned) if near(tri)}
+    by_material: dict[int, list[int]] = {}
+    for k in which:
+        by_material.setdefault(interior.tris[k][1], []).append(k)
+    gone = {id(interior.tris[k][0]) for k in which}
+    opened: list[tuple[Triangle, int]] = []
+    for m, ks in by_material.items():
+        cut, rest = cut_out([turned[k] for k in ks], raised, flat_xy, lambda tri: True)
+        opened += [(t, m) for t in turned_by(cut + rest, HATCH_BEARING)]
+    interior.tris = [t for k, t in enumerate(interior.tris) if k not in which] + opened
+    interior.solid = [t for t in interior.solid if id(t) not in gone] + [
+        t for t, m in opened if interior.materials[m] not in ROUND_WALLS
+    ]
+    return len(opened), sorted(interior.materials[m] for m in by_material)
+
+
+def hatch_plate() -> list[Triangle]:
+    """The plate round the tube's far end, a hair proud of the lobby's wall there, over the wall's
+    opening round the tube; in the hatch's frame."""
+    hw, top = HATCH_ACROSS / 2, hatch_shape()[-1][0]
+    lap = 0.2
+    plate = fan(
+        [
+            (np.array([x, y, HATCH_OUT + 0.02]), np.array([x / SLIDE_TILE, y / SLIDE_TILE]))
+            for x, y in ((-hw - lap, -0.3), (hw + lap, -0.3), (hw + lap, top + lap), (-hw - lap, top + lap))
+        ]
+    )
+    plate, _ = cut_out(plate, outline_of(hatch_shape()), flat_xy, lambda tri: True)
+    return facing(plate, lambda mid: np.array([0.0, 0.0, 1.0]))
+
+
+def hatch_ring() -> list[Triangle]:
+    """The frame: a ring HATCH_FRAME wide on the mouth's face, bevelled in the rim's look (lighter
+    at its inner edge, darker at its outer), a skirt back from its outer edge HATCH_SKIRT into
+    the wall, and HATCH_BOLTS six-sided bolts standing out of the ring; all above the sill only,
+    in the hatch's frame."""
+    hw = HATCH_ACROSS / 2
+    r_in, r_out, r_bolt = hw, hw + HATCH_FRAME, hw + HATCH_FRAME / 2
+    z_back = HATCH_MOUTH + HATCH_SKIRT
+    ring_point = lambda r, a, z: np.array([r * np.cos(a), HATCH_CENTRE + r * np.sin(a), z])
+    above = lambda poly: clip_at(poly, lambda p: -p[1], 0.0)
+    axis_out = lambda mid: np.array([mid[0], mid[1] - HATCH_CENTRE, 0.0])
+    rim: list[Triangle] = []
+    for k in range(48):
+        a0, a1 = 2 * np.pi * k / 48, 2 * np.pi * (k + 1) / 48
+        u0, u1 = a0 * r_out / RIM_TILE, a1 * r_out / RIM_TILE
+        face = [
+            (ring_point(r_in, a0, HATCH_MOUTH), np.array([u0, 0.0])),
+            (ring_point(r_out, a0, HATCH_MOUTH), np.array([u0, 1.0])),
+            (ring_point(r_out, a1, HATCH_MOUTH), np.array([u1, 1.0])),
+            (ring_point(r_in, a1, HATCH_MOUTH), np.array([u1, 0.0])),
+        ]
+        skirt = [
+            (ring_point(r_out, a0, HATCH_MOUTH), np.array([u0, 0.3])),
+            (ring_point(r_out, a1, HATCH_MOUTH), np.array([u1, 0.3])),
+            (ring_point(r_out, a1, z_back), np.array([u1, 0.7])),
+            (ring_point(r_out, a0, z_back), np.array([u0, 0.7])),
+        ]
+        rim += facing(fan(above(face)), lambda mid: np.array([0.0, 0.0, -1.0]))
+        rim += facing(fan(above(skirt)), axis_out)
+    bolt, proud = 0.09, 0.1
+    for k in range(HATCH_BOLTS):
+        a = 2 * np.pi * (k + 0.5) / HATCH_BOLTS
+        c = ring_point(r_bolt, a, HATCH_MOUTH)
+        if c[1] < bolt:
+            continue
+        corners = [
+            c + np.array([bolt * np.cos(b), bolt * np.sin(b), 0.0]) for b in (2 * np.pi * i / 6 + a for i in range(6))
+        ]
+        head = [
+            (q + np.array([0.0, 0.0, -proud]), np.array([0.02 + 0.06 * i / 6, 0.05])) for i, q in enumerate(corners)
+        ]
+        rim += facing(fan(head), lambda mid: np.array([0.0, 0.0, -1.0]))
+        for i in range(6):
+            q0, q1 = corners[i], corners[(i + 1) % 6]
+            side = [
+                (q0, np.array([0.0, 0.02])),
+                (q1, np.array([0.1, 0.02])),
+                (q1 - [0, 0, proud], np.array([0.1, 0.1])),
+                (q0 - [0, 0, proud], np.array([0.0, 0.1])),
+            ]
+            rim += facing(fan(side), lambda mid, c=c: np.array([mid[0] - c[0], mid[1] - c[1], 0.0]))
+    return rim
+
+
+def hatch_door(interior: Interior) -> None:
+    """The door: just inside the ring, swinging into the room (the tube is shorter than the door,
+    so swung out it would stand across the lobby), painted whole by house-model.py."""
+    shape = hatch_shape()
+    top = shape[-1][0]
+    thickness = next(d for d in interior.doors if d.id == "closet").thickness
+    new_door(
+        interior,
+        "hatch",
+        HATCH_BEARING,
+        HATCH_MOUTH + thickness + 0.02,
+        HATCH_SILL,
+        False,
+        shape,
+        uv=lambda along, up: np.array([along / HATCH_ACROSS, 1.0 - up / top]),
+        reach=HATCH_ACROSS,
+        texture="hatch-door",
+        hinge=-SLIDE_SWEEP,  # away from the side the slide leaves by, so open it stands clear of it
+    )
+
+
+def hatch(interior: Interior) -> None:
+    """The hatch high in the library's wall (HATCH_*), as the show has it: the wall cut through
+    along its bearing, a steel tube of the hatch's section run through the cut from the frame's
+    face, HATCH_PROUD out from the shelves, to HATCH_OUT, with the bolted ring round its mouth,
+    the plate at its far end where it meets the lobby's wall, and a round steel door just inside
+    the ring (porthole and wheel and all). The sim gets the tube as boxes; the wall itself is the
+    content's rings, which open for the tube there. `slide` adds the way down from it."""
+    cut, cut_names = cut_hatch(interior)
+    inside, outside = tube(outline_of(hatch_shape()), HATCH_MOUTH, HATCH_OUT + 0.05, SLIDE_TILE)
+    interior.hatch_steel += at_hatch(inside + outside + hatch_plate())
+    interior.solid += at_hatch(inside)
+    interior.hatch_rim += at_hatch(hatch_ring())
+    hatch_door(interior)
+    interior.hatch = Hatch(HATCH_BEARING, HATCH_SILL, HATCH_ACROSS, HATCH_CENTRE, HATCH_MOUTH, HATCH_OUT, [])
+    print(f"hatch: at {np.degrees(HATCH_BEARING):.0f} deg, sill {HATCH_SILL:.2f}, {cut} triangles cut over {cut_names}")
+
+
+@dataclass
+class SlideWay:
+    """The way down from the hatch, polar about the house's axis in the hatch's frame (a radius,
+    a turn past the hatch's bearing, a height over the sill): the platform's sector between
+    `r_in` and `r_out` from `near_t` to `far_t`, its deck at `deck`; and off its near side the
+    trough's floor, at `heights` over the sill `alongs` metres along the circle through the
+    platform's middle, from the top down to the run-out (its two ends the last two, level)."""
+
+    r_in: float
+    r_out: float
+    near_t: float
+    far_t: float
+    deck: float
+    alongs: list[float]
+    heights: list[float]
+
+    @property
+    def r_mid(self) -> float:
+        return (self.r_in + self.r_out) / 2
+
+    def turn_at(self, along: float) -> float:
+        """The turn past the hatch's bearing `along` metres from the platform's side."""
+        return self.near_t + SLIDE_SWEEP * along / self.r_mid
+
+
+def slide_way(floor: float) -> SlideWay:
+    """The way laid out: the platform a sector PLATFORM_WIDTH wide at the frame and
+    PLATFORM_DEPTH deep, a hair under the tube's floor so the two never share a face; the S
+    (slide_profile) from its near side down to the library's floor at `floor`, a piece a metre;
+    then SLIDE_RUNOUT level."""
+    side = np.arctan2(PLATFORM_WIDTH / 2, HATCH_MOUTH)
+    near_t, far_t = SLIDE_SWEEP * side, -SLIDE_SWEEP * side  # the slide leaves by the near side
+    deck = -0.01
+    drop = HATCH_SILL + deck - (floor + 0.02)
+    pieces = int(np.ceil(SLIDE_RUN / 1.0))
+    profile = slide_profile(SLIDE_RUN, drop, pieces)
+    heights = [floor + 0.02 - HATCH_SILL + h for _, h in reversed(profile)]  # from the top down
+    alongs = [SLIDE_RUN - a for a, _ in reversed(profile)]
+    alongs.append(SLIDE_RUN + SLIDE_RUNOUT)
+    heights.append(heights[-1])
+    return SlideWay(HATCH_MOUTH - PLATFORM_DEPTH, HATCH_MOUTH, near_t, far_t, deck, alongs, heights)
+
+
+UP = np.array([0.0, 1.0, 0.0])
+
+
+def pol(r: float, t: float, y: float) -> np.ndarray:
+    """A point in the hatch's frame: a radius from the axis, a turn past the hatch's bearing, a
+    height over the sill."""
+    return np.array([r * np.sin(t), y, r * np.cos(t)])
+
+
+def radial(t: float) -> np.ndarray:
+    """The level unit direction out from the axis at a turn."""
+    return np.array([np.sin(t), 0.0, np.cos(t)])
+
+
+def plates(p: np.ndarray) -> np.ndarray:
+    """The slide's plate texture laid flat over a floor."""
+    return np.array([p[0] / SLIDE_TILE, p[2] / SLIDE_TILE])
+
+
+def along_uv(a: np.ndarray) -> Callable[[np.ndarray], np.ndarray]:
+    """The slide's plate texture up a face standing on the floor at `a`: along the face from
+    there, and down it."""
+    return lambda p: np.array([float(np.hypot(p[0] - a[0], p[2] - a[2])) / SLIDE_TILE, -p[1] / SLIDE_TILE])
+
+
+@dataclass
+class Steelwork:
+    """The slide's steel as it's laid, in the hatch's frame: the plates drawn in the slide's look,
+    its floor's in the darker shade, and the faces the sim gets as boxes (what's walked on and the
+    rails' insides, which keep a walker in)."""
+
+    steel: list[Triangle] = field(default_factory=list)
+    dark: list[Triangle] = field(default_factory=list)
+    solid: list[Triangle] = field(default_factory=list)
+
+    def deck(self, corners: list[np.ndarray], drawn: list[Triangle]) -> None:
+        """A floor piece over four corners (round in order), facing up, into `drawn`, with its
+        underside."""
+        tris = fan([(p, plates(p)) for p in corners])
+        drawn += facing(tris, lambda mid: UP)
+        self.steel.extend(facing([list(t) for t in tris], lambda mid: -UP))
+
+    def rail(self, a: np.ndarray, b: np.ndarray, out_a: np.ndarray, out_b: np.ndarray) -> None:
+        """A rail along an edge from a to b, `out_a` and `out_b` the level unit directions off the
+        floor there: a lip SLIDE_LIP thick and SLIDE_SIDE tall, its inside, its top and its
+        outside."""
+        rise = np.array([0.0, SLIDE_SIDE, 0.0])
+        tex = along_uv(a)
+        inner = [a, b, b + rise, a + rise]
+        top_face = [a + rise, b + rise, b + out_b * SLIDE_LIP + rise, a + out_a * SLIDE_LIP + rise]
+        outer = [
+            a + out_a * SLIDE_LIP,
+            b + out_b * SLIDE_LIP,
+            b + out_b * SLIDE_LIP + rise,
+            a + out_a * SLIDE_LIP + rise,
+        ]
+        inward = -(out_a + out_b) / 2
+        inside_faces = facing(fan([(p, tex(p)) for p in inner]), lambda mid: inward)
+        self.steel.extend(inside_faces)
+        self.solid.extend(inside_faces)
+        self.steel.extend(facing(fan([(p, tex(p)) for p in top_face]), lambda mid: UP))
+        self.steel.extend(facing(fan([(p, tex(p)) for p in outer]), lambda mid: -inward))
+
+    def apron(self, a: np.ndarray, b: np.ndarray, out: np.ndarray) -> None:
+        """The side of a floor piece from a to b, down to its underside, facing `out`."""
+        under = np.array([0.0, -PLATFORM_THICKNESS, 0.0])
+        tex = along_uv(a)
+        self.steel.extend(facing(fan([(p, tex(p)) for p in (a, b, b + under, a + under)]), lambda mid: out))
+
+
+def platform(way: SlideWay, work: Steelwork) -> None:
+    """The platform outside the frame at the sill: its deck, a rail along its front and its far
+    side (the slide leaves by the near one), aprons down from those edges, and its underside."""
+    r_in, r_out, near_t, far_t, deck = way.r_in, way.r_out, way.near_t, way.far_t, way.deck
+    corners = [pol(r_out, near_t, deck), pol(r_out, far_t, deck), pol(r_in, far_t, deck), pol(r_in, near_t, deck)]
+    top_faces: list[Triangle] = []
+    work.deck(corners, top_faces)
+    work.steel.extend(top_faces)
+    work.solid.extend(top_faces)
+    work.rail(corners[2], corners[3], -radial(far_t), -radial(near_t))  # along the front
+    far_out = np.array([np.cos(far_t), 0.0, -np.sin(far_t)]) * -SLIDE_SWEEP  # level, off the far side
+    work.rail(corners[1], corners[2], far_out, far_out)
+    work.apron(corners[3], corners[2], -radial((near_t + far_t) / 2))
+    work.apron(corners[1], corners[2], far_out)
+    under = np.array([0.0, -PLATFORM_THICKNESS, 0.0])
+    work.steel.extend(facing(fan([(p + under, plates(p)) for p in corners]), lambda mid: -UP))
+
+
+def trough(way: SlideWay, work: Steelwork) -> None:
+    """The slide off the platform's near side: its floor a piece of the way at a time, a rail
+    along each edge rising with it, and at the foot each rail's end (the way onto the run-out
+    between them is open)."""
+    r_in, r_out = way.r_in, way.r_out
+    for (s0, y0), (s1, y1) in pairwise(zip(way.alongs, way.heights)):
+        t0, t1 = way.turn_at(s0), way.turn_at(s1)
+        work.deck([pol(r_out, t0, y0), pol(r_out, t1, y1), pol(r_in, t1, y1), pol(r_in, t0, y0)], work.dark)
+        work.rail(pol(r_in, t0, y0), pol(r_in, t1, y1), -radial(t0), -radial(t1))
+        work.rail(pol(r_out, t0, y0), pol(r_out, t1, y1), radial(t0), radial(t1))
+    t_end, y_end = way.turn_at(way.alongs[-1]), way.heights[-1]
+    cap_out = np.array([np.cos(t_end), 0.0, -np.sin(t_end)]) * SLIDE_SWEEP
+    for ra, rb in ((r_in - SLIDE_LIP, r_in), (r_out, r_out + SLIDE_LIP)):
+        end = [
+            pol(ra, t_end, y_end),
+            pol(rb, t_end, y_end),
+            pol(rb, t_end, y_end + SLIDE_SIDE),
+            pol(ra, t_end, y_end + SLIDE_SIDE),
+        ]
+        work.steel.extend(
+            facing(fan([(p, np.array([p[0] / SLIDE_TILE, -p[1] / SLIDE_TILE])) for p in end]), lambda mid: cap_out)
+        )
+
+
+def slide_ramps(way: SlideWay, floor: float) -> list[list[float]]:
+    """The sim's ramps under the slide's floor (Hatch.slide), in the house's frame: one a piece
+    of the way (a wedge under each, shallow), each run on a little past its ends so the wedges
+    meet where the way bends, and the level run-out on the library's floor at `floor`."""
+    out = np.array([np.sin(HATCH_BEARING), 0.0, np.cos(HATCH_BEARING)])
+    across = np.array([np.cos(HATCH_BEARING), 0.0, -np.sin(HATCH_BEARING)])
+    world = lambda p: p[0] * across + p[2] * out
+    ramps: list[list[float]] = []
+    lap = 0.25
+    for (s0, y0), (s1, y1) in pairwise(zip(way.alongs[:-1], way.heights[:-1])):
+        (sa, ya), (sb, yb) = sorted(((s0, y0), (s1, y1)), key=lambda e: e[1])  # the lower end first
+        low, high = pol(way.r_mid, way.turn_at(sa), 0.0), pol(way.r_mid, way.turn_at(sb), 0.0)
+        run = high - low
+        length = float(np.linalg.norm(run))
+        run /= length
+        slope = max(yb - ya, 0.01) / length
+        low, high = world(low - run * lap), world(high + run * lap)
+        ramps.append(
+            [
+                float(low[0]),
+                float(low[2]),
+                float(high[0]),
+                float(high[2]),
+                HATCH_SILL + ya - slope * lap,
+                PLATFORM_DEPTH,
+                slope * (length + 2 * lap),
+            ]
+        )
+    t_end = way.turn_at(way.alongs[-1])
+    low, high = world(pol(way.r_mid, t_end, 0.0)), world(pol(way.r_mid, way.turn_at(SLIDE_RUN), 0.0))
+    ramps.append([float(low[0]), float(low[2]), float(high[0]), float(high[2]), floor, PLATFORM_DEPTH, 0.02])
+    return ramps
+
+
+def slide(interior: Interior) -> None:
+    """The slide down from the hatch (PLATFORM_*, SLIDE_*), as the show has it, after `hatch`: a
+    railed platform outside the frame at the sill, and off its side a steel trough with sides,
+    sweeping round the room along the wall and down an S to the library's floor, running out
+    level there. The sim gets the platform and the rails' insides as boxes and the slide's
+    floor as ramps (`Hatch.slide`)."""
+    floor = max(float(p[1]) for ks in comps(interior, "Library_Floor") for k in ks for p, _ in interior.tris[k][0])
+    way = slide_way(floor)
+    work = Steelwork()
+    platform(way, work)
+    trough(way, work)
+    interior.hatch_steel += at_hatch(work.steel)
+    interior.slide_floor += at_hatch(work.dark)
+    interior.solid += at_hatch(work.solid)
+    interior.hatch.slide = slide_ramps(way, floor)
+    steepest = max(
+        np.degrees(np.arctan2(y0 - y1, s1 - s0)) for (s0, y0), (s1, y1) in pairwise(zip(way.alongs, way.heights))
+    )
+    print(
+        f"slide: {SLIDE_RUN:.0f} m round at r {way.r_mid:.1f} ({np.degrees(SLIDE_RUN / way.r_mid):.0f} deg) "
+        f"dropping {way.heights[0] - way.heights[-1]:.1f} m, {steepest:.0f} deg at its steepest, "
+        f"{len(interior.hatch.slide)} ramps"
+    )
 
 
 def add_rooms(interior: Interior, wall: Callable[[float, float], float]) -> None:
@@ -1667,7 +2140,7 @@ def voxel_boxes(tris: list[Triangle], size: float = VOXEL) -> list[list[float]]:
     (against its normal, so a floor's box tops out at the floor and a wall's stands behind its face,
     half a metre thick), and runs of marked cells are merged into boxes, longest along x first.
     Each box is [x, z, y, w, d, h]: its centre across, its underside, its size."""
-    origin = np.array([-25.0, -1.0, -25.0])
+    origin = np.array([-25.0, VOXEL_ORIGIN, -25.0])
     shape = (int(50 / size), int(45 / size), int(50 / size))
     filled = np.zeros(shape, bool)
     step = size / 2

@@ -29,7 +29,8 @@ portholes, and the path and flowers, and builds the rest itself:
   for the sim to swing (content/pineapple.ts);
 - flowers and path: the model's flowers round the house, each in one colour, shrunk and drawn
   see-through, and the stone path from the door down the dune, both laid on the dune;
-- interior and door-<name>: the rooms and their doors (house_interior.py).
+- interior and door-<name>: the rooms and their doors (house_interior.py), and hatch and hatch-rim: the
+  hatch's tube and the slide, and the collar round the hatch, in steel painted here (door-hatch too).
 
 The profile the sim collides with (the shell's rings, the doorway and its door, the flat face, the
 openings through the shell, the dune, the rooms' levels, stairs and doors) comes from the same
@@ -66,7 +67,7 @@ from house_mesh import (
     lining,
     turned_by,
 )
-from PIL import Image
+from PIL import Image, ImageDraw
 
 OUTER = 20.0  # metres: the shell's radius at its widest, the keep's (content/keep.ts)
 DOOR_WIDTH = 4.0  # metres: the doorway, an arch
@@ -194,6 +195,8 @@ def main(outside: str, rooms: str) -> None:
     inside.add_rooms(interior, lambda a, y: skin_r(a, y) - inside.LINING)
     inside.build_floors(interior, skin_r, lathe_angles(), [y for y, _ in profile])
     inside.seal_library(interior)
+    inside.hatch(interior)
+    inside.slide(interior)
 
     # The skin, with the doorway cut out of it, and the vestibule behind.
     skin_tris = lathe(profile, SKIN_TILE, lambda a, y: surface(profile, a, y), lathe_angles())
@@ -297,11 +300,26 @@ def main(outside: str, rooms: str) -> None:
     rooms = MeshBuilder()
     rooms.add(inside.in_atlas(interior.tris, places))
     emit_part(MODELS_OUT / "interior.bin", rooms, {})
-    doors_material = inside.material(interior, "Doors")
     for d in interior.doors:
         panel = MeshBuilder()
-        panel.add(inside.in_atlas([(t, doors_material) for t in d.mesh], places))
+        if d.texture == "interior":
+            panel.add(inside.in_atlas([(t, inside.material(interior, d.material)) for t in d.mesh], places))
+            panel.add(inside.in_atlas([(t, inside.material(interior, m)) for t, m in d.trim], places))
+        else:
+            panel.add(d.mesh)
         emit_part(MODELS_OUT / f"door-{d.id}.bin", panel, {})
+    for name, tris in (
+        ("hatch", interior.hatch_steel),
+        ("slide-floor", interior.slide_floor),
+        ("hatch-rim", interior.hatch_rim),
+    ):
+        mesh = MeshBuilder()
+        mesh.add(tris)
+        emit_part(MODELS_OUT / f"{name}.bin", mesh, {})
+    paint_slide().save(MODELS_OUT / "slide.png", optimize=True)
+    paint_slide(dark=True).save(MODELS_OUT / "slide-floor.png", optimize=True)
+    paint_rim().save(MODELS_OUT / "hatch-rim.png", optimize=True)
+    paint_hatch_door().save(MODELS_OUT / "hatch-door.png", optimize=True)
     boxes = inside.voxel_boxes(interior.solid + [t for t, _ in through.tris])
     emit_parts_list(interior.doors)
     emit_profile(profile, [front_door, *interior.doors], interior, stones)
@@ -1005,6 +1023,88 @@ def paint_steel(size: int = 192) -> Image.Image:
 DOOR_PLANKS = 0.9  # how much of the door texture, down from the top, is the door; under it, the iron swatch
 
 
+def paint_slide(size: int = 128, dark: bool = False) -> Image.Image:
+    """One repeat of the slide's steel, as the show paints it: pale periwinkle plates, two by two
+    to the repeat, a dark seam between them with a rivet every so often along it; `dark` a shade
+    darker, for the slide's floor against its sides."""
+    rng = np.random.default_rng(11)
+    img = Image.new("RGB", (size, size))
+    px = img.load()
+    plate = size // 2
+    seam = 4
+    tint = 14 if dark else 0
+    shades = [
+        (186 - tint, 198 - tint, 240 - tint // 2),
+        (178 - tint, 190 - tint, 234 - tint // 2),
+        (192 - tint, 204 - tint, 244 - tint // 2),
+        (182 - tint, 194 - tint, 238 - tint // 2),
+    ]
+    for x in range(size):
+        for y in range(size):
+            c = shades[(x // plate + 2 * (y // plate)) % 4]
+            if rng.random() < 0.05:
+                c = (c[0] - 10, c[1] - 10, c[2] - 6)
+            if x % plate < seam or y % plate < seam:
+                c = (104, 116, 206)
+            px[x, y] = c
+    draw = ImageDraw.Draw(img)
+    for k in range(size // 16 // 2, size, size // 8):  # rivets along the seams
+        for cx, cy in ((k, seam // 2), (seam // 2, k), (k, plate + seam // 2), (plate + seam // 2, k)):
+            draw.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=(76, 88, 180))
+            draw.ellipse([cx - 2, cy - 3, cx, cy - 1], fill=(214, 222, 250))
+    return img
+
+
+def paint_rim(size: int = 64) -> Image.Image:
+    """One repeat of the hatch's frame: dark blue steel, lighter along its top (the ring's inner
+    edge and the bolts' heads take it) and darker along its bottom (the ring's outer edge)."""
+    img = Image.new("RGB", (size, size), (84, 96, 190))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, size - 1, size // 8 - 1], fill=(150, 162, 228))
+    draw.rectangle([0, size // 8, size - 1, size // 8 + 2], fill=(110, 122, 206))
+    draw.rectangle([0, size - size // 8, size - 1, size - 1], fill=(52, 62, 150))
+    return img
+
+
+def paint_hatch_door(size: int = 256) -> Image.Image:
+    """The hatch's door, as the show paints it, over the panel's whole face (across, and down from
+    its top): a round steel door in a dark rim studded with rivets, a porthole high in it and a
+    wheel to turn, on the plate's pale blue."""
+    img = Image.new("RGB", (size, size), (176, 188, 236))
+    draw = ImageDraw.Draw(img)
+    top = inside.HATCH_CENTRE + inside.HATCH_ACROSS / 2
+    cx, cy = size / 2, size * (1 - inside.HATCH_CENTRE / top)
+    rx, ry = size / 2, size * (inside.HATCH_ACROSS / 2) / top
+
+    def disc(
+        k: float, fill: tuple[int, int, int] | None, outline: tuple[int, int, int] | None = None, width: int = 1
+    ) -> None:
+        draw.ellipse([cx - rx * k, cy - ry * k, cx + rx * k, cy + ry * k], fill=fill, outline=outline, width=width)
+
+    disc(1.0, (84, 96, 190))
+    disc(0.86, (188, 200, 242))
+    disc(0.78, None, (146, 158, 220), 3)
+    for i in range(20):
+        a = 2 * np.pi * i / 20
+        x, y = cx + rx * 0.93 * np.cos(a), cy + ry * 0.93 * np.sin(a)
+        draw.ellipse([x - 5, y - 5, x + 5, y + 5], fill=(52, 62, 150))
+        draw.ellipse([x - 4, y - 5, x - 1, y - 2], fill=(160, 170, 226))
+    px, py, pr = cx, cy - ry * 0.42, size * 0.11
+    draw.ellipse([px - pr - 8, py - pr - 8, px + pr + 8, py + pr + 8], fill=(70, 84, 180))
+    draw.ellipse([px - pr, py - pr, px + pr, py + pr], fill=(126, 204, 238))
+    draw.ellipse([px - pr * 0.65, py - pr * 0.85, px - pr * 0.1, py - pr * 0.3], fill=(214, 242, 250))
+    wx, wy, wr = cx, cy + ry * 0.3, size * 0.13
+    draw.ellipse([wx - wr, wy - wr, wx + wr, wy + wr], outline=(60, 72, 160), width=8)
+    for a in (0.0, np.pi / 2):
+        draw.line(
+            [wx - wr * np.cos(a), wy - wr * np.sin(a), wx + wr * np.cos(a), wy + wr * np.sin(a)],
+            fill=(60, 72, 160),
+            width=7,
+        )
+    draw.ellipse([wx - 9, wy - 9, wx + 9, wy + 9], fill=(60, 72, 160))
+    return img
+
+
 def paint_door(w: int = 96, h: int = 160) -> Image.Image:
     """The door, both faces, the show's front door: upright boards of steel blue with darker seams, a
     porthole in the upper middle with a pale rim and four rivets, and a darker band across the
@@ -1056,7 +1156,10 @@ def emit_parts_list(doors: list[inside.Door]) -> None:
         ("path", "path", False, False, False, None, None, False),
         ("door-front", "door", False, False, False, None, "front", False),
         ("interior", "interior", False, True, True, None, None, False),
-        *((f"door-{d.id}", "interior", False, True, True, None, d.id, False) for d in doors),
+        ("hatch", "slide", True, False, True, None, None, False),
+        ("slide-floor", "slide-floor", True, False, True, None, None, False),
+        ("hatch-rim", "hatch-rim", True, False, True, None, None, False),
+        *((f"door-{d.id}", d.texture, False, d.texture == "interior", True, None, d.id, False) for d in doors),
     ]
     lines = [
         "// Generated by scripts/house-model.py; don't edit. The pineapple house's parts: each one's mesh",
@@ -1110,6 +1213,9 @@ def emit_profile(
     if interior.attic is None:
         raise SystemExit("the interior has no attic stair")
     attic = interior.attic
+    if interior.hatch is None:
+        raise SystemExit("the interior has no hatch")
+    hatch = interior.hatch
     way = lambda a: (2 * np.pi - a) % (2 * np.pi) - np.pi
     lines = [
         "// Generated by packages/client/scripts/house-model.py; don't edit. The pineapple house's shape for",
@@ -1124,11 +1230,14 @@ def emit_profile(
         "// outside); the sim's wall along the face, as chords in bands ([x1, z1, x2, z2, y0, y1]); the",
         "// stair round the back and its platform, and the stairwell up from the corridor's end to the",
         "// library, piece by piece ([x, z, y, w, d, h, yaw]: centre, underside, size, the bearing it",
-        "// faces); the attic stair from the library's floor round its wall, through its ceiling and up a",
-        "// cylinder to a deck on the crown (its pieces the same way, slabs and rail posts; the cylinder's",
-        "// inside radius, wall thickness, bottom and top; the deck's radius, the height of its top, its",
-        "// thickness, and the hole the stair comes up through: its inner radius and the bearings, from +z",
-        "// toward +x, it runs between); the doorways through",
+        "// faces); the attic stair up the cylinder standing on the library's ceiling to a deck on the",
+        "// crown (its pieces the same way, slabs and rail posts; the cylinder's inside radius, wall",
+        "// thickness, the ceiling it stands on, its floor and its top; the deck's radius, the height of",
+        "// its top, its thickness, and the hole the stair comes up through: its inner radius and the",
+        "// bearings, from +z toward +x, it runs between); the hatch high in the library's wall (its",
+        "// bearing, the height of its sill, the circle it is cut to: across, and its centre's height over",
+        "// the sill; and the radii its tube runs between) and the slide down from it, as ramps like the",
+        "// path's stones; the doorways through",
         "// the shell for the sim (bearing from +z toward +x, width, bottom, top); the path's stones, each",
         "// a ramp lying with the dune ([lowX, lowZ, highX, highZ, y, w, h]: its downhill and uphill ends,",
         "// its underside at the downhill end, its width, its rise); and every door (its pin, the floor it",
@@ -1180,13 +1289,26 @@ def emit_profile(
             for x, z, y, w, d, h, yaw in attic.steps
         )
         + "],",
-        f"    cylinder: {{ r: {num(attic.cylinder[0])}, thickness: {num(attic.cylinder[1])}, bottom: {num(attic.cylinder[2])}, top: {num(attic.cylinder[3])} }},",
+        (
+            f"    cylinder: {{ r: {num(attic.cylinder[0])}, thickness: {num(attic.cylinder[1])}, bottom: {num(attic.cylinder[2])}, "
+            f"floor: {num(attic.cylinder[3])}, top: {num(attic.cylinder[4])} }},"
+        ),
         (
             f"    deck: {{ r: {num(attic.deck[0])}, y: {num(attic.deck[1])}, thickness: {num(attic.deck[2])}, "
             f"hole: {{ inner: {num(attic.deck_hole[0])}, from: {num(bearing(attic.deck_hole[2]))}, "
             f"to: {num(bearing(attic.deck_hole[2]) + attic.deck_hole[2] - attic.deck_hole[1])} }} }},"
         ),
         "  },",
+        (
+            f"  hatch: {{ bearing: {num(bearing(hatch.bearing))}, sill: {num(hatch.sill)}, across: {num(hatch.across)}, "
+            f"centre: {num(hatch.centre)}, inner: {num(hatch.inner)}, outer: {num(hatch.outer)} }},"
+        ),
+        "  slide: ["
+        + ", ".join(
+            "[" + ", ".join(num(v) for v in (across(lx), lz, across(hx), hz, y, w, h)) + "]"
+            for lx, lz, hx, hz, y, w, h in hatch.slide
+        )
+        + "],",
         "  doorways: [",
         f"    {{ bearing: {num(bearing(inside.BACK_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.DOORWAY[1] + 0.4)} }},",
         f"    {{ bearing: {num(bearing(inside.HALL_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: {num(levels['hall'])}, top: {num(levels['hall'] + inside.DOORWAY[1] + 0.4)} }},",
