@@ -14,24 +14,26 @@ aiming at.
    chest (``world.clear``, the same line a shot travels; cubes don't block). It checks the nearest
    few every SIGHT_EVERY ticks, nearest first, so whoever is closest gets its attention.
 
-4. Shooting. With someone in sight it watches them, walking or not, and fires once they've stayed
-   in sight for a grace delay, a fresh random 3 to 10 ticks each time (counted from the end of its
-   cooldown for a later shot). For the shot itself it stops and scopes in. It leads them from a
+4. Shooting. With someone in sight it watches them, walking or not, but fires only when it has
+   to: on a target within ENGAGE_RANGE, or on anyone while it was hit in the last ALARM_SECONDS
+   (someone's shooting at it). Anyone further off it only keeps in its sights. A shot comes once
+   they've stayed in sight for a grace delay, a fresh random 3 to 10 ticks each time (counted from
+   the end of its cooldown for a later shot). For the shot itself it stops and scopes in. It leads them from a
    read a few snapshots old (AIM_LAG_TICKS, a reaction time): where they were then, carried on at
    the speed they had, so standing still or moving steadily is fatal and darting or jumping about
    is how to dodge. It aims at a random spot on their hitbox (the
    map's, for their avatar): the chest 35% of the time, the head 15%, and 50% just past their side
    (AIM_ZONES). After a hit it can't fire for HIT_COOLDOWN_SECONDS, after a miss only
-   MISS_COOLDOWN_SECONDS. After a shot from FAR or further it steps to the nearest spot within
-   HIDE_RADIUS that its target can't see, if there is one, and comes back out to its lookout when
-   it can fire again.
+   MISS_COOLDOWN_SECONDS. After every shot it steps to the nearest spot within HIDE_RADIUS that
+   its target can't see, if there is one, and comes back out to its spot when it can fire again.
 
-5. Moving. Whatever ``spawn`` it's given, it starts on one of the tower's four inside floors
-   (``world.tower_inside``), and from there it always has one spot it's walking to or standing
-   at. It picks a place first, by PLACES: the tower most of the time, a building's roof often, the
-   terrace and the ways up to it now and then. There it takes the nearest of a sample of lookouts
-   that sees one of its quarry, or when none does (they're indoors, say) the one nearest the
-   nearest of them, so it waits over where they are. It follows ``world.path`` there (up the stair
+5. Moving. Whatever ``spawn`` it's given, it starts on a floor indoors (``world.insides``: the
+   tower's and the keeps'), and from there it always has one spot it's walking to or standing
+   at. It picks a place first, by PLACES: indoors on a floor of the tower or a keep most of the
+   time, the tower's balconies and roof often, a building's roof and the terrace and the ways up
+   to it now and then. There it takes the nearest of a sample of spots (the map's lookouts, or
+   indoors any spot on the floor) that sees one of its quarry, or when none does the one nearest
+   the nearest of them, so it waits near where they are. It follows ``world.path`` there (up the stair
    and over its rail where it has to) and stays. It moves to another floor, the same way, when it
    has gone PATIENCE_SECONDS at its spot with nobody in sight, or when something hurts it.
 
@@ -78,7 +80,8 @@ MISS_COOLDOWN_SECONDS = 1.0  # or this long after one that missed
 # from where and how fast they were going then. Anyone standing or moving steadily (creeping along
 # scoped, strafing in a line) is where it aims; anyone who changed direction or jumped since isn't.
 AIM_LAG_TICKS = (4, 7)
-FAR = 30.0  # metres: after a shot from at least this far it ducks out of sight while it reloads
+ENGAGE_RANGE = 30.0  # metres: it fires on a target this close, and holds its fire on anyone further off
+ALARM_SECONDS = 8.0  # for this long after a hit on it, it fires on whoever it sees, however far
 HIDE_RADIUS = 4.0  # metres round itself it looks for a spot its target can't see
 SPAWN_GRACE_SECONDS = 5.0  # a player it saw join is left alone this long
 SIGHT_EVERY = 3  # ticks between sight checks
@@ -90,9 +93,10 @@ AIM_SPREAD = 0.8  # how far off the axis a shot on the body goes, as a share of 
 MISS_BY = (0.1, 0.6)  # metres past the hitbox's side that a near miss goes
 SPOT_CHOICES = 40  # spots it weighs when picking where to shoot from
 SPOT_TARGETS = 4  # the nearest this many quarry a spot is checked against
-# Where it looks for its next spot, and how often (world.places): the tower, a building, or
-# elsewhere (the terrace and the bridges and staircases up to it, which it crosses to go between).
-PLACES = {"tower": 0.55, "building": 0.30, "elsewhere": 0.15}
+# Where it looks for its next spot, and how often: indoors (a floor of the tower or a keep,
+# world.insides) or one of the lookouts' places (world.places): the tower's balconies and roof, a
+# building's roof, or elsewhere (the terrace and the bridges and staircases up to it).
+PLACES = {"indoors": 0.45, "tower": 0.25, "building": 0.2, "elsewhere": 0.1}
 PATIENCE_SECONDS = 6.0  # how long it stands at a spot with nobody in sight before changing floors
 FLOOR = 10  # metres: lookouts closer in height than this are one floor (the bridge's deck and rail)
 START_MARGIN = 1.5  # metres it starts in from the edge of a tower floor's open disc
@@ -113,8 +117,8 @@ async def run_sniper_bot(
 ) -> dict[str, Any]:
     validate_duration(seconds)
     rng = random.Random()
-    # Its home is the tower, so it starts inside it wherever it was called from (``spawn`` unused).
-    start = rng.choice(world.tower_inside).random_point(START_MARGIN, rng)
+    # Its home is indoors, so it starts on a floor there wherever it was called from (``spawn`` unused).
+    start = rng.choice(world.insides).random_point(START_MARGIN, rng)
     connect_started = time.monotonic()
     connection = await connect(
         lobby_url,
@@ -157,6 +161,7 @@ async def run_sniper_bot(
                 if isinstance(message, Event) and message.t == "hit":
                     if message.data["victim"] == me.id:
                         sniper.hurt = True
+                        sniper.hurt_at = state.tick
                     elif message.data["shooter"] == me.id:
                         sniper.landed()
                 if me.dead:
@@ -245,6 +250,8 @@ class Sniper:
     shots: int = 0
     kills: int = 0
     hurt: bool = False  # something hit it since it last picked a spot
+    hurt_at: int = -(10**9)  # the tick something last hit it
+    indoors: tuple[int, ...] = field(init=False)  # the spots on the floors indoors (world.insides)
     in_sight: str | None = None  # who it's watching, if anyone
     last_in_sight: int = 0  # the tick it last had anyone in sight
     fire_at: int = 0  # the tick it may shoot them: its grace delay's end
@@ -258,6 +265,9 @@ class Sniper:
     replan_at: int = 0  # the tick it may pick a spot or find a way again (a second after the last)
     _sighted: Player | None = None
     _next_sight_check: int = 0
+
+    def __post_init__(self) -> None:
+        self.indoors = tuple(i for region in self.world.insides for i in self.world.nodes_in(region))
 
     def decide(self, state: WorldState, controls: Controls) -> None:
         me = state.me
@@ -286,8 +296,12 @@ class Sniper:
         if target is None:
             self.in_sight = None
             controls.scope(False)
-        else:
+        elif self._must_fight(me, target, tick):
             self._fire_when_ready(me, target, tick, controls)
+        else:
+            # Watched, not fought: kept in its sights, for the moment it has to.
+            self.in_sight = target.id
+            controls.scope(False)
 
     def _quarry(self, state: WorldState, tick: int) -> list[Player]:
         """Its quarry, nearest first, leaving out anyone it first saw too recently."""
@@ -300,6 +314,11 @@ class Sniper:
         candidates.sort(key=lambda p: p.id != self.in_sight)
         eye = self.world.eye_of(me)
         return next((p for p in candidates if self.world.clear(eye, chest(p))), None)
+
+    def _must_fight(self, me: Player, target: Player, tick: int) -> bool:
+        """Whether to fire on a target in sight: one within ENGAGE_RANGE, or anyone while it was
+        hit in the last ALARM_SECONDS."""
+        return _distance(me.pos, target.pos) <= ENGAGE_RANGE or tick - self.hurt_at < ALARM_SECONDS * TICK_RATE
 
     def _fire_when_ready(self, me: Player, target: Player, tick: int, controls: Controls) -> None:
         """Start the grace delay on someone new; once it's over, stop, scope in and shoot."""
@@ -326,10 +345,8 @@ class Sniper:
         self.last_shot = tick
         self.ready_at = tick + round(MISS_COOLDOWN_SECONDS * TICK_RATE)  # until it hears it hit
         self.fire_at = self.ready_at + self.rng.randint(*GRACE_TICKS)
-        distance = _distance(me.pos, target.pos)
-        log_message(self.name, "fired", target=target.name, aim=zone, distance=round(distance, 1))
-        if distance >= FAR:
-            self._take_cover(me, target, tick)
+        log_message(self.name, "fired", target=target.name, aim=zone, distance=round(_distance(me.pos, target.pos), 1))
+        self._take_cover(me, target, tick)
 
     def _lead(self, target: Player) -> Vec3:
         """Where it thinks the target's eyes are now: where it saw them AIM_LAG_TICKS ago, carried on
@@ -387,12 +404,12 @@ class Sniper:
             self._route_to_spot(me, tick)
 
     def _pick_spot(self, me: Player, quarry: list[Player], tick: int) -> None:
-        """In a place picked by PLACES, the nearest of a sample of lookouts that sees one of its
+        """In a place picked by PLACES, the nearest of a sample of its spots that sees one of its
         quarry, or with none that does the one nearest the nearest of them (a random one with nobody
         to go after), on a floor other than its spot's (any floor the first time)."""
-        places = [p for p in PLACES if self.world.places.get(p)] or list(self.world.places)
+        places = [p for p in PLACES if self._spots(p)] or [p for p in self.world.places if self._spots(p)]
         place = self.rng.choices(places, weights=[PLACES.get(p, 1.0) for p in places])[0]
-        pool = list(self.world.places[place])
+        pool = list(self._spots(place))
         floor = self._floor(self.spot) if self.spot is not None else None
         options = [i for i in pool if self._floor(i) != floor] or pool
         sample = self.rng.sample(options, min(SPOT_CHOICES, len(options)))
@@ -407,6 +424,10 @@ class Sniper:
         self.hurt = False
         log_message(self.name, "heading to a lookout", node=self.spot, floor=self._floor(self.spot), sees=bool(seeing))
         self._route_to_spot(me, tick)
+
+    def _spots(self, place: str) -> tuple[int, ...]:
+        """The spots a place offers: every spot on the floors indoors, or a place's lookouts."""
+        return self.indoors if place == "indoors" else self.world.places.get(place, ())
 
     def _floor(self, node: int) -> int:
         return round(self.world.nodes[node].y / FLOOR) * FLOOR

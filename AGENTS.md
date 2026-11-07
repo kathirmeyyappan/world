@@ -263,7 +263,7 @@ Never use `global` for automated testing.
 
 `/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
 of them across the floor and at their height: on whatever is there within a step, or in the air to
-fall from, never inside a wall. The sniper ignores the spot and starts inside the tower. The `-bot` is optional where the bare word
+fall from, never inside a wall. The sniper ignores the spot and starts indoors, in the tower or a keep. The `-bot` is optional where the bare word
 isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
 (`--time` for `-t`):
 

@@ -35,5 +35,8 @@ export const BUILDING_ROOMS: { floor: number; room: RoundRoom }[] = KEEPS.flatMa
 });
 // Each building's floors and roofs, Building 1 first: for placing things.
 export const BUILDING_LEVELS: Region[] = KEEPS.flatMap((k) => k?.levels ?? PINEAPPLE_LEVELS);
+// The keeps' floors inside their walls, roofs left out: where a bot can lie in wait indoors (the
+// house's rooms are behind doors bots can't open).
+export const KEEP_INSIDES: Region[] = KEEPS.flatMap((k) => k?.levels.slice(0, -1) ?? []);
 // The grounds with a keep's roof on them, for the staircases up to the terrace.
 export const KEEP_GROUNDS: Disc[] = BUILDING_GROUNDS.filter((_, n) => KEEPS[n]);

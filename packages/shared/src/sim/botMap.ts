@@ -20,7 +20,7 @@ import {
   STEP_UP,
   TICK_DT,
 } from './constants';
-import { BUILDING_FOOTPRINTS } from '../content/buildings';
+import { BUILDING_FOOTPRINTS, KEEP_INSIDES } from '../content/buildings';
 import { TOWER_INSIDE } from '../content/regions';
 import { TUNG_TUNG_TOWER_FOOTPRINT } from '../content/tower';
 import { AVATAR_IDS, AVATARS, type Hitbox } from './avatars';
@@ -51,6 +51,7 @@ const LOOKOUT_LINES = 16;
 const LOOKOUT_OPEN = 7;
 const LOOKOUT_FLOOR = 5;
 const KEEP_REACH = 4; // metres past a keep's wall that are still its place: the tower's balconies are 3 m
+const INSIDES: Region[] = [...TOWER_INSIDE, ...KEEP_INSIDES];
 
 // Where a lookout is, for a bot choosing where to perch: on the tower (its balconies and roof), on
 // a building (its roof and the foot of its staircase), or elsewhere (the terrace and the bridges
@@ -67,14 +68,14 @@ export interface BotMap {
   lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
   eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
-  towerInside: Region[]; // the tower's four floors inside its wall (content/regions.ts TOWER_INSIDE)
+  insides: Region[]; // the floors indoors, inside the tower's wall and the keeps': where a sniper starts and lies in wait
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
   // Python side's line of sight is checked against these.
   sightChecks: number[][];
 }
 
 // A fingerprint of what the map depends on: the world's outline and structures, the body and
-// movement constants, this file's own settings, the avatars' hitboxes and eyes, and the tower's floors.
+// movement constants, this file's own settings, the avatars' hitboxes and eyes, and the floors indoors.
 export function botMapSource(): number {
   const physics = [
     EYE_HEIGHT,
@@ -99,7 +100,7 @@ export function botMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), TOWER_INSIDE]));
+  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), INSIDES]));
 }
 
 function hitboxes(): Record<string, Hitbox> {
@@ -149,7 +150,7 @@ export function buildBotMap(): BotMap {
     lookoutPlaces: found.map((i) => placeOf(nodes[i])),
     hitboxes: hitboxes(),
     eyes: eyes(),
-    towerInside: TOWER_INSIDE,
+    insides: INSIDES,
     sightChecks: sightChecks(nodes),
   };
 }

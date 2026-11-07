@@ -291,7 +291,7 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
         # nearer its middle than the person, with nothing in the way.
         away = 20 / max(1.0, math.hypot(me.pos.x, me.pos.z))
         world = copy.copy(load_world_map())
-        world.tower_inside = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0),)
+        world.insides = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0),)
         sniper = asyncio.create_task(run_sniper_bot("python-sniper", seconds=8, world=world, direct_ws_url=room_server))
         shot_ticks: list[int] = []
         tick = person.welcome.tick
