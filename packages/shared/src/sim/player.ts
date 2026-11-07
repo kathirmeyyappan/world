@@ -20,7 +20,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     vy: 0,
     vx: 0,
     vz: 0,
-    adrift: false,
+    adrift: 0,
     walk: 0,
     yaw: 0,
     pitch: 0,

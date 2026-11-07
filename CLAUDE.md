@@ -159,9 +159,10 @@ slow it at that rate with none held, and gravity pulls it down any slope harder 
 (`walker.ts` `slide`, capped at `SLIDE_SPEED`), so an icy 15° slope can't be climbed and the
 library's slide is ridden. The keys steer the walk in the air as on the ground, except off ice:
 ice pushes back only square to itself, so a jump off it goes along the ice's normal (straight up
-on the flat, partly downhill on a slope) and flies on with what the walk had, unsteered until it
-lands (`PlayerState.adrift`), so hopping up the slide sheds the climb it had; a jetpack's thrust
-is something to push against, so it steers. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
+on the flat, partly downhill on a slope) with what the walk had, and until it lands the keys bend
+that flight only at the ice's grip (`PlayerState.adrift`), so a hop up a steep icy slope is thrown
+back down while a shallow one can be hopped up; a jetpack's thrust is something to push against,
+so it steers. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
 and its slope at a spot, and the client's `Footsteps` asks it at each footfall for the sound
 (`FOOTFALLS` there maps a footfall to its recordings; a gait with sounds of its own keeps them).
 The legs, footsteps and head bob are paced by `PlayerState.walk`, how fast the feet walk: the
