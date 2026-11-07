@@ -30,15 +30,16 @@ import {
   TICK_RATE,
 } from './sim/constants';
 import { parseCommand, type BotCallArgs, type Command } from './commands';
-import { AVATARS, type AvatarId } from './sim/avatars';
+import { AVATARS, eyeOf, type AvatarId } from './sim/avatars';
 import { classOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
+import { sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
 import { REGEN_SECONDS, applyDamage, damageFor, fallDamage } from './sim/health';
 import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
-import { ITEMS, createItem, itemHelp, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
+import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
@@ -65,6 +66,7 @@ const REGEN_TICKS = REGEN_SECONDS * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
+const SPRAY_SPIN = 0.37; // radians a spray's fan of rays turns each tick, so one shot lands between the last's
 
 export interface ClientLink {
   send(msg: ServerMessage): void;
@@ -209,6 +211,7 @@ export class Room {
       cubes: this.cubeSnapshot(),
       pickups: this.pickupSnapshot(),
       doors: this.structures.doorIds.map((door) => ({ id: door, open: this.structures.isOpen(door) })),
+      frost: this.structures.frost.list(),
     });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
@@ -331,6 +334,19 @@ export class Room {
       if (spec.element === 'ice') victim.chilled = CHILL_SECONDS; // from the last touch
       this.damage(victim, damageFor(spec, hit.headshot), { shooter: seat, headshot: hit.headshot });
     }
+    if (spec.element && spec.fire.kind === 'cone') this.spray(me, spec.fire.halfAngle, spec.range, spec.element);
+  }
+
+  // What a spray lands on (sim/frost.ts): an ice one frosts it, for good, and a fire one melts it.
+  // Everyone hears of every cell that turned, the oldest frost melting to make room past MAX_FROST.
+  private spray(me: PlayerState, halfAngle: number, range: number, element: Element): void {
+    const floor = (x: number, z: number) => worldDistance(x, z, this.worldShape) < 0;
+    const dir = classOf(me.avatar).aim(me);
+    const ice = element === 'ice';
+    const changed = sprayFrost(this.structures, floor, eyeOf(me), dir, halfAngle, range, this.tick * SPRAY_SPIN, ice);
+    const on = ice ? changed : [];
+    const off = ice ? this.structures.frost.trim() : changed;
+    if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
   }
 
   // A click on a door within reach swings it the other way, for everyone; a second click hard on

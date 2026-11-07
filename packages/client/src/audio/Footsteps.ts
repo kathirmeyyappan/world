@@ -3,12 +3,25 @@
 // touching down a landing as hard as the fall was fast. Worked out from each player's position and
 // whether they're grounded, frame to frame, so it's the same for everyone. Each avatar's gait
 // (render/avatars/gaits.ts) sets its stride, what its steps are and how heavy it sounds, and paces
-// its limbs too (phase).
-import { GRAVITY, type AvatarId, type Vec3 } from '@world/shared';
+// its limbs too (phase); a gait of thuds takes them from whatever is underfoot (sim/surfaces.ts).
+import {
+  EYE_HEIGHT,
+  GRAVITY,
+  STEP_UP,
+  SURFACES,
+  type AvatarId,
+  type Footfall,
+  type Structures,
+  type Vec3,
+} from '@world/shared';
 import { GAITS } from '../render/avatars/gaits';
 import type { Sfx, SoundId } from './Sfx';
 
-const THUDS: SoundId[] = ['step-1', 'step-2', 'step-3', 'step-4']; // a different one each step
+// What a step on each kind of surface sounds like: a different one each step.
+const FOOTFALLS: Record<Footfall, SoundId[]> = {
+  thud: ['step-1', 'step-2', 'step-3', 'step-4'],
+  crunch: ['crunch-1', 'crunch-2', 'crunch-3', 'crunch-4'],
+};
 const MOVING = 0.01; // metres along the ground in one frame that keep a step loop going
 const JUMPED = 3; // metres moved in one frame that can only be a respawn or a correction
 // Your own movement plays at this share of its volume, under other people's, so theirs stand out.
@@ -36,7 +49,10 @@ interface Walker {
 export class Footsteps {
   private readonly walkers = new Map<string, Walker>();
 
-  constructor(private readonly sfx: Sfx) {}
+  constructor(
+    private readonly sfx: Sfx,
+    private readonly structures: Structures,
+  ) {}
 
   // Where a player is in their stride: 0 at a footfall of one foot, 1 at the other's, and back to
   // 0 at the first's again, so it runs 0 to 2 over a full swing of the legs.
@@ -117,10 +133,12 @@ export class Footsteps {
       w.footfalls += falls;
       if (loop) continue;
       const bar = typeof steps === 'object' && 'bar' in steps ? steps.bar : null;
+      const thuds =
+        FOOTFALLS[SURFACES[this.structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP).surface].footfall];
       w.step = bar
         ? (w.step + 1) % bar.length
-        : (w.step + 1 + Math.floor(Math.random() * (THUDS.length - 1))) % THUDS.length;
-      this.sfx.play(bar ? bar[w.step] : THUDS[w.step], at, { level, rate });
+        : (w.step + 1 + Math.floor(Math.random() * (thuds.length - 1))) % thuds.length;
+      this.sfx.play(bar ? bar[w.step] : thuds[w.step], at, { level, rate });
     }
     for (const id of this.walkers.keys()) if (!seen.has(id)) this.walkers.delete(id);
     return loops;

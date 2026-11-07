@@ -25,6 +25,7 @@ import {
   lookDirection,
   parseCommand,
   resolveFire,
+  type FrostCell,
   type ItemAction,
   type ItemId,
   type ItemState,
@@ -51,6 +52,7 @@ import { createAvatar, preloadAvatars, StandardAvatar, type Avatar } from '../re
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { FrostLayer } from '../render/Frost';
 import { Loader } from '../render/Loader';
 import { Models } from '../render/models/Models';
 import { buildStructures } from '../render/Structures';
@@ -114,6 +116,7 @@ export class Game {
   private readonly environment: Environment;
   private readonly loader = new Loader(); // streams the world in round the player
   private readonly models: Models;
+  private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
   private hoveredDoor: string | null = null; // the door under the crosshair within reach (sim/doors.ts)
   private useDoor: string | null = null; // a door clicked since the last input frame
   private readonly camera: UniversalCamera;
@@ -168,7 +171,7 @@ export class Game {
   private hoveredSky: SkyObject | null = null;
   private hoveredFrame: HungFrame | null = null;
   private readonly sfx = new Sfx();
-  private readonly footsteps = new Footsteps(this.sfx);
+  private readonly footsteps = new Footsteps(this.sfx, WORLD_STRUCTURES);
   // Other players' tap shots this tick, heard before the tick's snapshot says where they stood and
   // looked; `hitMe` once a hit on the local player from them comes in.
   private pendingShots: { shooter: string; hitMe: boolean }[] = [];
@@ -190,6 +193,7 @@ export class Game {
     this.engine = new Engine(canvas);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
+    this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.models = new Models(this.engine, this.loader);
     preloadAvatars(this.engine);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
@@ -421,6 +425,7 @@ export class Game {
           WORLD_STRUCTURES.setDoor(door.id, door.open);
           this.models.setDoor(door.id, door.open, false);
         }
+        this.setFrost(m.frost, true);
         for (const p of m.players) if (p.id !== m.id) this.addAvatar(p);
         this.hud.system(
           IS_TOUCH
@@ -476,6 +481,10 @@ export class Game {
         WORLD_STRUCTURES.setDoor(m.id, m.open);
         this.models.setDoor(m.id, m.open);
         return;
+      case 'frost':
+        this.setFrost(m.on, true);
+        this.setFrost(m.off, false);
+        return;
       case 'action': {
         const sound = ACTION_SOUNDS[m.action];
         const at = this.headOf(m.id);
@@ -505,6 +514,14 @@ export class Game {
       case 'error':
         this.hud.system(m.message);
         return;
+    }
+  }
+
+  // Frost comes and goes for the sim (so prediction slides where the server does) and the eye alike.
+  private setFrost(cells: FrostCell[], on: boolean): void {
+    for (const cell of cells) {
+      WORLD_STRUCTURES.frost.set(cell, on);
+      this.frost.set(cell, on);
     }
   }
 
@@ -680,6 +697,7 @@ export class Game {
 
     this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
     this.environment.update(dt, eye);
+    this.frost.update(dt, this.camera.position);
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
@@ -915,6 +933,7 @@ export class Game {
     pos: { x: number; y: number; z: number };
     remotes: { id: string; name: string; x: number; y: number; z: number }[];
     sky: { id: string; x: number; z: number }[];
+    frost: number; // cells frosted over
   } {
     const remotes = this.interp
       .sample(performance.now(), this.myId)
@@ -924,7 +943,13 @@ export class Game {
       x: Math.round(s.mesh.position.x),
       z: Math.round(s.mesh.position.z),
     }));
-    return { id: this.myId, pos: { ...(this.prediction?.state.pos ?? { x: 0, y: 0, z: 0 }) }, remotes, sky };
+    return {
+      id: this.myId,
+      pos: { ...(this.prediction?.state.pos ?? { x: 0, y: 0, z: 0 }) },
+      remotes,
+      sky,
+      frost: WORLD_STRUCTURES.frost.size,
+    };
   }
 }
 

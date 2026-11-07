@@ -7,7 +7,9 @@
 // (default 0, on the floor), and its kind says how high its top is at each point of the footprint.
 // Standing, bumping, ceilings and line of sight are all worked out from those two facts, so a new
 // kind needs a case in `surfaceOf` here and a builder in the client; the compiler asks for both.
+// What it's like underfoot is its surface (surfaces.ts), named or implied by its material.
 import { STEP_UP } from './constants';
+import { isSurfaceId, type SurfaceId } from './surfaces';
 
 export interface Footprint {
   x: number;
@@ -18,6 +20,7 @@ export interface Footprint {
   yaw?: number;
   material?: StructureMaterial; // a pixel texture (the client's render/structureMaterials.ts)
   color?: string; // flat CSS colour when there's no material; each kind has a default
+  surface?: SurfaceId; // what it's like to walk on (surfaces.ts); the material's by default
   door?: { id: string; open: boolean }; // a door's slab (doors.ts): stands only while the door is open or shut as `open` says
   hidden?: boolean; // collided with but never drawn: the shape of something the client draws its own way (a model)
 }
@@ -85,6 +88,7 @@ export function validateStructure(s: Structure, label: string): void {
   const bad = (why: string) => new Error(`structure ${label} (${s.kind}): ${why}`);
   if (!(s.w > 0 && s.d > 0)) throw bad('w and d must be positive');
   if ((s.kind === 'box' || s.kind === 'ramp') && !(s.h > 0)) throw bad('h must be positive');
+  if (s.surface !== undefined && !isSurfaceId(s.surface)) throw bad(`unknown surface ${String(s.surface)}`);
   if (s.kind === 'terrain') {
     const cols = s.heights[0]?.length ?? 0;
     if (s.heights.length < 2 || cols < 2 || s.heights.some((r) => r.length !== cols))

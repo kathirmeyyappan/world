@@ -18,6 +18,8 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     color,
     pos: { x: spawn.x, y: spawn.y, z: spawn.z },
     vy: 0,
+    vx: 0,
+    vz: 0,
     yaw: 0,
     pitch: 0,
     lastSeq: 0,

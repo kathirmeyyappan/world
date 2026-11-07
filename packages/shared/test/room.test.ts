@@ -22,7 +22,10 @@ import {
   CIRCLE_LOOKS,
   DOOR_SWING_SECONDS,
   DUNE_HEIGHT,
+  FLOOR,
+  FROST_CELL,
   HEAD_RADIUS,
+  wall,
   PINEAPPLE_DOOR,
   PINEAPPLE_PLACEMENT,
   defaultBotsFor,
@@ -38,6 +41,44 @@ function link() {
   const inbox: ServerMessage[] = [];
   return { inbox, send: (m: ServerMessage) => inbox.push(m) };
 }
+
+test('an ice spray frosts what it lands on, for everyone and whoever joins later, and a flame melts it', () => {
+  // Alice stands in the middle facing +z, a wall 5 m in front of her, its near side her way.
+  const room = new Room('frost', { seed: 1, structures: new Structures([wall({ x: -5, z: 5 }, { x: 5, z: 5 }, 4)]) });
+  const a = link();
+  const ida = room.join('alice', a)!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  alice.pos = { x: 0, y: EYE_HEIGHT, z: 0 };
+  room.receive(ida, { t: 'chat', text: '/ice-blower' });
+  hold(room, ida, 10);
+  const frosted = a.inbox.flatMap((m) => (m.t === 'frost' ? m.on : []));
+  assert.ok(frosted.length > 0, 'cells froze');
+  assert.ok(
+    frosted.some(([piece, face]) => piece === 0 && face === 2),
+    'on the near side of the wall (its local +x, with the wall running along world x)',
+  );
+  const floor = frosted.find(([piece, face]) => piece === FLOOR && face === 0);
+  assert.ok(floor, 'and on the floor under the spray');
+  const [, , i, j] = floor;
+  assert.equal(room.structures.footing((i + 0.5) * FROST_CELL, (j + 0.5) * FROST_CELL, 1).surface, 'ice');
+  assert.equal(a.inbox.filter((m) => m.t === 'frost' && m.off.length).length, 0, 'nothing melted');
+
+  const b = link();
+  room.join('bob', b);
+  const welcome = b.inbox[0];
+  assert.ok(welcome.t === 'welcome' && welcome.frost.length === room.structures.frost.size, 'bob gets all of it');
+
+  room.receive(ida, { t: 'chat', text: '/flamethrower' });
+  const was = room.structures.frost.size;
+  const heard = b.inbox.length;
+  hold(room, ida, 30);
+  const melted = b.inbox.slice(heard).flatMap((m) => (m.t === 'frost' ? m.off : []));
+  assert.ok(melted.length > 0 && room.structures.frost.size === was - melted.length, 'the flame melts it');
+  assert.ok(
+    b.inbox.slice(heard).every((m) => m.t !== 'frost' || m.on.length === 0),
+    'and freezes nothing',
+  );
+});
 
 let seq = 1000;
 function frame(pitch: number, actions: ItemAction[], yaw = 0, use: string | null = null): InputFrame {
