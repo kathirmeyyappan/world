@@ -157,7 +157,10 @@ sounds like: `thud` or `crunch`). On a footing with finite grip the walker keeps
 (`PlayerState.vx`, `vz`): the feet push toward the keys at the grip, never past the walk's speed,
 slow it at that rate with none held, and gravity pulls it down any slope harder than they can hold
 (`walker.ts` `slide`, capped at `SLIDE_SPEED`), so an icy 15° slope can't be climbed and the
-library's slide is ridden. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
+library's slide is ridden. In the air there's nothing to push against, so the walk keeps the
+velocity it took off with: a jump launches where the keys point from a sure footing, and with
+whatever the walk had from a slippery one, so hopping up the slide gets nowhere; a jetpack's
+thrust is something to push against, so it steers. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
 and its slope at a spot, and the client's `Footsteps` asks it at each footfall for the sound
 (`FOOTFALLS` there maps a footfall to its recordings; a gait with sounds of its own keeps them).
 A new surface is a row in `SURFACES`, and with a new footfall, its sounds in the client. On a
@@ -441,7 +444,9 @@ Bots must use the modules under `modal-bots/common/`:
 - `load_world_map()` (`common/world.py`) is the world's structures and walkable ground, shared by
   every bot in the process. `world.clear(a, b)` is the sim's line of sight (what a shot can pass);
   `world.node_at(feet)` and `world.path(start, goal)` find a way between the spots a player can
-  stand on a 1 m grid, up the stair and over the rail where only a jump gets there.
+  stand on a 1 m grid, up the stair and over the rail where only a jump gets there (each jump at
+  the pace the map worked out for it, `world.jump_paces`: a jump flies on at the pace it took
+  off at, so a hop onto the next cell is a slow one).
   `Route(world, path, tick)` (`common/navigation.py`) walks it: call `route.steer(me.pos, tick,
   controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
   `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.

@@ -70,7 +70,11 @@ export function stepWalker(
     (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
-  if (input?.jump && grounded && !p.dead && !p.scoped) p.vy = JUMP_VELOCITY;
+  // A jump takes off with what the footing lets the feet push for: the keys' walk from a sure
+  // footing, nothing from a slippery one.
+  const jumping = !!input?.jump && grounded && !p.dead && !p.scoped;
+  const takeoff = jumping ? structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS) : null;
+  if (jumping) p.vy = JUMP_VELOCITY;
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
 
   // Vertical: fall (or brake and rise on the gear's push), stop the head at any underside above it,
@@ -93,8 +97,10 @@ export function stepWalker(
   }
   const standing = p.pos.y <= floor;
 
-  // Across the floor: where the keys send the walk, at its speed. On a sure footing, and in the
-  // air, that's the walk itself; on a slippery one the feet only bend the momentum the walk has.
+  // Across the floor: where the keys send the walk, at its speed. On a sure footing that's the walk
+  // itself, and so is the launch off one; on a slippery one the feet only bend the momentum the walk
+  // has. In the air there's nothing to push against, so the walk keeps its momentum, unless a jet's
+  // push is something to push against.
   let wantX = 0;
   let wantZ = 0;
   if (input && !p.dead && (input.mx !== 0 || input.my !== 0)) {
@@ -113,8 +119,9 @@ export function stepWalker(
   const feetNow = p.pos.y - EYE_HEIGHT;
   const footing = standing ? structures.footing(p.pos.x, p.pos.z, feetNow + STEP_UP, PLAYER_RADIUS) : null;
   const grip = footing ? SURFACES[footing.surface].grip : Infinity;
+  const launch = takeoff !== null && SURFACES[takeoff.surface].grip === Infinity;
   if (footing && grip < Infinity) slide(p, wantX, wantZ, grip, footing.slope, dt);
-  else {
+  else if (standing || launch || push) {
     p.vx = wantX;
     p.vz = wantZ;
   }

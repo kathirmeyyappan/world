@@ -93,6 +93,12 @@ class WorldMap:
         self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in data["nodes"])
         self.edges = tuple(tuple(int(j) for j in out) for out in data["edges"])
         self.jumps = tuple(frozenset(int(j) for j in out) for out in data["jumps"])
+        # Each jump's pace, as a share of the full walk: a jump flies on at the pace it took off
+        # at, and this one comes down right at its node.
+        self.jump_paces: tuple[dict[int, float], ...] = tuple(
+            {int(j): float(pace) for j, pace in zip(out, paces, strict=True)}
+            for out, paces in zip(data["jumps"], data["jumpPaces"], strict=True)
+        )
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
         self.lookouts = tuple(int(i) for i in data["lookouts"])
         # The lookouts by where they are: "tower" (its balconies and roof), "building" (a building's
