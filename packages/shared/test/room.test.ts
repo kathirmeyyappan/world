@@ -50,13 +50,21 @@ test('an ice spray frosts what it lands on, for everyone and whoever joins later
   const alice = room.players.find((p) => p.id === ida)!;
   alice.pos = { x: 0, y: EYE_HEIGHT, z: 0 };
   room.receive(ida, { t: 'chat', text: '/ice-blower' });
-  hold(room, ida, 10);
+  hold(room, ida, 30);
   const frosted = a.inbox.flatMap((m) => (m.t === 'frost' ? m.on : []));
   assert.ok(frosted.length > 0, 'cells froze');
   assert.ok(
     frosted.some(([piece, face]) => piece === 0 && face === 2),
     'on the near side of the wall (its local +x, with the wall running along world x)',
   );
+  // A second's spray leaves the wall solid ice for 1.5 m round where she aims: on its near face,
+  // (u, v) is (x + 5, height), so the aim is at (5, 1.7).
+  for (let i = 7; i <= 12; i++)
+    for (let j = 1; j <= 5; j++) {
+      const [u, v] = [(i + 0.5) * FROST_CELL, (j + 0.5) * FROST_CELL];
+      if (Math.hypot(u - 5, v - 1.7) <= 1.5)
+        assert.ok(room.structures.frost.has(0, 2, i, j), `cell ${i},${j} of the wall's face is frosted`);
+    }
   const floor = frosted.find(([piece, face]) => piece === FLOOR && face === 0);
   assert.ok(floor, 'and on the floor under the spray');
   const [, , i, j] = floor;

@@ -66,7 +66,6 @@ const REGEN_TICKS = REGEN_SECONDS * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
-const SPRAY_SPIN = 0.37; // radians a spray's fan of rays turns each tick, so one shot lands between the last's
 
 export interface ClientLink {
   send(msg: ServerMessage): void;
@@ -345,7 +344,7 @@ export class Room {
     const floor = (x: number, z: number) => worldDistance(x, z, this.worldShape) < 0;
     const dir = classOf(me.avatar).aim(me);
     const ice = element === 'ice';
-    const changed = sprayFrost(this.structures, floor, eyeOf(me), dir, halfAngle, range, this.tick * SPRAY_SPIN, ice);
+    const changed = sprayFrost(this.structures, floor, eyeOf(me), dir, halfAngle, range, this.tick, ice);
     const on = ice ? changed : [];
     const off = ice ? this.structures.frost.trim() : changed;
     if (on.length || off.length) this.broadcast({ t: 'frost', on, off });

@@ -319,6 +319,8 @@ test("what's underfoot: the material's surface, ice wherever a top is frosted, a
   world.frost.set([1, 0, 0, 0], true);
   assert.equal(world.footing(18.25, -1.75, 1.5).surface, 'ice');
   assert.equal(world.footing(19, 0, 1.5).surface, 'hard', 'the rest of the top is as it was');
+  assert.equal(world.footing(18.7, -1.75, 1.5).surface, 'hard', 'a spot just off the cell');
+  assert.equal(world.footing(18.7, -1.75, 1.5, 0.35).surface, 'ice', 'but a body that wide stands on it');
   world.frost.set([FLOOR, 0, 100, 0], true); // the floor from x 50 to 50.5, z 0 to 0.5
   assert.equal(world.footing(50.2, 0.2, 1).surface, 'ice');
   assert.equal(world.footing(50.7, 0.2, 1).surface, 'hard');
