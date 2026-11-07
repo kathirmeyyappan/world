@@ -550,7 +550,7 @@ test('flamethrower: hold to spray a 20 m cone, 0.5 hearts every 5 ticks, on a 7.
   assert.ok(Math.abs(alice.item!.fuel! - 7.5) < 1e-6, 'full at 25 s, no further');
 });
 
-test('ice blower: every touch costs a quarter heart and chills from the last one; the chilled still act', () => {
+test('ice blower: every touch costs a quarter heart and chills from the last one; the chilled still act, and fire thaws them', () => {
   const room = new Room('ice', { seed: 9 });
   const a = link();
   const ida = room.join('alice', a)!;
@@ -572,6 +572,15 @@ test('ice blower: every touch costs a quarter heart and chills from the last one
     a.inbox.some((m) => m.t === 'shot' && m.id === idb),
     'chilled: the trigger still works',
   );
+
+  room.receive(ida, { t: 'chat', text: '/ft' });
+  const heard = a.inbox.length;
+  hold(room, ida, ITEMS.flamethrower.cooldownTicks + 1);
+  assert.ok(
+    a.inbox.slice(heard).some((m) => m.t === 'hit' && m.victim === idb),
+    'the flame reaches him',
+  );
+  assert.equal(bob.chilled, 0, 'and thaws him at once');
 });
 
 test("a click on the house's door within reach swings it for everyone, once a swing; from afar it does nothing", () => {

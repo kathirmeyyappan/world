@@ -329,9 +329,11 @@ export class Room {
         player: p,
       };
     });
+    // Ice chills from the last touch; fire thaws, as it thaws the frost it lands on.
     for (const hit of resolveFire(spec, me, targets, this.structures)) {
       const victim = hit.target.player;
-      if (spec.element === 'ice') victim.chilled = CHILL_SECONDS; // from the last touch
+      if (spec.element === 'ice') victim.chilled = CHILL_SECONDS;
+      else if (spec.element === 'fire') victim.chilled = 0;
       this.damage(victim, damageFor(spec, hit.headshot), { shooter: seat, headshot: hit.headshot });
     }
     if (spec.element && spec.fire.kind === 'cone') this.spray(me, spec.fire.halfAngle, spec.range, spec.element);

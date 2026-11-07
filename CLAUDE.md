@@ -340,7 +340,8 @@ gets its tank on the back and its jet at the nozzle from that alone, on every av
 viewmodel (`render/Jet.ts`: blocks of fire, or for ice the "+" crystals of a corpse's poof, drawn as
 one particle system). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`):
 ice chills for `CHILL_SECONDS` from the last touch (`sim/constants.ts`), a walk at
-`CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees. On the client
+`CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees, and fire's touch
+thaws it at once, as it melts frost (see Surfaces and frost). On the client
 `HitFlash` frosts a chilled body over, and `ui/Condition.ts` shows the chilled player the counter
 with the view frosted.
 
