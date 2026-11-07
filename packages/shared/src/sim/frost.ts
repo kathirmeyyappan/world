@@ -190,27 +190,41 @@ export function frostQuad(
   };
 }
 
-// Turns every cell of a face within `radius` of its point (u, v) `on` or off; `allowed` keeps a floor
-// splat inside the world. Returns the cells that changed.
+// Where a ray's touch lands on a face: the spot in the face's coordinates, and the ellipse it
+// wets, `across` metres to either side and `along` metres (as far or farther) each way along the
+// ray's own direction over the face (a unit vector in face coordinates), since a ray meeting a
+// face at a glancing angle smears along it.
+export interface Blot {
+  u: number;
+  v: number;
+  along: number;
+  across: number;
+  dirU: number;
+  dirV: number;
+}
+
+// Turns every cell of a face under the blot `on` or off; `allowed` keeps a floor splat inside the
+// world. Returns the cells that changed.
 export function splat(
   frost: Frost,
   s: Structure | null,
   piece: number,
   face: Face,
-  u: number,
-  v: number,
-  radius: number,
+  blot: Blot,
   on: boolean,
   allowed: (cell: FrostCell) => boolean = () => true,
 ): FrostCell[] {
   const changed: FrostCell[] = [];
-  const [i0, j0] = cellOf(u - radius, v - radius);
-  const [i1, j1] = cellOf(u + radius, v + radius);
+  const { u, v, along, across, dirU, dirV } = blot;
+  const [i0, j0] = cellOf(u - along, v - along);
+  const [i1, j1] = cellOf(u + along, v + along);
   for (let i = i0; i <= i1; i++)
     for (let j = j0; j <= j1; j++) {
       const du = (i + 0.5) * FROST_CELL - u;
       const dv = (j + 0.5) * FROST_CELL - v;
-      if (du * du + dv * dv > radius * radius) continue;
+      const p = (du * dirU + dv * dirV) / along;
+      const q = (dv * dirU - du * dirV) / across;
+      if (p * p + q * q > 1) continue;
       const cell: FrostCell = [piece, face, i, j];
       if (!frostQuad(s, piece, face, i, j) || !allowed(cell)) continue;
       if (frost.set(cell, on)) changed.push(cell);
@@ -238,7 +252,17 @@ export function sprayFrost(
   const a = unit(cross(d, ref));
   const b = cross(d, a);
   const changed: FrostCell[] = [];
-  const reach = (t: number) => Math.max(SPLAT, t * Math.tan(halfAngle) * SPREAD);
+  // The blot a ray makes `t` metres out, meeting the face with `n` of its direction along the
+  // face's normal and (pu, pv) of it across the face: a round splat SPREAD of the spray's width
+  // there, drawn out along the ray as the face lies glancing to it, to three times its width.
+  const blot = (u: number, v: number, t: number, n: number, pu: number, pv: number): Blot => {
+    const across = Math.max(SPLAT, t * Math.tan(halfAngle) * SPREAD);
+    const flat = Math.hypot(pu, pv);
+    const along = across / Math.max(Math.abs(n), 1 / 3);
+    return flat < 1e-6
+      ? { u, v, along: across, across, dirU: 1, dirV: 0 }
+      : { u, v, along, across, dirU: pu / flat, dirV: pv / flat };
+  };
   for (let k = 0; k < RAYS; k++) {
     const n = shot * RAYS + k;
     const r = halfAngle * Math.sqrt((0.5 + n * R2[0]) % 1);
@@ -256,19 +280,25 @@ export function sprayFrost(
       const z = o.z + dir.z * floorT;
       if (!floor(x, z)) continue;
       const inside = ([, , i, j]: FrostCell) => floor((i + 0.5) * FROST_CELL, (j + 0.5) * FROST_CELL);
-      changed.push(...splat(structures.frost, null, FLOOR, 0, x, z, reach(floorT), on, inside));
+      const b = blot(x, z, floorT, dir.y, dir.x, dir.z);
+      changed.push(...splat(structures.frost, null, FLOOR, 0, b, on, inside));
       continue;
     }
     if (!hit || hit.face === null) continue;
     const s = structures.list[hit.piece];
     if (s.door) continue;
+    // The spot and the ray's direction in the piece's frame, then across its face.
     const yaw = s.yaw ?? 0;
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
     const dx = hit.point.x - s.x;
     const dz = hit.point.z - s.z;
-    const lx = dx * Math.cos(yaw) - dz * Math.sin(yaw);
-    const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+    const lx = dx * cos - dz * sin;
+    const lz = dx * sin + dz * cos;
+    const [ex, ey, ez] = [dir.x * cos - dir.z * sin, dir.y, dir.x * sin + dir.z * cos];
     const [u, v] = faceCoords(s, hit.face, lx, hit.point.y - (s.y ?? 0), lz);
-    changed.push(...splat(structures.frost, s, hit.piece, hit.face, u, v, reach(hit.t), on));
+    const [into, pu, pv] = hit.face <= 1 ? [ey, ex, ez] : hit.face <= 3 ? [ex, ez, ey] : [ez, ex, ey];
+    changed.push(...splat(structures.frost, s, hit.piece, hit.face, blot(u, v, hit.t, into, pu, pv), on));
   }
   return changed;
 }

@@ -173,8 +173,10 @@ underfoot whatever the piece is made of, under the spot or under any of the body
 so a hole smaller than a body doesn't catch a slide. On every shot of a hold weapon with an
 element the Room casts `sprayFrost`: a dozen rays spread over the cone (a low-discrepancy sequence,
 each shot's between the last ones'), each landing (`Structures.touch`, which says which face)
-turning the cells round the spot on that face, wider the farther it flew (`SPLAT` at the least,
-`SPREAD` of the spray's width there), so a shot or two frosts the patch in front of you solid. Doors never frost (they swing); hidden
+turning the cells under its blot on that face (`Blot`: `SPLAT` across at the least, `SPREAD` of
+the spray's width where it lands, and drawn out along the ray where it meets the face at a glancing
+angle, as a spray skimming the floor does), so a shot or two frosts the patch in front of you
+solid and a level spray lays a long tongue along the ground. Doors never frost (they swing); hidden
 pieces do, so the house's rooms frost where the model draws them. Frost never thaws by itself; past
 `MAX_FROST` cells the oldest melt. The client draws every cell as a crust a hair off its face
 (`render/Frost.ts`, from `frostQuad`, merged by region like the structures and rebuilt the frame
