@@ -395,9 +395,9 @@ wire: server and client both build the world from that file.
   as the show has them (the generator cuts the wall, builds the tube, the door, the platform and the
   slide's trough, and gives the sim the slide as ramps);
   through it a brick lobby outside the wall, where a flight winds up each way to a gallery round
-  the brick cylinder standing on the library's ceiling, with doorways into it, and inside the attic
-  stair spirals up through the crown to a railed deck on top (`content/pineapple.ts` stands all of
-  that from the profile, in the hollow top of the shell);
+  the plastered cylinder standing on the library's ceiling, with doorways into it, and inside the
+  attic stair spirals up through the crown to a railed deck on top (`content/pineapple.ts` stands
+  all of that from the profile, in the hollow top of the shell);
   the sim collides with boxes cut from every surface of the rooms, hidden rings for the shell,
   walls along the flat faces carved round its doors, and the path's flagstones as ramps lying with
   the dune.
@@ -423,9 +423,9 @@ wire: server and client both build the world from that file.
   the hole has to cover the stretch where the stair is within about 2.7 m of the floor above.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
-- Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`; each
-  is a painter in `packages/client/src/render/structureMaterials.ts`, and a new one is another
-  painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
+- Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`,
+  `plaster`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a new
+  one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
   they look the same inside and out; don't reach for lights. `hidden` pieces are collided with but
   never drawn: the shape of something the client draws its own way.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
