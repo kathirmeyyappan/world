@@ -75,7 +75,7 @@ import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
-import { VIEWS, View, type Boom } from './View';
+import { VIEWS, View, screenBoom, screenFov, type Boom } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
@@ -370,20 +370,27 @@ export class Game {
     document.getElementById('scope')!.classList.toggle('hidden', !on);
   }
 
-  // The view the worn avatar has when not scoped: its class's, and for a walker a little wider or
-  // narrower by its stature.
+  // The view the worn avatar has when not scoped: its class's, for a walker a little wider or
+  // narrower by its stature, and widened for a portrait screen.
   private wornFov(): number {
     const cls = this.prediction ? classOf(this.prediction.state.avatar) : null;
-    return (cls ? VIEWS[cls.id].fov : VIEWS.walker.fov) * Math.pow(this.stature ?? 1, -FOV_SHRINK);
+    const fov = (cls ? VIEWS[cls.id].fov : VIEWS.walker.fov) * Math.pow(this.stature ?? 1, -FOV_SHRINK);
+    return screenFov(fov, this.aspect());
   }
 
-  // The boom the camera hangs on in third person: the class's, scaled to a walker's stature.
+  private aspect(): number {
+    return this.engine.scene.getEngine().getAspectRatio(this.camera);
+  }
+
+  // The boom the camera hangs on in third person: the class's, scaled to a walker's stature and
+  // fitted to a portrait screen.
   private boom(): Boom {
     const cls = classOf(this.prediction!.state.avatar);
     const { boom } = VIEWS[cls.id];
     const scale = cls.id === 'walker' ? (this.stature ?? 1) : 1;
     // A small body is no narrower across the shoulders than its gun arm reaches.
-    return { back: boom.back * scale, right: boom.right * Math.max(1, scale), up: boom.up * scale };
+    const scaled = { back: boom.back * scale, right: boom.right * Math.max(1, scale), up: boom.up * scale };
+    return screenBoom(scaled, this.wornFov(), this.aspect());
   }
 
   private isBlocked(): boolean {
