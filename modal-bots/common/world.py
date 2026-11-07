@@ -125,6 +125,8 @@ class WorldMap:
             )
             for r in data["insides"]
         )
+        # Every node inside a building's wall, the stairs between its floors included.
+        self.indoors = frozenset(int(i) for i in data["indoors"])
         self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):

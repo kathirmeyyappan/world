@@ -6,8 +6,9 @@ from types import SimpleNamespace
 
 from bots.sniper_bot import Sniper, quarry
 from common import Controls, Welcome, WorldState
-from common.protocol import decode
-from common.world import load_world_map
+from common.navigation import Route
+from common.protocol import Player, decode
+from common.world import EYE_HEIGHT, load_world_map
 
 from tests.helpers import player, welcome
 
@@ -70,3 +71,31 @@ def test_sniper_fires_only_on_a_target_in_range_or_once_hit() -> None:
     state, controls = scene(35)
     hit.hurt_at = state.tick
     assert shoots(state, controls, hit), "35 m off but it has just been hit: shot back"
+
+
+def test_sniper_wants_speedy_only_outdoors_with_a_long_way_ahead() -> None:
+    """On a way from a tower floor to a keep's: no /speedy inside the tower, one as it steps out
+    with the main disc still to cross, none once it's sped up or at the keep's door."""
+    world = load_world_map()
+    path = world.path(world.nodes_in(world.insides[0])[0], world.nodes_in(world.insides[-1])[0])
+    assert path is not None
+    outdoors = [k for k, i in enumerate(path) if i not in world.indoors]
+    sniper = Sniper(world, (), "sniper-bot", random.Random(1))
+    route = Route(world, path, 0)
+    sniper.route = route
+
+    def me_at(k: int, boost: float = 0) -> Player:
+        """The sniper standing on the path's k-th node, with the route there."""
+        route.next = k + 1
+        node = world.nodes[path[k]]
+        me = {**player("p1", "sniper-bot"), "pos": {"x": node.x, "y": node.y + EYE_HEIGHT, "z": node.z}, "boost": boost}
+        message = decode(json.dumps({**welcome(), "players": [me]}))
+        assert isinstance(message, Welcome)
+        state = WorldState(message)
+        assert state.me is not None
+        return state.me
+
+    assert not sniper.wants_speed(me_at(0)), "inside the tower: its stair is walked at the walk's own pace"
+    assert sniper.wants_speed(me_at(outdoors[0])), "out of the door with the main disc to cross"
+    assert not sniper.wants_speed(me_at(outdoors[0], boost=20)), "not while it's sped up"
+    assert not sniper.wants_speed(me_at(outdoors[-1])), "at the keep's door: nothing left in the open"

@@ -4,8 +4,8 @@
 // 1 m grid is a node, and an edge joins two neighbouring nodes when stepPlayer, walking straight
 // from one, arrives at the other; where only a running jump gets there (over the tower stair's
 // rail onto a floor), that's a jump edge. With them come the lookouts (high spots with a view) and
-// the place each is in, each avatar's hitbox, for aiming, and the tower's inside floors, where a
-// sniper starts out.
+// the place each is in, each avatar's hitbox, for aiming, and the buildings' insides (their floors,
+// and every spot within their walls), where a sniper starts out and lies in wait.
 // `npm run bot-map` writes it, gzipped, to modal-bots/common/world_map.json.gz; it carries a
 // fingerprint of everything it was built from, and a test fails when that no longer matches, so a
 // change to the world regenerates it.
@@ -20,9 +20,8 @@ import {
   STEP_UP,
   TICK_DT,
 } from './constants';
-import { BUILDING_FOOTPRINTS, KEEP_INSIDES } from '../content/buildings';
-import { TOWER_INSIDE } from '../content/regions';
-import { TUNG_TUNG_TOWER_FOOTPRINT } from '../content/tower';
+import { BUILDING_FOOTPRINTS, STANDING_KEEPS } from '../content/buildings';
+import { TUNG_TUNG_TOWER_FOOTPRINT, TUNG_TUNG_TOWER_LEVELS } from '../content/tower';
 import { AVATAR_IDS, AVATARS, type Hitbox } from './avatars';
 import { CAPSULE_TOP } from './health';
 import { createPlayer, stepPlayer } from './player';
@@ -51,7 +50,11 @@ const LOOKOUT_LINES = 16;
 const LOOKOUT_OPEN = 7;
 const LOOKOUT_FLOOR = 5;
 const KEEP_REACH = 4; // metres past a keep's wall that are still its place: the tower's balconies are 3 m
-const INSIDES: Region[] = [...TOWER_INSIDE, ...KEEP_INSIDES];
+// The buildings with an inside, the tower first: each one's footprint (its wall's outer face) and
+// its levels, the floors inside the wall then the roof.
+const BUILDINGS = [{ footprint: TUNG_TUNG_TOWER_FOOTPRINT, levels: TUNG_TUNG_TOWER_LEVELS }, ...STANDING_KEEPS];
+const INSIDES: Region[] = BUILDINGS.flatMap((b) => b.levels.slice(0, -1));
+const INDOORS_MARGIN = 0.5; // metres under a roof, or over a ground floor, that are still inside
 
 // Where a lookout is, for a bot choosing where to perch: on the tower (its balconies and roof), on
 // a building (its roof and the foot of its staircase), or elsewhere (the terrace and the bridges
@@ -69,13 +72,14 @@ export interface BotMap {
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
   eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
   insides: Region[]; // the floors indoors, inside the tower's wall and the keeps': where a sniper starts and lies in wait
+  indoors: number[]; // every node inside a building's wall, the stairs between its floors included
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
   // Python side's line of sight is checked against these.
   sightChecks: number[][];
 }
 
 // A fingerprint of what the map depends on: the world's outline and structures, the body and
-// movement constants, this file's own settings, the avatars' hitboxes and eyes, and the floors indoors.
+// movement constants, this file's own settings, the avatars' hitboxes and eyes, and the buildings' insides.
 export function botMapSource(): number {
   const physics = [
     EYE_HEIGHT,
@@ -100,7 +104,7 @@ export function botMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), INSIDES]));
+  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), BUILDINGS]));
 }
 
 function hitboxes(): Record<string, Hitbox> {
@@ -151,6 +155,7 @@ export function buildBotMap(): BotMap {
     hitboxes: hitboxes(),
     eyes: eyes(),
     insides: INSIDES,
+    indoors: nodes.flatMap((n, i) => (indoors(n) ? [i] : [])),
     sightChecks: sightChecks(nodes),
   };
 }
@@ -248,6 +253,16 @@ function lookouts(nodes: Vec3[], edges: number[][], jumps: number[][]): number[]
       if (MAP_STRUCTURES.raycast(eye, { x: Math.sin(a), y: 0, z: Math.cos(a) }, LOOKOUT_RANGE) === Infinity) open++;
     }
     return open >= LOOKOUT_OPEN ? [i] : [];
+  });
+}
+
+// Whether a spot is inside a building: within its wall, between its ground floor and its roof.
+function indoors(n: Vec3): boolean {
+  return BUILDINGS.some(({ footprint, levels }) => {
+    const ground = levels[0].y;
+    const roof = levels[levels.length - 1].y;
+    const inWall = Math.hypot(n.x - footprint.x, n.z - footprint.z) < footprint.r;
+    return inWall && n.y >= ground - INDOORS_MARGIN && n.y < roof - INDOORS_MARGIN;
   });
 }
 

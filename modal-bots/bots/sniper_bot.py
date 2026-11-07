@@ -34,8 +34,10 @@ aiming at.
    to it now and then. There it takes the nearest of a sample of spots (the map's lookouts, or
    indoors any spot on the floor) that sees one of its quarry, or when none does the one nearest
    the nearest of them, so it waits near where they are. It follows ``world.path`` there (up the stair
-   and over its rail where it has to) and stays. It moves to another floor, the same way, when it
-   has gone PATIENCE_SECONDS at its spot with nobody in sight, or when something hurts it.
+   and over its rail where it has to), and once outdoors with SPEEDY_WORTH metres or more of the way
+   still in the open it takes /speedy, to be out there half as long; then it stays. It moves to
+   another floor, the same way, when it has gone PATIENCE_SECONDS at its spot with nobody in sight,
+   or when something hurts it.
 
 6. Dying. Like every bot, a dead sniper stops sending input and lies there until the room drops
    its corpse, which ends the run.
@@ -101,6 +103,8 @@ PATIENCE_SECONDS = 6.0  # how long it stands at a spot with nobody in sight befo
 FLOOR = 10  # metres: lookouts closer in height than this are one floor (the bridge's deck and rail)
 START_MARGIN = 1.5  # metres it starts in from the edge of a tower floor's open disc
 RIFLE_RETRY_TICKS = TICK_RATE  # how long it waits for a /sniper to land before asking again
+SPEEDY_WORTH = 20.0  # metres of the way still outdoors that are worth a /speedy
+SPEEDY_RETRY_TICKS = TICK_RATE  # how long it waits for a /speedy to show before asking again
 
 
 async def run_sniper_bot(
@@ -136,6 +140,7 @@ async def run_sniper_bot(
     sniper = Sniper(world, targets, name, rng, seen=dict.fromkeys(state.players, -(10**9)))
     completed = False
     rifle_asked = -RIFLE_RETRY_TICKS
+    speedy_asked = -SPEEDY_RETRY_TICKS
     observed_until = connected_at
 
     log_message(name, "joined room", player_id=connection.id, room=connection.room, targets=list(targets))
@@ -171,6 +176,9 @@ async def run_sniper_bot(
                     rifle_asked = state.tick
                     await controls.command("sniper")
                 sniper.decide(state, controls)
+                if sniper.wants_speed(me) and state.tick - speedy_asked >= SPEEDY_RETRY_TICKS:
+                    speedy_asked = state.tick
+                    await controls.command("speedy")
     except TimeoutError:
         completed = True
     except RoomConnectionError:
@@ -251,7 +259,7 @@ class Sniper:
     kills: int = 0
     hurt: bool = False  # something hit it since it last picked a spot
     hurt_at: int = -(10**9)  # the tick something last hit it
-    indoors: tuple[int, ...] = field(init=False)  # the spots on the floors indoors (world.insides)
+    floor_spots: tuple[int, ...] = field(init=False)  # the spots on the floors indoors (world.insides)
     in_sight: str | None = None  # who it's watching, if anyone
     last_in_sight: int = 0  # the tick it last had anyone in sight
     fire_at: int = 0  # the tick it may shoot them: its grace delay's end
@@ -267,7 +275,7 @@ class Sniper:
     _next_sight_check: int = 0
 
     def __post_init__(self) -> None:
-        self.indoors = tuple(i for region in self.world.insides for i in self.world.nodes_in(region))
+        self.floor_spots = tuple(i for region in self.world.insides for i in self.world.nodes_in(region))
 
     def decide(self, state: WorldState, controls: Controls) -> None:
         me = state.me
@@ -427,7 +435,7 @@ class Sniper:
 
     def _spots(self, place: str) -> tuple[int, ...]:
         """The spots a place offers: every spot on the floors indoors, or a place's lookouts."""
-        return self.indoors if place == "indoors" else self.world.places.get(place, ())
+        return self.floor_spots if place == "indoors" else self.world.places.get(place, ())
 
     def _floor(self, node: int) -> int:
         return round(self.world.nodes[node].y / FLOOR) * FLOOR
@@ -442,6 +450,28 @@ class Sniper:
             self.spot = None
         else:
             self.route = Route(self.world, path, tick)
+
+    def wants_speed(self, me: Player) -> bool:
+        """Whether a /speedy would help: it isn't sped up, and it's outdoors on its way with
+        SPEEDY_WORTH metres or more in the open still ahead. A boost can't be taken back, so none is
+        taken indoors, where the stairs and doorways are walked at the walk's own pace."""
+        return me.boost <= 0 and self._outdoors_ahead(me) >= SPEEDY_WORTH
+
+    def _outdoors_ahead(self, me: Player) -> float:
+        """Metres of its route in the open from here until it next goes inside a building, or 0
+        when it's indoors or has no way to walk."""
+        here = self.world.node_at(_feet(me))
+        if self.route is None or self.route.done or here is None or here in self.world.indoors:
+            return 0.0
+        metres = 0.0
+        last = _feet(me)
+        for i in self.route.path[self.route.next :]:
+            if i in self.world.indoors:
+                break
+            node = self.world.nodes[i]
+            metres += math.hypot(node.x - last.x, node.z - last.z)
+            last = node
+        return metres
 
 
 def _eye(feet: Vec3) -> Vec3:
