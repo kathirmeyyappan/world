@@ -1,6 +1,6 @@
 // The commands menu: every chat command, grouped, built from the item, gear and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
-// or the touch button, closed with Q/C or, on touch, a tap outside the commands. On a keyboard it
+// or the touch button, closed with Q/C or, on touch, a tap anywhere but a button. On a keyboard it
 // is a reference card; on touch each command is a button that sends it as a chat message, and
 // one that needs arguments is greyed and only says to type it in chat.
 // Blocks game input while open, like the cube card.
@@ -69,7 +69,7 @@ export class CommandsMenu {
   }
 
   // A button sends its command and closes the menu so the change is in view; a greyed one
-  // says why it does nothing; anywhere else on the card stays open, and the backdrop closes it.
+  // says why it does nothing; a tap anywhere else closes the menu.
   private tap(e: PointerEvent): void {
     const target = e.target instanceof Element ? e.target : null;
     const button = target?.closest<HTMLElement>('.cmd-button');
@@ -79,7 +79,7 @@ export class CommandsMenu {
         this.onCommand?.(send);
         this.set(false);
       } else this.notice(button.dataset.label ?? 'that');
-    } else if (!target?.closest('.card')) this.set(false);
+    } else this.set(false);
   }
 
   private notice(label: string): void {
@@ -190,7 +190,7 @@ function touchHtml(groups: Group[]): string {
       </div>
       <div class="footer">
         <div class="guide">SEE GUIDE IN HOME MENU FOR MORE INFO</div>
-        <div class="close-hint">TAP OUTSIDE TO CLOSE<span class="cursor">▮</span></div>
+        <div class="close-hint">TAP TO EXIT<span class="cursor">▮</span></div>
       </div>
     </div>`;
 }
