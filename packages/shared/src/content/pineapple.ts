@@ -369,15 +369,28 @@ const top: Structure[] = [
     material: 'brick',
   }),
   ...attic.steps.map(piece),
+  // The deck in two: inside the cylinder's wall, with the hole the stair arrives through; and from
+  // the wall out to the edge, whole, so the hole opens on nothing but the stair. The sectors
+  // overlap, so their planks run one way across the deck.
   ...roundFloor({
     x: X,
     z: Z,
-    r: attic.deck.r,
+    r: cylinderR - attic.cylinder.thickness + 0.05,
     y: DUNE_HEIGHT + attic.deck.y,
     thickness: attic.deck.thickness,
     hole: { inner: attic.deck.hole.inner, from: bearing(attic.deck.hole.to), to: bearing(attic.deck.hole.from) },
     material: 'wood',
-    worldTop: true, // the sectors overlap, so their planks run one way across the deck
+    worldTop: true,
+  }),
+  ...roundFloor({
+    x: X,
+    z: Z,
+    r: attic.deck.r,
+    inner: cylinderR - attic.cylinder.thickness + 0.05,
+    y: DUNE_HEIGHT + attic.deck.y,
+    thickness: attic.deck.thickness,
+    material: 'wood',
+    worldTop: true,
   }),
   ...roundWall({
     x: X,
