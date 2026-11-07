@@ -125,12 +125,41 @@ const sand: MaterialSpec = {
   },
 };
 
+// Ashlar: courses of 3 × 1.5 m sandstone blocks (16 × 8 texels), each course offset by half a
+// block, in pale tans with thin joints, lit along the top and shaded along the bottom like the
+// brick.
+const sandstone: MaterialSpec = {
+  tile: 6,
+  worldTop: true,
+  paint(px, rng) {
+    const shades = ['#d4bf95', '#cbb58a', '#dac69e', '#c6ae82', '#d0ba90', '#ddc9a3'];
+    for (let row = 0; row < TEXELS / 8; row++) {
+      const offset = row % 2 ? 8 : 0;
+      for (let b = 0; b < TEXELS / 16; b++) {
+        const color = pick(rng, shades);
+        for (let i = 0; i < 16; i++) {
+          const x = (b * 16 + i + offset) % TEXELS;
+          for (let j = 0; j < 8; j++) {
+            const y = row * 8 + j;
+            if (j === 7 || i === 15)
+              px(x, y, '#a8936a'); // joint
+            else if (j === 0) px(x, y, '#e4d2ad');
+            else if (j === 6 && rng() < 0.5) px(x, y, '#bfa97e');
+            else px(x, y, rng() < 0.06 ? '#b9a378' : rng() < 0.03 ? '#e8d8b4' : color);
+          }
+        }
+      }
+    }
+  },
+};
+
 export const MATERIALS: Record<StructureMaterial, MaterialSpec> = {
   brick,
   wood,
   'red-tile': redTile,
   flagstone,
   sand,
+  sandstone,
 };
 
 // One material's texture as canvas pixels, deterministic for a given material.
