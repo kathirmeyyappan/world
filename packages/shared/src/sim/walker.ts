@@ -23,7 +23,7 @@ import { CAPSULE_TOP, MAX_HEARTS } from './health';
 import { stepGear, thrust } from './gear';
 import { lookDirection } from './look';
 import { SURFACES } from './surfaces';
-import type { InputFrame, PlayerState } from './types';
+import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
 
 export const WALKER: ClassSpec = {
@@ -76,14 +76,11 @@ export function stepWalker(
     if (grip === Infinity) p.vy = JUMP_VELOCITY;
     else {
       // Ice pushes back only square to itself, so the feet push off it along its normal: straight
-      // up on the flat, and on a slope partly downhill, shedding whatever climb the walk had. Aloft
-      // the keys bend that throw no faster than the ice let them.
+      // up on the flat, and on a slope partly downhill, shedding whatever climb the walk had. That
+      // is a throw, with the keys left the grip the ice gave them.
       const { x: sx, z: sz } = takeoff.slope;
       const len = Math.hypot(sx, 1, sz);
-      p.vx -= (JUMP_VELOCITY * sx) / len;
-      p.vz -= (JUMP_VELOCITY * sz) / len;
-      p.vy = JUMP_VELOCITY / len;
-      p.adrift = grip;
+      throwWalker(p, { x: (-JUMP_VELOCITY * sx) / len, y: JUMP_VELOCITY / len, z: (-JUMP_VELOCITY * sz) / len }, grip);
     }
   }
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
@@ -107,12 +104,12 @@ export function stepWalker(
     p.vy = 0;
   }
   const standing = p.pos.y <= floor;
-  if (standing) p.adrift = 0;
+  if (standing) p.thrown = null;
 
   // Across the floor: where the keys send the walk, at its speed. On a sure footing, and in the
-  // air, that's the walk itself; on a slippery one the feet only bend the momentum the walk has,
-  // and adrift off ice they bend its throw at the ice's grip, unless a jet's push is something to
-  // push against.
+  // air on its own feet, that's the walk itself; on a slippery one the feet only bend the momentum
+  // the walk has, and thrown they bend the flight at the throw's grip, unless a jet's push is
+  // something to push against.
   let wantX = 0;
   let wantZ = 0;
   if (input && !p.dead && (input.mx !== 0 || input.my !== 0)) {
@@ -132,8 +129,8 @@ export function stepWalker(
   const footing = standing ? structures.footing(p.pos.x, p.pos.z, feetNow + STEP_UP, PLAYER_RADIUS) : null;
   const grip = footing ? SURFACES[footing.surface].grip : Infinity;
   if (footing && grip < Infinity) slide(p, wantX, wantZ, grip, footing.slope, dt);
-  else if (p.adrift > 0 && !push) {
-    if (wantX !== 0 || wantZ !== 0) [p.vx, p.vz] = bend(p.vx, p.vz, wantX, wantZ, p.adrift, dt);
+  else if (p.thrown !== null && !push) {
+    if (wantX !== 0 || wantZ !== 0) [p.vx, p.vz] = bend(p.vx, p.vz, wantX, wantZ, p.thrown, dt);
   } else {
     p.vx = wantX;
     p.vz = wantZ;
@@ -154,10 +151,23 @@ export function stepWalker(
     p.vx = (p.pos.x - fromX) / dt;
     p.vz = (p.pos.z - fromZ) / dt;
   }
+  // Stepping off ice is a throw as much as a jump off it: the keys get no grip back in the air.
+  if (footing && grip < Infinity && !isGrounded(p, structures)) p.thrown = grip;
   // The feet's own walk, to a tenth: a slippery footing takes the keys' walk out of their step.
   const pace = grip < Infinity ? Math.hypot(wantX, wantZ) : Math.hypot(p.vx, p.vz);
   p.walk = Math.round(pace * 10) / 10;
   return landing;
+}
+
+// Throws the walk: `dv` joins its velocity, and until it lands the keys have only `grip` (m/s², 0
+// for none) to bend the flight with, whatever it took off from. Ice throws a jump off it and
+// anything that steps off it; a weapon's knockback or a bounce throws the same way. A throw that
+// lifts the walk flies; one that doesn't is at the footing's mercy the next tick.
+export function throwWalker(p: PlayerState, dv: Vec3, grip: number): void {
+  p.vx += dv.x;
+  p.vy += dv.y;
+  p.vz += dv.z;
+  p.thrown = grip;
 }
 
 // One tick of a walk on a slippery footing, where the walk keeps its momentum (vx, vz). Gravity
