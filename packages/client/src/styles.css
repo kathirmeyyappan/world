@@ -923,8 +923,8 @@ body {
   fill: var(--accent);
 }
 
-/* On touch, over the world until the first tap (main.ts), which is what lets sound start. */
-#tap-to-play {
+/* Over the world until the first press (main.ts showStart): the button pushes in while held. */
+#start {
   position: fixed;
   inset: 0;
   z-index: 1600;
@@ -932,8 +932,14 @@ body {
   justify-content: center;
   align-items: center;
   background: rgba(20, 22, 30, 0.6);
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
-#tap-to-play .prompt {
+#start.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+#start .prompt {
   padding: 18px 26px;
   font: 18px/1.4 var(--pixel);
   letter-spacing: 3px;
@@ -941,10 +947,22 @@ body {
   background: var(--panel);
   border: 3px solid var(--accent);
   box-shadow: 6px 6px 0 #000;
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
 }
-#tap-to-play .cursor {
-  margin-left: 8px;
-  font-family: var(--mono);
+#start.pressed .prompt {
+  transform: translate(6px, 6px);
+  box-shadow: 0 0 0 #000;
+}
+/* A block drawn, not a glyph: the pixel font has no ▮. */
+#start .cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  margin-left: 10px;
+  vertical-align: -0.1em;
+  background: currentColor;
   animation: blink 1s steps(1) infinite;
 }
 #death {

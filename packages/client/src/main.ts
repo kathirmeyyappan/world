@@ -1,6 +1,6 @@
 import { showHome } from './app/home';
 import type { Game } from './game/Game';
-import { IS_TOUCH, onTap } from './input/touch';
+import { IS_TOUCH } from './input/touch';
 import { forgetRoom, homeUrl } from './net/lobby';
 
 declare global {
@@ -33,13 +33,29 @@ async function main(): Promise<void> {
   });
   game.start();
   requestAnimationFrame(() => loading.classList.add('hidden'));
-  // A touchscreen lets the page start sound only on a tap, never a drag (looking round, the pad),
-  // so on one the world waits behind a tap; Sfx unlocks on it.
-  if (IS_TOUCH) {
-    const gate = document.getElementById('tap-to-play')!;
-    gate.classList.remove('hidden');
-    onTap(gate, () => gate.remove());
-  }
+  showStart(canvas);
+}
+
+// The world waits behind one press. It's what lets the browser start sound (Sfx unlocks on it; on a
+// touchscreen only a tap does, never a drag), and with a mouse it takes the pointer, so moving the
+// mouse turns the view from the start. Pressing anywhere on it pushes the button in.
+const START_FADE_MS = 200; // matches #start's transition
+function showStart(canvas: HTMLCanvasElement): void {
+  const gate = document.getElementById('start')!;
+  gate.querySelector('.label')!.textContent = IS_TOUCH ? 'TAP TO PLAY' : 'CLICK TO PLAY';
+  gate.classList.remove('hidden');
+  gate.addEventListener('pointerdown', () => gate.classList.add('pressed'));
+  for (const up of ['pointerup', 'pointercancel', 'pointerleave'])
+    gate.addEventListener(up, () => gate.classList.remove('pressed'));
+  gate.addEventListener(
+    'click',
+    () => {
+      if (!IS_TOUCH) void canvas.requestPointerLock?.();
+      gate.classList.add('gone');
+      setTimeout(() => gate.remove(), START_FADE_MS);
+    },
+    { once: true },
+  );
 }
 
 main().catch((err) => {
