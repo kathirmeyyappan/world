@@ -103,6 +103,8 @@ const GALLERY_HEAD = 2.6;
 const LANDING = 3.6;
 const TREAD = 0.32; // metres a lobby step runs at the flight's outer edge
 const DOORWAY = { width: 1.6, height: 2.4 };
+const COLLAR_ROW = 0.1; // metres tall each brick row of the lobby's wall round the hatch's tube is: the hole's steps
+const UNDER_TUBE = 0.01; // metres the lobby's floor, and its wall under the tube, sit below the tube's floor, so no two faces share a plane
 const hatchAngle = bearing(hatch.bearing);
 const lobbyFloor = DUNE_HEIGHT + hatch.sill;
 const topFloor = DUNE_HEIGHT + attic.cylinder.floor;
@@ -118,6 +120,30 @@ const hatchGap = (r: number) => ({
   bottom: lobbyFloor,
   top: lobbyFloor + hatch.centre + hatch.across / 2 + 0.2,
 });
+// The lobby's wall closed round the tube: brick rows COLLAR_ROW tall, each running along the
+// wall's circle from its gap (a little into the wall beside it, so the two meet) to the tube's
+// side at the row's widest, so the brick never enters the tube, leaving a stepped round hole the
+// tube passes through; the wall's own pieces take over above the tube's top, and under its floor
+// (UNDER_TUBE below it, like the lobby's floor).
+const hatchCollar = (): Box[] => {
+  const r = lobbyIn + WALL / 2;
+  const radius = hatch.across / 2;
+  const rows = Math.round((hatch.centre + radius) / COLLAR_ROW);
+  const halfGap = hatchGap(r).width / 2 + 0.05 / r;
+  const pieces: Box[] = [];
+  for (let i = 0; i < rows; i++) {
+    const y0 = i === 0 ? -UNDER_TUBE : ((hatch.centre + radius) * i) / rows;
+    const y1 = ((hatch.centre + radius) * (i + 1)) / rows;
+    const widest = Math.min(Math.max(hatch.centre, y0), y1); // the row's height nearest the circle's centre
+    const half = Math.sqrt(Math.max(radius * radius - (widest - hatch.centre) ** 2, 0)) + 0.03;
+    for (const side of [-1, 1]) {
+      const a = at(r, hatchAngle + side * halfGap);
+      const b = at(r, hatchAngle + side * Math.asin(half / r));
+      pieces.push({ ...wall(a, b, y1 - y0, WALL, lobbyFloor + y0), material: 'brick' });
+    }
+  }
+  return pieces;
+};
 
 // What's open through the shell's rings between two heights above the floor: the doorways (the
 // back door's and the hall's; each `width` metres across at the ring's radius) and the flat faces
@@ -224,7 +250,7 @@ const top: Structure[] = [
     z: Z,
     r: GALLERY_OUT + WALL,
     inner: lobbyIn,
-    y: lobbyFloor,
+    y: lobbyFloor - UNDER_TUBE,
     thickness: FLOOR,
     material: 'brick',
   }),
@@ -236,9 +262,16 @@ const top: Structure[] = [
     y: lobbyFloor - FLOOR,
     h: topFloor - lobbyFloor + FLOOR,
     segments: 48,
-    gaps: [hatchGap(lobbyIn + WALL / 2)],
+    gaps: [
+      {
+        ...hatchGap(lobbyIn + WALL / 2),
+        bottom: lobbyFloor - UNDER_TUBE,
+        top: lobbyFloor + hatch.centre + hatch.across / 2,
+      },
+    ],
     material: 'brick',
   }),
+  ...hatchCollar(),
   ...[-1, 1].map((side): Box => ({
     ...wall(
       at(lobbyIn, hatchAngle + side * lobbySpan),
