@@ -93,7 +93,7 @@ export const PINEAPPLE_LEVELS: Region[] = [
 // GALLERY_OUT out from the axis, both WALL thick, with LANDING metres of its inner wall between
 // the flights; the gallery round the cylinder, its floor the cylinder's too (the top of the
 // library ceiling's boxes, attic.cylinder.floor) and GALLERY_HEAD under its lid; and the
-// cylinder's doorways, a quarter turn either side of the hatch. Under the gallery round the lobby
+// cylinder's three doorways (DOORWAYS). Under the gallery round the lobby
 // the shell is solid, so the lobby's walls and floor run its span alone. The profile's bearings
 // run the other way round from the world's.
 const { attic, hatch } = SHAPE;
@@ -103,7 +103,10 @@ const GALLERY_OUT = 14;
 const GALLERY_HEAD = 9; // metres of headroom over the gallery: its lid as high as the shell allows round the gallery's wall
 const LANDING = 3.6;
 const TREAD = 0.32; // metres a lobby step runs at the flight's outer edge
-const DOORWAY = { width: 1.6, height: 2.4 };
+const DOORWAY = { width: 2.8, height: 4.4 };
+// The cylinder's doorways, in degrees past the hatch's bearing: a third of a turn apart, the attic
+// stair's foot just past the first (house_interior.py, ATTIC_START) so the flight passes high over the others.
+const DOORWAYS = [90, 210, 330];
 const COLLAR_ROW = 0.1; // metres tall each brick row of the lobby's wall round the hatch's tube is: the hole's steps
 const IN_SLAB = 0.02; // metres a wall or flight under a floor of another look stops short of its top, inside its slab, so the two never share a plane
 const UNDER_TUBE = 0.01; // metres the lobby's floor, and its wall under the tube, sit below the tube's floor, so no two faces share a plane
@@ -357,8 +360,8 @@ const top: Structure[] = [
     y: DUNE_HEIGHT + attic.cylinder.bottom,
     h: attic.cylinder.top - attic.cylinder.bottom,
     segments: 48,
-    gaps: [-1, 1].map((side) => ({
-      angle: hatchAngle + (side * Math.PI) / 2,
+    gaps: DOORWAYS.map((deg) => ({
+      angle: hatchAngle + (deg * Math.PI) / 180,
       width: DOORWAY.width / cylinderR,
       bottom: topFloor - IN_SLAB,
       top: topFloor + DOORWAY.height,
