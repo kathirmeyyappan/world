@@ -119,14 +119,15 @@ SLIDE_RUNOUT = 1.5
 SLIDE_TILE = 1.6
 RIM_TILE = 0.8
 # The attic stair: a spiral up the brick cylinder standing on the library's ceiling, through the
-# fruit's crown to a deck on top. It starts at ATTIC_START (a bearing from +z toward +x: past the
-# first of the cylinder's doorways, so the flight stands clear of both), climbs ATTIC_RISER a step
+# fruit's crown to a deck on top. It starts at ATTIC_START (a bearing from +z toward +x: just past
+# the first of the cylinder's three doorways, content/pineapple.ts's DOORWAYS, so the flight stands
+# clear of it and passes the others high above them), climbs ATTIC_RISER a step
 # with treads ATTIC_TREAD long along the middle of the flight (a walk, not a climb), its outer
 # edge ATTIC_CLEAR off the cylinder's inside; each step a slab ATTIC_THICKNESS deep with a post
 # ATTIC_RAIL tall along its inner edge. The cylinder is ATTIC_CYLINDER across inside with a wall
 # ATTIC_WALL thick; the deck is ATTIC_DECK thick, and a floor needs HEADROOM over the flight below
 # its hole.
-ATTIC_START = HATCH_BEARING + np.radians(120.0)
+ATTIC_START = HATCH_BEARING + np.radians(106.0)
 ATTIC_WIDTH = 2.4
 ATTIC_RISER = 0.25
 ATTIC_TREAD = 0.45
