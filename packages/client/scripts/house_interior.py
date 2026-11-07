@@ -96,7 +96,7 @@ STAIRWELL_LID = 3.05
 # ends: SLIDE_BEND is the S's sharpness, in 1/m), with sides so tall and thick, and running out
 # level at its foot. The steel is painted by house-model.py: the plates repeat every SLIDE_TILE
 # metres, the frame's rim every RIM_TILE.
-HATCH_BEARING = np.radians(-20.0)
+HATCH_BEARING = np.radians(1.2)  # midway between two of the shelves' bamboo pillars, clear of both
 HATCH_SILL = 26.75
 HATCH_ACROSS = 3.6
 HATCH_CENTRE = 1.5
@@ -1641,17 +1641,19 @@ def hatch_and_slide(interior: Interior) -> None:
         deck_piece([pol(r_out, t0, y0), pol(r_out, t1, y1), pol(r_in, t1, y1), pol(r_in, t0, y0)], dark)
         lip(pol(r_in, t0, y0), pol(r_in, t1, y1), -radial(t0), -radial(t1))
         lip(pol(r_out, t0, y0), pol(r_out, t1, y1), radial(t0), radial(t1))
+    # The rails' ends at the foot; the way onto the run-out between them is open.
     t_end, y_end = turn_at(alongs[-1]), heights[-1]
     cap_out = np.array([np.cos(t_end), 0.0, -np.sin(t_end)]) * SLIDE_SWEEP
-    cap = [
-        pol(r_in - SLIDE_LIP, t_end, y_end),
-        pol(r_out + SLIDE_LIP, t_end, y_end),
-        pol(r_out + SLIDE_LIP, t_end, y_end + SLIDE_SIDE),
-        pol(r_in - SLIDE_LIP, t_end, y_end + SLIDE_SIDE),
-    ]
-    steel.extend(
-        facing(fan([(p, np.array([p[0] / SLIDE_TILE, -p[1] / SLIDE_TILE])) for p in cap]), lambda mid: cap_out)
-    )
+    for ra, rb in ((r_in - SLIDE_LIP, r_in), (r_out, r_out + SLIDE_LIP)):
+        end = [
+            pol(ra, t_end, y_end),
+            pol(rb, t_end, y_end),
+            pol(rb, t_end, y_end + SLIDE_SIDE),
+            pol(ra, t_end, y_end + SLIDE_SIDE),
+        ]
+        steel.extend(
+            facing(fan([(p, np.array([p[0] / SLIDE_TILE, -p[1] / SLIDE_TILE])) for p in end]), lambda mid: cap_out)
+        )
     interior.hatch_steel += placed(steel)
     interior.slide_floor += placed(dark)
     interior.solid += placed(solid)
