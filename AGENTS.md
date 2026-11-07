@@ -432,9 +432,11 @@ wire: server and client both build the world from that file.
   origin, so pieces of one look (with `worldTop` for their tops) paint identical pixels there, which
   is what lets the helpers overlap their joints. Anywhere else (two looks, or tops mapped in each
   piece's frame) keep faces out of one plane: drop one piece a couple of centimetres (a door sill
-  under a floor, a stair's landing step, a bridge deck under a balcony) or stand it on the other
-  rather than beside it (a stair's rail posts). The same goes for anything else the client draws:
-  never lay a decal, glow or second mesh exactly on a surface.
+  under a floor, a stair's landing step, a bridge deck under a balcony, a wall or flight under a
+  floor of another look stopping inside its slab) or stand it on the other rather than beside it
+  (a stair's rail posts); where pieces of a plank look have to overlap (the deck's sectors), set
+  `worldTop: true` on them so their tops map alike. The same goes for anything else the client
+  draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
   so draw calls stay in the tens however many pieces there are. The world's 11,913 pieces (5,576
   drawn; the house's rooms are 3,937 hidden boxes and its shell 2,400 hidden ring pieces) render as

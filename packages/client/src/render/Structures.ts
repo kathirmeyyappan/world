@@ -64,7 +64,7 @@ export function buildStructures(engine: Engine, structures: readonly Structure[]
           const spec = s.material ? MATERIALS[s.material] : null;
           const mesh = build(scene, `structure-${i}`, s, {
             tile: spec?.tile ?? FLAT_TILE,
-            worldTop: spec?.worldTop ?? true,
+            worldTop: s.worldTop ?? spec?.worldTop ?? true,
           });
           mesh.position.set(s.x, mesh.position.y + (s.y ?? 0), s.z);
           mesh.rotation.y = s.yaw ?? 0; // Babylon's rotation about y matches the sim's yaw

@@ -720,7 +720,8 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
         (nothing, when it lies buried whole)."""
         b0, b1 = a0 + (a1 - a0) * i / steps, a0 + (a1 - a0) * (i + 1) / steps
         bm = (b0 + b1) / 2
-        h = rise * (i + 1)
+        # The top step runs under the platform, a hair below its top, so the two never share a face.
+        h = min(rise * (i + 1), top - 0.01)
         r_in = clear(max(h, 0.0))
         r_out = r_in + width
         depth = (b1 - b0) * r_out + 0.05
@@ -764,9 +765,10 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
     )
     far = centre + tangent * (across / 2 - rail_w / 2)
     rows.append([*far, top, rail_w, out - rail_w, inside.RAIL, inside.HALL_BEARING])
-    near_r = (plat_in + r_in_top) / 2
+    # The near rail runs from the wall out to the stair's inner rail, butting against it.
+    near_r = (plat_in - rail_w / 2 + r_in_top) / 2
     near = np.array(at(near_r, inside.HALL_BEARING)) - tangent * (across / 2 - rail_w / 2)
-    rows.append([*near, top, rail_w, r_in_top - plat_in + rail_w, inside.RAIL, inside.HALL_BEARING])
+    rows.append([*near, top, rail_w, r_in_top - plat_in + rail_w / 2, inside.RAIL, inside.HALL_BEARING])
     return [[round(float(v), 3) for v in row] for row in rows]
 
 

@@ -105,6 +105,7 @@ const LANDING = 3.6;
 const TREAD = 0.32; // metres a lobby step runs at the flight's outer edge
 const DOORWAY = { width: 1.6, height: 2.4 };
 const COLLAR_ROW = 0.1; // metres tall each brick row of the lobby's wall round the hatch's tube is: the hole's steps
+const IN_SLAB = 0.02; // metres a wall or flight under a floor of another look stops short of its top, inside its slab, so the two never share a plane
 const UNDER_TUBE = 0.01; // metres the lobby's floor, and its wall under the tube, sit below the tube's floor, so no two faces share a plane
 const hatchAngle = bearing(hatch.bearing);
 const lobbyFloor = DUNE_HEIGHT + hatch.sill;
@@ -273,7 +274,7 @@ const top: Structure[] = [
     r: lobbyIn + WALL / 2,
     thickness: WALL,
     y: lobbyFloor - FLOOR,
-    h: topFloor - lobbyFloor + FLOOR,
+    h: topFloor - IN_SLAB - (lobbyFloor - FLOOR),
     segments: 48,
     gaps: [
       {
@@ -290,7 +291,7 @@ const top: Structure[] = [
     ...wall(
       at(lobbyIn, hatchAngle + side * lobbySpan),
       at(GALLERY_OUT + WALL, hatchAngle + side * lobbySpan),
-      topFloor - lobbyFloor + FLOOR,
+      topFloor - IN_SLAB - (lobbyFloor - FLOOR),
       WALL,
       lobbyFloor - FLOOR,
     ),
@@ -303,7 +304,7 @@ const top: Structure[] = [
       inner: hatch.outer + 0.05,
       outer: GALLERY_OUT - 0.05,
       bottom: lobbyFloor,
-      rise: topFloor - lobbyFloor,
+      rise: topFloor - IN_SLAB - lobbyFloor,
       turns: (side * flightTurn) / (2 * Math.PI),
       start: hatchAngle + side * (lobbySpan - flightTurn),
       thickness: Infinity,
@@ -359,7 +360,7 @@ const top: Structure[] = [
     gaps: [-1, 1].map((side) => ({
       angle: hatchAngle + (side * Math.PI) / 2,
       width: DOORWAY.width / cylinderR,
-      bottom: topFloor,
+      bottom: topFloor - IN_SLAB,
       top: topFloor + DOORWAY.height,
     })),
     material: 'brick',
@@ -373,6 +374,7 @@ const top: Structure[] = [
     thickness: attic.deck.thickness,
     hole: { inner: attic.deck.hole.inner, from: bearing(attic.deck.hole.to), to: bearing(attic.deck.hole.from) },
     material: 'wood',
+    worldTop: true, // the sectors overlap, so their planks run one way across the deck
   }),
   ...roundWall({
     x: X,
@@ -383,6 +385,7 @@ const top: Structure[] = [
     h: DECK_RAIL,
     segments: 48,
     material: 'wood',
+    worldTop: true,
   }),
 ];
 export const PINEAPPLE_DECK: Disc = { kind: 'disc', x: X, z: Z, r: attic.deck.r };
