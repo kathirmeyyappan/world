@@ -134,9 +134,9 @@ const hatchGap = (r: number) => ({
   bottom: lobbyFloor,
   top: lobbyFloor + hatch.centre + hatch.across / 2 + 0.2,
 });
-// The lobby's wall closed round the tube: rows COLLAR_ROW tall, each running along the
+// The lobby's wall closed round the tube: brick rows COLLAR_ROW tall, each running along the
 // wall's circle from its gap (a little into the wall beside it, so the two meet) to the tube's
-// side at the row's widest, so the wall never enters the tube, leaving a stepped round hole the
+// side at the row's widest, so the brick never enters the tube, leaving a stepped round hole the
 // tube passes through; the wall's own pieces take over above the tube's top, and the lobby's floor
 // alone runs under it.
 const hatchCollar = (): Box[] => {
@@ -153,7 +153,7 @@ const hatchCollar = (): Box[] => {
     for (const side of [-1, 1]) {
       const a = at(r, hatchAngle + side * halfGap);
       const b = at(r, hatchAngle + side * Math.asin(half / r));
-      pieces.push({ ...wall(a, b, y1 - y0, WALL, lobbyFloor + y0), material: 'plaster' });
+      pieces.push({ ...wall(a, b, y1 - y0, WALL, lobbyFloor + y0), material: 'brick' });
     }
   }
   return pieces;
@@ -287,7 +287,7 @@ const top: Structure[] = [
       },
       beyondLobby(lobbyFloor - FLOOR, topFloor),
     ],
-    material: 'plaster',
+    material: 'brick',
   }),
   ...hatchCollar(),
   ...[-1, 1].map((side): Box => ({
@@ -298,7 +298,7 @@ const top: Structure[] = [
       WALL,
       lobbyFloor - FLOOR,
     ),
-    material: 'plaster',
+    material: 'brick',
   })),
   ...[-1, 1].flatMap((side) =>
     spiralStairs({

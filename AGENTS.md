@@ -396,11 +396,10 @@ wire: server and client both build the world from that file.
   hatch opens onto a railed platform, with a slide curving down from it along the wall to the floor,
   as the show has them (the generator cuts the wall, builds the tube, the door, the platform and the
   slide's trough, and gives the sim the slide as ramps);
-  through it a lobby outside the wall, where a flight winds up each way to a gallery round the
-  cylinder standing on the library's ceiling (the lobby's and the cylinder's walls plastered inside
-  the shell's brick), with doorways into it, and inside the attic
-  stair spirals up through the crown to a railed deck on top (`content/pineapple.ts` stands all of
-  that from the profile, in the hollow top of the shell);
+  through it a brick lobby outside the wall, where a flight winds up each way to a gallery round
+  the plastered cylinder standing on the library's ceiling, with doorways into it, and inside the
+  attic stair spirals up through the crown to a railed deck on top (`content/pineapple.ts` stands
+  all of that from the profile, in the hollow top of the shell);
   the sim collides with boxes cut from every surface of the rooms, hidden rings for the shell,
   walls along the flat faces carved round its doors, and the path's flagstones as ramps lying with
   the dune.
