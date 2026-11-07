@@ -25,6 +25,7 @@ export type SoundId =
   | 'squeak-3'
   | 'squeak-4'
   | 'scuttle'
+  | 'slime'
   | 'suction-1'
   | 'suction-2'
   | 'suction-3'
@@ -52,8 +53,8 @@ interface SoundSpec {
 
 // Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
 // Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, ice blower, jetpack, then the body's own
-// sounds (landings, footsteps, the jump swoosh). The jet recording is denser than the flame's, so it
-// needs the lower volume to come out quieter.
+// sounds (landings, footsteps, the jump swoosh), and quietest of all Gary's slime. The jet recording is denser
+// than the flame's, so it needs the lower volume to come out quieter.
 const SOUNDS: Record<SoundId, SoundSpec> = {
   gun: { file: 'gun.mp3', half: 10, volume: 0.35 },
   sniper: { file: 'sniper.mp3', half: 10, volume: 0.32 },
@@ -72,6 +73,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squeak-3': { file: 'squeak-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-4': { file: 'squeak-4.mp3', half: 6, reach: 30, volume: 0.08 },
   scuttle: { file: 'scuttle.wav', half: 6, reach: 30, volume: 0.07, loop: true },
+  slime: { file: 'slime.wav', half: 3, reach: 15, volume: 0.02, loop: true }, // Gary sliding: barely there
   'suction-1': { file: 'suction-1.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-2': { file: 'suction-2.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-3': { file: 'suction-3.mp3', half: 6, reach: 30, volume: 0.06 },
