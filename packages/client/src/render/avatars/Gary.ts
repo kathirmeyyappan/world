@@ -2,36 +2,22 @@
 // his eyes on stalks at the front, from Anthony Yanez's model (garyModel.ts, made by
 // scripts/avatar-model.py) and skinned over a handful of bones. He has no arms or legs, so nothing
 // holds an item: it sits by the right of his eyes, aimed along the look, and his packs hang upright
-// on the back of his shell. He walks with no footsteps: a slow swell runs along his foot instead.
+// on the back of his shell. He glides along with no footsteps.
 import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
 import { EYE_HEIGHT } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
+import { centreOf, createShadowBlob, placeShadow, type Avatar } from './common';
 import { GARY_MODEL } from './garyModel';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 import { SkinnedBody } from './skinned';
 
-type GaryBone = 'body' | 'shell' | 'eyes' | 'foot0' | 'foot1' | 'foot2' | 'foot3' | 'foot4';
-const FOOT = ['foot0', 'foot1', 'foot2', 'foot3', 'foot4'] as const; // back to front
-const PARENTS: Record<GaryBone, GaryBone | null> = {
-  body: null,
-  shell: 'body',
-  eyes: 'body',
-  foot0: 'body',
-  foot1: 'body',
-  foot2: 'body',
-  foot3: 'body',
-  foot4: 'body',
-};
+type GaryBone = 'body' | 'shell' | 'eyes';
+const PARENTS: Record<GaryBone, GaryBone | null> = { body: null, shell: 'body', eyes: 'body' };
 
 // How much of the look's pitch the eyes take; a held item takes the rest, so it still aims along the look.
 const FOLLOW = 0.5;
-const SWELL = 0.12; // radians each band of the foot tips up and down at full stride, the swell's crest
-// Radians of the swell's phase from one band of the foot to the next: half a wave along the foot, so
-// it rolls under him gently rather than rippling.
-const WAVE = Math.PI / 4;
 // The weapon's grip in the eyes' frame, metres: beside the right eye and a little in front of it.
 const GRIP = new Vector3(0.14, -0.02, 0.1);
 // Drawn this much of their size, to fit his body: the guns and the packs were made for a person.
@@ -44,13 +30,11 @@ export class GaryAvatar implements Avatar {
   private readonly base: TransformNode; // the body's frame: lies over when dead
   private readonly skin: SkinnedBody<GaryBone>;
   private readonly eyes: TransformNode;
-  private readonly feet: TransformNode[];
   // On the right of his eyes, turned so a held item's barrel runs along the look.
   private readonly grip: TransformNode;
   private readonly shadow: Mesh;
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
-  private readonly gait: Gait;
   private readonly side: number; // metres from his middle out to his right side: how high he lies on it
   private dead = false;
 
@@ -59,14 +43,12 @@ export class GaryAvatar implements Avatar {
     readonly id: string,
   ) {
     const scene = engine.scene;
-    this.gait = new Gait();
     this.root = new TransformNode(`avatar-${id}`, scene);
     this.base = new TransformNode(`avatar-body-${id}`, scene);
     this.base.parent = this.root;
 
     this.skin = new SkinnedBody(engine, `gary-${id}`, GARY_MODEL, 'gary', PARENTS, this.base);
     this.eyes = this.skin.node('eyes');
-    this.feet = FOOT.map((bone) => this.skin.node(bone));
     this.side = this.skin.mesh.getBoundingInfo().boundingBox.maximum.x;
     // The foot and stalks are open sheets in the model, so they are drawn from both sides.
     this.skin.material.backFaceCulling = false;
@@ -88,19 +70,13 @@ export class GaryAvatar implements Avatar {
     this.shadow.position.y = 0.02;
   }
 
-  update(p: RemotePlayer, step: number): void {
+  update(p: RemotePlayer): void {
     this.hitFlash.update(p.chilled);
     const feetY = p.y - EYE_HEIGHT;
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.y = p.yaw;
 
-    this.gait.update(p.x, p.z, !p.grounded, step);
-    const { phase, effort } = this.gait;
-    const swell = p.grounded && !p.dead ? effort : 0;
     this.eyes.rotation.x = p.dead ? 0 : p.pitch * FOLLOW;
-    this.feet.forEach((foot, i) => {
-      foot.rotation.x = SWELL * swell * Math.sin(phase + i * WAVE);
-    });
     // Barrel along the look; dead, it lies level along his body rather than through the ground.
     this.grip.rotation.x = (p.dead ? 0 : p.pitch * (1 - FOLLOW)) - Math.PI / 2;
     this.items.update(p);
