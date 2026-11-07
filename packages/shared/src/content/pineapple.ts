@@ -93,13 +93,14 @@ export const PINEAPPLE_LEVELS: Region[] = [
 // GALLERY_OUT out from the axis, both WALL thick, with LANDING metres of its inner wall between
 // the flights; the gallery round the cylinder, its floor the cylinder's too (the top of the
 // library ceiling's boxes, attic.cylinder.floor) and GALLERY_HEAD under its lid; and the
-// cylinder's doorways, a quarter turn either side of the hatch. The profile's bearings run the
-// other way round from the world's.
+// cylinder's doorways, a quarter turn either side of the hatch. Under the gallery round the lobby
+// the shell is solid, so the lobby's walls and floor run its span alone. The profile's bearings
+// run the other way round from the world's.
 const { attic, hatch } = SHAPE;
 const WALL = 0.3;
 const FLOOR = 0.4;
 const GALLERY_OUT = 14;
-const GALLERY_HEAD = 2.6;
+const GALLERY_HEAD = 9; // metres of headroom over the gallery: its lid as high as the shell allows round the gallery's wall
 const LANDING = 3.6;
 const TREAD = 0.32; // metres a lobby step runs at the flight's outer edge
 const DOORWAY = { width: 1.6, height: 2.4 };
@@ -113,6 +114,15 @@ const flightTurn = (Math.ceil((topFloor - lobbyFloor) / 0.25) * TREAD) / GALLERY
 const lobbySpan = LANDING / 2 / hatch.outer + flightTurn; // radians either side of the hatch the lobby runs
 const cylinderR = attic.cylinder.r + attic.cylinder.thickness / 2;
 const at = (r: number, angle: number) => ({ x: X + r * Math.cos(angle), z: Z + r * Math.sin(angle) });
+// Everything but the lobby's span, between two heights: the gap that leaves a ring the lobby's
+// walls alone; and the lobby's own span, what the hidden shell leaves open round it.
+const beyondLobby = (bottom: number, top: number) => ({
+  angle: hatchAngle + Math.PI,
+  width: 2 * Math.PI - 2 * lobbySpan,
+  bottom,
+  top,
+});
+const lobbySpanGap = (bottom: number, top: number) => ({ angle: hatchAngle, width: 2 * lobbySpan, bottom, top });
 // The hatch's tube through the library's wall: a gap in the wall's rings at radius r.
 const hatchGap = (r: number) => ({
   angle: hatchAngle,
@@ -201,10 +211,12 @@ const shell: Structure[] = edges.slice(1).flatMap((y1, i): Structure[] => {
   if (y0 < levels.library) return ring(outer - SEAL, outer, y0, y1);
   const [, inner] = SHAPE.library.reduce((band, next) => (next[0] <= y0 ? next : band), SHAPE.library[0]);
   if (y0 < hatch.sill) return ring(inner, outer, y0, y1);
-  // Beside the lobby and the gallery: the library's wall alone, open for the hatch's tube, and
-  // the shell outside the gallery's wall.
+  // Beside the lobby and the gallery: the library's wall alone, open for the hatch's tube, solid
+  // under the gallery round the lobby, and the shell outside the gallery's wall.
+  const under = Math.min(y1, attic.cylinder.floor);
   return [
-    ...ring(inner, lobbyIn, y0, Math.min(y1, attic.cylinder.floor), [hatchGap((inner + lobbyIn) / 2)]),
+    ...ring(inner, lobbyIn, y0, under, [hatchGap((inner + lobbyIn) / 2)]),
+    ...ring(lobbyIn, GALLERY_OUT + WALL, y0, under, [lobbySpanGap(DUNE_HEIGHT + y0, DUNE_HEIGHT + under)]),
     ...ring(GALLERY_OUT + WALL, outer, y0, y1),
   ];
 });
@@ -252,6 +264,7 @@ const top: Structure[] = [
     inner: lobbyIn,
     y: lobbyFloor - UNDER_TUBE,
     thickness: FLOOR,
+    hole: { inner: lobbyIn, from: hatchAngle + lobbySpan, to: hatchAngle - lobbySpan + 2 * Math.PI, exact: true },
     material: 'brick',
   }),
   ...roundWall({
@@ -268,6 +281,7 @@ const top: Structure[] = [
         bottom: lobbyFloor - UNDER_TUBE,
         top: lobbyFloor + hatch.centre + hatch.across / 2,
       },
+      beyondLobby(lobbyFloor - FLOOR, topFloor),
     ],
     material: 'brick',
   }),
@@ -303,7 +317,7 @@ const top: Structure[] = [
     inner: cylinderR,
     y: topFloor,
     thickness: FLOOR,
-    hole: { inner: lobbyIn, from: hatchAngle - lobbySpan, to: hatchAngle + lobbySpan },
+    hole: { inner: lobbyIn, from: hatchAngle - lobbySpan, to: hatchAngle + lobbySpan, exact: true },
     material: 'brick',
   }),
   ...roundWall({
@@ -314,6 +328,7 @@ const top: Structure[] = [
     y: lobbyFloor - FLOOR,
     h: topFloor + GALLERY_HEAD + FLOOR - (lobbyFloor - FLOOR),
     segments: 48,
+    gaps: [beyondLobby(lobbyFloor - FLOOR, topFloor)],
     material: 'brick',
   }),
   ...roundFloor({
