@@ -48,7 +48,7 @@ def test_sniper_fires_only_on_a_target_in_range_or_once_hit() -> None:
         kat = {**player("p2", "Kathir"), "pos": {"x": target_x, "y": 1.7, "z": 0}}
         message = decode(json.dumps({**welcome(), "players": [me, kat]}))
         assert isinstance(message, Welcome)
-        return WorldState(message), Controls(SimpleNamespace(welcome=message, id="p1"))
+        return WorldState(message), Controls(SimpleNamespace(welcome=message, id="p1"))  # type: ignore[arg-type]
 
     def shoots(state: WorldState, controls: Controls, sniper: Sniper, ticks: int = 20) -> bool:
         for _ in range(ticks):
