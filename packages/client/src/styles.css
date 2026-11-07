@@ -1578,12 +1578,13 @@ body {
   transform: none;
   box-shadow: 2px 2px 0 #000;
 }
-/* A greyed button's notice, over the top of the menu for a moment. */
-#commands .notice {
-  position: absolute;
+/* A greyed button's notice, at the top of the screen for a moment over the chat it opened. */
+#command-notice {
+  position: fixed;
   top: 14px;
   left: 50%;
-  z-index: 1;
+  z-index: 160;
+  pointer-events: none;
   max-width: 90vw;
   transform: translateX(-50%);
   padding: 8px 14px;
@@ -1596,7 +1597,7 @@ body {
   opacity: 0;
   transition: opacity 0.25s;
 }
-#commands .notice.on {
+#command-notice.on {
   opacity: 1;
 }
 /* Pictures the browser draws at full resolution under the 3D canvas (render/CrispPanels.ts), each

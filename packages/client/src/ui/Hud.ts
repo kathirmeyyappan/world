@@ -90,10 +90,10 @@ export class Hud {
     return !this.chatInput.classList.contains('hidden');
   }
 
-  openChat(): void {
+  openChat(text = ''): void {
     if (document.pointerLockElement) document.exitPointerLock();
     this.chatInput.classList.remove('hidden');
-    this.chatInput.value = '';
+    this.chatInput.value = text;
     this.recalled = this.sent.length;
     this.chatInput.focus();
     this.onChatOpenChange?.(true);

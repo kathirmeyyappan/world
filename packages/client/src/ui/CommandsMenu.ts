@@ -1,8 +1,8 @@
 // The commands menu: every chat command, grouped, built from the item, gear and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
-// or the touch button, closed with Q/C or, on touch, a tap anywhere but a button. On a keyboard it
-// is a reference card; on touch each command is a button that sends it as a chat message, and
-// one that needs arguments is greyed and only says to type it in chat.
+// or the touch button, closed with Q/C or, on touch, any tap. On a keyboard it is a reference
+// card; on touch each command is a button that sends it as a chat message, and one that needs
+// arguments is greyed and opens chat with it typed, to finish there.
 // Blocks game input while open, like the cube card.
 import {
   AVATARS,
@@ -22,7 +22,8 @@ interface Row {
   label: string; // the command and its shortcuts, as shown
   note: string;
   args?: string; // dimmed after the command
-  send: string | null; // what a tap sends; null for a command that only works with arguments
+  tap: string; // what a tap puts in chat
+  needsArgs?: boolean; // left in chat to finish rather than sent
 }
 
 interface Group {
@@ -30,20 +31,30 @@ interface Group {
   rows: Row[];
 }
 
-const NOTICE_MS = 2200; // how long a greyed button's notice stays up
+const NOTICE_MS = 2600; // how long a greyed button's notice stays up
 
 export class CommandsMenu {
   private readonly el = document.getElementById('commands')!;
   private open = false;
+  private readonly noticeEl = document.createElement('div');
   private noticeTimer = 0;
   everOpened = false;
   onCommand: ((text: string) => void) | null = null;
+  onDraft: ((text: string) => void) | null = null; // opens chat with this typed
 
   constructor() {
     const groups = buildGroups();
     // The body scrolls; the footer (guide note + close hint) stays put under it.
     this.el.innerHTML = IS_TOUCH ? touchHtml(groups) : keyboardHtml(groups);
     onTap(this.el, (e) => this.tap(e));
+    // A tap hides the menu on its up, so the mouse events the browser follows it with would land on
+    // the world beneath (taking focus from the chat a greyed button opens). Swipes still scroll.
+    this.el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') e.preventDefault();
+    });
+    // Outside the menu, so it stays up over the chat the tap opens.
+    this.noticeEl.id = 'command-notice';
+    document.body.append(this.noticeEl);
   }
 
   get isOpen(): boolean {
@@ -65,35 +76,21 @@ export class CommandsMenu {
     this.open = open;
     if (open) this.everOpened = true;
     this.el.classList.toggle('hidden', !open);
-    if (!open) this.hideNotice();
   }
 
-  // A button sends its command and closes the menu so the change is in view; a greyed one
-  // says why it does nothing; a tap anywhere else closes the menu.
+  // Every tap closes the menu, so whatever a button did is in view. A button sends its command;
+  // a greyed one opens chat with it typed and says to add the options there.
   private tap(e: PointerEvent): void {
-    const target = e.target instanceof Element ? e.target : null;
-    const button = target?.closest<HTMLElement>('.cmd-button');
-    if (button) {
-      const send = button.dataset.send;
-      if (send) {
-        this.onCommand?.(send);
-        this.set(false);
-      } else this.notice(button.dataset.label ?? 'that');
-    } else this.set(false);
-  }
-
-  private notice(label: string): void {
-    const el = this.el.querySelector<HTMLElement>('.notice');
-    if (!el) return;
-    el.textContent = `${label} needs options: type it in chat`;
-    el.classList.add('on');
+    this.set(false);
+    const button = e.target instanceof Element ? e.target.closest<HTMLElement>('.cmd-button') : null;
+    const text = button?.dataset.tap;
+    if (!button || !text) return;
+    if (!('needsArgs' in button.dataset)) return this.onCommand?.(text);
+    this.onDraft?.(text);
+    this.noticeEl.textContent = 'add the options in chat, then send';
+    this.noticeEl.classList.add('on');
     clearTimeout(this.noticeTimer);
-    this.noticeTimer = window.setTimeout(() => this.hideNotice(), NOTICE_MS);
-  }
-
-  private hideNotice(): void {
-    clearTimeout(this.noticeTimer);
-    this.el.querySelector('.notice')?.classList.remove('on');
+    this.noticeTimer = window.setTimeout(() => this.noticeEl.classList.remove('on'), NOTICE_MS);
   }
 }
 
@@ -112,7 +109,8 @@ function buildGroups(): Group[] {
           label: `/${BOTS[id].playerName}`,
           note: BOTS[id].blurb,
           args: nobreak(botArguments(BOTS[id].worker)),
-          send: null,
+          tap: `/${BOTS[id].playerName} `,
+          needsArgs: true,
         })),
         command('kill-bots', 'every bot in the room drops dead'),
       ],
@@ -121,7 +119,7 @@ function buildGroups(): Group[] {
       title: 'wear skin',
       rows: [
         ...skins.map((id) => command(AVATARS[id].command ?? id, AVATARS[id].blurb)),
-        { label: '/[color]', note: 'change your color', send: null },
+        { label: '/[color]', note: 'change your color', tap: '/', needsArgs: true },
       ],
     },
     {
@@ -135,7 +133,7 @@ function command(name: string, note: string): Row {
   const shortcuts = Object.entries(COMMAND_SHORTCUTS)
     .filter(([, c]) => c === name)
     .map(([shortcut]) => `/${shortcut}`);
-  return { label: [`/${name}`, ...shortcuts].join(', '), note, send: `/${name}` };
+  return { label: [`/${name}`, ...shortcuts].join(', '), note, tap: `/${name}` };
 }
 
 // Flags and their values unbreakable, so a line wraps only between "-t [seconds]" and the next,
@@ -172,16 +170,14 @@ function keyboardHtml(groups: Group[]): string {
 function touchHtml(groups: Group[]): string {
   const sections = groups.map((g) => {
     const buttons = g.rows.map((r) => {
-      const send = r.send ? ` data-send="${r.send}"` : '';
       const label = r.label.split(', ')[0];
       const args = r.args ? `<span class="args" translate="no">${r.args}</span>` : '';
-      return `<button class="cmd-button${r.send ? '' : ' needs-args'}"${send} data-label="${label}">
+      return `<button class="cmd-button${r.needsArgs ? ' needs-args' : ''}" data-tap="${r.tap}"${r.needsArgs ? ' data-needs-args' : ''}>
         <span class="cmd" translate="no">${label}</span>${args}<span class="note">${r.note}</span></button>`;
     });
     return `<section><h2>${g.title}</h2><div class="buttons">${buttons.join('')}</div></section>`;
   });
   return `
-    <div class="notice"></div>
     <div class="card touch">
       <div class="body">
         <h1>COMMANDS</h1>
