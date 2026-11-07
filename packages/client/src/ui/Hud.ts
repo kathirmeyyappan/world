@@ -2,6 +2,7 @@
 import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type PlayerClass } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
+import { IS_TOUCH } from '../input/touch';
 import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
 
 const CHAT_LINES = 8;
@@ -33,6 +34,7 @@ export class Hud {
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
   private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
   private itemHintText = '';
+  private itemHintItem = ''; // the item the hint is for, whose drawing starts its life over on touch
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
   private readonly sent = loadHistory();
   private recalled = 0; // the line of `sent` in the box; sent.length is the one being typed
@@ -198,13 +200,22 @@ export class Hud {
   }
   private walkerKeys: string | null = null;
 
-  setItemHint(text: string, stats = ''): void {
+  // `item` names what the hint is for: its text changes with the scope, but only a new item (or the
+  // same one drawn again) starts the hint's time on touch over.
+  setItemHint(text: string, stats = '', item = ''): void {
     const key = `${text}\n${stats}`;
     if (key === this.itemHintText) return;
     this.itemHintText = key;
     this.itemHintMain.textContent = text;
     this.itemHintStats.textContent = stats;
     this.itemHint.classList.toggle('hidden', !text);
+    if (!IS_TOUCH || item === this.itemHintItem) return;
+    this.itemHintItem = item;
+    // On touch the hint lives out a CSS animation (#item-hint.timed) and is gone; restarting it takes
+    // a reflow between taking the class off and putting it back.
+    this.itemHint.classList.remove('timed');
+    void this.itemHint.offsetWidth;
+    this.itemHint.classList.add('timed');
   }
 
   // Brief red crosshair when one of your shots lands.
