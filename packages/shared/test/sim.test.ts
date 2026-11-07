@@ -244,6 +244,7 @@ test('a wall stops a player, who slides along it', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   walk(p, 0, 60, world);
   assert.ok(p.pos.z < 5 - 0.2 - 0.3, `stopped short of the wall, at z ${p.pos.z}`);
+  assert.equal(p.walk, 0, 'the feet make no walk against it');
   walk(p, Math.PI / 4, 30, world);
   assert.ok(p.pos.x > 3 && p.pos.z < 4.5, 'walking into it at an angle slides along it');
 });
@@ -285,14 +286,17 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
   walk(p, 0, 36, rink); // 1.2 s: 9.6 m, the last 1.6 of them on the ice, at full speed
   assert.ok(p.pos.z > 5 && Math.abs(p.vz - MOVE_SPEED) < 1e-9, `on the ice at the walk's speed: z ${p.pos.z}`);
   const letGo = p.pos.z;
-  for (let i = 0; i < 60; i++) stepPlayer(p, frame(p.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, rink);
+  stepPlayer(p, frame(p.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, rink);
+  assert.ok(p.vz > 0 && p.walk === 0, 'sliding on with the keys let go, the feet stand still');
+  for (let i = 0; i < 59; i++) stepPlayer(p, frame(p.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, rink);
   const slid = p.pos.z - letGo;
   const reach = MOVE_SPEED ** 2 / (2 * SURFACES.ice.grip); // v² / 2a
   assert.ok(slid > reach - 0.5 && slid <= reach + 0.5, `slid ${slid.toFixed(2)} m after the keys let go`);
   assert.equal(p.vz, 0, 'and came to rest');
-  // Keys held the other way bend it back: a turn, not a stop.
+  // Keys held the other way bend it back: a turn, not a stop; the feet walk at the keys' full pace.
   walk(p, Math.PI, 15, rink);
   assert.ok(p.vz < 0 && p.vz > -MOVE_SPEED, `turned back at ${p.vz.toFixed(2)} m/s half a second in`);
+  assert.equal(p.walk, MOVE_SPEED, "the feet walk at the keys' full pace however the body slides");
 
   // An icy 30° slope: standing still on it slides you down, and from the bottom there's no way up.
   const slope = new Structures([{ ...ramp({ x: 0, z: 0 }, { x: 0, z: 3.46 }, 2, 3), surface: 'ice' }]);

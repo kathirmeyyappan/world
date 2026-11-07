@@ -116,7 +116,7 @@ export class SquidwardAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
     this.head.rotation.x = p.pitch * HEAD_FOLLOW;
 
-    this.gait.update(p.x, p.z, airborne, step);
+    this.gait.update(p.walk, airborne, step);
     const { phase, effort } = this.gait;
     const swing = (lag: number) => (airborne ? 0.15 : Math.sin(phase - lag) * effort * LEG_SWING);
     for (const { leg, foot, side } of this.legs) {

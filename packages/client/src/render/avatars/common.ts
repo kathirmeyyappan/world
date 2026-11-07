@@ -32,26 +32,23 @@ export interface Avatar {
 
 const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
 
-// A walk cycle from where a player is, frame to frame. `phase` (radians) is the stride's, paced by
-// the footsteps (`step`: 0 at one foot's fall, 1 at the other's, 2 back at the first's), a leg out
-// at each footfall, so the legs land with the sounds; `effort` (0 to 1) is how big the steps are,
-// following speed against a full-speed walk (its square root, so a slow walk still visibly steps),
-// eased so a jittery frame doesn't twitch the legs. 0 in the air.
+// A walk cycle from how fast a player's feet are walking (`walk`, m/s, PlayerState.walk), frame to
+// frame. `phase` (radians) is the stride's, paced by the footsteps (`step`: 0 at one foot's fall, 1
+// at the other's, 2 back at the first's), a leg out at each footfall, so the legs land with the
+// sounds; `effort` (0 to 1) is how big the steps are, the walk against a full-speed one (its square
+// root, so a slow walk still visibly steps), eased so a jittery frame doesn't twitch the legs. 0
+// in the air.
 export class Gait {
   phase = 0;
   effort = 0;
-  private last: { x: number; z: number; time: number } | null = null;
+  private lastTime: number | null = null;
 
-  update(x: number, z: number, airborne: boolean, step: number): void {
+  update(walk: number, airborne: boolean, step: number): void {
     const time = performance.now() / 1000;
-    const last = this.last;
-    this.last = { x, z, time };
+    const dt = this.lastTime === null ? 0 : time - this.lastTime;
+    this.lastTime = time;
     this.phase = Math.PI / 2 + Math.PI * step;
-    if (!last) return;
-    const moved = Math.hypot(x - last.x, z - last.z);
-    const dt = time - last.time;
-    const speed = dt > 0 ? moved / dt : 0;
-    const target = airborne ? 0 : Math.sqrt(Math.min(1, speed / MOVE_SPEED));
+    const target = airborne ? 0 : Math.sqrt(Math.min(1, walk / MOVE_SPEED));
     this.effort += (target - this.effort) * Math.min(1, dt / GAIT_EASE);
   }
 }

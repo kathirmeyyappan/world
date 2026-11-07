@@ -160,6 +160,9 @@ slow it at that rate with none held, and gravity pulls it down any slope harder 
 library's slide is ridden. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
 and its slope at a spot, and the client's `Footsteps` asks it at each footfall for the sound
 (`FOOTFALLS` there maps a footfall to its recordings; a gait with sounds of its own keeps them).
+The legs, footsteps and head bob are paced by `PlayerState.walk`, how fast the feet walk: the
+keys' walk on a slippery footing (feet scrabbling on ice at full pace while the body crawls, and
+standing still while it slides), the body's own anywhere else (none against a wall).
 A new surface is a row in `SURFACES`, and with a new footfall, its sounds in the client. On a
 slippery footing a tick the server runs without a frame (one arriving late) moves the walk too,
 so `correction` can show a tick's worth of slide there; on a sure footing it stays 0.

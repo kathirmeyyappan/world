@@ -101,7 +101,7 @@ export class SulleyAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
     this.head.rotation.x = p.pitch * HEAD_FOLLOW;
 
-    this.gait.update(p.x, p.z, airborne, step);
+    this.gait.update(p.walk, airborne, step);
     const { phase, effort } = this.gait;
     const swing = airborne ? 0.3 : Math.sin(phase) * effort * LEG_SWING;
     this.legL.rotation.x = swing;

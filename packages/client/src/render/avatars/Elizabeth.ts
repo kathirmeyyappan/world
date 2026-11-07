@@ -126,7 +126,7 @@ export class ElizabethAvatar implements Avatar {
     this.root.rotation.y = p.yaw;
 
     // Waddle: rock side to side and lift alternate feet, scaled by how fast they're going.
-    this.gait.update(p.x, p.z, airborne, step);
+    this.gait.update(p.walk, airborne, step);
     const { phase, effort } = this.gait;
     const sway = Math.sin(phase) * 0.09 * effort;
     this.body.rotation.z = sway;

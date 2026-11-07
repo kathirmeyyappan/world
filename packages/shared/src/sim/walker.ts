@@ -134,6 +134,9 @@ export function stepWalker(
     p.vx = (p.pos.x - fromX) / dt;
     p.vz = (p.pos.z - fromZ) / dt;
   }
+  // The feet's own walk, to a tenth: a slippery footing takes the keys' walk out of their step.
+  const pace = grip < Infinity ? Math.hypot(wantX, wantZ) : Math.hypot(p.vx, p.vz);
+  p.walk = Math.round(pace * 10) / 10;
   return landing;
 }
 

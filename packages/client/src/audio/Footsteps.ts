@@ -1,7 +1,8 @@
-// The sounds a body makes moving about: a step every stride covered on the ground (so a boosted
-// runner steps faster and a scoped one slower), a swoosh on leaving the ground going up, and on
-// touching down a landing as hard as the fall was fast. Worked out from each player's position and
-// whether they're grounded, frame to frame, so it's the same for everyone. Each avatar's gait
+// The sounds a body makes moving about: a step every stride its feet walk on the ground (so a
+// boosted runner steps faster, a scoped one slower, and one scrabbling on ice at the pace of the
+// keys, PlayerState.walk), a swoosh on leaving the ground going up, and on touching down a landing
+// as hard as the fall was fast. Worked out from each player's walk, position and whether they're
+// grounded, frame to frame, so it's the same for everyone. Each avatar's gait
 // (render/avatars/gaits.ts) sets its stride, what its steps are and how heavy it sounds, and paces
 // its limbs too (phase); a gait of thuds takes them from whatever is underfoot (sim/surfaces.ts).
 import {
@@ -22,7 +23,6 @@ const FOOTFALLS: Record<Footfall, SoundId[]> = {
   thud: ['step-1', 'step-2', 'step-3', 'step-4'],
   crunch: ['crunch-1', 'crunch-2', 'crunch-3', 'crunch-4'],
 };
-const MOVING = 0.01; // metres along the ground in one frame that keep a step loop going
 const JUMPED = 3; // metres moved in one frame that can only be a respawn or a correction
 // Your own movement plays at this share of its volume, under other people's, so theirs stand out.
 const SELF = 0.6;
@@ -61,13 +61,22 @@ export class Footsteps {
     return w ? (w.footfalls % 2) + w.walked / w.stride : 0;
   }
 
-  // Everyone this frame: where they are, what they look like, whether they're on the ground, how
-  // fast they're falling if that's known (the local player's own sim), and `self` for the local
-  // player, whose sounds play flat. Without a speed, a landing is judged by the drop from their
-  // highest point, which takes no account of a jetpack braking the fall. Returns the step loops
-  // wanted this frame, for the Sfx's loops.
+  // Everyone this frame (`dt` seconds since the last): where they are, how fast their feet walk,
+  // what they look like, whether they're on the ground, how fast they're falling if that's known
+  // (the local player's own sim), and `self` for the local player, whose sounds play flat. Without
+  // a speed, a landing is judged by the drop from their highest point, which takes no account of a
+  // jetpack braking the fall. Returns the step loops wanted this frame, for the Sfx's loops.
   update(
-    players: { id: string; pos: Vec3; avatar: AvatarId; grounded: boolean; falling?: number; self: boolean }[],
+    players: {
+      id: string;
+      pos: Vec3;
+      walk: number;
+      avatar: AvatarId;
+      grounded: boolean;
+      falling?: number;
+      self: boolean;
+    }[],
+    dt: number,
   ): { key: string; id: SoundId; at: Vec3 | null }[] {
     const seen = new Set<string>();
     const loops: { key: string; id: SoundId; at: Vec3 | null }[] = [];
@@ -124,8 +133,8 @@ export class Footsteps {
       }
       const steps = gait.steps;
       const loop = typeof steps === 'object' && 'loop' in steps ? steps.loop : null;
-      if (loop && across > MOVING) loops.push({ key: p.id, id: loop, at });
-      w.walked += across;
+      if (loop && p.walk > 0) loops.push({ key: p.id, id: loop, at });
+      w.walked += p.walk * dt;
       if (w.walked < w.stride) continue;
       // A slow frame can cover more than one stride: every footfall counts, one sound plays.
       const falls = Math.floor(w.walked / w.stride);
