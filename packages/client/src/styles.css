@@ -923,6 +923,30 @@ body {
   fill: var(--accent);
 }
 
+/* On touch, over the world until the first tap (main.ts), which is what lets sound start. */
+#tap-to-play {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(20, 22, 30, 0.6);
+}
+#tap-to-play .prompt {
+  padding: 18px 26px;
+  font: 18px/1.4 var(--pixel);
+  letter-spacing: 3px;
+  color: var(--accent);
+  background: var(--panel);
+  border: 3px solid var(--accent);
+  box-shadow: 6px 6px 0 #000;
+}
+#tap-to-play .cursor {
+  margin-left: 8px;
+  font-family: var(--mono);
+  animation: blink 1s steps(1) infinite;
+}
 #death {
   position: fixed;
   inset: 0;
