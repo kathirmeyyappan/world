@@ -2,6 +2,7 @@
 import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type PlayerClass } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
+import { IS_TOUCH } from '../input/touch';
 import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
 
 const CHAT_LINES = 8;
@@ -19,6 +20,9 @@ function inviteLink(roomId: string): string {
 const CHAT_FADE_MS = 12_000;
 // Lines sent from this tab, oldest first, that Up and Down step back through like a shell's history.
 // Kept in sessionStorage, since dying reloads the page.
+// On touch the held item's hint sits at the top of the screen and fades this long after the item is
+// drawn, so it doesn't stay over the view.
+const ITEM_HINT_MS = 10_000;
 const HISTORY_KEY = 'world.chat-history';
 const HISTORY_LINES = 50;
 
@@ -33,6 +37,8 @@ export class Hud {
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
   private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
   private itemHintText = '';
+  private itemHintItem = ''; // the item the hint is for, whose drawing starts its fade on touch
+  private itemHintTimer = 0;
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
   private readonly sent = loadHistory();
   private recalled = 0; // the line of `sent` in the box; sent.length is the one being typed
@@ -198,13 +204,20 @@ export class Hud {
   }
   private walkerKeys: string | null = null;
 
-  setItemHint(text: string, stats = ''): void {
+  // `item` names what the hint is for: its text changes with the scope, but only a new item (or the
+  // same one drawn again) starts the hint's time on touch over.
+  setItemHint(text: string, stats = '', item = ''): void {
     const key = `${text}\n${stats}`;
     if (key === this.itemHintText) return;
     this.itemHintText = key;
     this.itemHintMain.textContent = text;
     this.itemHintStats.textContent = stats;
     this.itemHint.classList.toggle('hidden', !text);
+    if (!IS_TOUCH || item === this.itemHintItem) return;
+    this.itemHintItem = item;
+    this.itemHint.classList.remove('faded');
+    clearTimeout(this.itemHintTimer);
+    this.itemHintTimer = window.setTimeout(() => this.itemHint.classList.add('faded'), ITEM_HINT_MS);
   }
 
   // Brief red crosshair when one of your shots lands.

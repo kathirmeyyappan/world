@@ -686,9 +686,11 @@ export class Game {
     this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null, self.avatar);
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
+    const showHint = held && !this.dead;
     this.hud.setItemHint(
-      held && !this.dead ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
+      showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held ? itemStats(held.id) : '',
+      showHint ? held.id : '',
     );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
