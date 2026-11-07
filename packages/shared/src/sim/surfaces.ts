@@ -36,7 +36,7 @@ export const MATERIAL_SURFACES: Record<StructureMaterial, SurfaceId> = {
   'red-tile': 'hard',
   flagstone: 'hard',
   sand: 'sand',
-  sandstone: 'hard',
+  plaster: 'hard',
 };
 
 export function isSurfaceId(v: unknown): v is SurfaceId {

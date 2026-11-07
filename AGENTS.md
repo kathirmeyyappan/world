@@ -397,7 +397,7 @@ wire: server and client both build the world from that file.
   as the show has them (the generator cuts the wall, builds the tube, the door, the platform and the
   slide's trough, and gives the sim the slide as ramps);
   through it a lobby outside the wall, where a flight winds up each way to a gallery round the
-  cylinder standing on the library's ceiling (the lobby's and the cylinder's walls sandstone inside
+  cylinder standing on the library's ceiling (the lobby's and the cylinder's walls plastered inside
   the shell's brick), with doorways into it, and inside the attic
   stair spirals up through the crown to a railed deck on top (`content/pineapple.ts` stands all of
   that from the profile, in the hollow top of the shell);
@@ -427,7 +427,7 @@ wire: server and client both build the world from that file.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
 - Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`,
-  `sandstone`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a new
+  `plaster`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a new
   one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
   they look the same inside and out; don't reach for lights. `hidden` pieces are collided with but
   never drawn: the shape of something the client draws its own way.

@@ -27,7 +27,7 @@ export interface Footprint {
 }
 
 // Surface looks the renderer knows how to paint.
-export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'sandstone';
+export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'plaster';
 
 // A solid block: walls, buildings, platforms, pillars.
 export interface Box extends Footprint {
