@@ -138,7 +138,8 @@ wire: server and client both build the world from that file.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
   so draw calls stay in the tens however many pieces there are. The world's 11,913 pieces (5,576
   drawn; the house's rooms are 3,937 hidden boxes and its shell 2,400 hidden ring pieces) render as
-  77 meshes (about 15 in view at once), and a world-spanning raycast costs about 190 µs. The sim's
+  77 meshes (about 15 in view at once), and a raycast tries the pieces a stretch of grid cells at a
+  time, so one across open floor costs a few µs and one through the house about 130 µs. The sim's
   grid has height bands as well as cells, so a walker's tick pays only for the pieces at its own
   height (about 70 µs inside the house). Check both numbers in the PR when a landmark adds a lot.
   Everything heavy is streamed in through `render/Loader.ts` (see Models below).

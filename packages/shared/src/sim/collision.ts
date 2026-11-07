@@ -14,6 +14,9 @@ import type { Vec3 } from './types';
 // shell band by band) cost it nothing.
 const CELL = 8;
 const RAY_STEP = 0.05; // metres between samples when a ray crosses a sloped top
+// Metres of a ray tried at a time: the pieces in the grid cells that stretch's box crosses, so a
+// ray through empty cells costs next to nothing and a spray's rays try only what's in front of it.
+const RAY_STRETCH = 4 * CELL;
 
 // The part of a player that meets structures: a vertical cylinder from feet to head. Anything
 // whose top is at or below `reach` (the feet plus a step) is ground, not a wall.
@@ -246,69 +249,86 @@ export class Structures {
     return this.cast(o, d, maxT);
   }
 
+  // A stretch of the ray at a time (maxT must be finite); the nearest hit is in hand once the
+  // stretch it lies in has been tried, since every piece it could be on has a cell in that stretch's box.
   private cast(o: Vec3, d: Vec3, maxT: number): Touch | null {
     let best: Touch | null = null;
-    for (let i = 0; i < this.placed.length; i++) {
-      const p = this.placed[i];
-      if (!p.on) continue;
-      const limit = best ? best.t : maxT;
-      // Cheap rejection first: skip anything whose bounding sphere the ray misses.
-      const cx = p.x - o.x;
-      const cy = p.mid - o.y;
-      const cz = p.z - o.z;
-      const along = cx * d.x + cy * d.y + cz * d.z;
-      if (along < -p.reach || along > limit + p.reach) continue;
-      if (cx * cx + cy * cy + cz * cz - along * along > p.reach * p.reach) continue;
-      const [ox, oz] = local(p, o.x, o.z);
-      const dx = d.x * p.cos - d.z * p.sin;
-      const dz = d.x * p.sin + d.z * p.cos;
-      let t0 = 0;
-      let t1 = limit;
-      let entry = -1; // the slab (local x, z, then y) the ray enters the footprint's prism through, if any
-      const slabs: [number, number, number, number][] = [
-        [ox, dx, -p.hw, p.hw],
-        [oz, dz, -p.hd, p.hd],
-        [o.y, d.y, p.base, p.base + p.height],
-      ];
-      for (let k = 0; k < slabs.length; k++) {
-        const [v, dv, lo, hi] = slabs[k];
-        if (Math.abs(dv) < 1e-12) {
-          if (v < lo || v > hi) t0 = Infinity;
-          continue;
-        }
-        const a = (lo - v) / dv;
-        const b = (hi - v) / dv;
-        if (Math.min(a, b) > t0) {
-          t0 = Math.min(a, b);
-          entry = k;
-        }
-        t1 = Math.min(t1, Math.max(a, b));
+    for (let from = 0; from < maxT && !(best && best.t <= from); from += RAY_STRETCH) {
+      const to = Math.min(maxT, from + RAY_STRETCH);
+      const [ax, ay, az] = [o.x + d.x * from, o.y + d.y * from, o.z + d.z * from];
+      const [bx, by, bz] = [o.x + d.x * to, o.y + d.y * to, o.z + d.z * to];
+      const stretch = this.nearIndices(
+        Math.min(ax, bx),
+        Math.min(az, bz),
+        Math.max(ax, bx),
+        Math.max(az, bz),
+        Math.min(ay, by),
+        Math.max(ay, by),
+      );
+      for (const i of stretch) best = this.hit(o, d, maxT, i, best);
+    }
+    return best;
+  }
+
+  // Where the ray (o, d) first enters piece `i` within maxT, if that's nearer than `best`.
+  private hit(o: Vec3, d: Vec3, maxT: number, i: number, best: Touch | null): Touch | null {
+    const p = this.placed[i];
+    const limit = best ? best.t : maxT;
+    // Cheap rejection first: skip anything whose bounding sphere the ray misses.
+    const cx = p.x - o.x;
+    const cy = p.mid - o.y;
+    const cz = p.z - o.z;
+    const along = cx * d.x + cy * d.y + cz * d.z;
+    if (along < -p.reach || along > limit + p.reach) return best;
+    if (cx * cx + cy * cy + cz * cz - along * along > p.reach * p.reach) return best;
+    const [ox, oz] = local(p, o.x, o.z);
+    const dx = d.x * p.cos - d.z * p.sin;
+    const dz = d.x * p.sin + d.z * p.cos;
+    let t0 = 0;
+    let t1 = limit;
+    let entry = -1; // the slab (local x, z, then y) the ray enters the footprint's prism through, if any
+    const slabs: [number, number, number, number][] = [
+      [ox, dx, -p.hw, p.hw],
+      [oz, dz, -p.hd, p.hd],
+      [o.y, d.y, p.base, p.base + p.height],
+    ];
+    for (let k = 0; k < slabs.length; k++) {
+      const [v, dv, lo, hi] = slabs[k];
+      if (Math.abs(dv) < 1e-12) {
+        if (v < lo || v > hi) t0 = Infinity;
+        continue;
       }
-      // Inside the footprint's bounding prism: find where the ray first dips below the top.
-      const under = (t: number) => {
-        const lx = Math.max(-p.hw, Math.min(p.hw, ox + dx * t));
-        const lz = Math.max(-p.hd, Math.min(p.hd, oz + dz * t));
-        return o.y + d.y * t <= p.base + p.top(lx, lz) + 1e-9;
-      };
-      for (let t = t0; t <= t1; t += RAY_STEP) {
-        if (!under(t)) continue;
-        let face: Face | null;
-        if (t > t0) {
-          // Under a sloped top from above: narrow the crossing down between this sample and the last.
-          let above = t - RAY_STEP;
-          for (let k = 0; k < 12; k++) {
-            const mid = (above + t) / 2;
-            if (under(mid)) t = mid;
-            else above = mid;
-          }
-          face = 0;
-        } else if (entry < 0) face = null;
-        else if (entry === 0) face = dx < 0 ? 2 : 3;
-        else if (entry === 1) face = dz < 0 ? 4 : 5;
-        else face = d.y < 0 ? 0 : 1;
-        best = { t, piece: i, face, point: { x: o.x + d.x * t, y: o.y + d.y * t, z: o.z + d.z * t } };
-        break;
+      const a = (lo - v) / dv;
+      const b = (hi - v) / dv;
+      if (Math.min(a, b) > t0) {
+        t0 = Math.min(a, b);
+        entry = k;
       }
+      t1 = Math.min(t1, Math.max(a, b));
+    }
+    // Inside the footprint's bounding prism: find where the ray first dips below the top.
+    const under = (t: number) => {
+      const lx = Math.max(-p.hw, Math.min(p.hw, ox + dx * t));
+      const lz = Math.max(-p.hd, Math.min(p.hd, oz + dz * t));
+      return o.y + d.y * t <= p.base + p.top(lx, lz) + 1e-9;
+    };
+    for (let t = t0; t <= t1; t += RAY_STEP) {
+      if (!under(t)) continue;
+      let face: Face | null;
+      if (t > t0) {
+        // Under a sloped top from above: narrow the crossing down between this sample and the last.
+        let above = t - RAY_STEP;
+        for (let k = 0; k < 12; k++) {
+          const mid = (above + t) / 2;
+          if (under(mid)) t = mid;
+          else above = mid;
+        }
+        face = 0;
+      } else if (entry < 0) face = null;
+      else if (entry === 0) face = dx < 0 ? 2 : 3;
+      else if (entry === 1) face = dz < 0 ? 4 : 5;
+      else face = d.y < 0 ? 0 : 1;
+      return { t, piece: i, face, point: { x: o.x + d.x * t, y: o.y + d.y * t, z: o.z + d.z * t } };
     }
     return best;
   }
