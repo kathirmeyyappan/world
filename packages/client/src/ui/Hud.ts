@@ -20,9 +20,6 @@ function inviteLink(roomId: string): string {
 const CHAT_FADE_MS = 12_000;
 // Lines sent from this tab, oldest first, that Up and Down step back through like a shell's history.
 // Kept in sessionStorage, since dying reloads the page.
-// On touch the held item's hint sits at the top of the screen and fades this long after the item is
-// drawn, so it doesn't stay over the view.
-const ITEM_HINT_MS = 10_000;
 const HISTORY_KEY = 'world.chat-history';
 const HISTORY_LINES = 50;
 
@@ -37,8 +34,7 @@ export class Hud {
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
   private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
   private itemHintText = '';
-  private itemHintItem = ''; // the item the hint is for, whose drawing starts its fade on touch
-  private itemHintTimer = 0;
+  private itemHintItem = ''; // the item the hint is for, whose drawing starts its life over on touch
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
   private readonly sent = loadHistory();
   private recalled = 0; // the line of `sent` in the box; sent.length is the one being typed
@@ -215,9 +211,11 @@ export class Hud {
     this.itemHint.classList.toggle('hidden', !text);
     if (!IS_TOUCH || item === this.itemHintItem) return;
     this.itemHintItem = item;
-    this.itemHint.classList.remove('faded');
-    clearTimeout(this.itemHintTimer);
-    this.itemHintTimer = window.setTimeout(() => this.itemHint.classList.add('faded'), ITEM_HINT_MS);
+    // On touch the hint lives out a CSS animation (#item-hint.timed) and is gone; restarting it takes
+    // a reflow between taking the class off and putting it back.
+    this.itemHint.classList.remove('timed');
+    void this.itemHint.offsetWidth;
+    this.itemHint.classList.add('timed');
   }
 
   // Brief red crosshair when one of your shots lands.
