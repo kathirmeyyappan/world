@@ -32,6 +32,28 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
   walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
   dragon: { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
 };
+// Portrait. The camera's field of view is vertical, so a screen taller than wide (a phone held
+// upright) sees a narrow slice across, and a body off to the side on the boom lands near its edge
+// or past it (a small body's camera is close behind it, so the same shoulder is a wider angle).
+// Wider screens are left exactly as they are.
+const MIN_HALF_WIDTH = (23 * Math.PI) / 180; // radians either side of the crosshair a portrait screen sees, at least
+const SHOULDER_SHARE = 0.35; // how far out to the screen's edge the eyes may sit in portrait, at most
+
+// The field of view (vertical, radians) a screen of this `aspect` (width / height) gets: in
+// portrait, widened just enough to see MIN_HALF_WIDTH either side.
+export function screenFov(fov: number, aspect: number): number {
+  if (aspect >= 1) return fov;
+  return Math.max(fov, 2 * Math.atan(Math.tan(MIN_HALF_WIDTH) / aspect));
+}
+
+// The boom for a screen of this `aspect` seeing `fov` (as screenFov gives it): in portrait, its
+// shoulder brought in so the eyes sit no more than SHOULDER_SHARE of the way to the screen's edge.
+// Bringing it in only narrows the gap between the body's look and the crosshair's (see `aim`).
+export function screenBoom(boom: Boom, fov: number, aspect: number): Boom {
+  if (aspect >= 1) return boom;
+  const halfWidth = Math.tan(fov / 2) * aspect; // tangent of the angle the screen sees either side
+  return { ...boom, right: Math.min(boom.right, boom.back * halfWidth * SHOULDER_SHARE) };
+}
 const SKIN = 0.25; // metres the camera keeps off a wall the boom runs into
 const FLOOR = 0.15; // metres the camera keeps above the ground when the boom dips under it
 // The eyes aim at what the crosshair is on, or a point this far out when nothing is nearer, and no
