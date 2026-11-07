@@ -224,6 +224,8 @@ export class Game {
       conn.send({ t: 'chat', text });
       if (parseCommand(text)) this.commandHint.markUsed(); // a command, even a bad one, means they know
     };
+    this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
+    this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
     this.hud.onChatOpenChange = (open) => {
       this.syncBlocked();
       // Sending or cancelling a message is a key press, so the browser lets us take the mouse
