@@ -23,6 +23,7 @@ export interface Footprint {
   surface?: SurfaceId; // what it's like to walk on (surfaces.ts); the material's by default
   door?: { id: string; open: boolean }; // a door's slab (doors.ts): stands only while the door is open or shut as `open` says
   hidden?: boolean; // collided with but never drawn: the shape of something the client draws its own way (a model)
+  worldTop?: boolean; // map the top in world x/z whatever the look does, so overlapping tops of a plank look paint alike
 }
 
 // Surface looks the renderer knows how to paint.
@@ -89,6 +90,7 @@ export function validateStructure(s: Structure, label: string): void {
   if (!(s.w > 0 && s.d > 0)) throw bad('w and d must be positive');
   if ((s.kind === 'box' || s.kind === 'ramp') && !(s.h > 0)) throw bad('h must be positive');
   if (s.surface !== undefined && !isSurfaceId(s.surface)) throw bad(`unknown surface ${String(s.surface)}`);
+  if (s.worldTop !== undefined && typeof s.worldTop !== 'boolean') throw bad('worldTop must be a boolean');
   if (s.kind === 'terrain') {
     const cols = s.heights[0]?.length ?? 0;
     if (s.heights.length < 2 || cols < 2 || s.heights.some((r) => r.length !== cols))
@@ -216,8 +218,9 @@ export function roundWall(opts: {
   material?: StructureMaterial;
   color?: string;
   hidden?: boolean;
+  worldTop?: boolean;
 }): Box[] {
-  const { x, z, r, h, thickness, y = 0, segments = 32, gaps = [], material, color, hidden } = opts;
+  const { x, z, r, h, thickness, y = 0, segments = 32, gaps = [], material, color, hidden, worldTop } = opts;
   const step = (2 * Math.PI) / segments;
   const pieces: Box[] = [];
   for (let i = 0; i < segments; i++) {
@@ -252,13 +255,25 @@ export function roundWall(opts: {
       spans.push([from, g.bottom]);
       from = g.top;
       if (g.from > -step / 2 + 1e-6)
-        pieces.push({ ...wall(a, along(g.from), g.top - g.bottom, thickness, g.bottom), material, color, hidden });
+        pieces.push({
+          ...wall(a, along(g.from), g.top - g.bottom, thickness, g.bottom),
+          material,
+          color,
+          hidden,
+          worldTop,
+        });
       if (g.to < step / 2 - 1e-6)
-        pieces.push({ ...wall(along(g.to), b, g.top - g.bottom, thickness, g.bottom), material, color, hidden });
+        pieces.push({
+          ...wall(along(g.to), b, g.top - g.bottom, thickness, g.bottom),
+          material,
+          color,
+          hidden,
+          worldTop,
+        });
     }
     spans.push([from, y + h]);
     for (const [lo, hi] of spans)
-      if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color, hidden });
+      if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color, hidden, worldTop });
   }
   return pieces;
 }
@@ -357,9 +372,10 @@ export function roundFloor(opts: {
   material?: StructureMaterial;
   color?: string;
   hidden?: boolean;
+  worldTop?: boolean;
 }): Box[] {
-  const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color, hidden } = opts;
-  const slab = { y: y - thickness, h: thickness, material, color, hidden };
+  const { x, z, r, y, thickness = 0.4, inner, hole, chord = 2, material, color, hidden, worldTop } = opts;
+  const slab = { y: y - thickness, h: thickness, material, color, hidden, worldTop };
   const edge = hole?.inner ?? inner ?? r / 2; // where the outer ring (the one a hole is cut from) begins
   const core = edge / 2; // the middle square's half side: its corners stay inside `edge`
   const pieces: Box[] =
