@@ -140,10 +140,44 @@ wire: server and client both build the world from that file.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
   so draw calls stay in the tens however many pieces there are. The world's 11,913 pieces (5,576
   drawn; the house's rooms are 3,937 hidden boxes and its shell 2,400 hidden ring pieces) render as
-  77 meshes (about 15 in view at once), and a world-spanning raycast costs about 190 µs. The sim's
+  77 meshes (about 15 in view at once), and a raycast tries the pieces a stretch of grid cells at a
+  time, so one across open floor costs a few µs and one through the house about 130 µs. The sim's
   grid has height bands as well as cells, so a walker's tick pays only for the pieces at its own
   height (about 70 µs inside the house). Check both numbers in the PR when a landmark adds a lot.
   Everything heavy is streamed in through `render/Loader.ts` (see Models below).
+
+### Surfaces and frost
+
+A structure's `material` is its look; its `surface` (`sim/surfaces.ts`) is what it's like underfoot:
+`hard`, `sand` or `ice`, named on the piece or implied by its material (`MATERIAL_SURFACES`: sand
+is sand, everything else hard; the bare floor is hard). A `SurfaceSpec` is its `grip` (m/s², how
+fast the feet can change the walk's velocity; `Infinity` is a sure footing, where the walk goes
+exactly where the keys send it, as every surface did before) and its `footfall` (what a step on it
+sounds like: `thud` or `crunch`). On a footing with finite grip the walker keeps its momentum
+(`PlayerState.vx`, `vz`): the feet push toward the keys at the grip, never past the walk's speed,
+slow it at that rate with none held, and gravity pulls it down any slope harder than they can hold
+(`walker.ts` `slide`, capped at `SLIDE_SPEED`), so an icy 15° slope can't be climbed and the
+library's slide is ridden. `Structures.footing(x, z, reach)` is the ground, its piece, its surface
+and its slope at a spot, and the client's `Footsteps` asks it at each footfall for the sound
+(`FOOTFALLS` there maps a footfall to its recordings; a gait with sounds of its own keeps them).
+A new surface is a row in `SURFACES`, and with a new footfall, its sounds in the client. On a
+slippery footing a tick the server runs without a frame (one arriving late) moves the walk too,
+so `correction` can show a tick's worth of slide there; on a sure footing it stays 0.
+
+Frost (`sim/frost.ts`) is ice laid over surfaces by an ice spray and melted by fire, kept by the
+Room like the doors (`Structures.frost`, its own per room) and sent to every client (`welcome.frost`,
+then `frost` messages with the cells that turned). It lies in `FROST_CELL` squares on a grid from
+the corner of each face of a piece (its top, underside and four sides, numbered 0 to 5; the floor
+from the origin, as piece `FLOOR`), a cell on the wire as `[piece, face, i, j]`. A frosted top is ice
+underfoot whatever the piece is made of. On every shot of a hold weapon with an element the Room
+casts `sprayFrost`: a fan of rays through the cone, turned a little each tick, each landing
+(`Structures.touch`, which says which face) turning the cells within `SPLAT` of the spot on that
+face, so a spray held on a wall covers it in a second or two. Doors never frost (they swing); hidden
+pieces do, so the house's rooms frost where the model draws them. Frost never thaws by itself; past
+`MAX_FROST` cells the oldest melt. The client draws every cell as a crust a hair off its face
+(`render/Frost.ts`, from `frostQuad`, merged by region like the structures and rebuilt the frame
+after a change): a translucent glaze with crystals that glint and twinkle, the surface showing
+through it.
 
 ### Models and doors
 
@@ -309,7 +343,8 @@ gets its tank on the back and its jet at the nozzle from that alone, on every av
 viewmodel (`render/Jet.ts`: blocks of fire, or for ice the "+" crystals of a corpse's poof, drawn as
 one particle system). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`):
 ice chills for `CHILL_SECONDS` from the last touch (`sim/constants.ts`), a walk at
-`CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees. On the client
+`CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees, and fire's touch
+thaws it at once, as it melts frost (see Surfaces and frost). On the client
 `HitFlash` frosts a chilled body over, and `ui/Condition.ts` shows the chilled player the counter
 with the view frosted.
 

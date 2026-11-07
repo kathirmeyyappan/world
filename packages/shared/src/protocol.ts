@@ -1,4 +1,5 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
+import type { FrostCell } from './sim/frost';
 import { isItemAction, type ItemAction, type ItemId } from './sim/items';
 import type { PickupKind } from './sim/pickups';
 import type { InputFrame, PlayerState } from './sim/types';
@@ -34,6 +35,7 @@ export type ServerMessage =
       cubes: CubeSnapshot[];
       pickups: PickupSnapshot[];
       doors: { id: string; open: boolean }[]; // every door (sim/doors.ts) and which way it stands
+      frost: FrostCell[]; // every frosted cell (sim/frost.ts)
     }
   | { t: 'snap'; tick: number; players: PlayerState[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[] }
   | { t: 'join'; p: PlayerState }
@@ -43,6 +45,7 @@ export type ServerMessage =
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
   | { t: 'action'; id: string; action: ItemAction } // someone did one of their class's actions (a dragon's roar); clients play it
   | { t: 'door'; id: string; open: boolean; by: string } // someone swung a door; clients swing theirs
+  | { t: 'frost'; on: FrostCell[]; off: FrostCell[] } // a spray froze cells or melted them (sim/frost.ts); clients follow
   // Hearts came off: a shot landed, or with no shooter, a fall.
   | { t: 'hit'; shooter: string | null; victim: string; damage: number; headshot: boolean; hearts: number }
   | { t: 'kill'; shooter: string; victim: string; item: ItemId; headshot: boolean } // clients announce it

@@ -16,6 +16,8 @@ export interface PlayerState {
   color: string;
   pos: Vec3;
   vy: number;
+  vx: number; // the walk's velocity across the floor, m/s: what it keeps on a slippery footing (walker.ts)
+  vz: number;
   yaw: number;
   pitch: number;
   lastSeq: number;

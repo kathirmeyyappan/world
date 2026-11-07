@@ -3,6 +3,8 @@ export * from './sim/types';
 export * from './sim/rng';
 export * from './sim/world';
 export * from './sim/structures';
+export * from './sim/surfaces';
+export * from './sim/frost';
 export * from './sim/collision';
 export * from './sim/doors';
 export * from './sim/player';

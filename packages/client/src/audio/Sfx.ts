@@ -20,6 +20,10 @@ export type SoundId =
   | 'step-2'
   | 'step-3'
   | 'step-4'
+  | 'crunch-1'
+  | 'crunch-2'
+  | 'crunch-3'
+  | 'crunch-4'
   | 'squeak-1'
   | 'squeak-2'
   | 'squeak-3'
@@ -68,6 +72,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'step-2': { file: 'step-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-3': { file: 'step-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-4': { file: 'step-4.mp3', half: 6, reach: 30, volume: 0.08 },
+  'crunch-1': { file: 'crunch-1.wav', half: 6, reach: 30, volume: 0.07 }, // a step on sand (sim/surfaces.ts)
+  'crunch-2': { file: 'crunch-2.wav', half: 6, reach: 30, volume: 0.07 },
+  'crunch-3': { file: 'crunch-3.wav', half: 6, reach: 30, volume: 0.07 },
+  'crunch-4': { file: 'crunch-4.wav', half: 6, reach: 30, volume: 0.07 },
   'squeak-1': { file: 'squeak-1.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-2': { file: 'squeak-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-3': { file: 'squeak-3.mp3', half: 6, reach: 30, volume: 0.08 },

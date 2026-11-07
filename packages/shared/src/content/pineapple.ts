@@ -408,11 +408,15 @@ export const PINEAPPLE_DECK: Disc = { kind: 'disc', x: X, z: Z, r: attic.deck.r 
 
 // The path's flagstones, a hair above the sand, each a ramp lying with the dune's slope, so a
 // walker steps on and off them where the model draws them; and the slide down from the hatch,
-// ramps the same way (the model draws its trough).
-const stones: Structure[] = [...SHAPE.stones, ...SHAPE.slide].map(([lx, lz, hx, hz, y, w, h]) => ({
+// ramps the same way (the model draws its trough), too slippery to climb (sim/surfaces.ts).
+const lying = ([lx, lz, hx, hz, y, w, h]: readonly number[]): Structure => ({
   ...ramp(placed(lx, lz), placed(hx, hz), h, w, DUNE_HEIGHT + y),
   hidden: true,
-}));
+});
+const stones: Structure[] = [
+  ...SHAPE.stones.map(lying),
+  ...SHAPE.slide.map((piece) => ({ ...lying(piece), surface: 'ice' as const })),
+];
 
 // Flat on top, down to the floor by the grounds' edge, never steeper than a walk; its underside a
 // hair under the floor, so its rim and corners (the grounds are round, it is square) stay out of

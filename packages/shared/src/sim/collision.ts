@@ -2,8 +2,11 @@
 // what they bump their head on, and what a shot can't pass. Pure, so the Room and the client's
 // prediction get identical answers. With no structures every query answers as the bare floor
 // does: ground 0, no ceiling, nothing in the way. A door's pieces (doors.ts) stand or not as the
-// door is swung: `setDoor` is the one thing that changes after building, so a Room keeps its own.
+// door is swung, and frost (frost.ts) lies on faces or not as it's sprayed and melted: those two
+// are what changes after building, so a Room keeps its own.
+import { FLOOR, Frost, cellOf, faceCoords, type Face } from './frost';
 import { surfaceOf, validateStructure, type Structure } from './structures';
+import { surfaceOfStructure, type SurfaceId } from './surfaces';
 import type { Vec3 } from './types';
 
 // Metres per spatial-grid cell, across and up: a query looks only in the cells of the height band
@@ -11,6 +14,9 @@ import type { Vec3 } from './types';
 // shell band by band) cost it nothing.
 const CELL = 8;
 const RAY_STEP = 0.05; // metres between samples when a ray crosses a sloped top
+// Metres of a ray tried at a time: the pieces in the grid cells that stretch's box crosses, so a
+// ray through empty cells costs next to nothing and a spray's rays try only what's in front of it.
+const RAY_STRETCH = 4 * CELL;
 
 // The part of a player that meets structures: a vertical cylinder from feet to head. Anything
 // whose top is at or below `reach` (the feet plus a step) is ground, not a wall.
@@ -36,9 +42,29 @@ interface Placed {
   door: { id: string; open: boolean } | null;
 }
 
+// What a ray lands on: how far along it, the piece (its index in the list), which of its faces
+// (null from inside the piece), and the spot.
+export interface Touch {
+  t: number;
+  piece: number;
+  face: Face | null;
+  point: Vec3;
+}
+
+// What's underfoot at a spot: the ground's height there, the piece it's the top of (null for the
+// floor), what it's like to walk on (frost counted), and the rise of its top per metre along x
+// and z (0 on the flat).
+export interface Footing {
+  y: number;
+  piece: number | null;
+  surface: SurfaceId;
+  slope: { x: number; z: number };
+}
+
 export class Structures {
   readonly top: number; // the highest point of any structure, 0 with none
   readonly doorIds: string[];
+  readonly frost = new Frost(); // what's frosted over, by face and cell
   private readonly placed: Placed[];
   private readonly grid = new Map<string, number[]>();
   private readonly doors = new Map<string, number[]>(); // each door's pieces
@@ -94,23 +120,53 @@ export class Structures {
 
   // The door the ray (o, d) meets first within maxT, before anything else, or null.
   doorAt(o: Vec3, d: Vec3, maxT: number): string | null {
-    return this.cast(o, d, maxT).hit?.door?.id ?? null;
+    const hit = this.cast(o, d, maxT);
+    return hit ? (this.placed[hit.piece].door?.id ?? null) : null;
   }
 
-  // The highest surface under (x, z) that is no higher than `reach`, or 0 for the floor: down the
-  // height bands from the one `reach` is in, until the bands left all lie under the best so far.
+  // The highest surface under (x, z) that is no higher than `reach`, or 0 for the floor.
   groundAt(x: number, z: number, reach: number): number {
-    let ground = 0;
+    return this.ground(x, z, reach).y;
+  }
+
+  // What's underfoot at (x, z) for feet that reach up to `reach`: the ground there (groundAt), the
+  // piece it is, its surface (ice wherever its top is frosted, the floor's included) and its slope.
+  footing(x: number, z: number, reach: number): Footing {
+    const { y, piece, lx, lz } = this.ground(x, z, reach);
+    if (piece === null) {
+      const [i, j] = cellOf(x, z);
+      return { y, piece, surface: this.frost.has(FLOOR, 0, i, j) ? 'ice' : 'hard', slope: { x: 0, z: 0 } };
+    }
+    const p = this.placed[piece];
+    const s = this.list[piece];
+    const [i, j] = cellOf(...faceCoords(s, 0, lx, 0, lz));
+    const surface = this.frost.has(piece, 0, i, j) ? 'ice' : surfaceOfStructure(s);
+    // The top's rise per metre in the piece's own axes, then in the world's.
+    const [wx, wz] = world(p, rise(p, lx, lz, 1, 0), rise(p, lx, lz, 0, 1));
+    return { y, piece, surface, slope: { x: wx, z: wz } };
+  }
+
+  // The highest top under (x, z) that is no higher than `reach`, which piece it is (null for the
+  // floor, at 0) and where on it: down the height bands from the one `reach` is in, until the
+  // bands left all lie under the best so far.
+  private ground(x: number, z: number, reach: number): { y: number; piece: number | null; lx: number; lz: number } {
+    const best = { y: 0, piece: null as number | null, lx: 0, lz: 0 };
     for (let b = Math.min(band(reach), this.highBand); b >= this.lowBand; b--) {
-      for (const p of this.near(x, z, x, z, b * CELL, b * CELL)) {
+      for (const i of this.nearIndices(x, z, x, z, b * CELL, b * CELL)) {
+        const p = this.placed[i];
         const [lx, lz] = local(p, x, z);
         if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) continue;
         const top = p.base + p.top(lx, lz);
-        if (top <= reach && top > ground) ground = top;
+        if (top <= reach && top > best.y) {
+          best.y = top;
+          best.piece = i;
+          best.lx = lx;
+          best.lz = lz;
+        }
       }
-      if (ground >= b * CELL) break;
+      if (best.y >= b * CELL) break;
     }
-    return ground;
+    return best;
   }
 
   // The lowest underside over (x, z) at or above `from`, or Infinity: up the height bands from the
@@ -185,52 +241,96 @@ export class Structures {
 
   // Distance along the unit ray (o, d) to the first structure it enters within maxT, else Infinity.
   raycast(o: Vec3, d: Vec3, maxT: number): number {
-    return this.cast(o, d, maxT).t;
+    return this.cast(o, d, maxT)?.t ?? Infinity;
   }
 
-  private cast(o: Vec3, d: Vec3, maxT: number): { t: number; hit: Placed | null } {
-    let best = Infinity;
-    let hit: Placed | null = null;
-    for (const p of this.placed) {
-      if (!p.on) continue;
-      // Cheap rejection first: skip anything whose bounding sphere the ray misses.
-      const cx = p.x - o.x;
-      const cy = p.mid - o.y;
-      const cz = p.z - o.z;
-      const along = cx * d.x + cy * d.y + cz * d.z;
-      if (along < -p.reach || along > Math.min(maxT, best) + p.reach) continue;
-      if (cx * cx + cy * cy + cz * cz - along * along > p.reach * p.reach) continue;
-      const [ox, oz] = local(p, o.x, o.z);
-      const dx = d.x * p.cos - d.z * p.sin;
-      const dz = d.x * p.sin + d.z * p.cos;
-      let t0 = 0;
-      let t1 = Math.min(maxT, best);
-      for (const [v, dv, lo, hi] of [
-        [ox, dx, -p.hw, p.hw],
-        [oz, dz, -p.hd, p.hd],
-        [o.y, d.y, p.base, p.base + p.height],
-      ]) {
-        if (Math.abs(dv) < 1e-12) {
-          if (v < lo || v > hi) t0 = Infinity;
-          continue;
-        }
-        const a = (lo - v) / dv;
-        const b = (hi - v) / dv;
-        t0 = Math.max(t0, Math.min(a, b));
-        t1 = Math.min(t1, Math.max(a, b));
-      }
-      // Inside the footprint's bounding prism: find where the ray first dips below the top.
-      for (let t = t0; t <= t1; t += RAY_STEP) {
-        const lx = Math.max(-p.hw, Math.min(p.hw, ox + dx * t));
-        const lz = Math.max(-p.hd, Math.min(p.hd, oz + dz * t));
-        if (o.y + d.y * t <= p.base + p.top(lx, lz) + 1e-9) {
-          best = t;
-          hit = p;
-          break;
-        }
-      }
+  // What the unit ray (o, d) lands on first within maxT, or null for nothing.
+  touch(o: Vec3, d: Vec3, maxT: number): Touch | null {
+    return this.cast(o, d, maxT);
+  }
+
+  // A stretch of the ray at a time (maxT must be finite); the nearest hit is in hand once the
+  // stretch it lies in has been tried, since every piece it could be on has a cell in that stretch's box.
+  private cast(o: Vec3, d: Vec3, maxT: number): Touch | null {
+    let best: Touch | null = null;
+    for (let from = 0; from < maxT && !(best && best.t <= from); from += RAY_STRETCH) {
+      const to = Math.min(maxT, from + RAY_STRETCH);
+      const [ax, ay, az] = [o.x + d.x * from, o.y + d.y * from, o.z + d.z * from];
+      const [bx, by, bz] = [o.x + d.x * to, o.y + d.y * to, o.z + d.z * to];
+      const stretch = this.nearIndices(
+        Math.min(ax, bx),
+        Math.min(az, bz),
+        Math.max(ax, bx),
+        Math.max(az, bz),
+        Math.min(ay, by),
+        Math.max(ay, by),
+      );
+      for (const i of stretch) best = this.hit(o, d, maxT, i, best);
     }
-    return { t: best, hit };
+    return best;
+  }
+
+  // Where the ray (o, d) first enters piece `i` within maxT, if that's nearer than `best`.
+  private hit(o: Vec3, d: Vec3, maxT: number, i: number, best: Touch | null): Touch | null {
+    const p = this.placed[i];
+    const limit = best ? best.t : maxT;
+    // Cheap rejection first: skip anything whose bounding sphere the ray misses.
+    const cx = p.x - o.x;
+    const cy = p.mid - o.y;
+    const cz = p.z - o.z;
+    const along = cx * d.x + cy * d.y + cz * d.z;
+    if (along < -p.reach || along > limit + p.reach) return best;
+    if (cx * cx + cy * cy + cz * cz - along * along > p.reach * p.reach) return best;
+    const [ox, oz] = local(p, o.x, o.z);
+    const dx = d.x * p.cos - d.z * p.sin;
+    const dz = d.x * p.sin + d.z * p.cos;
+    let t0 = 0;
+    let t1 = limit;
+    let entry = -1; // the slab (local x, z, then y) the ray enters the footprint's prism through, if any
+    const slabs: [number, number, number, number][] = [
+      [ox, dx, -p.hw, p.hw],
+      [oz, dz, -p.hd, p.hd],
+      [o.y, d.y, p.base, p.base + p.height],
+    ];
+    for (let k = 0; k < slabs.length; k++) {
+      const [v, dv, lo, hi] = slabs[k];
+      if (Math.abs(dv) < 1e-12) {
+        if (v < lo || v > hi) t0 = Infinity;
+        continue;
+      }
+      const a = (lo - v) / dv;
+      const b = (hi - v) / dv;
+      if (Math.min(a, b) > t0) {
+        t0 = Math.min(a, b);
+        entry = k;
+      }
+      t1 = Math.min(t1, Math.max(a, b));
+    }
+    // Inside the footprint's bounding prism: find where the ray first dips below the top.
+    const under = (t: number) => {
+      const lx = Math.max(-p.hw, Math.min(p.hw, ox + dx * t));
+      const lz = Math.max(-p.hd, Math.min(p.hd, oz + dz * t));
+      return o.y + d.y * t <= p.base + p.top(lx, lz) + 1e-9;
+    };
+    for (let t = t0; t <= t1; t += RAY_STEP) {
+      if (!under(t)) continue;
+      let face: Face | null;
+      if (t > t0) {
+        // Under a sloped top from above: narrow the crossing down between this sample and the last.
+        let above = t - RAY_STEP;
+        for (let k = 0; k < 12; k++) {
+          const mid = (above + t) / 2;
+          if (under(mid)) t = mid;
+          else above = mid;
+        }
+        face = 0;
+      } else if (entry < 0) face = null;
+      else if (entry === 0) face = dx < 0 ? 2 : 3;
+      else if (entry === 1) face = dz < 0 ? 4 : 5;
+      else face = d.y < 0 ? 0 : 1;
+      return { t, piece: i, face, point: { x: o.x + d.x * t, y: o.y + d.y * t, z: o.z + d.z * t } };
+    }
+    return best;
   }
 
   // Whether nothing stands between a and b.
@@ -246,12 +346,16 @@ export class Structures {
   // its way). Anything wholly above or below the box's height is left out; a height past every
   // band with anything in it (an infinite reach) looks no further than those.
   private near(minX: number, minZ: number, maxX: number, maxZ: number, minY: number, maxY: number): Placed[] {
+    return this.nearIndices(minX, minZ, maxX, maxZ, minY, maxY).map((i) => this.placed[i]);
+  }
+
+  private nearIndices(minX: number, minZ: number, maxX: number, maxZ: number, minY: number, maxY: number): number[] {
     if (this.placed.length === 0) return [];
     const found = new Set<number>();
     const low = Math.max(minY, this.lowBand * CELL);
     const high = Math.min(maxY, this.highBand * CELL);
     for (const key of cells(minX, minZ, maxX, maxZ, low, high)) for (const i of this.grid.get(key) ?? []) found.add(i);
-    return [...found].map((i) => this.placed[i]).filter((p) => p.on);
+    return [...found].filter((i) => this.placed[i].on);
   }
 }
 
@@ -265,6 +369,18 @@ function cells(minX: number, minZ: number, maxX: number, maxZ: number, minY: num
     for (let cz = Math.floor(minZ / CELL); cz <= Math.floor(maxZ / CELL); cz++)
       for (let cy = band(minY); cy <= band(maxY); cy++) keys.push(`${cx},${cz},${cy}`);
   return keys;
+}
+
+// How much a structure's top rises per metre from a local point along the local direction (ax, az),
+// measured over a hand's width either side of it, kept within the footprint.
+function rise(p: Placed, lx: number, lz: number, ax: number, az: number): number {
+  const HAND = 0.05;
+  const clampX = (v: number) => Math.max(-p.hw, Math.min(p.hw, v));
+  const clampZ = (v: number) => Math.max(-p.hd, Math.min(p.hd, v));
+  const [x0, z0] = [clampX(lx - ax * HAND), clampZ(lz - az * HAND)];
+  const [x1, z1] = [clampX(lx + ax * HAND), clampZ(lz + az * HAND)];
+  const span = Math.hypot(x1 - x0, z1 - z0);
+  return span > 1e-9 ? (p.top(x1, z1) - p.top(x0, z0)) / span : 0;
 }
 
 // World (x, z) in a structure's local frame.

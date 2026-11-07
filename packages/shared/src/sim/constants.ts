@@ -14,6 +14,8 @@ export const EYE_HEIGHT = 1.7;
 export const MOVE_SPEED = 8;
 export const GRAVITY = 20;
 export const JUMP_VELOCITY = 8;
+// The fastest a walk slides across a slippery footing (sim/surfaces.ts), however steep the slope.
+export const SLIDE_SPEED = 14;
 export const MAX_PITCH = Math.PI / 2 - 0.1;
 
 // /speedy: temporary movement multiplier, counted down by the sim so prediction matches.
