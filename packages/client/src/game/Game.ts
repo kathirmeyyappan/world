@@ -23,7 +23,6 @@ import {
   itemHelp,
   itemStats,
   lookDirection,
-  parseCommand,
   resolveFire,
   type FrostCell,
   type ItemAction,
@@ -234,11 +233,13 @@ export class Game {
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => {
       conn.send({ t: 'chat', text });
-      if (parseCommand(text)) this.commandHint.markUsed(); // a command, even a bad one, means they know
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
+    // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
+    this.commandsMenu.onOpen = () => this.commandHint.retire();
     this.hud.onChatOpenChange = (open) => {
+      if (open) this.commandHint.retire();
       this.syncBlocked();
       // Sending or cancelling a message is a key press, so the browser lets us take the mouse
       // straight back rather than making the player click into the world again.
@@ -252,6 +253,7 @@ export class Game {
     });
     // Closing it back into the world is a click or a key press, which lets us take the mouse too.
     this.settings.onOpenChange = (open, back) => {
+      if (open) this.commandHint.retire();
       this.syncBlocked();
       if (!open && back && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
     };
@@ -589,7 +591,6 @@ export class Game {
   // The local player died; `how` heads the death screen.
   private die(how: string): void {
     this.dead = true;
-    this.commandHint.markUsed(); // they've been in a fight; no onboarding after the reload
     this.setScoped(false);
     this.syncBlocked();
     this.death.show(how);
@@ -770,10 +771,7 @@ export class Game {
     );
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
-    this.commandHint.update(
-      !!held || !!self.gear || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened,
-      this.dead || this.hud.isChatOpen() || this.settings.isOpen,
-    );
+    this.commandHint.update(this.isBlocked());
 
     const stepLoops = this.footsteps.update(
       [

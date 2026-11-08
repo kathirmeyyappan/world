@@ -788,6 +788,12 @@ body {
   color: #fff;
   text-shadow: 2px 2px 0 #000;
 }
+#command-hint .line {
+  display: block;
+}
+#command-hint .line + .line {
+  margin-top: 6px;
+}
 #command-hint .count {
   display: block;
   margin-top: 6px;
@@ -1255,11 +1261,41 @@ body {
   border-bottom: 3px solid #2f6db3;
   vertical-align: middle;
 }
+/* The nudge's keys tap down into their shadow and back up, the second line's a beat after the first. */
 #command-hint kbd {
   font-size: 16px;
   line-height: 20px;
   margin: 0 10px;
   text-shadow: none;
+  border-bottom: 0;
+  box-shadow: 0 3px 0 #2f6db3;
+  animation: key-tap 2s infinite;
+}
+#command-hint .line + .line kbd {
+  animation-delay: 1s;
+}
+#command-hint kbd .gear {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+  shape-rendering: crispEdges;
+}
+#command-hint kbd .gear rect {
+  fill: #05070c;
+}
+@keyframes key-tap {
+  0%,
+  24%,
+  100% {
+    transform: none;
+    box-shadow: 0 3px 0 #2f6db3;
+  }
+  6%,
+  18% {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 #2f6db3;
+    background: #3f8fd8;
+  }
 }
 #info-card .cursor,
 #commands .cursor {
@@ -1527,6 +1563,11 @@ body {
     line-height: 22px;
     letter-spacing: 1px;
   }
+  #command-hint kbd {
+    font-size: 12px;
+    line-height: 16px;
+    margin: 0 8px;
+  }
   #command-hint .count {
     font-size: 12px;
   }
@@ -1760,6 +1801,17 @@ body {
 @media (pointer: coarse) and (max-width: 660px) and (orientation: portrait) {
   #area-title {
     top: 176px;
+  }
+  /* Small enough for each of the nudge's lines to stay on one row. */
+  #command-hint .text {
+    font-size: 13px;
+    line-height: 26px;
+    letter-spacing: 1px;
+  }
+  #command-hint kbd {
+    font-size: 13px;
+    line-height: 16px;
+    margin: 0 8px;
   }
   #item-hint {
     top: 214px;
