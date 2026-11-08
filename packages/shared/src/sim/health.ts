@@ -8,7 +8,7 @@ import type { ItemSpec } from './items';
 
 export const MAX_HEARTS = 10;
 export const HEADSHOT_MULTIPLIER = 2.5;
-export const REGEN_RATE = 5 / 7; // hearts per second
+export const REGEN_RATE = 1.5; // hearts per second
 
 // Headroom above the eyes: the top of the body that walks, for ceilings and doorways.
 export const CAPSULE_TOP = 0.3;
