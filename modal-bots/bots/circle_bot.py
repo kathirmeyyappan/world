@@ -1,4 +1,4 @@
-"""Orbit the nearest player, or the world origin when alone, reversing on anything in the way."""
+"""Orbit the nearest player, or the world origin when alone, tightening the circle on anything in the way."""
 
 from __future__ import annotations
 
@@ -23,7 +23,12 @@ from common import (
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
 
-ORBIT_RADIUS = 12
+# The circle's radius in metres: it starts at the widest, shrinks each time something gets in the
+# way, and eases back out toward the widest while the way round is clear.
+MAX_RADIUS = 12
+MIN_RADIUS = 0.1
+SHRINK = 0.5  # the radius is multiplied by this on each block
+LOOSEN_RATE = 0.25  # metres per second the radius grows back while the way round is clear
 RADIAL_CORRECTION_DISTANCE = 6
 MOVE_SPEED = 8  # metres per second at full input (MOVE_SPEED in packages/shared/src/sim/constants.ts)
 # Blocked means covering under half the commanded distance over a few ticks: the world's edge or a
@@ -62,7 +67,7 @@ async def run_circle_bot(
     inputs = asyncio.create_task(run_input_loop(controls, stop))
     completed = False
     target_key: str | None = None
-    spin = Spin()
+    orbit = Orbit()
     observed_until = connected_at
 
     log_message(name, "joined room", player_id=connection.id, room=connection.room)
@@ -88,9 +93,9 @@ async def run_circle_bot(
                         )
                     continue
 
-                if spin.blocked(state.tick, state.me.pos, controls):
-                    log_message(name, "orbit reversed", tick=state.tick, direction=spin.direction)
-                target = _steer(state, controls, spin.direction)
+                if orbit.blocked(state.tick, state.me.pos, controls):
+                    log_message(name, "orbit tightened", tick=state.tick, radius=orbit.radius)
+                target = _steer(state, controls, orbit.radius)
                 next_target = target.id if target else "origin"
                 if next_target != target_key:
                     target_key = next_target
@@ -127,18 +132,18 @@ async def run_circle_bot(
     }
 
 
-class Spin:
-    """Which way round the orbit goes, flipped as soon as the bot stops making headway."""
+class Orbit:
+    """How wide the circle is: halved as soon as the bot stops making headway, widening again slowly."""
 
     def __init__(self) -> None:
-        self.direction = 1
+        self.radius = float(MAX_RADIUS)
         self._settle_until: int | None = None
         # Where the window started: tick, position, and the commanded move in world metres per
         # second at full speed.
         self._start: tuple[int, float, float, float, float] | None = None
 
     def blocked(self, tick: int, pos: Vec3, controls: Controls) -> bool:
-        """Judge the move commanded so far against where the bot got to; reverse if it stalled."""
+        """Judge the move commanded so far against where the bot got to; tighten if it stalled."""
         if self._settle_until is None:
             self._settle_until = tick + SETTLE_TICKS
         dx, dz = _world_move(controls)
@@ -156,8 +161,9 @@ class Spin:
         # Metres along the commanded line, scaled up as if the command had been full speed.
         made = ((pos.x - x) * sdx + (pos.z - z) * sdz) / wanted
         if made >= BLOCKED_PROGRESS * MOVE_SPEED * elapsed / TICK_RATE:
+            self.radius = min(MAX_RADIUS, self.radius + LOOSEN_RATE * elapsed / TICK_RATE)
             return False
-        self.direction = -self.direction
+        self.radius = max(MIN_RADIUS, self.radius * SHRINK)
         self._settle_until = tick + SETTLE_TICKS
         return True
 
@@ -173,7 +179,7 @@ def _world_move(controls: Controls) -> tuple[float, float]:
     )
 
 
-def _steer(state: WorldState, controls: Controls, direction: int) -> Player | None:
+def _steer(state: WorldState, controls: Controls, radius: float) -> Player | None:
     me = state.me
     if me is None:
         return None
@@ -185,9 +191,9 @@ def _steer(state: WorldState, controls: Controls, direction: int) -> Player | No
     distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
     radial = max(
         -1.0,
-        min(1.0, (distance - ORBIT_RADIUS) / RADIAL_CORRECTION_DISTANCE),
+        min(1.0, (distance - radius) / RADIAL_CORRECTION_DISTANCE),
     )
-    controls.move(forward=radial, right=direction)
+    controls.move(forward=radial, right=1)
     return target
 
 
