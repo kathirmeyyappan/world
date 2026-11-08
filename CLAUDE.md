@@ -152,8 +152,9 @@ wire: server and client both build the world from that file.
 A ladder (`sim/structures.ts` `ladder(foot, y, top, yaw, { material, width, lean, hidden })`, kind
 `ladder`) is a frame of two rails and rungs, `LADDER_WIDTH` across unless given a width, and
 `LADDER_GIRTH` through, climbed from either of its faces (its local ±z); to everything else it is
-a thin box, and it never frosts. With a `lean` (radians from upright) its top is over toward its
-local +z, as a ladder stood against a wall there leans: the climb keeps to the rails (`CLIMB_SPEED`
+a thin box, and it never frosts. With a `lean` (radians from upright, `MAX_LADDER_LEAN`, 45°, at
+most, further over being a ramp with rungs) its top is over toward its local +z, as a ladder stood
+against a wall there leans: the climb keeps to the rails (`CLIMB_SPEED`
 along them, the body moving over as it rises, the face it reaches for and the spot it swaps to at
 its feet's height, the step over the top where the top is), the avatar leans with it, and the
 drawn frame tips over; a jump is still straight up, and gravity still straight down. Where it leans

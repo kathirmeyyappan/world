@@ -56,9 +56,9 @@ export interface Terrain extends Footprint {
 export interface Ladder extends Footprint {
   kind: 'ladder';
   h: number; // metres from its foot to its top, straight up
-  // Radians from upright, its top that far over toward its local +z, as a ladder stood against a
-  // wall there leans; climbed on the face it leans away from. Where it leans it is solid
-  // underneath, like a ramp (surfaceOf), so lean one against something.
+  // Radians from upright, up to MAX_LADDER_LEAN, its top that far over toward its local +z, as a
+  // ladder stood against a wall there leans; climbed on the face it leans away from. Where it
+  // leans it is solid underneath, like a ramp (surfaceOf), so lean one against something.
   lean?: number;
 }
 
@@ -107,8 +107,8 @@ export function validateStructure(s: Structure, label: string): void {
   const bad = (why: string) => new Error(`structure ${label} (${s.kind}): ${why}`);
   if (!(s.w > 0 && s.d > 0)) throw bad('w and d must be positive');
   if (s.kind !== 'terrain' && !(s.h > 0)) throw bad('h must be positive');
-  if (s.kind === 'ladder' && s.lean !== undefined && !(s.lean >= 0 && s.lean < 1.2))
-    throw bad('lean must be from 0 up to 1.2 radians');
+  if (s.kind === 'ladder' && s.lean !== undefined && !(s.lean >= 0 && s.lean <= MAX_LADDER_LEAN))
+    throw bad(`lean must be from 0 to ${MAX_LADDER_LEAN} radians`);
   if (s.surface !== undefined && !isSurfaceId(s.surface)) throw bad(`unknown surface ${String(s.surface)}`);
   if (s.worldTop !== undefined && typeof s.worldTop !== 'boolean') throw bad('worldTop must be a boolean');
   if (s.kind === 'terrain') {
@@ -137,6 +137,7 @@ export function wall(a: { x: number; z: number }, b: { x: number; z: number }, h
 
 export const LADDER_WIDTH = 0.7; // metres across the rails
 export const LADDER_GIRTH = 0.3; // metres through the frame: what a body or a shot meets
+export const MAX_LADDER_LEAN = Math.PI / 4; // radians from upright: further over, it's a ramp with rungs
 
 // A ladder standing on `foot` (its underside at y) up to `top`, its faces turned to `yaw` (the
 // frame runs across it), of wood unless told otherwise.
