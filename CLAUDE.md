@@ -337,7 +337,11 @@ with the look, a head, the legs, the free arm, the weapon arm with its grip and 
 in the model) and the numbers its walk takes (swings, bob, sway, how it lies dead), and
 `WalkerAvatar` poses every figure the same way: standing, walking, aiming what it holds, falling,
 climbing a ladder and lying dead. Motion is written there once, for all of them, and an avatar's
-own touches (a tail, a twitch, feet that lift) are its `extra` hook. A Sketchfab
+own touches (a tail, a twitch, feet that lift) are its `extra` hook. A body that differs by a
+number (how far a leg swings, a two-part tentacle, no legs at all) is still a figure; one that
+differs by a rule (a sidestep, a slither, tentacles wrapping the rungs) extends `WalkerAvatar` and
+overrides that one phase (`walk`, `climb`, `lie` or `aim`), registered in `WALKERS` by its class,
+and the walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
 atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
 it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`). Rebuild the bot map after

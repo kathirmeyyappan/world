@@ -4,7 +4,9 @@
 // ladder on the hand holding it when its climber changes face) and lying dead. An avatar is a
 // Figure: a builder makes its parts under the base node and says which plays each role and the
 // numbers its walk takes, so a new way of moving is written here once and a new avatar is parts and
-// numbers. The dragon is its own class (Dragon.ts).
+// numbers. Each phase (walk, climb, lie, aim) is a protected method: an avatar that moves by a rule
+// of its own in one of them (a sidestep, a slither, tentacles wrapping the rungs) extends
+// WalkerAvatar and overrides that phase, keeping the rest. The dragon is its own class (Dragon.ts).
 import { Matrix, Mesh, Quaternion, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
 import { EYE_HEIGHT, WORLD_STRUCTURES, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
@@ -82,15 +84,15 @@ export interface Pose {
 export type Build = (engine: Engine, id: string, base: TransformNode, color: string) => Figure;
 
 export class WalkerAvatar implements Avatar {
-  private readonly root: TransformNode; // at the feet, turned the way the body faces
-  private readonly base: TransformNode; // the body's frame: rises with the stride, lies over dead
-  private readonly figure: Figure;
+  protected readonly root: TransformNode; // at the feet, turned the way the body faces
+  protected readonly base: TransformNode; // the body's frame: rises with the stride, lies over dead
+  protected readonly figure: Figure;
   private readonly aimFrom: Vector3; // what the weapon arm turns from to aim: its reach, raised by the bend
   private readonly items: HeldItems;
   private readonly hitFlash: HitFlash;
   private readonly shadow: Mesh;
-  private readonly gait = new Gait();
-  private climbPhase = 0; // radians along the rung-to-rung cycle of the legs
+  protected readonly gait = new Gait();
+  protected climbPhase = 0; // radians along the rung-to-rung cycle of the legs
   private held: RemotePlayer['climb'] = null; // the ladder face last seen held
   private swing = 0; // radians the body has still to turn round the ladder after a swap
   private dead = false;
@@ -136,7 +138,7 @@ export class WalkerAvatar implements Avatar {
 
   // On the ground or in the air: the legs swing with the stride and the arms against them, the
   // body rising and rocking with it, the weapon arm pointed along the look while holding an item.
-  private walk(p: RemotePlayer, feetY: number, step: number): Pose {
+  protected walk(p: RemotePlayer, feetY: number, step: number): Pose {
     const f = this.figure;
     this.held = null;
     this.swing = 0;
@@ -180,7 +182,7 @@ export class WalkerAvatar implements Avatar {
   // points where the look does, turning at the shoulder since the body can't. A change of face
   // swings the whole body half a turn round the ladder about the holding hand, easing to a stop
   // on the new side.
-  private climb(p: RemotePlayer, feetY: number, dt: number): Pose {
+  protected climb(p: RemotePlayer, feetY: number, dt: number): Pose {
     const f = this.figure;
     const hold = p.climb!;
     const facing = WORLD_STRUCTURES.ladderFacing(hold.piece, hold.side);
@@ -215,7 +217,7 @@ export class WalkerAvatar implements Avatar {
   }
 
   // Dead: the base over onto its back or side, the limbs dropped.
-  private lie(): void {
+  protected lie(): void {
     const f = this.figure;
     const { onto, height, shift = 0, legs = 0, arms = 0, head = 0 } = f.lie;
     if (f.tilt) f.tilt.node.rotation.x = 0;
@@ -243,7 +245,7 @@ export class WalkerAvatar implements Avatar {
   // and turns the grip at its hand so the item's barrel (its -y) runs that way with its top (its
   // +z) up, whatever the model's hand is doing. The arm turns in its parent's frame, which may be
   // tipped with the look or rolling with the stride, so the look is taken into that frame first.
-  private aim(p: RemotePlayer): void {
+  protected aim(p: RemotePlayer): void {
     const { node, grip } = this.figure.armR;
     const turn = clamp(wrap(p.yaw - this.root.rotation.y), ARM_TURN);
     const ahead = new Vector3(
@@ -291,13 +293,13 @@ export class WalkerAvatar implements Avatar {
 }
 
 // Points an arm straight out of the body's front at `elevation` radians above level.
-function point(arm: Arm, elevation: number): void {
+export function point(arm: Arm, elevation: number): void {
   const turn = (arm.node.rotationQuaternion ??= new Quaternion());
   Quaternion.FromUnitVectorsToRef(arm.reach, new Vector3(0, Math.sin(elevation), Math.cos(elevation)), turn);
 }
 
 // Back to turning by the Euler angles in `rotation`, which a quaternion overrides.
-function hang(node: TransformNode): void {
+export function hang(node: TransformNode): void {
   node.rotationQuaternion = null;
 }
 

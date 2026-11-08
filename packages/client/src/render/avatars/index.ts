@@ -33,18 +33,24 @@ const SKINNED: readonly AvatarId[] = [
   'light-dragon',
 ];
 
-// Everyone on foot is a figure the Walker poses (Walker.ts); the dragon is its own class.
-const WALKERS: Record<Exclude<AvatarId, 'light-dragon'>, Build> = {
-  standard: buildStandard,
-  elizabeth: buildElizabeth,
-  sahur: buildSahur,
-  sulley: buildSulley,
-  mike: bodyBuilder(MIKE),
-  spongebob: bodyBuilder(SPONGEBOB),
-  patrick: bodyBuilder(PATRICK),
-  krabs: bodyBuilder(KRABS),
-  squidward: buildSquidward,
-  gary: buildGary,
+// Everyone on foot is a figure the walker poses (Walker.ts), made from its builder; one that moves
+// by a rule of its own is a subclass of WalkerAvatar, made here by its class. The dragon is its own.
+type Make = (engine: Engine, id: string, kind: AvatarId, color: string) => Avatar;
+const walker =
+  (build: Build): Make =>
+  (engine, id, kind, color) =>
+    new WalkerAvatar(engine, id, kind, build, color);
+const WALKERS: Record<Exclude<AvatarId, 'light-dragon'>, Make> = {
+  standard: walker(buildStandard),
+  elizabeth: walker(buildElizabeth),
+  sahur: walker(buildSahur),
+  sulley: walker(buildSulley),
+  mike: walker(bodyBuilder(MIKE)),
+  spongebob: walker(bodyBuilder(SPONGEBOB)),
+  patrick: walker(bodyBuilder(PATRICK)),
+  krabs: walker(bodyBuilder(KRABS)),
+  squidward: walker(buildSquidward),
+  gary: walker(buildGary),
 };
 
 export function preloadAvatars(engine: Engine): void {
@@ -57,5 +63,5 @@ export function preloadAvatars(engine: Engine): void {
 
 export function createAvatar(engine: Engine, p: { id: string; color: string; avatar: AvatarId }): Avatar {
   if (p.avatar === 'light-dragon') return new DragonAvatar(engine, p.id);
-  return new WalkerAvatar(engine, p.id, p.avatar, WALKERS[p.avatar], p.color);
+  return WALKERS[p.avatar](engine, p.id, p.avatar, p.color);
 }
