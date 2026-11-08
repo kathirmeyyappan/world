@@ -185,6 +185,10 @@ export class Viewmodel {
       node.setEnabled(false);
       this.shapes.set(id, { node, flash, jet });
     }
+    // Drawn over the world, with the depth cleared first: the item reaches past the eyes further
+    // than a ladder's rungs or a wall stand off them, and would otherwise vanish into whatever the
+    // player is up against.
+    for (const mesh of this.root.getChildMeshes()) mesh.renderingGroupId = 1;
   }
 
   // Show this item (or nothing), held as `avatar` holds it. Hidden while scoped: the scope overlay is

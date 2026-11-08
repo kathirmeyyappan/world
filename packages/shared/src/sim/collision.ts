@@ -4,6 +4,7 @@
 // does: ground 0, no ceiling, nothing in the way. A door's pieces (doors.ts) stand or not as the
 // door is swung, and frost (frost.ts) lies on faces or not as it's sprayed and melted: those two
 // are what changes after building, so a Room keeps its own.
+import { LADDER_GAP, LADDER_REACH, PLAYER_RADIUS } from './constants';
 import { FLOOR, Frost, cellOf, faceCoords, type Face } from './frost';
 import { surfaceOf, validateStructure, type Structure } from './structures';
 import { surfaceOfStructure, type SurfaceId } from './surfaces';
@@ -23,6 +24,7 @@ const PROBES = [
   [0, 1],
   [0, -1],
 ];
+const HANDS = 1; // metres above a walker's feet its hands take hold of a ladder's rungs
 // Metres of a ray tried at a time: the pieces in the grid cells that stretch's box crosses, so a
 // ray through empty cells costs next to nothing and a spray's rays try only what's in front of it.
 const RAY_STRETCH = 4 * CELL;
@@ -73,6 +75,7 @@ export interface Footing {
 export class Structures {
   readonly top: number; // the highest point of any structure, 0 with none
   readonly doorIds: string[];
+  readonly ladders: number[]; // the pieces that are ladders (structures.ts), by index
   readonly frost = new Frost(); // what's frosted over, by face and cell
   private readonly placed: Placed[];
   private readonly grid = new Map<string, number[]>();
@@ -105,6 +108,7 @@ export class Structures {
       if (p.door) this.doors.set(p.door.id, [...(this.doors.get(p.door.id) ?? []), i]);
     });
     this.doorIds = [...this.doors.keys()];
+    this.ladders = list.flatMap((s, i) => (s.kind === 'ladder' ? [i] : []));
     this.top = Math.max(0, ...this.placed.map((p) => p.base + p.height));
     this.lowBand = Math.min(0, ...this.placed.map((p) => band(p.base)));
     this.highBand = Math.max(0, ...this.placed.map((p) => band(p.base + p.height)));
@@ -212,6 +216,45 @@ export class Structures {
       if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) return true;
       return p.base >= feet + height || p.base + p.top(lx, lz) <= feet + 1e-6;
     });
+  }
+
+  // The ladder a walker at (x, z) with its feet at `feet`, looking along `yaw`, can take hold of:
+  // one it stands within LADDER_REACH of a face of, between the rails, no higher than its top and
+  // with its hands no lower than its foot, looking toward it (within a quarter turn), and the
+  // face: the side (±1 along the ladder's local z) the body is on.
+  ladderAt(x: number, z: number, feet: number, yaw: number): { piece: number; side: 1 | -1 } | null {
+    for (const i of this.ladders) {
+      const p = this.placed[i];
+      const [lx, lz] = local(p, x, z);
+      const side: 1 | -1 = lz >= 0 ? 1 : -1;
+      const off = Math.abs(lz) - p.hd;
+      if (Math.abs(lx) > p.hw || off < 0 || off > LADDER_REACH) continue;
+      if (feet > p.base + p.height || feet + HANDS < p.base) continue;
+      // The way out of that face, in the world: a look along it is a look away from the ladder.
+      if (Math.sin(yaw) * p.sin * side + Math.cos(yaw) * p.cos * side > 0) continue;
+      return { piece: i, side };
+    }
+    return null;
+  }
+
+  // Where a body climbing ladder `piece` on `side` stands: its middle, off the face by its radius
+  // and LADDER_GAP, between the rails.
+  ladderSpot(piece: number, side: 1 | -1): { x: number; z: number } {
+    const p = this.placed[piece];
+    const out = side * (p.hd + PLAYER_RADIUS + LADDER_GAP);
+    return { x: p.x + p.sin * out, z: p.z + p.cos * out };
+  }
+
+  // The look (a yaw) straight at ladder `piece` from `side`.
+  ladderFacing(piece: number, side: 1 | -1): number {
+    const p = this.placed[piece];
+    return Math.atan2(-side * p.sin, -side * p.cos);
+  }
+
+  // A ladder's foot and top, as heights.
+  ladderSpan(piece: number): { base: number; top: number } {
+    const p = this.placed[piece];
+    return { base: p.base, top: p.base + p.height };
   }
 
   // Moves a body's centre by (dx, dz), pushing it out of anything too tall to step onto and

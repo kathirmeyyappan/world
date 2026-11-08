@@ -26,7 +26,17 @@
 // into. Every door swings (sim/doors.ts), the front
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
-import { ramp, roundFloor, roundWall, spiralStairs, terrain, wall, type Box, type Structure } from '../sim/structures';
+import {
+  ladder,
+  ramp,
+  roundFloor,
+  roundWall,
+  spiralStairs,
+  terrain,
+  wall,
+  type Box,
+  type Structure,
+} from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
@@ -442,8 +452,18 @@ const dune = terrain({
   },
 });
 
+// A ladder from the library's floor to the top of the rail round the hatch's platform, against the
+// rail's outer face beside the slide's mouth and clear of the stairwell's hole in the floor: the
+// way up to the lobby and the attic, the slide being no way up (its ice). Where it stands and the
+// rail's height were measured against the model's platform; a climber steps off its top over the
+// rail onto the platform.
+const RAIL_TOP = 0.75; // metres the platform's rail stands above its floor
+const LIBRARY_FLOOR = 17.25; // metres above the house's floor the library's floor boxes top out
+const hatchLadder = ladder(placed(0.5, 6.83), DUNE_HEIGHT + LIBRARY_FLOOR, DUNE_HEIGHT + hatch.sill + RAIL_TOP, YAW);
+
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
+  hatchLadder,
   ...stones,
   ...shell,
   ...face,

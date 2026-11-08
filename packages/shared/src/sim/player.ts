@@ -21,6 +21,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     vx: 0,
     vz: 0,
     thrown: null,
+    climb: null,
     walk: 0,
     yaw: 0,
     pitch: 0,
@@ -48,6 +49,7 @@ export function clonePlayer(p: PlayerState): PlayerState {
   return {
     ...p,
     pos: { ...p.pos },
+    climb: p.climb && { ...p.climb },
     item: p.item && { ...p.item },
     gear: p.gear && { ...p.gear },
     dragon: p.dragon && {

@@ -21,6 +21,10 @@ export interface PlayerState {
   // Thrown (by ice, or by a weapon): in the air with the keys given only this much grip on the
   // flight, m/s² (0: none), until it lands; null on its own feet (walker.ts `throwWalker`).
   thrown: number | null;
+  // On a ladder (structures.ts `ladder`, walker.ts): the piece, the face it climbs (±1 along the
+  // ladder's local z), and which way round the ladder it last went to it (-1 by its left, 1 by its
+  // right), for the swing; null on foot.
+  climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null;
   // How fast the feet are walking, m/s: what paces the legs and the footsteps. The walk the keys
   // ask for on a slippery footing (the feet work however the body slides), else the walk the body
   // makes (none against a wall); 0 for a class that doesn't walk.

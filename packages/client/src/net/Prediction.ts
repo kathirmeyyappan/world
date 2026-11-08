@@ -35,7 +35,7 @@ export class Prediction {
     const standing = this.state.vy === 0;
     stepPlayer(this.state, frame, TICK_DT, this.shape, this.structures);
     this.pending.push(frame);
-    return standing && this.state.vy === 0 ? this.state.pos.y - before : 0;
+    return standing && this.state.vy === 0 && !this.state.climb ? this.state.pos.y - before : 0;
   }
 
   // Returns how far the corrected position moved, so the caller can smooth the pop.

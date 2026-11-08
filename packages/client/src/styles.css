@@ -1378,6 +1378,13 @@ body {
   bottom: 178px;
   width: 84px;
 }
+/* SWAP, on a ladder: a square beside JUMP, to its left. */
+#swap-button {
+  bottom: 26px;
+  right: 118px;
+  width: 84px;
+  height: 84px;
+}
 #chat-button {
   top: 16px;
 }

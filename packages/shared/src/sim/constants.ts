@@ -16,6 +16,12 @@ export const GRAVITY = 20;
 export const JUMP_VELOCITY = 8;
 // The fastest a walk slides across a slippery footing (sim/surfaces.ts), however steep the slope.
 export const SLIDE_SPEED = 14;
+// Ladders (structures.ts, walker.ts): how fast one is climbed, m/s; how far from one of its faces
+// a walker facing it reaches to take hold, metres from the face to the body's middle; and how far
+// off the face a climber's body stands.
+export const CLIMB_SPEED = 3;
+export const LADDER_REACH = 0.9;
+export const LADDER_GAP = 0.05;
 export const MAX_PITCH = Math.PI / 2 - 0.1;
 
 // /speedy: temporary movement multiplier, counted down by the sim so prediction matches.

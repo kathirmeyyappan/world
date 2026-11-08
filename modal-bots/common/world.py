@@ -262,7 +262,7 @@ def _piece(s: Mapping[str, Any]) -> Piece:
     yaw = float(s.get("yaw", 0))
     w, d = float(s["w"]), float(s["d"])
     top: Callable[[float, float], float]
-    if s["kind"] == "box":
+    if s["kind"] in ("box", "ladder"):
         h = float(s["h"])
         height = h
 

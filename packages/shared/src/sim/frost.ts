@@ -104,10 +104,10 @@ function faceSize(s: Structure, face: Face): [number, number] {
 
 // Whether a face has such a cell: the floor has every cell; a piece's face has those inside its
 // reach, cut to it at the edge, and on a side, those not wholly above the top's slope; a terrain
-// has only its top (its sides and underside are never drawn).
+// has only its top (its sides and underside are never drawn), and a ladder none at all.
 export function hasCell(s: Structure | null, piece: number, face: Face, i: number, j: number): boolean {
   if (!s) return piece === FLOOR && face === 0;
-  if (s.kind === 'terrain' && face !== 0) return false;
+  if (s.kind === 'ladder' || (s.kind === 'terrain' && face !== 0)) return false;
   const [along, up] = faceSize(s, face);
   const u0 = i * FROST_CELL;
   const v0 = j * FROST_CELL;
@@ -311,7 +311,7 @@ export function sprayFrost(
     }
     if (!hit || hit.face === null) continue;
     const s = structures.list[hit.piece];
-    if (s.door) continue;
+    if (s.door || s.kind === 'ladder') continue;
     // The spot and the ray's direction in the piece's frame, then across its face.
     const yaw = s.yaw ?? 0;
     const cos = Math.cos(yaw);

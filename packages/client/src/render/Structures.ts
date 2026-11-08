@@ -23,6 +23,7 @@ import {
 import {
   surfaceOf,
   type Box,
+  type Ladder,
   type Ramp,
   type Structure,
   type StructureKind,
@@ -33,7 +34,14 @@ import type { Engine } from './Engine';
 import type { Loader } from './Loader';
 import { MATERIALS, TEXELS, paintMaterial } from './structureMaterials';
 
-const DEFAULT_COLORS: Record<StructureKind, string> = { box: '#39414f', ramp: '#454f60', terrain: '#1d3a2c' };
+const DEFAULT_COLORS: Record<StructureKind, string> = {
+  box: '#39414f',
+  ramp: '#454f60',
+  terrain: '#1d3a2c',
+  ladder: '#8a6a3c',
+};
+const RAIL = 0.08; // metres square a ladder's rails are
+const RUNG = 0.3; // metres between a ladder's rungs
 const REGION = 48; // metres: pieces in the same REGION × REGION square share a merged mesh
 const FLAT_TILE = 4; // texture repeat for flat-coloured pieces, which have no texture to repeat
 // Brightness by face direction, in each piece's own frame.
@@ -115,7 +123,27 @@ function build(scene: Scene, name: string, s: Structure, mapping: Mapping): Mesh
       return prism(scene, name, s, mapping);
     case 'terrain':
       return heightfield(scene, name, s, mapping);
+    case 'ladder':
+      return frame(scene, name, s, mapping);
   }
+}
+
+// A ladder: two rails and a rung every RUNG metres up them, thinner than the frame the sim meets
+// so a climber's hands reach past the rungs, each painted like the piece and all merged into one.
+function frame(scene: Scene, name: string, s: Ladder, mapping: Mapping): Mesh {
+  const depth = Math.min(s.d, 0.14);
+  const parts: Mesh[] = [];
+  const part = (label: string, w: number, h: number, d: number, lx: number, ly: number) => {
+    const mesh = MeshBuilder.CreateBox(`${name}-${label}`, { width: w, height: h, depth: d }, scene);
+    mesh.position.set(lx, ly, 0);
+    mesh.bakeCurrentTransformIntoVertices();
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind)!;
+    paintFaces(mesh, s, positions, mesh.getVerticesData(VertexBuffer.NormalKind)!, 0, mapping);
+    parts.push(mesh);
+  };
+  for (const side of [-1, 1]) part(`rail${side}`, RAIL, s.h, depth, side * (s.w / 2 - RAIL / 2), s.h / 2);
+  for (let y = RUNG; y < s.h - RAIL; y += RUNG) part(`rung${y}`, s.w - 2 * RAIL, RAIL * 0.6, depth * 0.6, 0, y);
+  return Mesh.MergeMeshes(parts, true, true)!;
 }
 
 // A box over the footprint with each top corner dropped to the kind's surface height there:
