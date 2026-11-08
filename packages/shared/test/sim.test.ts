@@ -391,6 +391,7 @@ test("what's underfoot: the material's surface, ice wherever a top is frosted, a
     terrain({ x: 0, z: 0, w: 8, d: 8, material: 'sand', height: () => 0.5 }),
     { kind: 'box', x: 20, z: 0, w: 4, d: 4, h: 1, material: 'brick' },
     ramp({ x: 40, z: 0 }, { x: 40, z: 4 }, 1, 2),
+    { kind: 'box', x: 0, z: 0, w: 2, d: 2, h: 0.5, hidden: true }, // a model's floor box, its top in the sand's plane
   ]);
   assert.equal(world.footing(0, 0, 1).surface, 'sand');
   assert.equal(world.footing(20, 0, 1.5).surface, 'hard');
@@ -407,6 +408,11 @@ test("what's underfoot: the material's surface, ice wherever a top is frosted, a
   world.frost.set([FLOOR, 0, 100, 0], true); // the floor from x 50 to 50.5, z 0 to 0.5
   assert.equal(world.footing(50.2, 0.2, 1).surface, 'ice');
   assert.equal(world.footing(50.7, 0.2, 1).surface, 'hard');
+  // Ice on the hidden box's top, which shares the sand's plane, is ice underfoot whichever of the
+  // two the feet are counted as standing on.
+  world.frost.set([3, 0, 0, 0], true); // the box's corner cell, x -1 to -0.5 and z -1 to -0.5
+  assert.equal(world.footing(-0.75, -0.75, 1).surface, 'ice');
+  assert.equal(world.footing(0.75, 0.75, 1).surface, 'sand', 'the rest of the box is still sand');
 });
 
 test('walking climbs stairs without a jump, and a taller step stops you', () => {
