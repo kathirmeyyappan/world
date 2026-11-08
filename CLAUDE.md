@@ -371,7 +371,7 @@ by command, gear, `/speedy`), whether bots may wear it, how long its dead body s
 like an item's and announced by the Room as `action` messages), whether it `fits` where a player is
 switching into it, `enter`/`exit` for its own state on `PlayerState`, its `hitShape` for shots (a
 capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it leaves. The walker
-(`walker.ts`) is everyone on foot; the dragon (`dragon.ts`) is a head sphere flying where its rider
+(`walker.ts`) is everyone on foot; the asian dragon (`asian-dragon`, `dragon.ts`) is a head sphere flying where its rider
 looks with a spine of points following it, kept 5 m up and too big for a door, its head turned
 toward the look only as far as the neck lets it, breathing a wide cone where the head points
 (`firebreath`, the look's own item) and roaring on A, S and D; a new one climbs straight out of the

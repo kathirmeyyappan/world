@@ -11,7 +11,7 @@ import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WALKER } from './walker';
 import type { WorldPart } from './world';
 
-export type PlayerClass = 'walker' | 'dragon';
+export type PlayerClass = 'walker' | 'asian-dragon';
 
 // What a shot tests against (combat.ts): a walker's upright capsule from the feet under its eyes,
 // sized by its avatar, or a set of spheres, each a hit wherever it is, a `head` one a headshot.
@@ -58,7 +58,7 @@ export interface ClassSpec {
   lies(p: PlayerState, structures: Structures): Vec3[];
 }
 
-export const CLASSES: Record<PlayerClass, ClassSpec> = { walker: WALKER, dragon: DRAGON };
+export const CLASSES: Record<PlayerClass, ClassSpec> = { walker: WALKER, 'asian-dragon': DRAGON };
 
 export function classOf(avatar: AvatarId): ClassSpec {
   return CLASSES[AVATARS[avatar].class];

@@ -162,7 +162,7 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
   },
   'light-dragon': {
     id: 'light-dragon',
-    class: 'dragon',
+    class: 'asian-dragon',
     item: 'firebreath',
     regen: true,
     nameTag: null,

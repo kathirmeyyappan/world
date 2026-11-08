@@ -56,7 +56,7 @@ export function createDragon(head: Vec3): DragonState {
 }
 
 export const DRAGON: ClassSpec = {
-  id: 'dragon',
+  id: 'asian-dragon',
   hearts: 40,
   heartRow: 8,
   kit: false,

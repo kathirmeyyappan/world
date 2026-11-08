@@ -690,9 +690,9 @@ export class Game {
     // keys.
     const cls = classOf(self.avatar).id;
     if (cls !== this.classId) {
-      if (cls === 'dragon') this.view.set('third');
+      if (cls === 'asian-dragon') this.view.set('third');
       this.hud.setKeys(cls);
-      this.environment.setBounds(cls === 'dragon' ? 'sky' : 'ground');
+      this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }
     // A new look or a new item in hand takes the scope with it, as death does.
