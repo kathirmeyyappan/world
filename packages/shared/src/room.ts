@@ -35,7 +35,7 @@ import { classOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
 import { sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
-import { REGEN_HEARTS, REGEN_SECONDS, applyDamage, damageFor, fallDamage } from './sim/health';
+import { REGEN_RATE, applyDamage, damageFor, fallDamage } from './sim/health';
 import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
@@ -62,7 +62,6 @@ const SPAWN_MARGIN = 1; // metres a spawn keeps inside its area: more than a bod
 // as a fallback. Bots cannot rejoin themselves, so approximate that window's midpoint.
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
 const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
-const REGEN_TICKS = REGEN_SECONDS * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
@@ -401,8 +400,8 @@ export class Room {
         seat.link.close?.('dead');
         continue;
       }
-      if (AVATARS[me.avatar].regen && !me.dead && this.tick % REGEN_TICKS === 0)
-        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + REGEN_HEARTS);
+      if (AVATARS[me.avatar].regen && !me.dead)
+        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + REGEN_RATE * TICK_DT);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
         this.land(seat, stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures));
