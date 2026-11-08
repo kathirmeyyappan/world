@@ -349,11 +349,13 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
 });
 
 test('a ladder: forward at it takes hold and climbs, over its top onto what is beyond, off on a jump, round it on a swap', () => {
-  // A 4 m ladder up the side of a 4 m block, standing just clear of it, and one in the open.
+  // A 4 m ladder up the side of a 4 m block, standing just clear of it, and one in the open with a
+  // floor over its far face, 3 m up.
   const world = new Structures([
     { kind: 'box', x: 0, z: 3, w: 6, d: 4, h: 4 },
     ladder({ x: 0, z: 0.55 }, 0, 4, 0),
     ladder({ x: 10, z: 0 }, 0, 4, 0),
+    { kind: 'box', x: 10, z: 1.8, y: 3, w: 4, d: 3, h: 0.5 },
   ]);
   const face = (w: PlayerState) => w.climb?.side ?? null; // the face held, read afresh each time
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: -2 });
@@ -383,6 +385,21 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
   assert.ok(
     face(r) === 1 && r.climb?.way === 1 && Math.abs(r.pos.z + before) < 1e-9,
     `round to the far face: z ${before} to ${r.pos.z}`,
+  );
+  // Under the floor the climb stops where the head (2 m up) meets its underside, and from the
+  // other face there's no swapping into it; over the top is the way onto it.
+  walk(r, 0, 60, world);
+  const stalled = r.pos.y - EYE_HEIGHT;
+  assert.ok(face(r) === 1 && stalled > 0.85 && stalled < 1 + 1e-6, `stopped under the floor at ${stalled}`);
+  stepPlayer(r, frame(r.lastSeq + 1, { actions: ['swap-left'] }), TICK_DT, WORLD_SHAPE, world);
+  walk(r, 0, 20, world);
+  assert.ok(face(r) === -1 && r.pos.y - EYE_HEIGHT > 2.5, `round and on up the open face to ${r.pos.y}`);
+  stepPlayer(r, frame(r.lastSeq + 1, { actions: ['swap-right'] }), TICK_DT, WORLD_SHAPE, world);
+  assert.equal(face(r), -1, 'no swapping into the floor');
+  walk(r, 0, 12, world);
+  assert.ok(
+    !face(r) && r.pos.y - EYE_HEIGHT > 3.5 - 1e-6 && r.pos.z > 0.3,
+    `over the top onto the floor at z ${r.pos.z}`,
   );
 });
 
