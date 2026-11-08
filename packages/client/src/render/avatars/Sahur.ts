@@ -5,16 +5,14 @@
 // hips to yellow at the top of the head, and the eyes are the avatar's own: white balls that are
 // mostly pupil, staring fixed and a little wall-eyed. It walks stiff-legged, twitches its head now and
 // then, and dies flat on its back. Worn with /tung; its hit capsule is as tall as it is
-// (AVATARS.sahur.hitbox), movement and items are everyone's, and a held item replaces the bat. The
-// sculpt's right arm is cut from the log as a part of its own, so holding an item it comes up from
-// the shoulder, elbow bent, the item in its fist pointed along the look, like a stick-up.
+// (AVATARS.sahur.hitbox), and a held item replaces the bat. The sculpt's right arm is cut from the log
+// as a part of its own, so holding an item it comes up from the shoulder, elbow bent, the item in its
+// fist pointed along the look, like a stick-up.
 import { Color3, Mesh, MeshBuilder, TransformNode, Vector3, VertexData, type StandardMaterial } from '@babylonjs/core';
-import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { centreOf, createShadowBlob, flat, Gait, placeShadow, type Avatar } from './common';
-import { HeldItems } from './HeldItems';
-import { HitFlash } from './HitFlash';
+import { flat } from './common';
 import { SAHUR_MODEL } from './sahurModel';
+import type { Figure } from './Walker';
 
 const PUPIL = 0.7; // pupil diameter as a fraction of the eyeball's
 const EYE_SIZE = 1.02; // the eyeball's radius as a fraction of the sculpt's (a closed lid): it covers it, wide open
@@ -24,7 +22,7 @@ const CREASE_DARKEN = 0.6; // how much of the skin's colour the deepest crease l
 const LIE_HEIGHT = 0.28; // metres the fallen log's centre line sits above the ground (its half-depth)
 const TWITCH_EVERY_MS = 4300; // roughly; each avatar's twitches are offset by its id
 const LEAN = 0.12; // how much of the look's pitch the log leans by
-const RAISE = Math.PI / 3; // radians the right arm swings up from hanging to hold an item out
+const BEND = Math.PI / 6; // radians the raised arm stays below the look, the elbow bent
 
 // Skin by height, in metres above the feet: orange-brown on the body, yellow on the head.
 const SKIN = [
@@ -36,168 +34,92 @@ const SKIN = [
 
 type PartKey = keyof typeof SAHUR_MODEL.parts;
 
-export class SahurAvatar implements Avatar {
-  readonly kind = 'sahur' as const;
-  private readonly root: TransformNode;
-  private readonly body: TransformNode;
-  private readonly log: TransformNode; // everything above the hips, which sways and twitches
-  private readonly legL: TransformNode;
-  private readonly legR: TransformNode;
-  private readonly bat: Mesh;
-  private readonly arm: TransformNode; // the right arm, turning at the shoulder
-  private readonly shadow: Mesh;
-  private readonly items: HeldItems;
-  private readonly hitFlash: HitFlash;
-  private readonly twitchOffset: number;
-  private dead = false;
-  private readonly gait = new Gait();
+export function buildSahur(engine: Engine, id: string, base: TransformNode): Figure {
+  const scene = engine.scene;
+  const model = SAHUR_MODEL;
+  const twitchOffset = [...id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % TWITCH_EVERY_MS;
 
-  constructor(
-    engine: Engine,
-    readonly id: string,
-  ) {
-    const scene = engine.scene;
-    const model = SAHUR_MODEL;
-    const hip = model.parts.body.pivot[1];
-    this.twitchOffset = [...id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % TWITCH_EVERY_MS;
-    this.root = new TransformNode(`avatar-${id}`, scene);
-    this.body = new TransformNode(`avatar-body-${id}`, scene);
-    this.body.parent = this.root;
+  // Coloured per vertex (skinColours), which tints the glow as well as the lit colour.
+  const skin = glossy(flat(scene, `sahur-skin-${id}`, Color3.White(), 0.34));
+  const batMat = glossy(flat(scene, `sahur-bat-${id}`, new Color3(0.62, 0.33, 0.14), 0.3));
+  const white = glossy(flat(scene, `sahur-white-${id}`, new Color3(0.97, 0.96, 0.93), 0.5));
+  const black = flat(scene, `sahur-black-${id}`, new Color3(0.01, 0.01, 0.01), 0);
 
-    // Coloured per vertex (skinColours), which tints the glow as well as the lit colour.
-    const skin = glossy(flat(scene, `sahur-skin-${id}`, Color3.White(), 0.34));
-    const batMat = glossy(flat(scene, `sahur-bat-${id}`, new Color3(0.62, 0.33, 0.14), 0.3));
-    const white = glossy(flat(scene, `sahur-white-${id}`, new Color3(0.97, 0.96, 0.93), 0.5));
-    const black = flat(scene, `sahur-black-${id}`, new Color3(0.01, 0.01, 0.01), 0);
-    this.hitFlash = new HitFlash([skin, batMat]);
+  // A node at a part's pivot (given in the avatar's frame, so offset by the parent's own pivot),
+  // with the part's mesh hung on it.
+  const part = (key: PartKey, parent: TransformNode, offset: readonly number[], mat: StandardMaterial) => {
+    const { pivot } = model.parts[key];
+    const node = new TransformNode(`sahur-${key}-${id}`, scene);
+    node.parent = parent;
+    node.position.set(pivot[0] - offset[0], pivot[1] - offset[1], pivot[2] - offset[2]);
+    const mesh = partMesh(scene, `sahur-${key}-mesh-${id}`, model.parts[key], mat === skin);
+    mesh.material = mat;
+    mesh.parent = node;
+    mesh.isPickable = false;
+    return { node, mesh };
+  };
+  const origin = [0, 0, 0];
+  const log = part('body', base, origin, skin).node; // everything above the hips, which leans and twitches
+  const legL = part('legL', base, origin, skin).node;
+  const legR = part('legR', base, origin, skin).node;
+  const bat = part('bat', log, model.parts.body.pivot, batMat).mesh;
+  const arm = part('armR', log, model.parts.body.pivot, skin).node; // the right arm, turning at the shoulder
 
-    // A node at a part's pivot (given in the avatar's frame, so offset by the parent's own pivot),
-    // with the part's mesh hung on it.
-    const part = (key: PartKey, parent: TransformNode, offset: readonly number[], mat: StandardMaterial) => {
-      const { pivot } = model.parts[key];
-      const node = new TransformNode(`sahur-${key}-${id}`, scene);
-      node.parent = parent;
-      node.position.set(pivot[0] - offset[0], pivot[1] - offset[1], pivot[2] - offset[2]);
-      const mesh = partMesh(scene, `sahur-${key}-mesh-${id}`, model.parts[key], mat === skin);
-      mesh.material = mat;
-      mesh.parent = node;
-      mesh.isPickable = false;
-      return { node, mesh };
-    };
-    const origin = [0, 0, 0];
-    this.log = part('body', this.body, origin, skin).node;
-    this.legL = part('legL', this.body, origin, skin).node;
-    this.legR = part('legR', this.body, origin, skin).node;
-    this.bat = part('bat', this.log, model.parts.body.pivot, batMat).mesh;
-    this.arm = part('armR', this.log, model.parts.body.pivot, skin).node;
-
-    // Eyes: a white ball in each of the sculpt's sockets, the front mostly pupil, fixed and turned a
-    // little outward.
-    const r = model.eyeRadius * EYE_SIZE;
-    for (const [i, [x, y, z]] of model.eyes.entries()) {
-      const side = x > 0 ? 1 : -1;
-      const ball = MeshBuilder.CreateSphere(`sahur-eye-${i}-${id}`, { diameter: r * 2, segments: 10 }, scene);
-      ball.material = white;
-      ball.parent = this.log;
-      ball.position.set(x, y - hip, z - EYE_SINK); // over the sculpt's closed lid, inside its orbit
-      ball.isPickable = false;
-      const pupil = MeshBuilder.CreateDisc(`sahur-pupil-${i}-${id}`, { radius: r * PUPIL, tessellation: 18 }, scene);
-      pupil.material = black;
-      pupil.parent = ball;
-      pupil.rotation.set(0.04, Math.PI + side * STARE_OUT, 0); // a disc faces -z; turn it to face out
-      pupil.position.set(Math.sin(side * STARE_OUT) * r * 1.01, -0.04 * r, Math.cos(STARE_OUT) * r * 1.01);
-      pupil.isPickable = false;
-    }
-
-    // A held item goes in the fist instead of the bat, its barrel (the hand's -y) pointing forward once
-    // the arm is raised; the flamethrower's tank rides on the back.
-    const hand = new TransformNode(`sahur-hand-${id}`, scene);
-    hand.parent = this.arm;
-    const { pivot: shoulder } = model.parts.armR;
-    hand.position.set(model.hand[0] - shoulder[0], model.hand[1] - shoulder[1], model.hand[2] - shoulder[2]);
-    hand.rotation.x = RAISE - Math.PI / 2;
-    this.items = new HeldItems(
-      engine,
-      `sahur-${id}`,
-      'sahur',
-      hand,
-      Vector3.Zero(),
-      this.log,
-      new Vector3(0, 1.0, -0.4),
-    );
-
-    this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.3);
-    this.shadow.parent = this.root;
-    this.shadow.position.y = 0.02;
+  // Eyes: a white ball in each of the sculpt's sockets, the front mostly pupil, fixed and turned a
+  // little outward.
+  const hip = model.parts.body.pivot[1];
+  const r = model.eyeRadius * EYE_SIZE;
+  for (const [i, [x, y, z]] of model.eyes.entries()) {
+    const side = x > 0 ? 1 : -1;
+    const ball = MeshBuilder.CreateSphere(`sahur-eye-${i}-${id}`, { diameter: r * 2, segments: 10 }, scene);
+    ball.material = white;
+    ball.parent = log;
+    ball.position.set(x, y - hip, z - EYE_SINK); // over the sculpt's closed lid, inside its orbit
+    ball.isPickable = false;
+    const pupil = MeshBuilder.CreateDisc(`sahur-pupil-${i}-${id}`, { radius: r * PUPIL, tessellation: 18 }, scene);
+    pupil.material = black;
+    pupil.parent = ball;
+    pupil.rotation.set(0.04, Math.PI + side * STARE_OUT, 0); // a disc faces -z; turn it to face out
+    pupil.position.set(Math.sin(side * STARE_OUT) * r * 1.01, -0.04 * r, Math.cos(STARE_OUT) * r * 1.01);
+    pupil.isPickable = false;
   }
 
-  update(p: RemotePlayer, step: number): void {
-    this.hitFlash.update(p.chilled);
-    const feetY = p.y - 1.7;
-    const airborne = !p.grounded;
-    const hip = SAHUR_MODEL.parts.body.pivot[1];
-    this.root.position.set(p.x, feetY, p.z);
-    this.root.rotation.y = p.yaw;
+  // A held item goes in the fist instead of the bat; the flamethrower's tank rides on the back.
+  const grip = new TransformNode(`avatar-grip-${id}`, scene);
+  grip.parent = arm;
+  const { pivot: shoulder } = model.parts.armR;
+  grip.position.set(model.hand[0] - shoulder[0], model.hand[1] - shoulder[1], model.hand[2] - shoulder[2]);
 
-    // Stilted walk: stiff legs swing from the hip and the log bobs; the arms keep hanging.
-    this.gait.update(p.walk, airborne, step);
-    const { phase, effort } = this.gait;
-    const swing = airborne ? 0.15 : Math.sin(phase) * 0.32 * effort;
-    this.legL.rotation.x = swing;
-    this.legR.rotation.x = -swing;
-    this.log.position.y = hip + (airborne ? 0 : Math.abs(Math.sin(phase)) * 0.05 * effort);
-
-    // The log leans a little with the look and sways slowly; every few seconds, a short jerk sideways.
-    const now = performance.now();
-    const sinceTwitch = (now + this.twitchOffset) % TWITCH_EVERY_MS;
-    const twitch = sinceTwitch < 140 ? Math.sin((sinceTwitch / 140) * Math.PI) * 0.12 : 0;
-    this.log.rotation.set(p.pitch * LEAN, 0, Math.sin(now / 1700 + this.twitchOffset) * 0.03 + twitch);
-    // Holding something, the arm swings up and follows the look's pitch (less the little the log
-    // already leans); otherwise it hangs as sculpted, its fist on the bat.
-    this.arm.rotation.x = p.item && !p.dead ? -RAISE + p.pitch * (1 - LEAN) : 0;
-
-    this.bat.setEnabled(!p.item);
-    this.items.update(p);
-
-    if (p.dead !== this.dead) {
-      this.dead = p.dead;
-      // Fallen flat on its back like a felled log, face to the sky, lifted to lie on the ground
-      // rather than through it.
-      this.body.rotation.x = p.dead ? -Math.PI / 2 : 0;
-      this.body.position.y = p.dead ? LIE_HEIGHT : 0;
-    }
-    if (p.dead) {
-      this.legL.rotation.x = this.legR.rotation.x = 0;
-      this.log.rotation.set(0, 0, 0);
-      this.log.position.y = hip;
-    }
-    placeShadow(this.shadow, p, feetY);
-    this.root.setEnabled(true);
-  }
-
-  flash(): void {
-    this.hitFlash.trigger();
-  }
-
-  fire(): void {
-    this.items.fire();
-  }
-
-  scaleWeapons(factor: number): void {
-    this.items.scaleWeapons(factor);
-  }
-
-  hide(): void {
-    this.root.setEnabled(false);
-  }
-
-  dispose(): void {
-    this.root.dispose(false, true);
-  }
-
-  corpse(): Vector3 | null {
-    return this.dead && this.root.isEnabled() ? centreOf(this.body) : null;
-  }
+  return {
+    tilt: { node: log, follow: LEAN },
+    legs: [
+      { node: legL, side: 1 },
+      { node: legR, side: -1 },
+    ],
+    armR: { node: arm, grip, reach: Vector3.Down() },
+    back: { node: log, at: new Vector3(0, 1.0, -0.4) },
+    materials: [skin, batMat],
+    shadow: 1.3,
+    legSwing: 0.32, // stiff legs swing from the hip
+    airLegs: 0.15,
+    armSwing: 0, // the arms keep hanging, the fist on the bat
+    bob: 0.05,
+    bend: BEND,
+    lie: { onto: 'back', height: LIE_HEIGHT }, // flat on its back like a felled log, face to the sky
+    // The bat is in the fist unless an item is. The log sways slowly and, every few seconds, jerks
+    // sideways for a moment; dead, it lies still.
+    extra: (p) => {
+      bat.setEnabled(!p.item);
+      if (p.dead) {
+        log.rotation.z = 0;
+        return;
+      }
+      const now = performance.now();
+      const sinceTwitch = (now + twitchOffset) % TWITCH_EVERY_MS;
+      const twitch = sinceTwitch < 140 ? Math.sin((sinceTwitch / 140) * Math.PI) * 0.12 : 0;
+      log.rotation.z = Math.sin(now / 1700 + twitchOffset) * 0.03 + twitch;
+    },
+  };
 }
 
 // Smooth and a little shiny.

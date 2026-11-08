@@ -1,20 +1,17 @@
 // Sulley (Monsters, Inc.): 2.6 m of teal fur with purple spots, from Guilherme Navarro's low-poly
 // model (sulleyModel.ts, made by scripts/avatar-model.py), skinned over eight bones: hips, chest,
 // head, the arms, the legs and the tail. It lumbers: short legs stride, the long arms swing against
-// them, the chest rolls, the tail sways on its own, and the head follows the look. A held item rides
-// the right arm, which points forward to aim. It dies flat on its back with the tail out to one side.
-// Worn with /sulley; its hit capsule is sized to it (AVATARS.sulley.hitbox), movement and items are
-// everyone's.
-import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
-import type { RemotePlayer } from '../../net/Interpolation';
+// them, the chest rolls, the tail sways on its own, and the head follows the look. It dies flat on
+// its back with the tail out to one side. Worn with /sulley; its hit capsule is sized to it
+// (AVATARS.sulley.hitbox).
+import { TransformNode, Vector3 } from '@babylonjs/core';
 import type { Engine } from '../Engine';
-import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
-import { HeldItems } from './HeldItems';
-import { HitFlash } from './HitFlash';
 import { SkinnedBody } from './skinned';
 import { SULLEY_MODEL } from './sulleyModel';
+import type { Figure } from './Walker';
 
 const LEG_SWING = 0.7; // radians each way at a full-speed walk
+const AIR_LEGS = 0.3;
 const ARM_SWING = 0.3;
 const ROLL = 0.06; // radians the chest rolls side to side with each stride
 const BOB = 0.04; // metres the body rises mid-stride
@@ -38,123 +35,45 @@ const PARENTS: Record<Bone, Bone | null> = {
   tail: 'hips',
 };
 
-export class SulleyAvatar implements Avatar {
-  readonly kind = 'sulley' as const;
-  private readonly root: TransformNode;
-  private readonly body: TransformNode;
-  private readonly skin: SkinnedBody<Bone>;
-  private readonly chest: TransformNode;
-  private readonly head: TransformNode;
-  private readonly armL: TransformNode;
-  private readonly armR: TransformNode;
-  private readonly legL: TransformNode;
-  private readonly legR: TransformNode;
-  private readonly tail: TransformNode;
-  private readonly shadow: Mesh;
-  private readonly items: HeldItems;
-  private readonly hitFlash: HitFlash;
-  private readonly swayOffset: number;
-  private dead = false;
-  private readonly gait = new Gait();
+export function buildSulley(engine: Engine, id: string, base: TransformNode): Figure {
+  const swayOffset = [...id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % TAIL_SWAY_MS;
+  const skin = new SkinnedBody(engine, `sulley-${id}`, SULLEY_MODEL, 'sulley', PARENTS, base);
+  const chest = skin.node('chest');
+  const head = skin.node('head');
+  const armR = skin.node('armR');
+  const tail = skin.node('tail');
 
-  constructor(
-    engine: Engine,
-    readonly id: string,
-  ) {
-    const scene = engine.scene;
-    this.swayOffset = [...id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % TAIL_SWAY_MS;
-    this.root = new TransformNode(`avatar-${id}`, scene);
-    this.body = new TransformNode(`avatar-body-${id}`, scene);
-    this.body.parent = this.root;
+  // A held item goes in the right palm; the flamethrower's tank hangs on the back below the shoulders.
+  const grip = new TransformNode(`avatar-grip-${id}`, engine.scene);
+  grip.parent = armR;
+  grip.position.copyFrom(skin.offset('armR', SULLEY_MODEL.hand));
+  const reach = grip.position.normalizeToNew();
 
-    this.skin = new SkinnedBody(engine, `sulley-${id}`, SULLEY_MODEL, 'sulley', PARENTS, this.body);
-    this.chest = this.skin.node('chest');
-    this.head = this.skin.node('head');
-    this.armL = this.skin.node('armL');
-    this.armR = this.skin.node('armR');
-    this.legL = this.skin.node('legL');
-    this.legR = this.skin.node('legR');
-    this.tail = this.skin.node('tail');
-    this.hitFlash = new HitFlash([this.skin.material]);
-
-    // A held item goes in the right palm; the flamethrower's tank hangs on the back below the shoulders.
-    this.items = new HeldItems(
-      engine,
-      `sulley-${id}`,
-      'sulley',
-      this.armR,
-      this.skin.offset('armR', SULLEY_MODEL.hand),
-      this.chest,
-      this.skin.offset('chest', SULLEY_MODEL.back),
-    );
-
-    this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.7);
-    this.shadow.parent = this.root;
-    this.shadow.position.y = 0.02;
-  }
-
-  update(p: RemotePlayer, step: number): void {
-    this.hitFlash.update(p.chilled);
-    const feetY = p.y - 1.7;
-    const airborne = !p.grounded;
-    this.root.position.set(p.x, feetY, p.z);
-    this.root.rotation.y = p.yaw;
-    this.head.rotation.x = p.pitch * HEAD_FOLLOW;
-
-    this.gait.update(p.walk, airborne, step);
-    const { phase, effort } = this.gait;
-    const swing = airborne ? 0.3 : Math.sin(phase) * effort * LEG_SWING;
-    this.legL.rotation.x = swing;
-    this.legR.rotation.x = -swing;
-    this.armL.rotation.x = (-swing * ARM_SWING) / LEG_SWING;
-    this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : (swing * ARM_SWING) / LEG_SWING;
-    this.chest.rotation.z = airborne ? 0 : Math.sin(phase) * ROLL * effort;
-    this.body.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * BOB * effort;
-    this.tail.rotation.y = Math.sin(((performance.now() + this.swayOffset) / TAIL_SWAY_MS) * 2 * Math.PI) * TAIL_SWAY;
-    this.items.update(p);
-
-    if (p.dead !== this.dead) {
-      this.dead = p.dead;
-      // Toppled onto its back, head away from where it was going, the hips as high as the body is
-      // deep so it lies on the ground rather than through it.
-      this.body.rotation.x = p.dead ? -Math.PI / 2 : 0;
-      this.body.position.y = p.dead ? SULLEY_MODEL.lie : 0;
-    }
-    if (p.dead) {
-      // Limbs dropped to the ground either side, the head back, the tail out of the floor.
-      this.legL.rotation.x = this.legR.rotation.x = DEAD_LEGS;
-      this.armL.rotation.x = this.armR.rotation.x = DEAD_ARMS;
-      this.head.rotation.x = DEAD_HEAD;
-      this.chest.rotation.z = 0;
-      this.body.position.y = SULLEY_MODEL.lie;
-      this.tail.rotation.y = Math.PI / 2;
-    }
-    placeShadow(this.shadow, p, feetY);
-    this.root.setEnabled(true);
-  }
-
-  flash(): void {
-    this.hitFlash.trigger();
-  }
-
-  fire(): void {
-    this.items.fire();
-  }
-
-  scaleWeapons(factor: number): void {
-    this.items.scaleWeapons(factor);
-  }
-
-  hide(): void {
-    this.root.setEnabled(false);
-  }
-
-  dispose(): void {
-    this.root.dispose(false, true);
-    this.skin.dispose();
-  }
-
-  corpse(): Vector3 | null {
-    return this.dead && this.root.isEnabled() ? centreOf(this.body) : null;
-  }
+  return {
+    tilt: { node: head, follow: HEAD_FOLLOW },
+    head,
+    legs: [
+      { node: skin.node('legL'), side: 1 },
+      { node: skin.node('legR'), side: -1 },
+    ],
+    armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
+    armR: { node: armR, grip, reach },
+    rock: chest,
+    back: { node: chest, at: skin.offset('chest', SULLEY_MODEL.back) },
+    materials: [skin.material],
+    shadow: 1.7,
+    legSwing: LEG_SWING,
+    airLegs: AIR_LEGS,
+    armSwing: ARM_SWING,
+    bob: BOB,
+    sway: ROLL,
+    lie: { onto: 'back', height: SULLEY_MODEL.lie, legs: DEAD_LEGS, arms: DEAD_ARMS, head: DEAD_HEAD },
+    // The tail sways on its own; dead, it lies out to one side, out of the floor.
+    extra: (p) => {
+      tail.rotation.y = p.dead
+        ? Math.PI / 2
+        : Math.sin(((performance.now() + swayOffset) / TAIL_SWAY_MS) * 2 * Math.PI) * TAIL_SWAY;
+    },
+    dispose: () => skin.dispose(),
+  };
 }

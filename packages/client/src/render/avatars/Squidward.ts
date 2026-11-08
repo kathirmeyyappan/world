@@ -3,20 +3,17 @@
 // head, the arms and four tentacle legs, each in two halves so it bends. He walks as on the show:
 // the two tentacles of a side move as one, left and right in turn like a pair of legs, each bending
 // as it swings with its foot flopping along behind, and each side's landing a plop (gaits.ts); the
-// arms swing against them, the body bobs and rocks, and the head turns with the look. A held item
-// rides the right arm, which points forward to aim. He dies on his back with his limbs dropped.
-// Worn with /squidward; his hit capsule is AVATARS.squidward.hitbox, movement and items are
-// everyone's.
-import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
-import type { RemotePlayer } from '../../net/Interpolation';
+// arms swing against them, the body bobs and rocks, and the head turns with the look. He dies on
+// his back with his limbs dropped. Worn with /squidward; his hit capsule is
+// AVATARS.squidward.hitbox.
+import { TransformNode, Vector3 } from '@babylonjs/core';
 import type { Engine } from '../Engine';
-import { aimArm, centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
-import { HeldItems } from './HeldItems';
-import { HitFlash } from './HitFlash';
 import { SkinnedBody } from './skinned';
 import { SQUIDWARD_MODEL } from './squidwardModel';
+import type { Figure, Leg } from './Walker';
 
 const LEG_SWING = 0.3; // radians each way a tentacle swings from the hip at a full-speed walk
+const AIR_LEGS = 0.15;
 // The lower half of a tentacle swings this far behind the upper in the stride (radians of it) and
 // this much further: the leg bends as it goes, and the foot flops along after it.
 const FOOT_LAG = 1.0;
@@ -53,131 +50,40 @@ const LEGS: { leg: Bone; foot: Bone; side: 1 | -1 }[] = [
   { leg: 'legBR', foot: 'footBR', side: -1 },
 ];
 
-export class SquidwardAvatar implements Avatar {
-  readonly kind = 'squidward' as const;
-  private readonly root: TransformNode;
-  private readonly base: TransformNode; // the body's frame: tipped over when dead
-  private readonly skin: SkinnedBody<Bone>;
-  private readonly head: TransformNode;
-  private readonly armL: TransformNode;
-  private readonly armR: TransformNode;
-  private readonly legs: { leg: TransformNode; foot: TransformNode; side: 1 | -1 }[];
-  private readonly grip: TransformNode; // the right hand, turned so a held item's barrel runs along the look
-  private readonly reach: Vector3; // which way the arm hangs from the shoulder in the model
-  private readonly shadow: Mesh;
-  private readonly items: HeldItems;
-  private readonly hitFlash: HitFlash;
-  private readonly gait = new Gait();
-  private dead = false;
+export function buildSquidward(engine: Engine, id: string, base: TransformNode): Figure {
+  const skin = new SkinnedBody(engine, `squidward-${id}`, SQUIDWARD_MODEL, 'squidward', PARENTS, base);
+  const body = skin.node('body');
+  const head = skin.node('head');
+  const armR = skin.node('armR');
+  // Every part is an open shell: under the collar and up the sleeves you look into other parts.
+  skin.material.backFaceCulling = false;
+  skin.material.twoSidedLighting = true;
 
-  constructor(
-    engine: Engine,
-    readonly id: string,
-  ) {
-    const scene = engine.scene;
-    this.root = new TransformNode(`avatar-${id}`, scene);
-    this.base = new TransformNode(`avatar-body-${id}`, scene);
-    this.base.parent = this.root;
+  const grip = new TransformNode(`avatar-grip-${id}`, engine.scene);
+  grip.parent = armR;
+  grip.position.copyFrom(skin.offset('armR', SQUIDWARD_MODEL.hand));
+  const reach = grip.position.normalizeToNew();
+  const legs: Leg[] = LEGS.map(({ leg, foot, side }) => ({
+    node: skin.node(leg),
+    side,
+    foot: { node: skin.node(foot), lag: FOOT_LAG, gain: FOOT_GAIN },
+  }));
 
-    this.skin = new SkinnedBody(engine, `squidward-${id}`, SQUIDWARD_MODEL, 'squidward', PARENTS, this.base);
-    this.head = this.skin.node('head');
-    this.armL = this.skin.node('armL');
-    this.armR = this.skin.node('armR');
-    this.legs = LEGS.map(({ leg, foot, side }) => ({ leg: this.skin.node(leg), foot: this.skin.node(foot), side }));
-    // Every part is an open shell: under the collar and up the sleeves you look into other parts.
-    this.skin.material.backFaceCulling = false;
-    this.skin.material.twoSidedLighting = true;
-    this.hitFlash = new HitFlash([this.skin.material]);
-
-    this.grip = new TransformNode(`avatar-grip-${id}`, scene);
-    this.grip.parent = this.armR;
-    this.grip.position.copyFrom(this.skin.offset('armR', SQUIDWARD_MODEL.hand));
-    this.reach = this.grip.position.normalizeToNew();
-    this.items = new HeldItems(
-      engine,
-      `squidward-${id}`,
-      'squidward',
-      this.grip,
-      Vector3.Zero(),
-      this.skin.node('body'),
-      this.skin.offset('body', SQUIDWARD_MODEL.back),
-    );
-
-    this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.5);
-    this.shadow.parent = this.root;
-    this.shadow.position.y = 0.02;
-  }
-
-  update(p: RemotePlayer, step: number): void {
-    this.hitFlash.update(p.chilled);
-    const feetY = p.y - 1.7;
-    const airborne = !p.grounded;
-    this.root.position.set(p.x, feetY, p.z);
-    this.root.rotation.y = p.yaw;
-    this.head.rotation.x = p.pitch * HEAD_FOLLOW;
-
-    this.gait.update(p.walk, airborne, step);
-    const { phase, effort } = this.gait;
-    const swing = (lag: number) => (airborne ? 0.15 : Math.sin(phase - lag) * effort * LEG_SWING);
-    for (const { leg, foot, side } of this.legs) {
-      leg.rotation.x = side * swing(0);
-      foot.rotation.x = side * swing(FOOT_LAG) * FOOT_GAIN - leg.rotation.x;
-    }
-    const arms = (swing(0) * ARM_SWING) / LEG_SWING;
-    this.armL.rotation.x = -arms;
-    if (p.item && !p.dead) aimArm(this.armR, this.grip, this.reach, p.pitch);
-    else {
-      this.armR.rotationQuaternion = null;
-      this.armR.rotation.x = arms;
-    }
-    this.base.position.y = airborne ? 0 : Math.abs(Math.sin(phase)) * BOB * effort;
-    this.base.rotation.z = airborne ? 0 : Math.sin(phase) * SWAY * effort;
-    this.items.update(p);
-
-    if (p.dead !== this.dead) {
-      this.dead = p.dead;
-      // Toppled onto his back, head away from where he was going, lifted by the head's depth so he
-      // lies on the ground rather than through it.
-      this.base.rotation.x = p.dead ? -Math.PI / 2 : 0;
-      this.base.position.y = p.dead ? SQUIDWARD_MODEL.lie : 0;
-    }
-    if (p.dead) {
-      this.base.rotation.z = 0;
-      for (const { leg, foot } of this.legs) {
-        leg.rotation.x = DEAD_LEGS;
-        foot.rotation.x = 0;
-      }
-      this.armR.rotationQuaternion = null;
-      this.armL.rotation.x = this.armR.rotation.x = DEAD_ARMS;
-      this.head.rotation.x = DEAD_HEAD;
-      this.base.position.y = SQUIDWARD_MODEL.lie;
-    }
-    placeShadow(this.shadow, p, feetY);
-    this.root.setEnabled(true);
-  }
-
-  flash(): void {
-    this.hitFlash.trigger();
-  }
-
-  fire(): void {
-    this.items.fire();
-  }
-
-  scaleWeapons(factor: number): void {
-    this.items.scaleWeapons(factor);
-  }
-
-  hide(): void {
-    this.root.setEnabled(false);
-  }
-
-  dispose(): void {
-    this.root.dispose(false, true);
-    this.skin.dispose();
-  }
-
-  corpse(): Vector3 | null {
-    return this.dead && this.root.isEnabled() ? centreOf(this.base) : null;
-  }
+  return {
+    tilt: { node: head, follow: HEAD_FOLLOW },
+    head,
+    legs,
+    armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
+    armR: { node: armR, grip, reach },
+    back: { node: body, at: skin.offset('body', SQUIDWARD_MODEL.back) },
+    materials: [skin.material],
+    shadow: 1.5,
+    legSwing: LEG_SWING,
+    airLegs: AIR_LEGS,
+    armSwing: ARM_SWING,
+    bob: BOB,
+    sway: SWAY,
+    lie: { onto: 'back', height: SQUIDWARD_MODEL.lie, legs: DEAD_LEGS, arms: DEAD_ARMS, head: DEAD_HEAD },
+    dispose: () => skin.dispose(),
+  };
 }

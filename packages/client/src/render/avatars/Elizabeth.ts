@@ -1,179 +1,107 @@
 // Elizabeth (Gintama): a big white pear-shaped body with no neck, round eyes with three lashes
 // each, a flat orange beak, two small flippers and orange webbed feet. Low-poly flat-shaded
-// spheres for the body so it reads as a soft egg while still fitting the blocky world. A wider hit
-// capsule than everyone's (AVATARS.elizabeth.hitbox), the same movement and items; a weapon goes in
-// the right flipper.
+// spheres for the body so it reads as a soft egg while still fitting the blocky world. It waddles,
+// rocking side to side and lifting alternate feet, and tips onto its side when it dies. A wider hit
+// capsule than everyone's (AVATARS.elizabeth.hitbox); a weapon goes in the right flipper.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
-import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { box, centreOf, createShadowBlob, flat, Gait, placeShadow, type Avatar } from './common';
-import { HeldItems } from './HeldItems';
-import { HitFlash } from './HitFlash';
+import { box, flat } from './common';
+import type { Figure } from './Walker';
 
 const HEIGHT = 2.0;
 const RADIUS = 0.62; // body is this wide all the way up until the dome
 const DOME_FROM = 0.6; // fraction of the height where the top starts rounding
 const EYE_Y = 1.62;
 const BEAK_Y = 1.4;
+const FLIPPER_OUT = 0.3; // radians the flippers angle out from the body
+const FOOT_LIFT = 0.09; // metres a foot comes up mid-step
 
-export class ElizabethAvatar implements Avatar {
-  readonly kind = 'elizabeth' as const;
-  private readonly root: TransformNode;
-  private readonly body: TransformNode;
-  private readonly flipperL: Mesh;
-  private readonly flipperR: Mesh;
-  private readonly footL: Mesh;
-  private readonly footR: Mesh;
-  private readonly shadow: Mesh;
-  private readonly items: HeldItems;
-  private readonly hitFlash: HitFlash;
-  private dead = false;
-  private readonly gait = new Gait();
+export function buildElizabeth(engine: Engine, id: string, base: TransformNode): Figure {
+  const scene = engine.scene;
+  const white = flat(scene, `eliz-white-${id}`, new Color3(0.97, 0.96, 0.98), 0.55);
+  const black = flat(scene, `eliz-black-${id}`, new Color3(0.03, 0.03, 0.04), 0);
+  const orange = flat(scene, `eliz-orange-${id}`, new Color3(0.98, 0.66, 0.16), 0.22);
+  const orangeDark = flat(scene, `eliz-orange-dark-${id}`, new Color3(0.72, 0.42, 0.06), 0.08);
 
-  constructor(
-    engine: Engine,
-    readonly id: string,
-  ) {
-    const scene = engine.scene;
-    this.root = new TransformNode(`avatar-${id}`, scene);
-    this.body = new TransformNode(`avatar-body-${id}`, scene);
-    this.body.parent = this.root;
+  // Body: a capsule, straight-sided, rounding into a dome from DOME_FROM up.
+  capsule(scene, `eliz-body-${id}`, base, white);
 
-    const white = flat(scene, `eliz-white-${id}`, new Color3(0.97, 0.96, 0.98), 0.55);
-    const black = flat(scene, `eliz-black-${id}`, new Color3(0.03, 0.03, 0.04), 0);
-    const orange = flat(scene, `eliz-orange-${id}`, new Color3(0.98, 0.66, 0.16), 0.22);
-    const orangeDark = flat(scene, `eliz-orange-dark-${id}`, new Color3(0.72, 0.42, 0.06), 0.08);
-
-    this.hitFlash = new HitFlash([white, orange]);
-
-    // Body: a capsule, straight-sided, rounding into a dome from DOME_FROM up.
-    capsule(scene, `eliz-body-${id}`, this.body, white);
-
-    // Eyes: black ring, white iris, small pupil, three lashes fanning up and out.
-    for (const side of [-1, 1]) {
-      // Small, far apart, simple: a thin ring, white, a dot.
-      const x = side * 0.205;
-      disc(scene, `eliz-eye-ring-${side}-${id}`, this.body, black, 0.21, x, EYE_Y, RADIUS - 0.02);
-      disc(scene, `eliz-eye-${side}-${id}`, this.body, white, 0.172, x, EYE_Y, RADIUS - 0.005);
-      const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.04, 0.04, 0.02, black, this.body);
-      pupil.position.set(x, EYE_Y, RADIUS + 0.01);
-      for (const [i, off] of [-0.06, 0, 0.06].entries()) {
-        const lash = box(scene, `eliz-lash-${side}-${i}-${id}`, 0.016, 0.06, 0.02, black, this.body);
-        lash.position.set(x + off * 1.3, EYE_Y + 0.14 - Math.abs(off) * 0.3, RADIUS - 0.02);
-        lash.rotation.z = -off * 6; // outer lashes fan outward
-      }
+  // Eyes: black ring, white iris, small pupil, three lashes fanning up and out.
+  for (const side of [-1, 1]) {
+    // Small, far apart, simple: a thin ring, white, a dot.
+    const x = side * 0.205;
+    disc(scene, `eliz-eye-ring-${side}-${id}`, base, black, 0.21, x, EYE_Y, RADIUS - 0.02);
+    disc(scene, `eliz-eye-${side}-${id}`, base, white, 0.172, x, EYE_Y, RADIUS - 0.005);
+    const pupil = box(scene, `eliz-pupil-${side}-${id}`, 0.04, 0.04, 0.02, black, base);
+    pupil.position.set(x, EYE_Y, RADIUS + 0.01);
+    for (const [i, off] of [-0.06, 0, 0.06].entries()) {
+      const lash = box(scene, `eliz-lash-${side}-${i}-${id}`, 0.016, 0.06, 0.02, black, base);
+      lash.position.set(x + off * 1.3, EYE_Y + 0.14 - Math.abs(off) * 0.3, RADIUS - 0.02);
+      lash.rotation.z = -off * 6; // outer lashes fan outward
     }
-
-    // Beak: a flattened oval about half the face wide, with a darker orange line round its middle for
-    // the mouth. The line is a thin disc a few percent wider than the beak, so only its rim
-    // shows, wrapping the surface like a drawn line.
-    const BEAK_SIZE = new Vector3(0.46, 0.27, 0.4);
-    const beakAt = new Vector3(0, BEAK_Y, RADIUS + 0.08);
-    const beak = MeshBuilder.CreateSphere(`eliz-beak-${id}`, { diameter: 1, segments: 6 }, scene);
-    beak.convertToFlatShadedMesh();
-    beak.material = orange;
-    beak.parent = this.body;
-    beak.scaling.copyFrom(BEAK_SIZE);
-    beak.position.copyFrom(beakAt);
-    beak.isPickable = false;
-    const mouth = MeshBuilder.CreateCylinder(
-      `eliz-beak-mouth-${id}`,
-      { diameter: 1, height: 1, tessellation: 16 },
-      scene,
-    );
-    mouth.material = orangeDark;
-    mouth.parent = this.body;
-    mouth.scaling.set(BEAK_SIZE.x * 1.04, 0.018, BEAK_SIZE.z * 1.04);
-    mouth.position.set(beakAt.x, beakAt.y - 0.01, beakAt.z);
-    mouth.isPickable = false;
-
-    // Flippers: short flat paddles hanging from the shoulders, pivot at the top.
-    this.flipperL = box(scene, `eliz-flipperL-${id}`, 0.11, 0.58, 0.3, white, this.body);
-    this.flipperR = box(scene, `eliz-flipperR-${id}`, 0.11, 0.58, 0.3, white, this.body);
-    this.flipperL.position.set(-(RADIUS + 0.04), 1.0, 0.05);
-    this.flipperR.position.set(RADIUS + 0.04, 1.0, 0.05);
-    this.flipperL.setPivotPoint(new Vector3(0, 0.29, 0));
-    this.flipperR.setPivotPoint(new Vector3(0, 0.29, 0));
-    this.flipperL.rotation.z = -0.3;
-    this.flipperR.rotation.z = 0.3;
-
-    // Feet: flat orange slabs with three toes each, poking out from under the body.
-    this.footL = foot(scene, `eliz-footL-${id}`, this.body, orange, -0.24);
-    this.footR = foot(scene, `eliz-footR-${id}`, this.body, orange, 0.24);
-
-    // Items hang off the right flipper's tip; the flipper points forward while holding one. The
-    // flamethrower's tank rides on the back of the egg.
-    this.items = new HeldItems(
-      engine,
-      `eliz-${id}`,
-      'elizabeth',
-      this.flipperR,
-      new Vector3(0.02, -0.32, 0.04),
-      this.body,
-      new Vector3(0, 1.15, -(RADIUS + 0.1)),
-    );
-
-    this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 1.5);
-    this.shadow.parent = this.root;
-    this.shadow.position.y = 0.02;
   }
 
-  update(p: RemotePlayer, step: number): void {
-    this.hitFlash.update(p.chilled);
-    const feetY = p.y - 1.7;
-    const airborne = !p.grounded;
-    this.root.position.set(p.x, feetY, p.z);
-    this.root.rotation.y = p.yaw;
+  // Beak: a flattened oval about half the face wide, with a darker orange line round its middle for
+  // the mouth. The line is a thin disc a few percent wider than the beak, so only its rim
+  // shows, wrapping the surface like a drawn line.
+  const BEAK_SIZE = new Vector3(0.46, 0.27, 0.4);
+  const beakAt = new Vector3(0, BEAK_Y, RADIUS + 0.08);
+  const beak = MeshBuilder.CreateSphere(`eliz-beak-${id}`, { diameter: 1, segments: 6 }, scene);
+  beak.convertToFlatShadedMesh();
+  beak.material = orange;
+  beak.parent = base;
+  beak.scaling.copyFrom(BEAK_SIZE);
+  beak.position.copyFrom(beakAt);
+  beak.isPickable = false;
+  const mouth = MeshBuilder.CreateCylinder(
+    `eliz-beak-mouth-${id}`,
+    { diameter: 1, height: 1, tessellation: 16 },
+    scene,
+  );
+  mouth.material = orangeDark;
+  mouth.parent = base;
+  mouth.scaling.set(BEAK_SIZE.x * 1.04, 0.018, BEAK_SIZE.z * 1.04);
+  mouth.position.set(beakAt.x, beakAt.y - 0.01, beakAt.z);
+  mouth.isPickable = false;
 
-    // Waddle: rock side to side and lift alternate feet, scaled by how fast they're going.
-    this.gait.update(p.walk, airborne, step);
-    const { phase, effort } = this.gait;
-    const sway = Math.sin(phase) * 0.09 * effort;
-    this.body.rotation.z = sway;
-    this.body.rotation.x = p.pitch * 0.25;
-    this.footL.position.y = 0.03 + Math.max(0, Math.sin(phase)) * 0.09 * effort;
-    this.footR.position.y = 0.03 + Math.max(0, -Math.sin(phase)) * 0.09 * effort;
-    this.flipperL.rotation.x = -Math.sin(phase) * 0.3 * effort;
-    this.flipperR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : Math.sin(phase) * 0.3 * effort;
-    this.flipperR.rotation.z = p.item ? 0 : 0.3;
+  // Flippers: short flat paddles hanging from the shoulders, pivot at the top.
+  const flipperL = box(scene, `eliz-flipperL-${id}`, 0.11, 0.58, 0.3, white, base);
+  const flipperR = box(scene, `eliz-flipperR-${id}`, 0.11, 0.58, 0.3, white, base);
+  flipperL.position.set(-(RADIUS + 0.04), 1.0, 0.05);
+  flipperR.position.set(RADIUS + 0.04, 1.0, 0.05);
+  flipperL.setPivotPoint(new Vector3(0, 0.29, 0));
+  flipperR.setPivotPoint(new Vector3(0, 0.29, 0));
 
-    this.items.update(p);
-    if (p.dead !== this.dead) {
-      this.dead = p.dead;
-      // Tipped onto its side; the egg's half-width keeps it resting on the ground.
-      this.body.position.set(p.dead ? 1.0 : 0, p.dead ? RADIUS : 0, 0);
-    }
-    if (p.dead) {
-      this.body.rotation.set(0, 0, Math.PI / 2);
-      this.footL.position.y = this.footR.position.y = 0.03;
-    }
-    placeShadow(this.shadow, p, feetY);
-    this.root.setEnabled(true);
-  }
+  // Feet: flat orange slabs with three toes each, poking out from under the body.
+  const footL = foot(scene, `eliz-footL-${id}`, base, orange, -0.24);
+  const footR = foot(scene, `eliz-footR-${id}`, base, orange, 0.24);
 
-  flash(): void {
-    this.hitFlash.trigger();
-  }
+  // Items hang off the right flipper's tip; the flamethrower's tank rides on the back of the egg.
+  const grip = new TransformNode(`avatar-grip-${id}`, scene);
+  grip.parent = flipperR;
+  grip.position.set(0.02, -0.32, 0.04);
 
-  fire(): void {
-    this.items.fire();
-  }
-
-  scaleWeapons(factor: number): void {
-    this.items.scaleWeapons(factor);
-  }
-
-  hide(): void {
-    this.root.setEnabled(false);
-  }
-
-  dispose(): void {
-    this.root.dispose(false, true);
-  }
-
-  corpse(): Vector3 | null {
-    return this.dead && this.root.isEnabled() ? centreOf(this.body) : null;
-  }
+  return {
+    tilt: { node: base, follow: 0.25 },
+    armL: { node: flipperL, reach: Vector3.Down() },
+    armR: { node: flipperR, grip, reach: Vector3.Down() },
+    back: { node: base, at: new Vector3(0, 1.15, -(RADIUS + 0.1)) },
+    materials: [white, orange],
+    shadow: 1.5,
+    legSwing: 0,
+    airLegs: 0,
+    armSwing: 0.3,
+    armsDown: -FLIPPER_OUT,
+    bob: 0,
+    sway: 0.09,
+    lie: { onto: 'left', height: RADIUS, shift: 1.0 }, // tipped onto its side; the egg's half-width keeps it resting on the ground
+    // The waddle lifts alternate feet, scaled by how fast they're going; none on a ladder or dead.
+    extra: (p, { phase, effort }) => {
+      const lift = p.dead ? 0 : effort * FOOT_LIFT;
+      footL.position.y = 0.03 + Math.max(0, Math.sin(phase)) * lift;
+      footR.position.y = 0.03 + Math.max(0, -Math.sin(phase)) * lift;
+    },
+  };
 }
 
 // The body as a lathe: a slightly rounded base, straight sides, and a dome for the top part.

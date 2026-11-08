@@ -166,9 +166,10 @@ radius), and the climb itself goes only as far as the body fits, so a face under
 only up to the floor's underside and no swap goes through a rail standing against the ladder.
 Weapons work as on the ground. The look is client-authoritative, so the client holds it within a
 quarter turn of facing the ladder while climbing and turns it round with a swap (`Game.holdLook`),
-the camera swinging after it; the standard avatar squares up to the rungs, steps them with its
-legs and free hand and swings half a turn round the ladder on a swap (`render/avatars/Standard.ts`),
-and the other avatars climb in their walking pose for now. Bots' map treats a ladder as a wall.
+the camera swinging after it; every avatar on foot squares up to the rungs, steps them with
+whatever legs it has and reaches up with its free hand, points its weapon arm where the look goes,
+and swings half a turn round the ladder on a swap (`render/avatars/Walker.ts`). Bots' map treats a
+ladder as a wall.
 The one ladder stands in the library (`content/pineapple.ts`), from the floor to the hatch's
 platform, since the slide is no way up.
 
@@ -329,7 +330,14 @@ terrace, the sky bridge and the staircases. List a landmark's there when it's wo
 ## Avatars
 
 An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: name tag, command, eye
-height, hitbox) and a builder in `packages/client/src/render/avatars/` (`createAvatar`). A Sketchfab
+height, hitbox) and a builder in `packages/client/src/render/avatars/` (`WALKERS` in `index.ts`,
+which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
+builder makes the avatar's parts under the base node and says which plays which role (what tips
+with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
+in the model) and the numbers its walk takes (swings, bob, sway, how it lies dead), and
+`WalkerAvatar` poses every figure the same way: standing, walking, aiming what it holds, falling,
+climbing a ladder and lying dead. Motion is written there once, for all of them, and an avatar's
+own touches (a tail, a twitch, feet that lift) are its `extra` hook. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
 atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
 it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`). Rebuild the bot map after
@@ -342,10 +350,11 @@ or a loop), and the sounds' pitch; the swing of its limbs is the renderer's. Ask
 one.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
-Standing, walking, holding and aiming each weapon, firing, hit, dead; from the front, the side and
-behind; and your own body in third person. The model's bind pose decides how the arms hang
-(`armsDown`) and where the palm is (`model.hand`), and a held gun has to sit in the hand with its
-barrel along the look.
+Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,
+the side and behind; and your own body in third person. The model's bind pose decides how the arms
+hang (`armsDown`) and where the palm is (`model.hand`), and a held gun has to sit in the hand with
+its barrel along the look: the weapon arm is turned from its `reach` (shoulder to hand as the model
+holds it) to the look, and the grip at its hand turned so the barrel runs that way.
 
 ## Player classes
 
