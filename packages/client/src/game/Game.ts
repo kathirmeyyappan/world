@@ -342,8 +342,8 @@ export class Game {
   }
 
   // On a ladder the look stays within LOOK_HOLD of facing it, and a change of face (a swap, or
-  // taking hold through to the far face) turns it round, mirrored across the ladder, with the
-  // camera swinging after it rather than snapping.
+  // taking hold through to the far face) takes it half a turn round with the body, the camera
+  // swinging after it rather than snapping.
   private holdLook(dt: number): void {
     const hold = this.prediction!.state.climb;
     const was = this.heldFace;
@@ -354,9 +354,8 @@ export class Game {
     const facing = WORLD_STRUCTURES.ladderFacing(hold.piece, hold.side);
     let off = wrapAngle(this.input.yaw - facing);
     if ((!was || was.piece !== hold.piece || was.side !== hold.side) && Math.abs(off) > Math.PI / 2) {
-      const mirrored = facing + wrapAngle(Math.PI - off);
-      this.swing += wrapAngle(this.input.yaw - mirrored);
-      this.input.yaw = mirrored;
+      this.input.yaw += Math.PI;
+      this.swing -= Math.PI;
       off = wrapAngle(this.input.yaw - facing);
     }
     if (Math.abs(off) > LOOK_HOLD) this.input.yaw = facing + Math.sign(off) * LOOK_HOLD;
