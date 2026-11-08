@@ -13,6 +13,7 @@ import { HitFlash } from './HitFlash';
 const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts): a leg steps one at a time
 const SWING_HALF_LIFE = 0.08; // seconds: the swing round a ladder is mostly over in a third of a second
 const HEAD_TURN = 1.2; // radians the head may turn from the body on a ladder, where the body faces the rungs
+const ARM_TURN = Math.PI / 2; // radians the weapon arm may turn from the body there: as far as the look is held
 
 export class StandardAvatar implements Avatar {
   readonly kind = 'standard' as const;
@@ -114,6 +115,7 @@ export class StandardAvatar implements Avatar {
     }
     this.held = null;
     this.swing = 0;
+    this.armR.rotation.y = 0;
     const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.y = p.yaw;
@@ -144,9 +146,10 @@ export class StandardAvatar implements Avatar {
   }
 
   // On a ladder: the body faces the rungs, the head turning with the look; the legs step rung to
-  // rung at the climb's pace with the free hand reaching up against them, and the weapon hand
-  // aims as ever. A change of face swings the whole body half a turn round the ladder about the
-  // holding hand, easing to a stop on the new side.
+  // rung at the climb's pace with the free hand reaching up against them, and the weapon arm
+  // points where the look does, turning at the shoulder since the body can't. A change of face
+  // swings the whole body half a turn round the ladder about the holding hand, easing to a stop
+  // on the new side.
   private climbLadder(p: RemotePlayer, feetY: number, dt: number): void {
     const hold = p.climb!;
     const facing = WORLD_STRUCTURES.ladderFacing(hold.piece, hold.side);
@@ -172,6 +175,7 @@ export class StandardAvatar implements Avatar {
     this.legR.rotation.x = -0.5 + 0.45 * s;
     this.armL.rotation.x = -2.5 + 0.4 * s;
     this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : -2.5 - 0.4 * s;
+    this.armR.rotation.y = p.item ? Math.max(-ARM_TURN, Math.min(ARM_TURN, turn)) : 0;
     this.body.position.y = 0;
     this.items.update(p);
     placeShadow(this.shadow, p, feetY);
