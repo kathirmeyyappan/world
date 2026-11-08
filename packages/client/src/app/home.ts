@@ -38,14 +38,27 @@ export function showHome(): Promise<HomeResult> {
 
   // The page loads showing the loading screen. Only reveal the home screen when there is
   // nothing to auto-join (or an auto-join fails), so arriving via the lobby never flashes it.
+  let busy = false;
   const showForm = () => {
+    busy = false;
+    buttons.forEach((b) => (b.disabled = false));
     loading.classList.add('hidden');
     root.classList.remove('hidden');
   };
+  // Back from the lobby restores this page from the back/forward cache as it was left: mid-join,
+  // waiting on a navigation that has already happened. Hand the form back.
+  const restore = (e: PageTransitionEvent) => {
+    if (!e.persisted) return;
+    status.textContent = '';
+    showForm();
+  };
+  window.addEventListener('pageshow', restore);
 
-  return new Promise((resolve) => {
-    let busy = false;
-
+  return new Promise((finish) => {
+    const resolve = (result: HomeResult) => {
+      window.removeEventListener('pageshow', restore);
+      finish(result);
+    };
     const attempt = async (roomId: string) => {
       if (busy) return;
       const name = sanitizeName(nameInput.value);
@@ -79,8 +92,6 @@ export function showHome(): Promise<HomeResult> {
         } else {
           status.textContent = err instanceof Error ? err.message : 'could not connect';
         }
-        busy = false;
-        buttons.forEach((b) => (b.disabled = false));
       }
     };
 
