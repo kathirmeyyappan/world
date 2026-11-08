@@ -371,16 +371,17 @@ by command, gear, `/speedy`), whether bots may wear it, how long its dead body s
 like an item's and announced by the Room as `action` messages), whether it `fits` where a player is
 switching into it, `enter`/`exit` for its own state on `PlayerState`, its `hitShape` for shots (a
 capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it leaves. The walker
-(`walker.ts`) is everyone on foot; the dragon (`dragon.ts`) is a head sphere flying where its rider
+(`walker.ts`) is everyone on foot; the asian dragon (`asian-dragon`, `dragon.ts`) is a head sphere flying where its rider
 looks with a spine of points following it, kept 5 m up and too big for a door, its head turned
 toward the look only as far as the neck lets it, breathing a wide cone where the head points
 (`firebreath`, the look's own item) and roaring on A, S and D; a new one climbs straight out of the
 ground, head up, until its whole spine is out. Its rules and numbers are constants at the top of
 that file. `becomeAvatar` (`player.ts`) is the one way a player changes
-look: a new class is a new body at the same eye point, with hearts in proportion.
+look: a new class is a new body at the same eye point, full when it's bigger and keeping the life it had, up
+to its full, when it's smaller.
 
 A new look in a class is a row in `AVATARS` (with `item` for one that comes with its own weapon,
-`regen` for a heart back every 7 s, `hidden` to keep it out of the menu). A new class is a spec
+`regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu). A new class is a spec
 and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES`; nothing else
 has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
 (`game/View.ts`) for how it's seen. The dragon is drawn by `render/avatars/Dragon.ts` from a model

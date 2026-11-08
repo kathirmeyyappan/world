@@ -30,7 +30,7 @@ export interface Boom {
 // head, over the body trailing behind it, and sees wide.
 export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
   walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
-  dragon: { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
+  'asian-dragon': { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
 };
 // Portrait. The camera's field of view is vertical, so a screen taller than wide (a phone held
 // upright) sees a narrow slice across, and a body off to the side on the boom lands near its edge

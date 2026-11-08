@@ -902,7 +902,7 @@ test('a bot corpse lingers for 5 s while a browser gets the full death screen', 
   assert.ok(humanClosed, "the browser's fallback cleanup eventually closed it");
 });
 
-test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a heart back every 7 s, one roar at a time, no bots; dead, it lies 30 s and leaves hearts along its body', () => {
+test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts back a second, one roar at a time, no bots; dead, it lies 30 s and leaves hearts along its body', () => {
   const room = new Room('dragon', { seed: 3, structures: new Structures([]), spawnBot: async () => {} });
   const a = link();
   const ida = room.join('alice', a, { room: 'dragon' })!;
@@ -913,7 +913,7 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
   alice.hearts = 7;
   room.receive(ida, { t: 'chat', text: '/light-dragon' });
   assert.equal(alice.avatar, 'light-dragon');
-  assert.equal(alice.hearts, 28);
+  assert.equal(alice.hearts, 40);
   assert.deepEqual(alice.item, { id: 'firebreath', locked: true, fuel: 7.5 });
   assert.equal(alice.gear, null);
   assert.equal(alice.boost, 0);
@@ -921,9 +921,9 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
   room.receive(ida, { t: 'chat', text: '/gun' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you can't put down your firebreath" });
   room.receive(ida, { t: 'chat', text: '/jetpack' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as a dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as an asian-dragon' });
   room.receive(ida, { t: 'chat', text: '/speedy' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as a dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as an asian-dragon' });
   room.receive(ida, { t: 'chat', text: '/light-dragon' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're already light-dragon" });
 
@@ -937,17 +937,21 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
     for (let i = 0; i < ITEMS.sniper.cooldownTicks; i++) room.step();
   };
   shootAlice();
-  assert.ok(!alice.dragon!.risen && alice.hearts >= 28, 'a shot at a rising dragon passes through');
+  assert.ok(!alice.dragon!.risen && alice.hearts >= 40, 'a shot at a rising dragon passes through');
   while (!alice.dragon!.risen) {
     room.receive(ida, { t: 'input', f: frame(0, []) });
     room.step();
   }
   alice.hearts = 28;
   shootAlice();
-  assert.equal(alice.hearts, 28 - ITEMS.sniper.damage * HEADSHOT_MULTIPLIER, 'a risen one is hit');
+  const hit = 28 - ITEMS.sniper.damage * HEADSHOT_MULTIPLIER;
+  assert.ok(
+    alice.hearts >= hit && alice.hearts < hit + 2,
+    'a risen one is hit, regenerating a little over the cooldown',
+  );
   alice.hearts = 28;
-  for (let i = 0; i < 7 * TICK_RATE; i++) room.step();
-  assert.equal(alice.hearts, 29, 'a heart back in 7 s');
+  for (let i = 0; i < 2 * TICK_RATE; i++) room.step();
+  assert.ok(Math.abs(alice.hearts - 31) < 1e-6, '3 hearts back in 2 s');
   room.receive(ida, { t: 'input', f: frame(0, ['roar-1']) });
   room.step();
   room.receive(ida, { t: 'input', f: frame(0, ['roar-1']) });
@@ -964,14 +968,14 @@ test('/light-dragon: 40 hearts in proportion, breath for good and no kit, a hear
 
   const bot = link();
   assert.equal(room.join('circle-bot', bot, { bot: true, avatar: 'light-dragon' }), null);
-  assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: "bots can't be a dragon" });
+  assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: "bots can't be an asian-dragon" });
   room.receive(ida, { t: 'chat', text: '/circle-bot -s light-dragon' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "bots can't be a dragon" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "bots can't be an asian-dragon" });
 
   // Shot dead by a sniper at its head: it drops to the ground and lies there, long after alice has
   // gone, then poofs with a heart under the head and four along the body.
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 6 };
-  alice.hearts = 10;
+  alice.hearts = 9; // under a headshot, even with the tick's regen
   press(room, idb, 0, true);
   assert.ok(alice.dead, 'a headshot: 4 x 2.5');
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === ida && m.headshot));

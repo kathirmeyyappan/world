@@ -9,7 +9,15 @@
 // a few hundred kilobytes, fetched the first time one appears. Worn with /light-dragon; what shots
 // have to hit is the class's (sim/dragon.ts), not anything drawn here.
 import { Bone, Matrix, Mesh, Quaternion, Skeleton, TransformNode, Vector3, VertexData } from '@babylonjs/core';
-import { ITEMS, SPINE_POINTS, WORLD_STRUCTURES, lookDirection, type ItemAction, type Vec3 } from '@world/shared';
+import {
+  ITEMS,
+  SPINE_POINTS,
+  WORLD_STRUCTURES,
+  lookDirection,
+  type AvatarId,
+  type ItemAction,
+  type Vec3,
+} from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { FlameJet } from '../FlameJet';
@@ -65,7 +73,6 @@ export function loadDragonModel(): Promise<DragonModel> {
 }
 
 export class DragonAvatar implements Avatar {
-  readonly kind = 'light-dragon' as const;
   private readonly root: TransformNode;
   private readonly bones: TransformNode[] = [];
   private readonly mouth: TransformNode;
@@ -91,6 +98,7 @@ export class DragonAvatar implements Avatar {
   constructor(
     engine: Engine,
     readonly id: string,
+    readonly kind: AvatarId, // the skin worn: its atlas paints the model
   ) {
     const scene = engine.scene;
     this.phase = ([...id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % 1000) / 1000;
@@ -132,7 +140,7 @@ export class DragonAvatar implements Avatar {
     const toHead = Matrix.Invert(headRest);
     this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth), toHead);
     this.hinge = Vector3.TransformCoordinates(frameMatrix(m.frames, JAW).getTranslation(), toHead);
-    const material = skinMaterial(scene, `dragon-${this.id}`, 'light-dragon');
+    const material = skinMaterial(scene, `dragon-${this.id}`, this.kind);
     material.backFaceCulling = false; // plates, strands and fins are open shells, seen from both sides
     this.hitFlash = new HitFlash([material]);
     const mesh = (name: string, data: MeshData) => {

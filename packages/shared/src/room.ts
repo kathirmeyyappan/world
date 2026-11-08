@@ -35,7 +35,7 @@ import { classOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
 import { sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
-import { REGEN_SECONDS, applyDamage, damageFor, fallDamage } from './sim/health';
+import { REGEN_RATE, applyDamage, damageFor, fallDamage } from './sim/health';
 import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
@@ -62,7 +62,6 @@ const SPAWN_MARGIN = 1; // metres a spawn keeps inside its area: more than a bod
 // as a fallback. Bots cannot rejoin themselves, so approximate that window's midpoint.
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
 const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
-const REGEN_TICKS = REGEN_SECONDS * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
@@ -99,6 +98,12 @@ export interface RoomOptions {
   log?: (msg: string) => void;
   spawnBot?: BotSpawner; // absent: bots can't be called from this room
   pickupAreas?: PickupArea[]; // where pickups float; the world's own (content/pickups.ts) by default
+}
+
+// The class of `avatar` with its article, for a message: "a walker", "an asian-dragon".
+function aClass(avatar: AvatarId): string {
+  const id = classOf(avatar).id;
+  return `${/^[aeiou]/.test(id) ? 'an' : 'a'} ${id}`;
 }
 
 export class Room {
@@ -181,7 +186,7 @@ export class Room {
       return null;
     }
     if (opts.bot && opts.avatar && !classOf(opts.avatar).bots) {
-      link.send({ t: 'error', message: `bots can't be a ${classOf(opts.avatar).id}` });
+      link.send({ t: 'error', message: `bots can't be ${aClass(opts.avatar)}` });
       return null;
     }
     const id = `p${this.nextPlayerId++}`;
@@ -401,8 +406,8 @@ export class Room {
         seat.link.close?.('dead');
         continue;
       }
-      if (AVATARS[me.avatar].regen && !me.dead && this.tick % REGEN_TICKS === 0)
-        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + 1);
+      if (AVATARS[me.avatar].regen && !me.dead)
+        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + REGEN_RATE * TICK_DT);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
         this.land(seat, stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures));
@@ -461,7 +466,7 @@ export class Room {
     const tell = (text: string) => seat.link.send({ t: 'system', text });
     switch (command.name) {
       case 'speedy':
-        if (!classOf(me.avatar).kit) return tell(`not as a ${classOf(me.avatar).id}`);
+        if (!classOf(me.avatar).kit) return tell(`not as ${aClass(me.avatar)}`);
         me.boost = SPEEDY_SECONDS;
         this.broadcast({ t: 'system', text: `${me.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
@@ -469,7 +474,7 @@ export class Room {
         this.equip(seat, command.item);
         return;
       case 'wear':
-        if (!classOf(me.avatar).kit) return tell(`not as a ${classOf(me.avatar).id}`);
+        if (!classOf(me.avatar).kit) return tell(`not as ${aClass(me.avatar)}`);
         this.wear(seat, command.gear);
         return;
       case 'avatar':
@@ -534,7 +539,7 @@ export class Room {
     if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
     if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
     if (this.botCount >= MAX_BOTS) return tell('this room has enough bots');
-    if (call.avatar && !classOf(call.avatar).bots) return tell(`bots can't be a ${classOf(call.avatar).id}`);
+    if (call.avatar && !classOf(call.avatar).bots) return tell(`bots can't be ${aClass(call.avatar)}`);
 
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';

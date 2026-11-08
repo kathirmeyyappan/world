@@ -70,7 +70,8 @@ export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   const hadOwn = AVATARS[p.avatar].item !== null;
   p.avatar = avatar;
   if (to !== from) {
-    if (!p.dead) p.hearts = Math.max(0.5, Math.round((p.hearts / from.hearts) * to.hearts * 2) / 2);
+    // A bigger body is a fresh one; a smaller one keeps the life it had, up to its full.
+    if (!p.dead) p.hearts = to.hearts > from.hearts ? to.hearts : Math.min(to.hearts, p.hearts);
     from.exit(p);
     to.enter(p);
     to.confine(p, WORLD_SHAPE);

@@ -471,7 +471,8 @@ export class Game {
         const me = m.players.find((p) => p.id === this.myId);
         if (me) {
           this.hearts.setLife(classOf(me.avatar));
-          if (me.hearts > this.hearts.count && !this.dead) this.healFlash.flash();
+          // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
+          if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
         }
         this.hud.updateStats(m.players);
@@ -690,9 +691,9 @@ export class Game {
     // keys.
     const cls = classOf(self.avatar).id;
     if (cls !== this.classId) {
-      if (cls === 'dragon') this.view.set('third');
+      if (cls === 'asian-dragon') this.view.set('third');
       this.hud.setKeys(cls);
-      this.environment.setBounds(cls === 'dragon' ? 'sky' : 'ground');
+      this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }
     // A new look or a new item in hand takes the scope with it, as death does.
