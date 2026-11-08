@@ -4,8 +4,12 @@
 // and ITEM_SOUNDS, GEAR_SOUNDS and ACTION_SOUNDS which item, gear or class action makes which, so a
 // new weapon is a row in each (the Records make the compiler ask). Other players' sounds are placed
 // where they are and fade with distance (falloff); the local player's own play flat. Everything
-// goes through one limiter, so a pile of shots at once gets squashed rather than clipping.
+// goes through one limiter, so a pile of shots at once gets squashed rather than clipping. Music and
+// everything else come through a channel each, so either can be muted on its own, and the device
+// keeps the choice.
 import type { GearId, ItemAction, ItemId, Vec3 } from '@world/shared';
+
+export type Channel = 'music' | 'effects';
 
 export type SoundId =
   | 'gun'
@@ -53,6 +57,7 @@ interface SoundSpec {
   intro?: string; // played once first, ending on the sample the loop starts on
   swell?: number; // seconds it takes to rise from silence to its volume (a loop FADE, a one-shot ATTACK)
   lazy?: boolean; // fetched the first time it's wanted, not up front: a big one few will hear
+  music?: boolean; // on the music channel, not the effects'
 }
 
 // Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
@@ -97,7 +102,16 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'roar-2': { file: 'roar-2.mp3', half: 60, volume: 0.35 },
   'roar-3': { file: 'roar-3.mp3', half: 60, volume: 0.35 },
   'dragon-cry': { file: 'dragon-cry.mp3', half: 60, volume: 0.35, swell: 0.3 },
-  'dragon-theme': { file: 'dragon-theme.mp3', half: 25, reach: 300, volume: 0.22, loop: true, swell: 2.5, lazy: true },
+  'dragon-theme': {
+    file: 'dragon-theme.mp3',
+    half: 25,
+    reach: 300,
+    volume: 0.22,
+    loop: true,
+    swell: 2.5,
+    lazy: true,
+    music: true,
+  },
 };
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
@@ -149,6 +163,7 @@ const ATTACK = 0.005;
 const LINGER = 0.25;
 const SILENT = 0.002; // a one-shot falling off below this share of its volume isn't played
 const SWEEP = 8; // metres either side of its nearest point that a whiz travels while it plays
+const MUTED_KEY = 'world.muted'; // localStorage: the channels muted on this device, as a JSON list
 
 interface Voice {
   gain: GainNode; // its volume, and its fades in and out
@@ -160,7 +175,9 @@ interface Voice {
 
 export class Sfx {
   private ctx: AudioContext | null = null;
-  private out: AudioNode | null = null; // the limiter in front of the speakers
+  // Each into the limiter in front of the speakers; silent while muted.
+  private channels: Record<Channel, GainNode> | null = null;
+  private readonly muted = loadMuted();
   private heard: Vec3 = { x: 0, y: 0, z: 0 }; // the listener
   private readonly buffers = new Map<string, AudioBuffer>();
   private readonly fetched = new Set<string>();
@@ -169,16 +186,23 @@ export class Sfx {
   constructor() {
     const unlock = () => {
       if (!this.ctx) {
-        this.ctx = new AudioContext();
-        this.out = new DynamicsCompressorNode(this.ctx, {
+        const ctx = new AudioContext();
+        this.ctx = ctx;
+        const limiter = new DynamicsCompressorNode(ctx, {
           threshold: -12,
           knee: 6,
           ratio: 12,
           attack: 0.002,
           release: 0.15,
         });
-        this.out.connect(this.ctx.destination);
-        this.load(this.ctx);
+        limiter.connect(ctx.destination);
+        const channel = (c: Channel) => {
+          const node = new GainNode(ctx, { gain: this.muted.has(c) ? 0 : 1 });
+          node.connect(limiter);
+          return node;
+        };
+        this.channels = { music: channel('music'), effects: channel('effects') };
+        this.load(ctx);
       }
       void this.ctx.resume();
     };
@@ -186,6 +210,26 @@ export class Sfx {
     // a tap is. Captured, so a handler that stops one from bubbling can't keep it from here.
     for (const event of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
       window.addEventListener(event, unlock, { capture: true });
+  }
+
+  isMuted(channel: Channel): boolean {
+    return this.muted.has(channel);
+  }
+
+  setMuted(channel: Channel, muted: boolean): void {
+    if (muted) this.muted.add(channel);
+    else this.muted.delete(channel);
+    try {
+      localStorage.setItem(MUTED_KEY, JSON.stringify([...this.muted]));
+    } catch {
+      // Storage blocked: muted for this page only.
+    }
+    const node = this.channels?.[channel];
+    if (!node || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    node.gain.cancelScheduledValues(t);
+    node.gain.setValueAtTime(node.gain.value, t);
+    node.gain.linearRampToValueAtTime(muted ? 0 : 1, t + FADE);
   }
 
   // Where the listener is and which way they face (yaw 0 faces +z, like everything else).
@@ -289,7 +333,7 @@ export class Sfx {
   }
 
   // A sound's gain (its volume, times `level`), then how near it is, then, when it has a place, a
-  // panner that only sets left and right (falloff does the distance), into the limiter. Its
+  // panner that only sets left and right (falloff does the distance), into its channel. Its
   // sources connect to the gain.
   private voice(id: SoundId, at: Vec3 | null, level: number): Voice {
     const ctx = this.ctx!;
@@ -297,13 +341,14 @@ export class Sfx {
     const gain = new GainNode(ctx, { gain: spec.volume * level });
     const near = new GainNode(ctx, { gain: at ? falloff(distance(at, this.heard), spec) : 1 });
     gain.connect(near);
+    const channel = this.channels![spec.music ? 'music' : 'effects'];
     let panner: PannerNode | null = null;
     if (at) {
       panner = new PannerNode(ctx, { panningModel: 'equalpower', rolloffFactor: 0 });
       place(panner, at, ctx.currentTime);
-      near.connect(panner).connect(this.out!);
+      near.connect(panner).connect(channel);
     } else {
-      near.connect(this.out!);
+      near.connect(channel);
     }
     return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime };
   }
@@ -332,6 +377,16 @@ export class Sfx {
       .then((data) => ctx.decodeAudioData(data))
       .then((buffer) => this.buffers.set(file, buffer))
       .catch(() => {});
+  }
+}
+
+function loadMuted(): Set<Channel> {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(MUTED_KEY) ?? '[]');
+    const channels: Channel[] = ['music', 'effects'];
+    return new Set(Array.isArray(saved) ? channels.filter((c) => saved.includes(c)) : []);
+  } catch {
+    return new Set();
   }
 }
 

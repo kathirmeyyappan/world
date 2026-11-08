@@ -3,20 +3,9 @@ import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type PlayerClass 
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
-import { SERVED_BY_ROOM_HOST, lobbyUrl } from '../net/lobby';
+import { inviteLink } from '../net/lobby';
 
 const CHAT_LINES = 8;
-
-// On Pages or in dev the page can take ?room=; on the room host that would skip the lobby, so
-// point invites at the lobby instead.
-function inviteLink(roomId: string): string {
-  const lobby = lobbyUrl();
-  if (lobby && SERVED_BY_ROOM_HOST) return `${lobby}/join/${encodeURIComponent(roomId)}`;
-  const url = new URL(location.href);
-  url.search = '';
-  url.searchParams.set('room', roomId);
-  return url.toString();
-}
 const CHAT_FADE_MS = 12_000;
 // Lines sent from this tab, oldest first, that Up and Down step back through like a shell's history.
 // Kept in sessionStorage, since dying reloads the page.

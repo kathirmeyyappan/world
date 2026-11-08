@@ -32,15 +32,20 @@
       <div id="hud">
         <div id="name-tags" translate="no"></div>
         <div id="pins"></div>
-        <div class="panel" id="room-panel">
-          <div class="room-line">
-            <button id="panel-toggle" title="show or hide players" aria-expanded="true">▾</button>
-            <span class="label">ROOM</span>
-            <button id="room-code" title="copy invite link"></button>
-          </div>
-          <div id="panel-body">
-            <ul id="player-list"></ul>
-            <div class="ping-line"><span class="label">PING</span> <span id="ping">--</span></div>
+        <div id="corner">
+          <button id="settings-button" translate="yes">
+            <span class="text">GAME INFO / SETTINGS</span><kbd translate="no">X</kbd>
+          </button>
+          <div class="panel" id="room-panel">
+            <div class="room-line">
+              <button id="panel-toggle" title="show or hide players" aria-expanded="true">▾</button>
+              <span class="label">ROOM</span>
+              <button id="room-code" title="copy invite link"></button>
+            </div>
+            <div id="panel-body">
+              <ul id="player-list"></ul>
+              <div class="ping-line"><span class="label">PING</span> <span id="ping">--</span></div>
+            </div>
           </div>
         </div>
         <div id="chat">
@@ -165,6 +170,7 @@
       </div>
 
       <div id="commands" class="hidden" translate="yes"></div>
+      <div id="settings" class="hidden" translate="yes"></div>
 
       <div id="death" class="hidden" translate="yes">
         <div class="card">

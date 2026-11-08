@@ -1,7 +1,7 @@
 import { showHome } from './app/home';
 import type { Game } from './game/Game';
 import { IS_TOUCH } from './input/touch';
-import { forgetRoom, homeUrl } from './net/lobby';
+import { leaveRoom } from './net/lobby';
 
 declare global {
   interface Window {
@@ -27,10 +27,7 @@ async function main(): Promise<void> {
   });
   window.__world = { debug: () => game.debug(), setLook: (yaw, pitch) => game.setLook(yaw, pitch) };
   if (import.meta.env.DEV) window.__game = game;
-  document.getElementById('disconnected-home')!.addEventListener('click', () => {
-    forgetRoom();
-    location.href = homeUrl();
-  });
+  document.getElementById('disconnected-home')!.addEventListener('click', leaveRoom);
   game.start();
   requestAnimationFrame(() => loading.classList.add('hidden'));
   showStart(canvas);

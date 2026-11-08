@@ -37,6 +37,24 @@ export function homeUrl(): string {
   return sessionStorage.getItem('world.home') || location.pathname;
 }
 
+// Out of the room for good: the tab forgets it, so the home page doesn't rejoin it, and goes home.
+export function leaveRoom(): void {
+  forgetRoom();
+  location.href = homeUrl();
+}
+
+// The link that brings a friend into this room. On Pages or in dev the page itself takes ?room=; the
+// room host's page only works with its session's cookie, so from there a friend goes through the
+// lobby, which starts or finds the room's session for them.
+export function inviteLink(roomId: string): string {
+  const lobby = lobbyUrl();
+  if (lobby && SERVED_BY_ROOM_HOST) return `${lobby}/join/${encodeURIComponent(roomId)}`;
+  const url = new URL(location.href);
+  url.search = '';
+  url.searchParams.set('room', roomId);
+  return url.toString();
+}
+
 export class LobbyUnavailableError extends Error {}
 
 // Where the lobby is: what the lobby's own redirect told this tab, else what the room host put in

@@ -2,7 +2,7 @@
 // Rejoining reloads the page; the session cookie puts the player back in the same room as a
 // fresh player, which is what a death means here.
 import { DEATH_SCREEN_SECONDS } from '@world/shared';
-import { forgetRoom, homeUrl } from '../net/lobby';
+import { leaveRoom } from '../net/lobby';
 
 export class Death {
   private readonly root = document.getElementById('death')!;
@@ -15,8 +15,7 @@ export class Death {
     document.getElementById('death-exit')!.addEventListener('click', () => {
       if (this.timer !== null) clearTimeout(this.timer);
       this.timer = null;
-      forgetRoom();
-      location.href = homeUrl();
+      leaveRoom();
     });
   }
 
