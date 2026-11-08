@@ -161,7 +161,7 @@ function keyboardHtml(groups: Group[]): string {
         <div class="groups">${sections.join('')}</div>
       </div>
       <div class="footer">
-        <div class="guide">MORE IN THE GUIDE: PRESS X FOR SETTINGS</div>
+        <div class="guide">MORE IN THE GUIDE: PRESS X FOR THE MENU</div>
         <div class="close-hint">PRESS <kbd>Q</kbd> TO CLOSE<span class="cursor">▮</span></div>
       </div>
     </div>`;
@@ -185,7 +185,7 @@ function touchHtml(groups: Group[]): string {
         <div class="groups">${sections.join('')}</div>
       </div>
       <div class="footer">
-        <div class="guide">MORE IN THE GUIDE, UNDER SETTINGS</div>
+        <div class="guide">MORE IN THE GUIDE, IN THE MENU</div>
         <div class="close-hint">TAP TO EXIT<span class="cursor">▮</span></div>
       </div>
     </div>`;

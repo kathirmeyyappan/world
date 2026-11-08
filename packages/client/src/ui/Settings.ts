@@ -1,5 +1,5 @@
-// Game info and settings, behind the gear over the room panel or the X key: the link that brings
-// friends into the room, sound, the view, the guide, and the way out. With a mouse it frees the
+// The menu, behind the gear over the room panel or the X key: the link that brings friends into
+// the room, sound, the view, the guide, and the way out. With a mouse it frees the
 // pointer to click around in; closing it with X, its corner button or a click beside the card puts
 // the player back in the world, and Esc closes it leaving the mouse free. On touch a tap on its corner
 // button or beside the card closes it. Each setting belongs to whatever already keeps it (Sfx its
@@ -219,7 +219,7 @@ function cardHtml(groups: Section[], invite: boolean): string {
   return `
     <div class="card">
       <div class="head">
-        <h1>GAME INFO / SETTINGS</h1>
+        <h1>MENU</h1>
         <button class="close" title="close" translate="no">X</button>
       </div>
       <div class="body">

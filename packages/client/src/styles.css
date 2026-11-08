@@ -206,8 +206,7 @@ body {
   z-index: 100;
   font-family: var(--mono);
 }
-/* Top left: the settings button over the room panel, each its own width: stretched to the button's,
-   the panel would reach under the area title on a phone on its side. */
+/* Top left: the menu button over the room panel, each as wide as its own content. */
 #corner {
   position: absolute;
   top: 16px;
@@ -1582,7 +1581,7 @@ body {
   }
 }
 
-/* Game info and settings (ui/Settings.ts): the invite link, toggles, links, and leaving. */
+/* The menu (ui/Settings.ts): the invite link, toggles, links, and leaving. */
 #settings {
   position: fixed;
   inset: 0;

@@ -1,8 +1,8 @@
-// Onboarding nudge: a banner across the screen pointing at the commands (C) and the game info and
-// settings menu (X), its keys tapping down and up in turn. It comes up once, DELAY_MS into play, and
-// counts itself down for SHOW_MS; after that, or once the player has opened chat, the commands or
-// the menu, whichever comes first, it's retired and this device never shows it again. Pure DOM,
-// driven once a frame by the Game.
+// Onboarding nudge: a banner across the screen pointing at the commands (C) and the menu (X), its
+// keys tapping down and up in turn. It comes up once, DELAY_MS into play, and counts itself down
+// for SHOW_MS; after that, or once the player has opened chat, the commands or the menu, whichever
+// comes first, it's retired and this device never shows it again. Pure DOM, driven once a frame by
+// the Game.
 import { IS_TOUCH } from '../input/touch';
 import { GEAR, pixelSvg } from './pixelIcons';
 
