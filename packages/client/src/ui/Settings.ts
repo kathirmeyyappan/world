@@ -9,7 +9,7 @@ import type { Channel, Sfx } from '../audio/Sfx';
 import type { View } from '../game/View';
 import { IS_TOUCH } from '../input/touch';
 import { SERVED_BY_ROOM_HOST, leaveRoom } from '../net/lobby';
-import { GEAR, pixelSvg } from './pixelIcons';
+import { gearIcon } from './gearIcon';
 
 const GUIDE_URL = 'https://info.kathirm.com/kathir-world-guide?pvs=74';
 const REPO_URL = 'https://github.com/kathirmeyyappan/world';
@@ -70,7 +70,7 @@ export class Settings {
     });
 
     const opener = document.getElementById('settings-button')!;
-    opener.prepend(pixelSvg(GEAR, 'gear'));
+    opener.prepend(gearIcon('gear'));
     opener.addEventListener('click', () => this.show());
   }
 

@@ -4,7 +4,7 @@
 // comes first, it's retired and this device never shows it again. Pure DOM, driven once a frame by
 // the Game.
 import { IS_TOUCH } from '../input/touch';
-import { GEAR, pixelSvg } from './pixelIcons';
+import { gearIcon } from './gearIcon';
 
 const DELAY_MS = 12_000; // from the press that starts play
 const SHOW_MS = 10_000;
@@ -26,7 +26,7 @@ export class CommandHint {
   constructor() {
     const text = this.el.querySelector('.text')!;
     text.innerHTML = LINES.map((line) => `<span class="line">${line}</span>`).join('');
-    text.querySelector('.gear-key')?.append(pixelSvg(GEAR, 'gear'));
+    text.querySelector('.gear-key')?.append(gearIcon('gear'));
   }
 
   // Off for good on this device, and gone now if it's up.

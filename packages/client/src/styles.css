@@ -235,13 +235,9 @@ body {
   border-color: var(--accent);
 }
 #settings-button .gear {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   flex: none;
-  shape-rendering: crispEdges;
-}
-#settings-button .gear rect {
-  fill: var(--accent);
 }
 #settings-button kbd {
   margin-left: auto;
@@ -1277,10 +1273,6 @@ body {
   width: 16px;
   height: 16px;
   vertical-align: -3px;
-  shape-rendering: crispEdges;
-}
-#command-hint kbd .gear rect {
-  fill: #05070c;
 }
 @keyframes key-tap {
   0%,
