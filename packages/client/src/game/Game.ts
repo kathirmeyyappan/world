@@ -48,7 +48,7 @@ import { IS_TOUCH, onTap } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, preloadAvatars, StandardAvatar, type Avatar } from '../render/avatars';
+import { createAvatar, preloadAvatars, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -781,7 +781,7 @@ export class Game {
       seen.add(rp.id);
       let avatar = this.avatars.get(rp.id);
       // A new look, or a new colour on the figure that wears it, is a new avatar.
-      if (avatar && (avatar.kind !== rp.avatar || (avatar instanceof StandardAvatar && avatar.color !== rp.color))) {
+      if (avatar && (avatar.kind !== rp.avatar || (avatar.color !== undefined && avatar.color !== rp.color))) {
         avatar.dispose();
         avatar = undefined;
       }
@@ -876,7 +876,7 @@ export class Game {
   private updateOwnAvatar(at: Vec3, held: ItemState | null): void {
     const self = this.prediction!.state;
     let avatar = this.ownAvatar;
-    if (avatar && (avatar.kind !== self.avatar || (avatar instanceof StandardAvatar && avatar.color !== self.color))) {
+    if (avatar && (avatar.kind !== self.avatar || (avatar.color !== undefined && avatar.color !== self.color))) {
       avatar.dispose();
       avatar = null;
     }

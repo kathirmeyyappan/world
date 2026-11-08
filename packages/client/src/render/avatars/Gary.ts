@@ -1,17 +1,13 @@
-// Gary, SpongeBob's snail: a soft body with a foot along its underside, a shell on its back and
+// Gary, SpongeBob's snail: a soft body with a foot along its underside, a shell on his back and
 // his eyes on stalks at the front, from Anthony Yanez's model (garyModel.ts, made by
 // scripts/avatar-model.py) and skinned over a handful of bones. He has no arms or legs, so nothing
 // holds an item: it sits by the right of his eyes, aimed along the look, and his packs hang upright
-// on the back of his shell. He glides along with no footsteps.
-import { Mesh, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT } from '@world/shared';
-import type { RemotePlayer } from '../../net/Interpolation';
+// on the back of his shell. He glides along with no footsteps, and dies rolled onto his right side.
+import { TransformNode, Vector3 } from '@babylonjs/core';
 import type { Engine } from '../Engine';
-import { centreOf, createShadowBlob, placeShadow, type Avatar } from './common';
 import { GARY_MODEL } from './garyModel';
-import { HeldItems } from './HeldItems';
-import { HitFlash } from './HitFlash';
 import { SkinnedBody } from './skinned';
+import type { Figure } from './Walker';
 
 type GaryBone = 'body' | 'shell' | 'eyes';
 const PARENTS: Record<GaryBone, GaryBone | null> = { body: null, shell: 'body', eyes: 'body' };
@@ -24,96 +20,37 @@ const GRIP = new Vector3(0.14, -0.02, 0.1);
 const WEAPON_SCALE = 0.6;
 const PACK_SCALE = 0.5;
 
-export class GaryAvatar implements Avatar {
-  readonly kind = 'gary' as const;
-  private readonly root: TransformNode;
-  private readonly base: TransformNode; // the body's frame: lies over when dead
-  private readonly skin: SkinnedBody<GaryBone>;
-  private readonly eyes: TransformNode;
-  // On the right of his eyes, turned so a held item's barrel runs along the look.
-  private readonly grip: TransformNode;
-  private readonly shadow: Mesh;
-  private readonly items: HeldItems;
-  private readonly hitFlash: HitFlash;
-  private readonly side: number; // metres from his middle out to his right side: how high he lies on it
-  private dead = false;
+export function buildGary(engine: Engine, id: string, base: TransformNode): Figure {
+  const scene = engine.scene;
+  const skin = new SkinnedBody(engine, `gary-${id}`, GARY_MODEL, 'gary', PARENTS, base);
+  const eyes = skin.node('eyes');
+  const side = skin.mesh.getBoundingInfo().boundingBox.maximum.x; // metres from his middle out to his right side: how high he lies on it
+  // The foot and stalks are open sheets in the model, so they are drawn from both sides.
+  skin.material.backFaceCulling = false;
+  skin.material.twoSidedLighting = true;
 
-  constructor(
-    engine: Engine,
-    readonly id: string,
-  ) {
-    const scene = engine.scene;
-    this.root = new TransformNode(`avatar-${id}`, scene);
-    this.base = new TransformNode(`avatar-body-${id}`, scene);
-    this.base.parent = this.root;
+  // The item's hand is a point by the eyes that turns to the look, with the grip on it.
+  const hand = new TransformNode(`avatar-hand-${id}`, scene);
+  hand.parent = eyes;
+  hand.position.copyFrom(GRIP);
+  const grip = new TransformNode(`avatar-grip-${id}`, scene);
+  grip.parent = hand;
 
-    this.skin = new SkinnedBody(engine, `gary-${id}`, GARY_MODEL, 'gary', PARENTS, this.base);
-    this.eyes = this.skin.node('eyes');
-    this.side = this.skin.mesh.getBoundingInfo().boundingBox.maximum.x;
-    // The foot and stalks are open sheets in the model, so they are drawn from both sides.
-    this.skin.material.backFaceCulling = false;
-    this.skin.material.twoSidedLighting = true;
-    this.hitFlash = new HitFlash([this.skin.material]);
-
-    this.grip = new TransformNode(`avatar-grip-${id}`, scene);
-    this.grip.parent = this.eyes;
-    this.grip.position.copyFrom(GRIP);
+  return {
+    tilt: { node: eyes, follow: FOLLOW },
+    armR: { node: hand, grip, reach: Vector3.Down() },
     // The packs hang off the shell, which never moves, so they stay put on its back as he crawls.
-    const pack = this.skin.offset('shell', GARY_MODEL.back);
-    this.items = new HeldItems(engine, `gary-${id}`, 'gary', this.grip, Vector3.Zero(), this.skin.node('shell'), pack, {
-      weapons: WEAPON_SCALE,
-      packs: PACK_SCALE,
-    });
-
-    this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, 0.7);
-    this.shadow.parent = this.root;
-    this.shadow.position.y = 0.02;
-  }
-
-  update(p: RemotePlayer): void {
-    this.hitFlash.update(p.chilled);
-    const feetY = p.y - EYE_HEIGHT;
-    this.root.position.set(p.x, feetY, p.z);
-    this.root.rotation.y = p.yaw;
-
-    this.eyes.rotation.x = p.dead ? 0 : p.pitch * FOLLOW;
-    // Barrel along the look; dead, it lies level along his body rather than through the ground.
-    this.grip.rotation.x = (p.dead ? 0 : p.pitch * (1 - FOLLOW)) - Math.PI / 2;
-    this.items.update(p);
-
-    if (p.dead !== this.dead) {
-      this.dead = p.dead;
-      // Rolled onto his right side about his length, lifted so that side rests on the ground. Tipped
-      // backwards like the bipeds he would stand on end: he is longer than he is tall.
-      this.base.rotation.z = p.dead ? -Math.PI / 2 : 0;
-      this.base.position.y = p.dead ? this.side : 0;
-    }
-    placeShadow(this.shadow, p, feetY);
-    this.root.setEnabled(true);
-  }
-
-  flash(): void {
-    this.hitFlash.trigger();
-  }
-
-  fire(): void {
-    this.items.fire();
-  }
-
-  scaleWeapons(factor: number): void {
-    this.items.scaleWeapons(factor);
-  }
-
-  hide(): void {
-    this.root.setEnabled(false);
-  }
-
-  dispose(): void {
-    this.root.dispose(false, true);
-    this.skin.dispose();
-  }
-
-  corpse(): Vector3 | null {
-    return this.dead && this.root.isEnabled() ? centreOf(this.base) : null;
-  }
+    back: { node: skin.node('shell'), at: skin.offset('shell', GARY_MODEL.back) },
+    materials: [skin.material],
+    shadow: 0.7,
+    itemScale: { weapons: WEAPON_SCALE, packs: PACK_SCALE },
+    legSwing: 0,
+    airLegs: 0,
+    armSwing: 0,
+    bob: 0,
+    // Rolled onto his right side about his length, lifted so that side rests on the ground, the
+    // item lying level along his body rather than through the ground.
+    lie: { onto: 'right', height: side, arms: -Math.PI / 2 },
+    dispose: () => skin.dispose(),
+  };
 }

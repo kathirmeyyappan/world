@@ -3,10 +3,8 @@
 import {
   Color3,
   DynamicTexture,
-  Matrix,
   Mesh,
   MeshBuilder,
-  Quaternion,
   StandardMaterial,
   Texture,
   TransformNode,
@@ -19,6 +17,7 @@ import type { Engine } from '../Engine';
 export interface Avatar {
   readonly id: string;
   readonly kind: AvatarId;
+  readonly color?: string; // the player's colour it is painted in, when it is: a change means a new body
   update(p: RemotePlayer, step: number): void; // `step` is where they are in their stride (Footsteps.phase)
   flash(): void; // took a hit: blink red
   fire(): void; // shot a tap weapon: muzzle flash
@@ -51,20 +50,6 @@ export class Gait {
     const target = airborne ? 0 : Math.sqrt(Math.min(1, walk / MOVE_SPEED));
     this.effort += (target - this.effort) * Math.min(1, dt / GAIT_EASE);
   }
-}
-
-// Points an arm from the way it hangs in the model (`reach`, shoulder to hand) to `pitch` down of
-// straight ahead, and turns the grip at its hand so an item's barrel (its -y) runs along the arm
-// with its top (its +z) up, whatever the model's hand is doing.
-export function aimArm(arm: TransformNode, grip: TransformNode, reach: Vector3, pitch: number): void {
-  const ahead = new Vector3(0, -Math.sin(pitch), Math.cos(pitch));
-  const turn = (arm.rotationQuaternion ??= new Quaternion());
-  Quaternion.FromUnitVectorsToRef(reach, ahead, turn);
-  const right = Vector3.Cross(Vector3.Up(), ahead).normalize();
-  const top = Vector3.Cross(ahead, right);
-  const hand = Matrix.FromXYZAxesToRef(right, ahead.negate(), top, new Matrix());
-  const local = hand.multiply(Matrix.Invert(turn.toRotationMatrix(new Matrix())));
-  Quaternion.FromRotationMatrixToRef(local, (grip.rotationQuaternion ??= new Quaternion()));
 }
 
 // The middle of a node and everything under it, in world space: a fallen body's centre.
