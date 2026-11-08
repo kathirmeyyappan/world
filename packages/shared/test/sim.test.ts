@@ -452,7 +452,7 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   const p = createPlayer('d', 'd', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   p.hearts = 7;
   becomeAvatar(p, 'light-dragon');
-  assert.equal(p.hearts, 28, '7 of 10 is 28 of 40');
+  assert.equal(p.hearts, 40, 'a dragon starts full');
   assert.deepEqual(p.item, { id: 'firebreath', locked: true, fuel: 7.5 });
   assert.equal(p.dragon?.spine.length, SPINE_POINTS * 3);
   assert.ok(p.dragon!.spine[SPINE_POINTS * 3 - 2] < 0, 'the body starts in the ground under the head');
@@ -523,11 +523,12 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   );
   assert.ok(DRAGON.fits({ x: 0, y: EYE_HEIGHT, z: 0 }, door));
 
-  // Back on foot eye to eye, with the life in proportion, and the fall from there is the walker's.
+  // Back on foot eye to eye, with the life kept up to a walker's full, and the fall from there is
+  // the walker's.
   p.hearts = 20;
   const eyes = { ...p.pos };
   becomeAvatar(p, 'standard');
-  assert.equal(p.hearts, 5);
+  assert.equal(p.hearts, 10);
   assert.equal(p.dragon, null);
   assert.equal(p.item, null);
   assert.deepEqual(p.pos, eyes);
