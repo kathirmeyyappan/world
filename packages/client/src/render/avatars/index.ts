@@ -34,13 +34,15 @@ const SKINNED: readonly AvatarId[] = [
 ];
 
 // Everyone on foot is a figure the walker poses (Walker.ts), made from its builder; one that moves
-// by a rule of its own is a subclass of WalkerAvatar, made here by its class. The dragon is its own.
+// by a rule of its own is a subclass of WalkerAvatar, made here by its class. A dragon skin is the
+// dragon's model in that skin's atlas.
 type Make = (engine: Engine, id: string, kind: AvatarId, color: string) => Avatar;
 const walker =
   (build: Build): Make =>
   (engine, id, kind, color) =>
     new WalkerAvatar(engine, id, kind, build, color);
-const WALKERS: Record<Exclude<AvatarId, 'light-dragon'>, Make> = {
+const dragon: Make = (engine, id, kind) => new DragonAvatar(engine, id, kind);
+const MAKERS: Record<AvatarId, Make> = {
   standard: walker(buildStandard),
   elizabeth: walker(buildElizabeth),
   sahur: walker(buildSahur),
@@ -51,6 +53,7 @@ const WALKERS: Record<Exclude<AvatarId, 'light-dragon'>, Make> = {
   krabs: walker(bodyBuilder(KRABS)),
   squidward: walker(buildSquidward),
   gary: walker(buildGary),
+  'light-dragon': dragon,
 };
 
 export function preloadAvatars(engine: Engine): void {
@@ -62,6 +65,5 @@ export function preloadAvatars(engine: Engine): void {
 }
 
 export function createAvatar(engine: Engine, p: { id: string; color: string; avatar: AvatarId }): Avatar {
-  if (p.avatar === 'light-dragon') return new DragonAvatar(engine, p.id);
-  return WALKERS[p.avatar](engine, p.id, p.avatar, p.color);
+  return MAKERS[p.avatar](engine, p.id, p.avatar, p.color);
 }
