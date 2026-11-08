@@ -126,18 +126,13 @@ export function buildTank(
   return node;
 }
 
-const flashMaterials = new WeakMap<Scene, StandardMaterial>();
-
-// A muzzle flash: a small glowing cube at `muzzle` under `parent`, off until a shot.
+// A muzzle flash: a small glowing cube at `muzzle` under `parent`, off until a shot. Its material is
+// its own: an avatar disposes its materials with it, so one shared with the viewmodel would go too.
 export function buildFlash(engine: Engine, name: string, parent: TransformNode, muzzle: Vector3): Mesh {
   const scene = engine.scene;
-  let material = flashMaterials.get(scene);
-  if (!material) {
-    material = new StandardMaterial('muzzle-flash', scene);
-    material.emissiveColor = new Color3(1, 0.85, 0.4);
-    material.disableLighting = true;
-    flashMaterials.set(scene, material);
-  }
+  const material = new StandardMaterial(`${name}-flash`, scene);
+  material.emissiveColor = new Color3(1, 0.85, 0.4);
+  material.disableLighting = true;
   const flash = MeshBuilder.CreateBox(`${name}-flash`, { size: 0.09 }, scene);
   flash.material = material;
   flash.parent = parent;
