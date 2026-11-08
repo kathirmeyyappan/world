@@ -27,7 +27,7 @@ export interface Footprint {
 }
 
 // Surface looks the renderer knows how to paint.
-export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'plaster';
+export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'plaster' | 'steel';
 
 // A solid block: walls, buildings, platforms, pillars.
 export interface Box extends Footprint {
@@ -135,8 +135,9 @@ export function ladder(
   top: number,
   yaw: number,
   material: StructureMaterial = 'wood',
+  width = LADDER_WIDTH,
 ): Ladder {
-  return { kind: 'ladder', x: foot.x, z: foot.z, y, yaw, w: LADDER_WIDTH, d: LADDER_GIRTH, h: top - y, material };
+  return { kind: 'ladder', x: foot.x, z: foot.z, y, yaw, w: width, d: LADDER_GIRTH, h: top - y, material };
 }
 
 // A ramp from `low` on the floor (or at y) up to `high`, rising by h, width w.

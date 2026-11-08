@@ -151,6 +151,28 @@ const plaster: MaterialSpec = {
   },
 };
 
+// Steel: the light blue-grey plate of the hatch's platform and slide (the house model's slide
+// texture), in plates a metre square with a darker seam between them and a rivet at each corner,
+// kept gentle like the plaster.
+const steel: MaterialSpec = {
+  tile: 2,
+  worldTop: true,
+  paint(px, rng) {
+    const base = '#b8c4ef';
+    const tones = ['#bcc8f1', '#b4c0ec', '#c0ccf4', '#b6c2ee'];
+    const seam = '#9ca8d8';
+    const rivet = '#8f9bcf';
+    const plate = TEXELS / 2;
+    for (let y = 0; y < TEXELS; y++) {
+      for (let x = 0; x < TEXELS; x++) {
+        const onSeam = x % plate === 0 || y % plate === 0;
+        const atRivet = (x % plate === 2 || x % plate === plate - 2) && (y % plate === 2 || y % plate === plate - 2);
+        px(x, y, onSeam ? seam : atRivet ? rivet : rng() < 0.12 ? pick(rng, tones) : base);
+      }
+    }
+  },
+};
+
 export const MATERIALS: Record<StructureMaterial, MaterialSpec> = {
   brick,
   wood,
@@ -158,6 +180,7 @@ export const MATERIALS: Record<StructureMaterial, MaterialSpec> = {
   flagstone,
   sand,
   plaster,
+  steel,
 };
 
 // One material's texture as canvas pixels, deterministic for a given material.

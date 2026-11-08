@@ -33,6 +33,7 @@ export const SURFACES: Record<SurfaceId, SurfaceSpec> = {
 export const MATERIAL_SURFACES: Record<StructureMaterial, SurfaceId> = {
   brick: 'hard',
   wood: 'hard',
+  steel: 'hard',
   'red-tile': 'hard',
   flagstone: 'hard',
   sand: 'sand',

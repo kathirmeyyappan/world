@@ -124,8 +124,8 @@ wire: server and client both build the world from that file.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
 - Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`,
-  `plaster`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a new
-  one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
+  `plaster`, `steel`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a
+  new one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
   they look the same inside and out; don't reach for lights. `hidden` pieces are collided with but
   never drawn: the shape of something the client draws its own way.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
@@ -150,7 +150,8 @@ wire: server and client both build the world from that file.
 ### Ladders
 
 A ladder (`sim/structures.ts` `ladder`, kind `ladder`) is an upright frame of two rails and rungs,
-`LADDER_WIDTH` across and `LADDER_GIRTH` through, climbed from either of its faces (its local ±z);
+`LADDER_WIDTH` across unless the helper is given a width, and `LADDER_GIRTH` through, climbed from
+either of its faces (its local ±z);
 to everything else it is a thin box, and it never frosts. A walker holding forward (W) within
 `LADDER_REACH` of a face, between the rails, facing it, takes hold (`walker.ts` `takeHold`,
 `PlayerState.climb`: the piece and the face, ±1) and climbs at `CLIMB_SPEED` on W and S, nothing
