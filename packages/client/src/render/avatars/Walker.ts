@@ -245,25 +245,25 @@ export class WalkerAvatar implements Avatar {
   // and turns the grip at its hand so the item's barrel (its -y) runs that way with its top (its
   // +z) up, whatever the model's hand is doing. The arm turns in its parent's frame, which may be
   // tipped with the look or rolling with the stride, so the look is taken into that frame first.
+  // Nothing is allocated: this runs for every armed body every frame.
   protected aim(p: RemotePlayer): void {
     const { node, grip } = this.figure.armR;
     const turn = clamp(wrap(p.yaw - this.root.rotation.y), ARM_TURN);
-    const ahead = new Vector3(
-      Math.sin(turn) * Math.cos(p.pitch),
-      -Math.sin(p.pitch),
-      Math.cos(turn) * Math.cos(p.pitch),
-    );
-    const frame = frameOf(node.parent as TransformNode, this.root);
-    Vector3.TransformNormalToRef(Vector3.TransformNormal(ahead, this.root.getWorldMatrix()), frame, ahead);
-    ahead.normalize();
-    const up = Vector3.TransformNormal(Vector3.Up(), frame).normalize();
+    AHEAD.set(Math.sin(turn) * Math.cos(p.pitch), -Math.sin(p.pitch), Math.cos(turn) * Math.cos(p.pitch));
+    UP.set(0, 1, 0);
+    turnsBetween(node.parent as TransformNode, this.root, CHAIN).conjugateToRef(UNDO);
+    AHEAD.applyRotationQuaternionInPlace(UNDO);
+    UP.applyRotationQuaternionInPlace(UNDO);
     const swung = (node.rotationQuaternion ??= new Quaternion());
-    Quaternion.FromUnitVectorsToRef(this.aimFrom, ahead, swung);
-    const right = Vector3.Cross(up, ahead).normalize();
-    const top = Vector3.Cross(ahead, right);
-    const hand = Matrix.FromXYZAxesToRef(right, ahead.negate(), top, new Matrix());
-    const local = hand.multiply(Matrix.Invert(swung.toRotationMatrix(new Matrix())));
-    Quaternion.FromRotationMatrixToRef(local, (grip.rotationQuaternion ??= new Quaternion()));
+    Quaternion.FromUnitVectorsToRef(this.aimFrom, AHEAD, swung);
+    // The grip's frame: x to the right, -y along the barrel, +z up its top; less the arm's own turn
+    // (a quaternion product applies its right factor first).
+    Vector3.CrossToRef(UP, AHEAD, RIGHT);
+    RIGHT.normalize();
+    Vector3.CrossToRef(AHEAD, RIGHT, TOP);
+    Quaternion.FromRotationMatrixToRef(Matrix.FromXYZAxesToRef(RIGHT, AHEAD.negateToRef(DOWN_BARREL), TOP, AXES), HAND);
+    swung.conjugateToRef(UNDO);
+    UNDO.multiplyToRef(HAND, (grip.rotationQuaternion ??= new Quaternion()));
   }
 
   flash(): void {
@@ -292,10 +292,37 @@ export class WalkerAvatar implements Avatar {
   }
 }
 
+// Scratch for the frame's arithmetic, shared by every walker: none of it survives a call.
+const AHEAD = new Vector3();
+const UP = new Vector3();
+const RIGHT = new Vector3();
+const TOP = new Vector3();
+const DOWN_BARREL = new Vector3();
+const CHAIN = new Quaternion();
+const NODE = new Quaternion();
+const UNDO = new Quaternion();
+const HAND = new Quaternion();
+const AXES = new Matrix();
+
 // Points an arm straight out of the body's front at `elevation` radians above level.
 export function point(arm: Arm, elevation: number): void {
   const turn = (arm.node.rotationQuaternion ??= new Quaternion());
-  Quaternion.FromUnitVectorsToRef(arm.reach, new Vector3(0, Math.sin(elevation), Math.cos(elevation)), turn);
+  AHEAD.set(0, Math.sin(elevation), Math.cos(elevation));
+  Quaternion.FromUnitVectorsToRef(arm.reach, AHEAD, turn);
+}
+
+// The turn that takes `node`'s frame into `root`'s, into `result`: every rotation on the way up
+// the tree, the node's own first and each parent's after it, as the nodes are turned this frame
+// (none of them scales). Cheaper than the world matrices, which the renderer hasn't built yet
+// when a pose is set.
+function turnsBetween(node: TransformNode, root: TransformNode, result: Quaternion): Quaternion {
+  result.set(0, 0, 0, 1);
+  for (let n: TransformNode | null = node; n && n !== root; n = n.parent as TransformNode | null) {
+    if (n.rotationQuaternion) NODE.copyFrom(n.rotationQuaternion);
+    else Quaternion.FromEulerAnglesToRef(n.rotation.x, n.rotation.y, n.rotation.z, NODE);
+    NODE.multiplyToRef(result, result);
+  }
+  return result;
 }
 
 // Back to turning by the Euler angles in `rotation`, which a quaternion overrides.
@@ -320,14 +347,4 @@ function clamp(a: number, limit: number): number {
 
 function wrap(angle: number): number {
   return ((angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-}
-
-// From the world into `node`'s frame, brought up to date from `root` down with what the pose
-// has set this frame.
-function frameOf(node: TransformNode, root: TransformNode): Matrix {
-  const chain: TransformNode[] = [];
-  for (let n: TransformNode | null = node; n && n !== root; n = n.parent as TransformNode | null) chain.push(n);
-  root.computeWorldMatrix(true);
-  for (const n of chain.reverse()) n.computeWorldMatrix(true);
-  return Matrix.Invert(node.getWorldMatrix());
 }
