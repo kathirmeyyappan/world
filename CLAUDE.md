@@ -204,7 +204,8 @@ then `frost` messages with the cells that turned). It lies in `FROST_CELL` squar
 the corner of each face of a piece (its top, underside and four sides, numbered 0 to 5; the floor
 from the origin, as piece `FLOOR`), a cell on the wire as `[piece, face, i, j]`. A frosted top is ice
 underfoot whatever the piece is made of, under the spot or under any of the body's width round it,
-so a hole smaller than a body doesn't catch a slide. On every shot of a hold weapon with an
+so a hole smaller than a body doesn't catch a slide, and on whichever of the pieces whose tops meet
+in one plane there the spray landed on (the house's hidden floor boxes lie in the dune's sand). On every shot of a hold weapon with an
 element the Room casts `sprayFrost`: a dozen rays spread over the cone (a low-discrepancy sequence,
 each shot's between the last ones'), each landing (`Structures.touch`, which says which face)
 turning the cells under its blot on that face (`Blot`: `SPLAT` across at the least, `SPREAD` of

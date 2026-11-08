@@ -149,25 +149,31 @@ export class Structures {
   footing(x: number, z: number, reach: number, radius = 0): Footing {
     const { y, piece, lx, lz } = this.ground(x, z, reach);
     const probes = radius > 0 ? PROBES.length : 1;
-    if (piece === null) {
-      let frosted = false;
-      for (let k = 0; k < probes && !frosted; k++)
-        frosted = this.frost.has(FLOOR, 0, ...cellOf(x + PROBES[k][0] * radius, z + PROBES[k][1] * radius));
-      return { y, piece, surface: frosted ? 'ice' : 'hard', slope: { x: 0, z: 0 } };
-    }
+    let frosted = false;
+    for (let k = 0; k < probes && !frosted; k++)
+      frosted = this.frostedAt(x + PROBES[k][0] * radius, z + PROBES[k][1] * radius, y);
+    if (piece === null) return { y, piece, surface: frosted ? 'ice' : 'hard', slope: { x: 0, z: 0 } };
     const p = this.placed[piece];
     const s = this.list[piece];
-    let frosted = false;
-    for (let k = 0; k < probes && !frosted; k++) {
-      const px = lx + PROBES[k][0] * radius;
-      const pz = lz + PROBES[k][1] * radius;
-      if (Math.abs(px) > p.hw || Math.abs(pz) > p.hd) continue;
-      frosted = this.frost.has(piece, 0, ...cellOf(...faceCoords(s, 0, px, 0, pz)));
-    }
     const surface = frosted ? 'ice' : surfaceOfStructure(s);
     // The top's rise per metre in the piece's own axes, then in the world's.
     const [wx, wz] = world(p, rise(p, lx, lz, 1, 0), rise(p, lx, lz, 0, 1));
     return { y, piece, surface, slope: { x: wx, z: wz } };
+  }
+
+  // Whether the ground at (x, z), whose height is `y`, is frosted there: the floor's cell, or that
+  // of any piece whose top is at that height at the spot. Tops meet in one plane wherever pieces
+  // overlap (the helpers' joints, a model's hidden floor over the dune's sand), and a spray lands
+  // on whichever of them a ray meets first, so ice on any of them is underfoot.
+  private frostedAt(x: number, z: number, y: number): boolean {
+    if (Math.abs(y) < 1e-3 && this.frost.has(FLOOR, 0, ...cellOf(x, z))) return true;
+    for (const i of this.nearIndices(x, z, x, z, y, y)) {
+      const p = this.placed[i];
+      const [lx, lz] = local(p, x, z);
+      if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd || Math.abs(p.base + p.top(lx, lz) - y) > 1e-3) continue;
+      if (this.frost.has(i, 0, ...cellOf(...faceCoords(this.list[i], 0, lx, 0, lz)))) return true;
+    }
+    return false;
   }
 
   // The highest top under (x, z) that is no higher than `reach`, which piece it is (null for the
