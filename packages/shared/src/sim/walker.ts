@@ -176,7 +176,7 @@ function takeHold(p: PlayerState, hold: { piece: number; side: 1 | -1 }, structu
   for (const side of [hold.side, flipped(hold.side)]) {
     const spot = structures.ladderSpot(hold.piece, side);
     if (!structures.fits(spot.x, spot.z, feet, EYE_HEIGHT + CAPSULE_TOP)) continue;
-    p.climb = { piece: hold.piece, side };
+    p.climb = { piece: hold.piece, side, way: 1 };
     p.pos.x = spot.x;
     p.pos.z = spot.z;
     p.vx = p.vz = p.vy = 0;
@@ -192,8 +192,9 @@ function flipped(side: 1 | -1): 1 | -1 {
 
 // One tick on a ladder: up or down the rungs as the keys say, at CLIMB_SPEED; over the top onto
 // whatever is beyond the ladder there, holding up; off its foot, or onto whatever is under the feet,
-// holding down; straight up and off it on a jump; and round to its other face on a swap (the
-// client's A and D) where a body fits there. Nothing pulls the body down, and it stays off the face.
+// holding down; straight up and off it on a jump; and round to its other face, by its left or its
+// right, on a swap (the client's A and D) where a body fits there. Nothing pulls the body down, and
+// it stays off the face.
 function climb(p: PlayerState, input: InputFrame | null, dt: number, structures: Structures): number {
   const hold = p.climb!;
   const { base, top } = structures.ladderSpan(hold.piece);
@@ -208,10 +209,12 @@ function climb(p: PlayerState, input: InputFrame | null, dt: number, structures:
     p.vy = JUMP_VELOCITY;
     return 0;
   }
-  if (input.actions.includes('swap')) {
+  const way = input.actions.includes('swap-left') ? -1 : input.actions.includes('swap-right') ? 1 : 0;
+  if (way !== 0) {
     const spot = structures.ladderSpot(hold.piece, flipped(hold.side));
     if (structures.fits(spot.x, spot.z, feet, height)) {
       hold.side = flipped(hold.side);
+      hold.way = way;
       p.pos.x = spot.x;
       p.pos.z = spot.z;
     }

@@ -157,9 +157,11 @@ to everything else it is a thin box, and it never frosts. A walker holding forwa
 pulling it down: holding up at the top steps it over onto whatever is beyond the ladder there (so
 the library's ladder, against the hatch platform's rail, tops out at the rail's top and lands you
 on the rail), holding down at the foot, or onto anything under the feet, steps it off, a jump is
-straight up and off (hold forward on the way down to take hold again), and A or D (the `swap`
-action, the touch SWAP button) goes round to the other face where a body fits there (where it
-doesn't, a rail at the top say, taking hold from that side goes through to the face with room).
+straight up and off (hold forward on the way down to take hold again), and A or D (the `swap-left`
+and `swap-right` actions; the touch SWAP button is A's) goes round to the other face by the
+ladder's left or its right, where a body fits there (where it doesn't, a rail at the top say,
+taking hold from that side goes through to the face with room); `climb.way` keeps which way, for
+the swing.
 Weapons work as on the ground. The look is client-authoritative, so the client holds it within a
 quarter turn of facing the ladder while climbing and turns it round with a swap (`Game.holdLook`),
 the camera swinging after it; the standard avatar squares up to the rungs, steps them with its

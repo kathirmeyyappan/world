@@ -35,7 +35,7 @@ export interface RemotePlayer {
   gear: GearId | null;
   thrusting: boolean;
   walk: number; // how fast their feet are walking, m/s (sim/types.ts): paces their legs and footsteps
-  climb: { piece: number; side: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, and the face held
+  climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, the face held, and the way round to it
   chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
   dead: boolean;
   avatar: AvatarId;

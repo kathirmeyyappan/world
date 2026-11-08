@@ -29,7 +29,7 @@ export class StandardAvatar implements Avatar {
   private dead = false;
   private readonly gait = new Gait();
   private climbPhase = 0; // radians along the rung-to-rung cycle of the legs
-  private held: { piece: number; side: 1 | -1 } | null = null; // the ladder face last seen held
+  private held: { piece: number; side: 1 | -1; way: 1 | -1 } | null = null; // the ladder face last seen held
   private swing = 0; // radians the body has still to turn round the ladder after a swap
   private lastNow = performance.now();
 
@@ -150,7 +150,7 @@ export class StandardAvatar implements Avatar {
   private climbLadder(p: RemotePlayer, feetY: number, dt: number): void {
     const hold = p.climb!;
     const facing = WORLD_STRUCTURES.ladderFacing(hold.piece, hold.side);
-    if (this.held && this.held.piece === hold.piece && this.held.side !== hold.side) this.swing -= Math.PI;
+    if (this.held && this.held.piece === hold.piece && this.held.side !== hold.side) this.swing -= hold.way * Math.PI;
     this.held = { ...hold };
     this.swing *= Math.pow(0.5, dt / SWING_HALF_LIFE);
     if (Math.abs(this.swing) < 1e-3) this.swing = 0;

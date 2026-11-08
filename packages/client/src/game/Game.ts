@@ -139,7 +139,7 @@ export class Game {
   private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
   private classId: PlayerClass | null = null; // the class the player was last seen as
   private wearing: string | null = null; // the avatar and item the player was last seen with, for dropping the scope
-  private heldFace: { piece: number; side: 1 | -1 } | null = null; // the ladder face the player was last seen holding
+  private heldFace: { piece: number; side: 1 | -1; way: 1 | -1 } | null = null; // the ladder face the player was last seen holding
   private swing = 0; // radians the camera has still to turn after a swap round a ladder
   private swapRequested = false; // the touch SWAP button was pressed since the last frame
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
@@ -334,16 +334,19 @@ export class Game {
     if (self)
       for (const [action, spec] of Object.entries(classOf(self.avatar).actions))
         if (this.input.isDown(spec.key) || this.input.wasPressed(spec.key)) actions.push(action as ItemAction);
-    // On a ladder A and D, or the touch SWAP button, go round to its other face.
-    const swap = this.input.wasPressed('KeyA') || this.input.wasPressed('KeyD') || this.swapRequested;
-    if (self?.climb && swap) actions.push('swap');
+    // On a ladder A and D go round to its other face, by its left and by its right; the touch SWAP
+    // button goes by its left.
+    if (self?.climb) {
+      if (this.input.wasPressed('KeyA') || this.swapRequested) actions.push('swap-left');
+      else if (this.input.wasPressed('KeyD')) actions.push('swap-right');
+    }
     this.swapRequested = false;
     return actions;
   }
 
   // On a ladder the look stays within LOOK_HOLD of facing it, and a change of face (a swap, or
-  // taking hold through to the far face) takes it half a turn round with the body, the camera
-  // swinging after it rather than snapping.
+  // taking hold through to the far face) takes it half a turn round with the body, the way the
+  // body went, the camera swinging after it rather than snapping.
   private holdLook(dt: number): void {
     const hold = this.prediction!.state.climb;
     const was = this.heldFace;
@@ -355,7 +358,7 @@ export class Game {
     let off = wrapAngle(this.input.yaw - facing);
     if ((!was || was.piece !== hold.piece || was.side !== hold.side) && Math.abs(off) > Math.PI / 2) {
       this.input.yaw += Math.PI;
-      this.swing -= Math.PI;
+      this.swing -= hold.way * Math.PI;
       off = wrapAngle(this.input.yaw - facing);
     }
     if (Math.abs(off) > LOOK_HOLD) this.input.yaw = facing + Math.sign(off) * LOOK_HOLD;

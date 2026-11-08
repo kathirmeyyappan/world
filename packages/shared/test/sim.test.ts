@@ -374,13 +374,16 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
   for (let i = 0; i < 15; i++) stepPlayer(q, frame(q.lastSeq + 1, { my: 1 }), TICK_DT, WORLD_SHAPE, world);
   assert.ok(face(q) && q.pos.y > 3 + EYE_HEIGHT, `holding forward on the way down took hold again, at ${q.pos.y}`);
   // A swap goes round to the other face only where a body fits there: not into the block.
-  stepPlayer(q, frame(q.lastSeq + 1, { actions: ['swap'] }), TICK_DT, WORLD_SHAPE, world);
+  stepPlayer(q, frame(q.lastSeq + 1, { actions: ['swap-left'] }), TICK_DT, WORLD_SHAPE, world);
   assert.equal(face(q), -1, 'no swapping into the block');
   const r = createPlayer('c', 'c', '#fff', { x: 10, y: EYE_HEIGHT, z: -0.3 });
   stepPlayer(r, frame(1, { my: 1 }), TICK_DT, WORLD_SHAPE, world);
   const before = r.pos.z;
-  stepPlayer(r, frame(2, { actions: ['swap'] }), TICK_DT, WORLD_SHAPE, world);
-  assert.ok(face(r) === 1 && Math.abs(r.pos.z + before) < 1e-9, `round to the far face: z ${before} to ${r.pos.z}`);
+  stepPlayer(r, frame(2, { actions: ['swap-right'] }), TICK_DT, WORLD_SHAPE, world);
+  assert.ok(
+    face(r) === 1 && r.climb?.way === 1 && Math.abs(r.pos.z + before) < 1e-9,
+    `round to the far face: z ${before} to ${r.pos.z}`,
+  );
 });
 
 test("what's underfoot: the material's surface, ice wherever a top is frosted, and the slope", () => {
