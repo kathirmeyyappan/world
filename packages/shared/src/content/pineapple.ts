@@ -27,6 +27,7 @@
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
 import {
+  LADDER_WIDTH,
   ladder,
   ramp,
   roundFloor,
@@ -456,10 +457,18 @@ const dune = terrain({
 // rail's outer face beside the slide's mouth and clear of the stairwell's hole in the floor: the
 // way up to the lobby and the attic, the slide being no way up (its ice). Where it stands and the
 // rail's height were measured against the model's platform; a climber steps off its top over the
-// rail onto the platform.
+// rail onto the platform. Steel like the platform, and wider than a ladder stands, to suit it.
 const RAIL_TOP = 0.75; // metres the platform's rail stands above its floor
 const LIBRARY_FLOOR = 17.25; // metres above the house's floor the library's floor boxes top out
-const hatchLadder = ladder(placed(0.5, 6.83), DUNE_HEIGHT + LIBRARY_FLOOR, DUNE_HEIGHT + hatch.sill + RAIL_TOP, YAW);
+const HATCH_LADDER_WIDTH = LADDER_WIDTH * 1.7;
+const hatchLadder = ladder(
+  placed(0.5, 6.83),
+  DUNE_HEIGHT + LIBRARY_FLOOR,
+  DUNE_HEIGHT + hatch.sill + RAIL_TOP,
+  YAW,
+  'steel',
+  HATCH_LADDER_WIDTH,
+);
 
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
