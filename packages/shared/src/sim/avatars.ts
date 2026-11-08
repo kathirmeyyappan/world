@@ -46,7 +46,7 @@ export interface AvatarSpec {
   hitbox: Hitbox;
   class: PlayerClass; // what its wearer is (classes.ts)
   item: ItemId | null; // held for good while it's worn, in place of anything else (a dragon's breath)
-  regen: boolean; // a heart back every REGEN_SECONDS (health.ts)
+  regen: boolean; // REGEN_HEARTS back every REGEN_SECONDS (health.ts)
 }
 
 export const AVATARS: Record<AvatarId, AvatarSpec> = {

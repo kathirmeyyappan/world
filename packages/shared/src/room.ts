@@ -35,7 +35,7 @@ import { classOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
 import { sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
-import { REGEN_SECONDS, applyDamage, damageFor, fallDamage } from './sim/health';
+import { REGEN_HEARTS, REGEN_SECONDS, applyDamage, damageFor, fallDamage } from './sim/health';
 import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
@@ -402,7 +402,7 @@ export class Room {
         continue;
       }
       if (AVATARS[me.avatar].regen && !me.dead && this.tick % REGEN_TICKS === 0)
-        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + 1);
+        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + REGEN_HEARTS);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
         this.land(seat, stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures));

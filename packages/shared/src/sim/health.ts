@@ -1,7 +1,7 @@
 // Hearts and damage. A walker starts with MAX_HEARTS (other classes have their own full life,
 // classes.ts); a weapon takes its `damage` off, times HEADSHOT_MULTIPLIER when the shot lands in the
-// head, and a hard landing takes fallDamage. A look with `regen` (avatars.ts) gets a heart back every
-// REGEN_SECONDS; anyone else dies at zero and rejoins fresh.
+// head, and a hard landing takes fallDamage. A look with `regen` (avatars.ts) gets REGEN_HEARTS back
+// every REGEN_SECONDS; anyone else dies at zero and rejoins fresh.
 import type { Hitbox } from './avatars';
 import { EYE_HEIGHT, GRAVITY, TICK_DT } from './constants';
 import type { ItemSpec } from './items';
@@ -9,6 +9,7 @@ import type { ItemSpec } from './items';
 export const MAX_HEARTS = 10;
 export const HEADSHOT_MULTIPLIER = 2.5;
 export const REGEN_SECONDS = 7;
+export const REGEN_HEARTS = 5;
 
 // Headroom above the eyes: the top of the body that walks, for ceilings and doorways.
 export const CAPSULE_TOP = 0.3;
