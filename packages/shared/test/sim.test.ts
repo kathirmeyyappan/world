@@ -6,7 +6,11 @@ import { botMapSource, type BotMap } from '../src/sim/botMap';
 import {
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
+  CLIMB_SPEED,
   EYE_HEIGHT,
+  LADDER_GAP,
+  LADDER_GIRTH,
+  PLAYER_RADIUS,
   GEAR,
   JUMP_VELOCITY,
   SCOPED_SPEED_MULTIPLIER,
@@ -401,6 +405,24 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
     !face(r) && r.pos.y - EYE_HEIGHT > 3.5 - 1e-6 && r.pos.z > 0.3,
     `over the top onto the floor at z ${r.pos.z}`,
   );
+  // A ladder leaning over toward +z is climbed on the face it leans away from, the body keeping to
+  // the rails as it rises (slower straight up, over with the lean), with no room under it to swap
+  // to, and over the top where the top has got to.
+  const lean = 0.3;
+  const leaning = new Structures([ladder({ x: 0, z: 0 }, 0, 4, 0, { lean })]);
+  const t = createPlayer('d', 'd', '#fff', { x: 0, y: EYE_HEIGHT, z: -0.5 });
+  walk(t, 0, 31, leaning);
+  const up = t.pos.y - EYE_HEIGHT;
+  const off = LADDER_GIRTH / 2 + PLAYER_RADIUS + LADDER_GAP;
+  assert.ok(
+    face(t) === -1 && Math.abs(up - 31 * CLIMB_SPEED * Math.cos(lean) * TICK_DT) < 1e-6,
+    `up the rails to ${up}`,
+  );
+  assert.ok(Math.abs(t.pos.z - (up * Math.tan(lean) - off)) < 1e-6, `keeping to the rails: z ${t.pos.z}`);
+  stepPlayer(t, frame(t.lastSeq + 1, { actions: ['swap-right'] }), TICK_DT, WORLD_SHAPE, leaning);
+  assert.equal(face(t), -1, 'no swapping under it');
+  walk(t, 0, 20, leaning);
+  assert.ok(!face(t) && t.pos.z > 4 * Math.tan(lean) + off - 1e-6, `over the top, where the top is: z ${t.pos.z}`);
 });
 
 test("what's underfoot: the material's surface, ice wherever a top is frosted, and the slope", () => {

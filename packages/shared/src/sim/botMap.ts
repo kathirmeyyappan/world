@@ -28,7 +28,7 @@ import { createPlayer, stepPlayer } from './player';
 import { isGrounded } from './walker';
 import type { Region } from './regions';
 import { createRng, hashSeed } from './rng';
-import { surfaceOf, type Structure } from './structures';
+import { ladderRun, surfaceOf, type Structure } from './structures';
 import type { Vec3 } from './types';
 import { STRUCTURES } from '../content/structures';
 import { Structures } from './collision';
@@ -115,9 +115,22 @@ function eyes(): Record<string, number> {
   return Object.fromEntries(AVATAR_IDS.map((id) => [id, AVATARS[id].eye]));
 }
 
-// The structures without their looks, which nothing here depends on.
+// The structures without their looks, which nothing here depends on; a leaning ladder as the
+// wedge under its rails, a ramp over its footprint (collision.ts), since world.py knows no lean.
 function shapes(): Structure[] {
-  return MAP_STRUCTURES.list.map(({ material: _m, color: _c, ...shape }) => shape);
+  return MAP_STRUCTURES.list.map(({ material: _m, color: _c, ...shape }) => {
+    if (shape.kind !== 'ladder' || !shape.lean) return shape;
+    const { lean: _l, ...rest } = shape;
+    const run = ladderRun(shape);
+    const yaw = shape.yaw ?? 0;
+    return {
+      ...rest,
+      kind: 'ramp',
+      x: shape.x + (Math.sin(yaw) * run) / 2,
+      z: shape.z + (Math.cos(yaw) * run) / 2,
+      d: shape.d + run,
+    };
+  });
 }
 
 export function buildBotMap(): BotMap {

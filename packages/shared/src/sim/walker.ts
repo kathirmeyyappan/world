@@ -174,7 +174,7 @@ export function stepWalker(
 function takeHold(p: PlayerState, hold: { piece: number; side: 1 | -1 }, structures: Structures): boolean {
   const feet = p.pos.y - EYE_HEIGHT;
   for (const side of [hold.side, flipped(hold.side)]) {
-    const spot = structures.ladderSpot(hold.piece, side);
+    const spot = structures.ladderSpot(hold.piece, side, feet);
     if (!structures.fits(spot.x, spot.z, feet, EYE_HEIGHT + CAPSULE_TOP, PLAYER_RADIUS)) continue;
     p.climb = { piece: hold.piece, side, way: 1 };
     p.pos.x = spot.x;
@@ -190,15 +190,17 @@ function flipped(side: 1 | -1): 1 | -1 {
   return side === 1 ? -1 : 1;
 }
 
-// One tick on a ladder: up or down the rungs as the keys say, at CLIMB_SPEED, as far as the body
-// fits (a face under a floor is climbed only up to its underside); over the top onto whatever is
-// beyond the ladder there, holding up; off its foot, or onto whatever is under the feet, holding
-// down; straight up and off it on a jump; and round to its other face, by its left or its right,
-// on a swap (the client's A and D) where a body fits there, its width and all (never through a
-// rail against the ladder). Nothing pulls the body down, and it stays off the face.
+// One tick on a ladder: up or down the rungs as the keys say, at CLIMB_SPEED along the rails
+// (keeping to them where they lean), as far as the body fits (a face under a floor is climbed only
+// up to its underside); over the top onto whatever is beyond the ladder there, holding up; off its
+// foot, or onto whatever is under the feet, holding down; straight up and off it on a jump; and
+// round to its other face, by its left or its right, on a swap (the client's A and D) where a body
+// fits there, its width and all (never through a rail against the ladder, nor under a leaning
+// ladder). Nothing pulls the body down, and it stays off the face.
 function climb(p: PlayerState, input: InputFrame | null, dt: number, structures: Structures): number {
   const hold = p.climb!;
   const { base, top } = structures.ladderSpan(hold.piece);
+  const rise = Math.cos(structures.ladderLean(hold.piece)); // metres up per metre along the rails
   const feet = p.pos.y - EYE_HEIGHT;
   const height = EYE_HEIGHT + CAPSULE_TOP;
   p.vx = p.vz = p.vy = 0;
@@ -212,7 +214,7 @@ function climb(p: PlayerState, input: InputFrame | null, dt: number, structures:
   }
   const way = input.actions.includes('swap-left') ? -1 : input.actions.includes('swap-right') ? 1 : 0;
   if (way !== 0) {
-    const spot = structures.ladderSpot(hold.piece, flipped(hold.side));
+    const spot = structures.ladderSpot(hold.piece, flipped(hold.side), feet);
     if (structures.fits(spot.x, spot.z, feet, height, PLAYER_RADIUS)) {
       hold.side = flipped(hold.side);
       hold.way = way;
@@ -221,9 +223,9 @@ function climb(p: PlayerState, input: InputFrame | null, dt: number, structures:
     }
   }
   const my = Math.max(-1, Math.min(1, input.my));
-  let next = feet + my * CLIMB_SPEED * dt;
+  let next = feet + my * CLIMB_SPEED * rise * dt;
   if (my > 0 && next >= top) {
-    const beyond = structures.ladderSpot(hold.piece, flipped(hold.side));
+    const beyond = structures.ladderSpot(hold.piece, flipped(hold.side), top);
     if (structures.fits(beyond.x, beyond.z, top, height, PLAYER_RADIUS)) {
       p.climb = null;
       p.walk = 0;
@@ -235,15 +237,22 @@ function climb(p: PlayerState, input: InputFrame | null, dt: number, structures:
     next = top;
   }
   if (my < 0) {
-    const ground = structures.groundAt(p.pos.x, p.pos.z, next + STEP_UP);
+    const under = structures.ladderSpot(hold.piece, hold.side, next);
+    const ground = structures.groundAt(under.x, under.z, next + STEP_UP);
     if (next <= Math.max(base, ground)) {
       next = Math.max(base, ground);
       p.climb = null;
     }
   }
-  if (p.climb && !structures.fits(p.pos.x, p.pos.z, next, height, PLAYER_RADIUS)) next = feet;
-  // How fast the feet climb, to a tenth: none with the head against a floor.
-  p.walk = Math.round((Math.abs(next - feet) / dt) * 10) / 10;
+  let at = structures.ladderSpot(hold.piece, hold.side, next);
+  if (p.climb && !structures.fits(at.x, at.z, next, height, PLAYER_RADIUS)) {
+    next = feet;
+    at = { x: p.pos.x, z: p.pos.z };
+  }
+  // How fast the feet climb the rails, to a tenth: none with the head against a floor.
+  p.walk = Math.round((Math.abs(next - feet) / rise / dt) * 10) / 10;
+  p.pos.x = at.x;
+  p.pos.z = at.z;
   p.pos.y = next + EYE_HEIGHT;
   return 0;
 }
