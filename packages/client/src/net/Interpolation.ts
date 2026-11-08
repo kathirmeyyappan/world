@@ -35,6 +35,7 @@ export interface RemotePlayer {
   gear: GearId | null;
   thrusting: boolean;
   walk: number; // how fast their feet are walking, m/s (sim/types.ts): paces their legs and footsteps
+  climb: { piece: number; side: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, and the face held
   chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
   dead: boolean;
   avatar: AvatarId;
@@ -114,6 +115,7 @@ export class Interpolation {
         gear: b.gear?.id ?? null,
         thrusting: b.thrusting,
         walk: b.walk,
+        climb: b.climb,
         chilled: b.chilled > 0,
         dead: b.dead,
         avatar: b.avatar,
@@ -123,7 +125,7 @@ export class Interpolation {
           spine: lerpSpine(a.dragon?.spine, b.dragon.spine, t),
         },
         bot: b.bot,
-        grounded: b.vy === 0 && !b.dragon,
+        grounded: b.vy === 0 && !b.dragon && !b.climb,
       });
     }
     const cubes: CubeSnapshot[] = [];

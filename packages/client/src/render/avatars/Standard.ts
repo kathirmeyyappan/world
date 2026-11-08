@@ -1,13 +1,18 @@
 // The standard avatar: a blocky figure in the player's colour with a glowing visor, a shadow on
-// the ground, and a walk cycle driven by how far they moved. No outline pass: thin
-// lines shimmer at the reduced render resolution.
+// the ground, and a walk cycle driven by how far they moved. On a ladder it squares up to the
+// rungs and climbs them, and swings round the ladder on the hand holding it when its climber
+// changes face. No outline pass: thin lines shimmer at the reduced render resolution.
 import { Color3, Mesh, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT } from '@world/shared';
+import { EYE_HEIGHT, WORLD_STRUCTURES } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { box, centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
+
+const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts): a leg steps one at a time
+const SWING_HALF_LIFE = 0.08; // seconds: the swing round a ladder is mostly over in a third of a second
+const HEAD_TURN = 1.2; // radians the head may turn from the body on a ladder, where the body faces the rungs
 
 export class StandardAvatar implements Avatar {
   readonly kind = 'standard' as const;
@@ -23,6 +28,10 @@ export class StandardAvatar implements Avatar {
   private readonly hitFlash: HitFlash;
   private dead = false;
   private readonly gait = new Gait();
+  private climbPhase = 0; // radians along the rung-to-rung cycle of the legs
+  private held: { piece: number; side: 1 | -1 } | null = null; // the ladder face last seen held
+  private swing = 0; // radians the body has still to turn round the ladder after a swap
+  private lastNow = performance.now();
 
   constructor(
     engine: Engine,
@@ -94,11 +103,21 @@ export class StandardAvatar implements Avatar {
   }
 
   update(p: RemotePlayer, step: number): void {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastNow) / 1000);
+    this.lastNow = now;
     this.hitFlash.update(p.chilled);
     const feetY = p.y - EYE_HEIGHT;
+    if (p.climb && !p.dead) {
+      this.climbLadder(p, feetY, dt);
+      return;
+    }
+    this.held = null;
+    this.swing = 0;
     const airborne = !p.grounded;
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.y = p.yaw;
+    this.head.rotation.y = 0;
     this.head.rotation.x = p.pitch * 0.6;
 
     this.gait.update(p.walk, airborne, step);
@@ -120,6 +139,41 @@ export class StandardAvatar implements Avatar {
       this.legL.rotation.x = this.legR.rotation.x = this.armL.rotation.x = 0;
       this.body.position.y = 0.3;
     }
+    placeShadow(this.shadow, p, feetY);
+    this.root.setEnabled(true);
+  }
+
+  // On a ladder: the body faces the rungs, the head turning with the look; the legs step rung to
+  // rung at the climb's pace with the free hand reaching up against them, and the weapon hand
+  // aims as ever. A change of face swings the whole body half a turn round the ladder about the
+  // holding hand, easing to a stop on the new side.
+  private climbLadder(p: RemotePlayer, feetY: number, dt: number): void {
+    const hold = p.climb!;
+    const facing = WORLD_STRUCTURES.ladderFacing(hold.piece, hold.side);
+    if (this.held && this.held.piece === hold.piece && this.held.side !== hold.side) this.swing -= Math.PI;
+    this.held = { ...hold };
+    this.swing *= Math.pow(0.5, dt / SWING_HALF_LIFE);
+    if (Math.abs(this.swing) < 1e-3) this.swing = 0;
+    // Mid-swing the body is the way round the ladder's centre line that its turn has got to.
+    const ladder = WORLD_STRUCTURES.list[hold.piece];
+    const dx = p.x - ladder.x;
+    const dz = p.z - ladder.z;
+    const cos = Math.cos(this.swing);
+    const sin = Math.sin(this.swing);
+    this.root.position.set(ladder.x + dx * cos + dz * sin, feetY, ladder.z - dx * sin + dz * cos);
+    this.root.rotation.y = facing + this.swing;
+    const turn = ((p.yaw - facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    this.head.rotation.y = Math.max(-HEAD_TURN, Math.min(HEAD_TURN, turn));
+    this.head.rotation.x = p.pitch * 0.6;
+
+    this.climbPhase += (p.walk / RUNG) * Math.PI * dt;
+    const s = Math.sin(this.climbPhase);
+    this.legL.rotation.x = -0.5 - 0.45 * s;
+    this.legR.rotation.x = -0.5 + 0.45 * s;
+    this.armL.rotation.x = -2.5 + 0.4 * s;
+    this.armR.rotation.x = p.item ? -Math.PI / 2 + p.pitch : -2.5 - 0.4 * s;
+    this.body.position.y = 0;
+    this.items.update(p);
     placeShadow(this.shadow, p, feetY);
     this.root.setEnabled(true);
   }

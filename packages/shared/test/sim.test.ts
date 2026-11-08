@@ -30,6 +30,7 @@ import {
   MAX_HEARTS,
   fallDamage,
   createRng,
+  ladder,
   ramp,
   stairs,
   stepCubes,
@@ -344,6 +345,43 @@ test("a slippery footing keeps the walk's momentum until the feet slow it, and g
   );
   stepPlayer(s, frame(s.lastSeq + 1, { mx: 1 }), TICK_DT, WORLD_SHAPE, ledge);
   assert.ok(s.vx > 0 && s.vx < 1, `the keys bend the fall, slowly: vx ${s.vx.toFixed(2)}`);
+});
+
+test('a ladder: forward at it takes hold and climbs, over its top onto what is beyond, off on a jump, round it on a swap', () => {
+  // A 4 m ladder up the side of a 4 m block, standing just clear of it, and one in the open.
+  const world = new Structures([
+    { kind: 'box', x: 0, z: 3, w: 6, d: 4, h: 4 },
+    ladder({ x: 0, z: 0.55 }, 0, 4, 0),
+    ladder({ x: 10, z: 0 }, 0, 4, 0),
+  ]);
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: -2 });
+  walk(p, 0, 30, world); // a second forward: up to the ladder, and up it
+  assert.ok(p.climb?.side === -1 && p.pos.y > EYE_HEIGHT + 1 && p.vy === 0, `took hold and climbed to ${p.pos.y}`);
+  walk(p, 0, 20, world);
+  assert.ok(
+    !p.climb && p.pos.z > 1 && Math.abs(p.pos.y - 4 - EYE_HEIGHT) < 1e-6,
+    `over the top onto the block at z ${p.pos.z}`,
+  );
+  // A jump is straight up and off it; falling back past it holding forward takes hold again.
+  const q = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: -0.3 });
+  for (let i = 0; i < 15; i++) stepPlayer(q, frame(i + 1, { my: 1 }), TICK_DT, WORLD_SHAPE, world);
+  assert.ok(q.climb, 'took hold from right in front of it');
+  const { x, z } = q.pos;
+  stepPlayer(q, frame(q.lastSeq + 1, { jump: true }), TICK_DT, WORLD_SHAPE, world);
+  assert.ok(!q.climb && q.vy === JUMP_VELOCITY && q.pos.x === x && q.pos.z === z, 'a jump is straight up and off');
+  for (let i = 0; i < 15; i++) stepPlayer(q, frame(q.lastSeq + 1, { my: 1 }), TICK_DT, WORLD_SHAPE, world);
+  assert.ok(q.climb && q.pos.y > 3 + EYE_HEIGHT, `holding forward on the way down took hold again, at ${q.pos.y}`);
+  // A swap goes round to the other face only where a body fits there: not into the block.
+  stepPlayer(q, frame(q.lastSeq + 1, { actions: ['swap'] }), TICK_DT, WORLD_SHAPE, world);
+  assert.equal(q.climb?.side, -1, 'no swapping into the block');
+  const r = createPlayer('c', 'c', '#fff', { x: 10, y: EYE_HEIGHT, z: -0.3 });
+  stepPlayer(r, frame(1, { my: 1 }), TICK_DT, WORLD_SHAPE, world);
+  const before = r.pos.z;
+  stepPlayer(r, frame(2, { actions: ['swap'] }), TICK_DT, WORLD_SHAPE, world);
+  assert.ok(
+    r.climb?.side === 1 && Math.abs(r.pos.z + before) < 1e-9,
+    `round to the far face: z ${before} to ${r.pos.z}`,
+  );
 });
 
 test("what's underfoot: the material's surface, ice wherever a top is frosted, and the slope", () => {

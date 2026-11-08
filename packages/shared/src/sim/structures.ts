@@ -1,4 +1,4 @@
-// Static geometry: buildings, walls, platforms, ramps and terrain. This file is the authoring
+// Static geometry: buildings, walls, platforms, ramps, terrain and ladders. This file is the authoring
 // surface (what a structure is, plus helpers for common pieces); collision.ts is how the sim uses
 // them, and the client's render/Structures.ts draws them. The world's list is content/structures.ts.
 //
@@ -50,7 +50,15 @@ export interface Terrain extends Footprint {
   heights: number[][];
 }
 
-export type Structure = Box | Ramp | Terrain;
+// An upright frame of two rails and rungs, w across (local x) and d through (its girth, local z),
+// h tall from its underside: a walker holding forward at either of its local ±z faces takes hold
+// and climbs it (walker.ts). To everything else it is a thin box, and frost never lies on it.
+export interface Ladder extends Footprint {
+  kind: 'ladder';
+  h: number;
+}
+
+export type Structure = Box | Ramp | Terrain | Ladder;
 export type StructureKind = Structure['kind'];
 
 // How tall a structure is at a local point of its footprint (above its underside), and the
@@ -63,6 +71,7 @@ export interface Surface {
 export function surfaceOf(s: Structure): Surface {
   switch (s.kind) {
     case 'box':
+    case 'ladder':
       return { top: () => s.h, height: s.h };
     case 'ramp':
       return { top: (_lx, lz) => s.h * (lz / s.d + 0.5), height: s.h };
@@ -88,7 +97,7 @@ function bilinear(s: Terrain, lx: number, lz: number): number {
 export function validateStructure(s: Structure, label: string): void {
   const bad = (why: string) => new Error(`structure ${label} (${s.kind}): ${why}`);
   if (!(s.w > 0 && s.d > 0)) throw bad('w and d must be positive');
-  if ((s.kind === 'box' || s.kind === 'ramp') && !(s.h > 0)) throw bad('h must be positive');
+  if (s.kind !== 'terrain' && !(s.h > 0)) throw bad('h must be positive');
   if (s.surface !== undefined && !isSurfaceId(s.surface)) throw bad(`unknown surface ${String(s.surface)}`);
   if (s.worldTop !== undefined && typeof s.worldTop !== 'boolean') throw bad('worldTop must be a boolean');
   if (s.kind === 'terrain') {
@@ -113,6 +122,21 @@ export function wall(a: { x: number; z: number }, b: { x: number; z: number }, h
     d: Math.hypot(b.x - a.x, b.z - a.z),
     h,
   };
+}
+
+export const LADDER_WIDTH = 0.7; // metres across the rails
+export const LADDER_GIRTH = 0.3; // metres through the frame: what a body or a shot meets
+
+// A ladder standing on `foot` (its underside at y) up to `top`, its faces turned to `yaw` (the
+// frame runs across it), of wood unless told otherwise.
+export function ladder(
+  foot: { x: number; z: number },
+  y: number,
+  top: number,
+  yaw: number,
+  material: StructureMaterial = 'wood',
+): Ladder {
+  return { kind: 'ladder', x: foot.x, z: foot.z, y, yaw, w: LADDER_WIDTH, d: LADDER_GIRTH, h: top - y, material };
 }
 
 // A ramp from `low` on the floor (or at y) up to `high`, rising by h, width w.

@@ -6,6 +6,7 @@ import { AVATARS } from './avatars';
 import type { ClassSpec } from './classes';
 import {
   CHILLED_SPEED_MULTIPLIER,
+  CLIMB_SPEED,
   EYE_HEIGHT,
   GRAVITY,
   JUMP_VELOCITY,
@@ -38,7 +39,9 @@ export const WALKER: ClassSpec = {
   fits: () => true,
   confine: (p, shape) => clampToWorld(p.pos, PLAYER_PADDING, shape),
   enter() {},
-  exit() {},
+  exit(p) {
+    p.climb = null;
+  },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
   hitShape: (p) => ({ kind: 'capsule', eye: p.pos, box: AVATARS[p.avatar].hitbox }),
@@ -70,6 +73,12 @@ export function stepWalker(
     (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
+  if (p.climb) return climb(p, input, dt, structures);
+  // Holding forward at a ladder's face, on the ground or coming down past it, takes hold of it.
+  if (input && input.my > 0 && !p.dead && p.vy <= 0) {
+    const hold = structures.ladderAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT, p.yaw);
+    if (hold && takeHold(p, hold, structures)) return climb(p, input, dt, structures);
+  }
   if (input?.jump && grounded && !p.dead && !p.scoped) {
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
@@ -157,6 +166,79 @@ export function stepWalker(
   const pace = grip < Infinity ? Math.hypot(wantX, wantZ) : Math.hypot(p.vx, p.vz);
   p.walk = Math.round(pace * 10) / 10;
   return landing;
+}
+
+// Takes hold of a ladder by the face a walker faces, or by the other face through it where there's
+// no room for a body on that one (a rail at a ladder's top): the body comes to stand off the face,
+// between the rails, still. False with no room on either.
+function takeHold(p: PlayerState, hold: { piece: number; side: 1 | -1 }, structures: Structures): boolean {
+  const feet = p.pos.y - EYE_HEIGHT;
+  for (const side of [hold.side, flipped(hold.side)]) {
+    const spot = structures.ladderSpot(hold.piece, side);
+    if (!structures.fits(spot.x, spot.z, feet, EYE_HEIGHT + CAPSULE_TOP)) continue;
+    p.climb = { piece: hold.piece, side };
+    p.pos.x = spot.x;
+    p.pos.z = spot.z;
+    p.vx = p.vz = p.vy = 0;
+    p.thrown = null;
+    return true;
+  }
+  return false;
+}
+
+function flipped(side: 1 | -1): 1 | -1 {
+  return side === 1 ? -1 : 1;
+}
+
+// One tick on a ladder: up or down the rungs as the keys say, at CLIMB_SPEED; over the top onto
+// whatever is beyond the ladder there, holding up; off its foot, or onto whatever is under the feet,
+// holding down; straight up and off it on a jump; and round to its other face on a swap (the
+// client's A and D) where a body fits there. Nothing pulls the body down, and it stays off the face.
+function climb(p: PlayerState, input: InputFrame | null, dt: number, structures: Structures): number {
+  const hold = p.climb!;
+  const { base, top } = structures.ladderSpan(hold.piece);
+  const feet = p.pos.y - EYE_HEIGHT;
+  const height = EYE_HEIGHT + CAPSULE_TOP;
+  p.vx = p.vz = p.vy = 0;
+  p.thrown = null;
+  p.thrusting = false;
+  if (!input || p.dead) return 0;
+  if (input.jump) {
+    p.climb = null;
+    p.vy = JUMP_VELOCITY;
+    return 0;
+  }
+  if (input.actions.includes('swap')) {
+    const spot = structures.ladderSpot(hold.piece, flipped(hold.side));
+    if (structures.fits(spot.x, spot.z, feet, height)) {
+      hold.side = flipped(hold.side);
+      p.pos.x = spot.x;
+      p.pos.z = spot.z;
+    }
+  }
+  const my = Math.max(-1, Math.min(1, input.my));
+  p.walk = Math.round(Math.abs(my) * CLIMB_SPEED * 10) / 10;
+  let next = feet + my * CLIMB_SPEED * dt;
+  if (my > 0 && next >= top) {
+    const beyond = structures.ladderSpot(hold.piece, flipped(hold.side));
+    if (structures.fits(beyond.x, beyond.z, top, height)) {
+      p.climb = null;
+      p.pos.x = beyond.x;
+      p.pos.z = beyond.z;
+      p.pos.y = top + EYE_HEIGHT;
+      return 0;
+    }
+    next = top;
+  }
+  if (my < 0) {
+    const ground = structures.groundAt(p.pos.x, p.pos.z, next + STEP_UP);
+    if (next <= Math.max(base, ground)) {
+      next = Math.max(base, ground);
+      p.climb = null;
+    }
+  }
+  p.pos.y = next + EYE_HEIGHT;
+  return 0;
 }
 
 // Throws the walk: `dv` joins its velocity, and until it lands the keys have only `grip` (m/s², 0

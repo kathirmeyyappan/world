@@ -1,6 +1,7 @@
 // Touch replacements for the keyboard and mouse actions: one context button that reads SELECT
 // when the crosshair is on a cube and FIRE when holding a weapon, a SCOPE button that only
-// exists for items that can scope, and a CHAT button since there is no Enter key. Plain DOM,
+// exists for items that can scope, a SWAP button on a ladder (A and D's job there), and a CHAT
+// button since there is no Enter key. Plain DOM,
 // only mounted on touch devices. The Game tells it what's true each frame; it never reads
 // game state itself.
 import { ITEMS, type ItemId } from '@world/shared';
@@ -11,12 +12,14 @@ export interface MobileActionState {
   item: ItemId | null;
   scoped: boolean;
   canFire: boolean; // false for a scope-only weapon that isn't scoped
+  climbing: boolean; // on a ladder: SWAP goes round to its other face
 }
 
 export interface MobileActionHandlers {
   onActionDown: () => void; // SELECT / FIRE pressed; FIRE stays down until onActionUp
   onActionUp: () => void;
   onScope: () => void;
+  onSwap: () => void;
   onChat: () => void;
   onCommands: () => void;
 }
@@ -24,6 +27,7 @@ export interface MobileActionHandlers {
 export class MobileActions {
   private readonly action = document.getElementById('action-button') as HTMLButtonElement | null;
   private readonly scope = document.getElementById('scope-button') as HTMLButtonElement | null;
+  private readonly swap = document.getElementById('swap-button') as HTMLButtonElement | null;
   private readonly chat = document.getElementById('chat-button') as HTMLButtonElement | null;
   private readonly commands = document.getElementById('commands-button') as HTMLButtonElement | null;
   private label = '';
@@ -32,6 +36,7 @@ export class MobileActions {
     if (!IS_TOUCH) return;
     tap(this.action, handlers.onActionDown, handlers.onActionUp);
     tap(this.scope, handlers.onScope);
+    tap(this.swap, handlers.onSwap);
     tap(this.chat, handlers.onChat);
     tap(this.commands, handlers.onCommands);
   }
@@ -49,6 +54,7 @@ export class MobileActions {
     const canScope = !!state.item && 'scope' in ITEMS[state.item].actions;
     this.scope.classList.toggle('hidden', !canScope);
     this.scope.classList.toggle('on', state.scoped);
+    this.swap?.classList.toggle('hidden', !state.climbing);
   }
 }
 

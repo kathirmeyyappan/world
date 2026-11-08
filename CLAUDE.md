@@ -61,7 +61,8 @@ wire: server and client both build the world from that file.
 ### Adding structures
 
 - Use the helpers rather than hand-computing yaw and centres: `wall(a, b, h)` runs between two floor
-  points, `ramp(low, high, h, w)` rises from `low` to `high`, `stairs(bottom, top, h, w)` is solid
+  points, `ramp(low, high, h, w)` rises from `low` to `high`, `ladder(foot, y, top, yaw)` stands a
+  ladder on `foot` up to `top` (see Ladders below), `stairs(bottom, top, h, w)` is solid
   steps players walk up without jumping (the camera eases over each; with `thickness` and `rail`,
   a railed flight in the air, like the staircases up to the terrace), `building({...})` is four
   walls, a doorway and a roof, and `terrain({ height })` samples a function. The round pieces:
@@ -145,6 +146,27 @@ wire: server and client both build the world from that file.
   grid has height bands as well as cells, so a walker's tick pays only for the pieces at its own
   height (about 70 µs inside the house). Check both numbers in the PR when a landmark adds a lot.
   Everything heavy is streamed in through `render/Loader.ts` (see Models below).
+
+### Ladders
+
+A ladder (`sim/structures.ts` `ladder`, kind `ladder`) is an upright frame of two rails and rungs,
+`LADDER_WIDTH` across and `LADDER_GIRTH` through, climbed from either of its faces (its local ±z);
+to everything else it is a thin box, and it never frosts. A walker holding forward (W) within
+`LADDER_REACH` of a face, between the rails, facing it, takes hold (`walker.ts` `takeHold`,
+`PlayerState.climb`: the piece and the face, ±1) and climbs at `CLIMB_SPEED` on W and S, nothing
+pulling it down: holding up at the top steps it over onto whatever is beyond the ladder there (so
+the library's ladder, against the hatch platform's rail, tops out at the rail's top and lands you
+on the rail), holding down at the foot, or onto anything under the feet, steps it off, a jump is
+straight up and off (hold forward on the way down to take hold again), and A or D (the `swap`
+action, the touch SWAP button) goes round to the other face where a body fits there (where it
+doesn't, a rail at the top say, taking hold from that side goes through to the face with room).
+Weapons work as on the ground. The look is client-authoritative, so the client holds it within a
+quarter turn of facing the ladder while climbing and turns it round with a swap (`Game.holdLook`),
+the camera swinging after it; the standard avatar squares up to the rungs, steps them with its
+legs and free hand and swings half a turn round the ladder on a swap (`render/avatars/Standard.ts`),
+and the other avatars climb in their walking pose for now. Bots' map treats a ladder as a wall.
+The one ladder stands in the library (`content/pineapple.ts`), from the floor to the hatch's
+platform, since the slide is no way up.
 
 ### Surfaces and frost
 
