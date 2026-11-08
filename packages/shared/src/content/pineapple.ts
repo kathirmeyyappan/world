@@ -461,14 +461,10 @@ const dune = terrain({
 const RAIL_TOP = 0.75; // metres the platform's rail stands above its floor
 const LIBRARY_FLOOR = 17.25; // metres above the house's floor the library's floor boxes top out
 const HATCH_LADDER_WIDTH = LADDER_WIDTH * 1.7;
-const hatchLadder = ladder(
-  placed(0.5, 6.83),
-  DUNE_HEIGHT + LIBRARY_FLOOR,
-  DUNE_HEIGHT + hatch.sill + RAIL_TOP,
-  YAW,
-  'steel',
-  HATCH_LADDER_WIDTH,
-);
+const hatchLadder = ladder(placed(0.5, 6.83), DUNE_HEIGHT + LIBRARY_FLOOR, DUNE_HEIGHT + hatch.sill + RAIL_TOP, YAW, {
+  material: 'steel',
+  width: HATCH_LADDER_WIDTH,
+});
 
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,

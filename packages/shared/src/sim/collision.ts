@@ -6,7 +6,7 @@
 // are what changes after building, so a Room keeps its own.
 import { LADDER_GAP, LADDER_REACH, PLAYER_RADIUS } from './constants';
 import { FLOOR, Frost, cellOf, faceCoords, type Face } from './frost';
-import { surfaceOf, validateStructure, type Structure } from './structures';
+import { ladderRun, surfaceOf, validateStructure, type Ladder, type Structure } from './structures';
 import { surfaceOfStructure, type SurfaceId } from './surfaces';
 import type { Vec3 } from './types';
 
@@ -88,13 +88,15 @@ export class Structures {
     this.placed = list.map((s) => {
       const yaw = s.yaw ?? 0;
       const surface = surfaceOf(s);
+      // A leaning ladder's footprint runs from its foot (its x, z) to under its top.
+      const run = s.kind === 'ladder' ? ladderRun(s) : 0;
       return {
-        x: s.x,
-        z: s.z,
+        x: s.x + (Math.sin(yaw) * run) / 2,
+        z: s.z + (Math.cos(yaw) * run) / 2,
         cos: Math.cos(yaw),
         sin: Math.sin(yaw),
         hw: s.w / 2,
-        hd: s.d / 2,
+        hd: (s.d + run) / 2,
         base: s.y ?? 0,
         height: surface.height,
         top: surface.top,
@@ -233,15 +235,18 @@ export class Structures {
   }
 
   // The ladder a walker at (x, z) with its feet at `feet`, looking along `yaw`, can take hold of:
-  // one it stands within LADDER_REACH of a face of, between the rails, no higher than its top and
-  // with its hands no lower than its foot, looking toward it (within a quarter turn), and the
-  // face: the side (±1 along the ladder's local z) the body is on.
+  // one it stands within LADDER_REACH of a face of (where the face is at its feet's height, on a
+  // leaning one), between the rails, no higher than its top and with its hands no lower than its
+  // foot, looking toward it (within a quarter turn), and the face: the side (±1 along the
+  // ladder's local z) the body is on.
   ladderAt(x: number, z: number, feet: number, yaw: number): { piece: number; side: 1 | -1 } | null {
     for (const i of this.ladders) {
       const p = this.placed[i];
+      const s = this.ladder(i);
       const [lx, lz] = local(p, x, z);
-      const side: 1 | -1 = lz >= 0 ? 1 : -1;
-      const off = Math.abs(lz) - p.hd;
+      const line = this.ladderOut(i, feet) - ladderRun(s) / 2; // the rails' middle, from the footprint's
+      const side: 1 | -1 = lz >= line ? 1 : -1;
+      const off = side * (lz - line) - s.d / 2;
       if (Math.abs(lx) > p.hw || off < 0 || off > LADDER_REACH) continue;
       if (feet > p.base + p.height || feet + HANDS < p.base) continue;
       // The way out of that face, in the world: a look along it is a look away from the ladder.
@@ -251,12 +256,23 @@ export class Structures {
     return null;
   }
 
-  // Where a body climbing ladder `piece` on `side` stands: its middle, off the face by its radius
-  // and LADDER_GAP, between the rails.
-  ladderSpot(piece: number, side: 1 | -1): { x: number; z: number } {
-    const p = this.placed[piece];
-    const out = side * (p.hd + PLAYER_RADIUS + LADDER_GAP);
-    return { x: p.x + p.sin * out, z: p.z + p.cos * out };
+  // Where a body climbing ladder `piece` on `side` with its feet at `feet` stands: its middle, off
+  // the face there by its radius and LADDER_GAP, between the rails.
+  ladderSpot(piece: number, side: 1 | -1, feet: number): { x: number; z: number } {
+    return this.alongLadder(
+      piece,
+      this.ladderOut(piece, feet) + side * (this.ladder(piece).d / 2 + PLAYER_RADIUS + LADDER_GAP),
+    );
+  }
+
+  // The middle of ladder `piece`'s rails at height `feet`: what a body swings round.
+  ladderLine(piece: number, feet: number): { x: number; z: number } {
+    return this.alongLadder(piece, this.ladderOut(piece, feet));
+  }
+
+  // Radians ladder `piece` leans from upright, toward its local +z.
+  ladderLean(piece: number): number {
+    return this.ladder(piece).lean ?? 0;
   }
 
   // The look (a yaw) straight at ladder `piece` from `side`.
@@ -269,6 +285,24 @@ export class Structures {
   ladderSpan(piece: number): { base: number; top: number } {
     const p = this.placed[piece];
     return { base: p.base, top: p.base + p.height };
+  }
+
+  private ladder(piece: number): Ladder {
+    const s = this.list[piece];
+    if (s.kind !== 'ladder') throw new Error(`piece ${piece} is a ${s.kind}, not a ladder`);
+    return s;
+  }
+
+  // How far along ladder `piece`'s local +z its rails' middle is at height `feet`, from its foot.
+  private ladderOut(piece: number, feet: number): number {
+    return (feet - this.placed[piece].base) * Math.tan(this.ladderLean(piece));
+  }
+
+  // The spot `out` metres along ladder `piece`'s local +z from its foot, in the world.
+  private alongLadder(piece: number, out: number): { x: number; z: number } {
+    const p = this.placed[piece];
+    const s = this.ladder(piece);
+    return { x: s.x + p.sin * out, z: s.z + p.cos * out };
   }
 
   // Moves a body's centre by (dx, dz), pushing it out of anything too tall to step onto and

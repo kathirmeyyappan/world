@@ -143,7 +143,7 @@ export class WalkerAvatar implements Avatar {
     this.held = null;
     this.swing = 0;
     this.root.position.set(p.x, feetY, p.z);
-    this.root.rotation.y = p.yaw;
+    this.root.rotation.set(0, p.yaw, 0);
     const airborne = !p.grounded;
     this.gait.update(p.walk, airborne, step);
     const { phase, effort } = this.gait;
@@ -190,14 +190,16 @@ export class WalkerAvatar implements Avatar {
     this.held = { ...hold };
     this.swing *= Math.pow(0.5, dt / SWING_HALF_LIFE);
     if (Math.abs(this.swing) < 1e-3) this.swing = 0;
-    // Mid-swing the body is the way round the ladder's centre line that its turn has got to.
-    const ladder = WORLD_STRUCTURES.list[hold.piece];
-    const dx = p.x - ladder.x;
-    const dz = p.z - ladder.z;
+    // Mid-swing the body is the way round the ladder's centre line that its turn has got to; and
+    // it leans with the rails, its head toward where the ladder's top is over.
+    const line = WORLD_STRUCTURES.ladderLine(hold.piece, feetY);
+    const dx = p.x - line.x;
+    const dz = p.z - line.z;
     const cos = Math.cos(this.swing);
     const sin = Math.sin(this.swing);
-    this.root.position.set(ladder.x + dx * cos + dz * sin, feetY, ladder.z - dx * sin + dz * cos);
+    this.root.position.set(line.x + dx * cos + dz * sin, feetY, line.z - dx * sin + dz * cos);
     this.root.rotation.y = facing + this.swing;
+    this.root.rotation.x = -hold.side * WORLD_STRUCTURES.ladderLean(hold.piece);
     if (f.head) f.head.rotation.y = clamp(wrap(p.yaw - facing), HEAD_TURN);
     if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
     this.base.rotation.set(0, 0, 0);

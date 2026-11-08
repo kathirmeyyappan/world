@@ -149,10 +149,17 @@ wire: server and client both build the world from that file.
 
 ### Ladders
 
-A ladder (`sim/structures.ts` `ladder`, kind `ladder`) is an upright frame of two rails and rungs,
-`LADDER_WIDTH` across unless the helper is given a width, and `LADDER_GIRTH` through, climbed from
-either of its faces (its local ±z);
-to everything else it is a thin box, and it never frosts. A walker holding forward (W) within
+A ladder (`sim/structures.ts` `ladder(foot, y, top, yaw, { material, width, lean, hidden })`, kind
+`ladder`) is a frame of two rails and rungs, `LADDER_WIDTH` across unless given a width, and
+`LADDER_GIRTH` through, climbed from either of its faces (its local ±z); to everything else it is
+a thin box, and it never frosts. With a `lean` (radians from upright) its top is over toward its
+local +z, as a ladder stood against a wall there leans: the climb keeps to the rails (`CLIMB_SPEED`
+along them, the body moving over as it rises, the face it reaches for and the spot it swaps to at
+its feet's height, the step over the top where the top is), the avatar leans with it, and the
+drawn frame tips over; a jump is still straight up, and gravity still straight down. Where it leans
+it is the wedge under its rails to everyone else (a ramp over its footprint, in the sim and the
+bots' map), so a body never fits under it: lean one against something, and only the face it leans
+away from is climbed. A walker holding forward (W) within
 `LADDER_REACH` of a face, between the rails, facing it, takes hold (`walker.ts` `takeHold`,
 `PlayerState.climb`: the piece and the face, ±1) and climbs at `CLIMB_SPEED` on W and S, nothing
 pulling it down: holding up at the top steps it over onto whatever is beyond the ladder there (so
@@ -171,8 +178,9 @@ the camera swinging after it; every avatar on foot squares up to the rungs, step
 whatever legs it has and reaches up with its free hand, points its weapon arm where the look goes,
 and swings half a turn round the ladder on a swap (`render/avatars/Walker.ts`). Bots' map treats a
 ladder as a wall.
-The one ladder stands in the library (`content/pineapple.ts`), from the floor to the hatch's
-platform, since the slide is no way up.
+The one ladder stands upright in the library (`content/pineapple.ts`), from the floor to the
+hatch's platform, since the slide is no way up. A ladder a model draws (the bedroom's, say) is a
+`hidden` one stood on the model's rails with their lean.
 
 ### Surfaces and frost
 
