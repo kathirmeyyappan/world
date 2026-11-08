@@ -161,7 +161,9 @@ straight up and off (hold forward on the way down to take hold again), and A or 
 and `swap-right` actions; the touch SWAP button is A's) goes round to the other face by the
 ladder's left or its right, where a body fits there (where it doesn't, a rail at the top say,
 taking hold from that side goes through to the face with room); `climb.way` keeps which way, for
-the swing.
+the swing. Fitting is the whole body, its width and all (`Structures.fits` with the body's
+radius), and the climb itself goes only as far as the body fits, so a face under a floor is climbed
+only up to the floor's underside and no swap goes through a rail standing against the ladder.
 Weapons work as on the ground. The look is client-authoritative, so the client holds it within a
 quarter turn of facing the ladder while climbing and turns it round with a swap (`Game.holdLook`),
 the camera swinging after it; the standard avatar squares up to the rungs, steps them with its

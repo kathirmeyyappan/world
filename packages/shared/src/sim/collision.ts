@@ -15,8 +15,8 @@ import type { Vec3 } from './types';
 // shell band by band) cost it nothing.
 const CELL = 8;
 const RAY_STEP = 0.05; // metres between samples when a ray crosses a sloped top
-// Where a body's footing is read for frost, as shares of its radius from its middle: the middle
-// and the four sides.
+// Where a body's footing is read for frost, and its room is checked at a ladder, as shares of its
+// radius from its middle: the middle and the four sides.
 const PROBES = [
   [0, 0],
   [1, 0],
@@ -214,14 +214,22 @@ export class Structures {
     return ceiling;
   }
 
-  // Whether a body at (x, z), feet at `feet` and `height` tall, is clear of every structure: anything
-  // there tops out at or below its feet (ground) or starts above its head.
-  fits(x: number, z: number, feet: number, height: number): boolean {
-    return this.near(x, z, x, z, feet, feet + height).every((p) => {
-      const [lx, lz] = local(p, x, z);
-      if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) return true;
-      return p.base >= feet + height || p.base + p.top(lx, lz) <= feet + 1e-6;
-    });
+  // Whether a body at (x, z), feet at `feet` and `height` tall, is clear of every structure, and
+  // with `reach` (its radius) a body that wide, clear at every spot that far round it too:
+  // anything there tops out at or below its feet (ground) or starts above its head.
+  fits(x: number, z: number, feet: number, height: number, reach = 0): boolean {
+    const probes = reach > 0 ? PROBES.length : 1;
+    for (let k = 0; k < probes; k++) {
+      const px = x + PROBES[k][0] * reach;
+      const pz = z + PROBES[k][1] * reach;
+      const clear = this.near(px, pz, px, pz, feet, feet + height).every((p) => {
+        const [lx, lz] = local(p, px, pz);
+        if (Math.abs(lx) > p.hw || Math.abs(lz) > p.hd) return true;
+        return p.base >= feet + height || p.base + p.top(lx, lz) <= feet + 1e-6;
+      });
+      if (!clear) return false;
+    }
+    return true;
   }
 
   // The ladder a walker at (x, z) with its feet at `feet`, looking along `yaw`, can take hold of:
