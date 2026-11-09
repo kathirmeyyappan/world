@@ -55,8 +55,8 @@ interface Look {
 export type AvatarSpec = (Look & { class: 'walker' }) | (Look & { class: 'asian-dragon'; dragon: DragonShape });
 
 // How many times its model's size each dragon is (sim/dragon.ts DragonShape.size).
-const LIGHT_DRAGON_SIZE = 1.3;
-const COLGERA_SIZE = 1.3;
+const LIGHT_DRAGON_SIZE = 1.15;
+const COLGERA_SIZE = 1.15;
 
 const LOOKS = {
   standard: {

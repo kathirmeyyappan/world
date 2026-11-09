@@ -89,7 +89,8 @@ export function dragonShape(avatar: AvatarId): DragonShape {
   const look = AVATARS[avatar];
   if (look.class !== 'asian-dragon') throw new Error(`${avatar} is no dragon`);
   const { size } = look.dragon;
-  const grow = (metres: number) => Math.round(metres * size * 1e4) / 1e4; // to the tenth of a millimetre: no float dust
+  // To the centimetre, as the spine is kept (follow), so a body at rest lies exactly on its radius.
+  const grow = (metres: number) => Math.round(metres * size * 100) / 100;
   const shape: DragonShape = {
     ...look.dragon,
     links: look.dragon.links.map(grow),
