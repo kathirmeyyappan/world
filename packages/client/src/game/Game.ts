@@ -265,6 +265,13 @@ export class Game {
       this.syncBlocked();
       if (!open && back && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
     };
+    // The mouse is free only with something to use it on: the chat, a card, the death screen or
+    // the menu. Losing the pointer any other way (Esc, which the browser answers itself without a
+    // key event, a click outside the page, a switch of window) opens the menu, so a visible mouse
+    // always means the menu is up.
+    document.addEventListener('pointerlockchange', () => {
+      if (!IS_TOUCH && !document.pointerLockElement && !this.isBlocked()) this.menu.show();
+    });
     window.addEventListener('keydown', (e) => {
       if (this.commandsMenu.isOpen) {
         // The menu is a little page: Q or C closes it (like the cube card), arrows and W/S scroll.

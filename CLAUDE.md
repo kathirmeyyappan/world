@@ -468,9 +468,12 @@ with the view frosted, and the hint bar under an ice weapon is frosted white (`H
 
 ## Menu
 
-The menu (X, or the gear over the room panel) is `packages/client/src/ui/menu/`, and the rest of the
-client knows it only by its hooks: `Menu.ts` builds its button and card, has the keyboard while it's
-open and syncs with the player once a frame; `tabs.ts` is what's in it, rows that read and change what
+The menu (X or Esc, or the gear over the room panel) is `packages/client/src/ui/menu/`, and the rest
+of the client knows it only by its hooks: `Menu.ts` builds its button and card, has the keyboard
+while it's open and syncs with the player once a frame; the game opens it whenever the pointer is
+let go with nothing else to use the mouse on (Esc, which the browser answers without a key event, a
+click outside the page), so a free mouse always means the menu, the chat, a card or the death
+screen is up, and X, Esc or a click beside the card goes back into the world; `tabs.ts` is what's in it, rows that read and change what
 other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
 an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A
