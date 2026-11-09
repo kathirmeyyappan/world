@@ -244,6 +244,7 @@ export class Game {
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
     this.commandsMenu.onChat = () => this.hud.openChat();
+    this.hud.onChatKey = (e) => this.commandsMenu.key(e);
     // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
     // The commands come up with the mouse captured or free (over the menu, after a chat); either
     // way the world has it back when they go.

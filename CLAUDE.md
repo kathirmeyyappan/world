@@ -500,7 +500,10 @@ The commands menu (C, `ui/CommandsMenu.ts`) is a reference card on a keyboard, w
 the chat in its top corner (the chat's own box is down in the corner of the screen, under the
 card's shade): Enter opens the chat as anywhere, and the mirror shows the cursor and what's typed
 (`Hud.chatText`, read once a frame) until Enter sends it, which closes the card so what the
-command did is in view; a click on the mirror opens the chat too. On touch it's buttons.
+command did is in view; a click on the mirror opens the chat too. Under the mirror the commands
+the text could be the start of drop down (the card's rows, by name then by shortcut), the arrows
+pick one and Enter or Tab puts it in the box (`Hud.onChatKey` gives the card the key first);
+nothing else completes anything. On touch it's buttons.
 
 The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
 pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows

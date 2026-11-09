@@ -33,6 +33,7 @@ export class Hud {
   private myId = '';
   onChat: ((text: string) => void) | null = null;
   onChatOpenChange: ((open: boolean) => void) | null = null;
+  onChatKey: ((e: KeyboardEvent) => boolean) | null = null; // a key typed in the chat, before the chat acts on it: true when taken
 
   constructor(roomId: string) {
     this.roomCode.textContent = roomId;
@@ -54,6 +55,7 @@ export class Hud {
     });
     this.chatInput.addEventListener('keydown', (e) => {
       e.stopPropagation();
+      if (this.onChatKey?.(e)) return e.preventDefault();
       if (e.code === 'Enter') {
         const text = this.chatInput.value.trim().slice(0, MAX_CHAT_LENGTH);
         if (text) {
