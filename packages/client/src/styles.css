@@ -42,6 +42,97 @@ body {
   display: none !important;
 }
 
+/* Anything that scrolls (the menu's and the commands' bodies, the cube card) has the rail of
+   ui/scrollRail.ts down the outside of its frame in place of the browser's own bar: a thick track
+   in the card's colours, with the arrows at its ends lit while there's more that way, the bottom
+   one blinking. On a phone it's slimmer, up against the frame, in the margin the cards leave. */
+#menu .body,
+#commands .body,
+#info-card {
+  scrollbar-width: none;
+}
+#menu .body::-webkit-scrollbar,
+#commands .body::-webkit-scrollbar,
+#info-card::-webkit-scrollbar {
+  display: none;
+}
+.scroll-rail {
+  position: absolute;
+  display: none;
+  flex-direction: column;
+  width: 22px;
+  margin-left: 10px;
+  z-index: 1;
+  pointer-events: auto;
+  cursor: default;
+}
+.scroll-rail.on {
+  display: flex;
+}
+.scroll-rail .arrow {
+  flex: none;
+  height: 24px;
+  padding: 0;
+  font: 10px/20px var(--pixel);
+  text-align: center;
+  color: rgba(100, 181, 246, 0.3);
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  box-shadow: 3px 3px 0 #000;
+  cursor: pointer;
+}
+.scroll-rail .arrow.more {
+  color: var(--accent);
+}
+.scroll-rail .arrow.more:hover {
+  background: rgba(100, 181, 246, 0.25);
+}
+.scroll-rail .down.more {
+  animation: rail-blink 1s steps(1) infinite;
+}
+@keyframes rail-blink {
+  50% {
+    color: transparent;
+  }
+}
+.scroll-rail .track {
+  flex: 1;
+  position: relative;
+  margin: -2px 0; /* under the arrows' borders, so track and arrows share one edge */
+  background: #05070c;
+  border: 2px solid var(--accent);
+  box-shadow: 3px 0 0 #000;
+}
+.scroll-rail .thumb {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  background: var(--accent);
+  cursor: grab;
+}
+.scroll-rail .thumb:active {
+  cursor: grabbing;
+}
+@media (pointer: coarse) {
+  .scroll-rail {
+    width: 14px;
+    margin-left: 3px;
+  }
+  .scroll-rail .arrow {
+    height: 18px;
+    font-size: 7px;
+    line-height: 14px;
+    box-shadow: 2px 2px 0 #000;
+  }
+  .scroll-rail .track {
+    box-shadow: 2px 0 0 #000;
+  }
+  .scroll-rail .thumb {
+    left: 1px;
+    right: 1px;
+  }
+}
+
 /* Shared retro card look */
 .card {
   background: var(--panel);
@@ -1181,7 +1272,7 @@ body {
 }
 #info-card {
   position: relative;
-  width: min(680px, 94vw);
+  width: min(680px, 90vw);
   max-height: 84vh;
   overflow-y: auto;
   background: var(--panel);
@@ -1814,7 +1905,7 @@ body {
   } /* a tap anywhere, backdrop included, closes it */
   #commands .card {
     padding: 14px;
-    max-width: 92vw;
+    max-width: 90vw;
   }
   #commands .groups {
     gap: 10px;

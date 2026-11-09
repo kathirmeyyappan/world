@@ -21,6 +21,7 @@ import {
   botArguments,
 } from '@world/shared';
 import { IS_TOUCH, onTap } from '../input/touch';
+import { railScroll } from './scrollRail';
 
 interface Row {
   label: string; // the command and its shortcuts, as shown
@@ -59,6 +60,7 @@ export class CommandsMenu {
     // The body scrolls; the top (the title and the chat's mirror) and the footer (guide note + close
     // hint) stay put either side of it.
     this.el.innerHTML = IS_TOUCH ? touchHtml(groups) : keyboardHtml(groups);
+    railScroll(this.el.querySelector<HTMLElement>('.body')!, this.el.querySelector<HTMLElement>('.card')!);
     this.mirrorEl = this.el.querySelector('.chat-mirror');
     // A press on the mirror leaves the chat's own box focused; a click brings the chat up when it's
     // down, or takes the completion clicked.

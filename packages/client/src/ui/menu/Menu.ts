@@ -9,6 +9,7 @@
 // beside the card closes it.
 import { IS_TOUCH } from '../../input/touch';
 import { rememberName } from '../../net/lobby';
+import { railScroll } from '../scrollRail';
 import { gearIcon } from './gearIcon';
 import { Preview } from './Preview';
 import { draw, type Drawn } from './rows';
@@ -43,7 +44,9 @@ export class Menu {
     this.el.id = 'menu';
     this.el.className = 'hidden';
     this.el.translate = true;
-    this.el.append(this.card(hooks));
+    const card = this.card(hooks);
+    this.el.append(card);
+    railScroll(card.querySelector<HTMLElement>('.body')!, card);
     document.getElementById('app')!.append(this.el);
     this.el.addEventListener('click', (e) => {
       if (e.target === this.el) this.hide(true);

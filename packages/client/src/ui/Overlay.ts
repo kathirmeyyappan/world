@@ -6,6 +6,7 @@ import type { CubeContent } from '@world/shared';
 import { LOGO_PIXELS } from '../render/CubeMesh';
 import { loadPixelated } from '../render/pixelate';
 import { IS_TOUCH, onTap } from '../input/touch';
+import { railScroll } from './scrollRail';
 
 export class Overlay {
   private readonly overlay = document.getElementById('info-overlay')!;
@@ -21,6 +22,7 @@ export class Overlay {
     });
     onTap(this.overlay, () => this.hide());
     if (IS_TOUCH) this.card.querySelector('.close-hint')!.innerHTML = 'TAP TO CLOSE<span class="cursor">▮</span>';
+    railScroll(this.card);
   }
 
   show(info: CubeContent): void {
