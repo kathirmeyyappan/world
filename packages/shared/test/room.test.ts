@@ -1063,19 +1063,23 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   room.receive(ida, { t: 'chat', text: '/circle-bot -s light-dragon' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "bots can't be an asian-dragon" });
 
-  // Shot dead by a sniper at its head: it drops to the ground and lies there, long after alice has
-  // gone, then poofs with a heart under the head and four along the body.
+  // Shot dead by a sniper at its head, level with it (the body hangs under the head, in the way of
+  // a shot from the ground): it drops to the ground and lies there, long after alice has gone, then
+  // poofs with a heart under the head and four along the body. Bob is set back down before the
+  // fall from up there can kill him.
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 6 };
   alice.hearts = 9; // under a headshot, even with the tick's regen
   press(room, idb, 0, true);
   assert.ok(alice.dead, 'a headshot: 4 x 2.5');
+  bob.pos = { ...bob.pos, y: EYE_HEIGHT };
+  bob.vy = 0;
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === ida && m.headshot));
   room.receive(ida, { t: 'chat', text: '/standard' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "not while you're dead" });
-  for (let i = 0; i < 7 * TICK_RATE; i++) room.step();
+  for (let i = 0; i < 9 * TICK_RATE; i++) room.step();
   assert.equal(alice.pos.y, dragonShape('light-dragon').headRadius, 'the head came to rest on the ground');
   room.leave(ida);
-  for (let i = 0; i < 22 * TICK_RATE; i++) room.step();
+  for (let i = 0; i < 20 * TICK_RATE; i++) room.step();
   assert.ok(
     room.players.some((p) => p.id === ida),
     'still lying there at 29 s',

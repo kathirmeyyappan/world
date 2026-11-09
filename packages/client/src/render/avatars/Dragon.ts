@@ -64,6 +64,7 @@ export class DragonAvatar implements Avatar {
   private readonly jet: Jet | null;
   private readonly rise: Rise;
   private readonly links: readonly number[]; // the sim's spine: metres between its points
+  private readonly size: number; // how many times the model's size the body is drawn
   private model: DragonModel | null = null;
   private weak: { crown: Mesh; plate: Mesh; ice: Mesh }[] = [];
   private readonly gone = new Set<number>(); // the weak points shattered, their pieces hidden
@@ -93,6 +94,7 @@ export class DragonAvatar implements Avatar {
   ) {
     const scene = engine.scene;
     this.links = dragonShape(kind).links;
+    this.size = dragonShape(kind).size;
     this.phase = ([...id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % 1000) / 1000;
     this.root = new TransformNode(`avatar-${id}`, scene);
     this.mouth = new TransformNode(`dragon-${id}-mouth`, scene);
@@ -105,7 +107,7 @@ export class DragonAvatar implements Avatar {
       spec && element
         ? createJet(engine, `dragon-${id}`, this.mouth, element, spec.range, coneAngle(spec), {
             ...BREATH,
-            width: look.mouth,
+            width: look.mouth * dragonShape(kind).size,
           })
         : null;
     this.rise = look.rise(engine, `dragon-${id}-rise`);
@@ -126,8 +128,8 @@ export class DragonAvatar implements Avatar {
     m.parent.forEach((parent, i) => {
       const node = new TransformNode(`dragon-${this.id}-${i}`, scene);
       node.rotationQuaternion = Quaternion.Identity();
-      const rest = frameMatrix(m.frames, i);
-      const local = parent === null ? rest : rest.multiply(Matrix.Invert(frameMatrix(m.frames, parent)));
+      const rest = frameMatrix(m.frames, i, this.size);
+      const local = parent === null ? rest : rest.multiply(Matrix.Invert(frameMatrix(m.frames, parent, this.size)));
       if (parent === null) node.parent = this.root;
       else {
         node.parent = this.bones[parent];
@@ -146,11 +148,11 @@ export class DragonAvatar implements Avatar {
       bones.push(bone);
       this.bones.push(node);
     });
-    const toHead = Matrix.Invert(frameMatrix(m.frames, 0));
+    const toHead = Matrix.Invert(frameMatrix(m.frames, 0, this.size));
     this.mouth.parent = this.bones[0];
-    this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth), toHead);
+    this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth).scale(this.size), toHead);
     if (m.jaw !== null)
-      this.hinge = Vector3.TransformCoordinates(frameMatrix(m.frames, m.jaw).getTranslation(), toHead);
+      this.hinge = Vector3.TransformCoordinates(frameMatrix(m.frames, m.jaw, this.size).getTranslation(), toHead);
     const material = skinMaterial(scene, `dragon-${this.id}`, this.kind, this.look.glow);
     material.backFaceCulling = false; // plates, strands and fins are open shells, seen from both sides
     // The ice over a hollow: the same skin, seen through.
@@ -159,7 +161,7 @@ export class DragonAvatar implements Avatar {
     this.hitFlash = new HitFlash([material, ice]);
     const mesh = (name: string, data: MeshData, skin = material) => {
       const mesh = new Mesh(`dragon-${this.id}-${name}`, scene);
-      vertexData(data).applyToMesh(mesh);
+      vertexData(data, this.size).applyToMesh(mesh);
       mesh.material = skin;
       mesh.skeleton = this.skeleton;
       mesh.parent = this.root;
@@ -237,7 +239,8 @@ export class DragonAvatar implements Avatar {
     const turn = wave ? ((now / 1000 / wave.seconds + this.phase) % 1) * 2 * Math.PI : 0;
     let up = head.up;
     const spine = d?.spine ?? [];
-    spineFrames(this.at, head.forward, spine, this.links, m.along, m.neck).forEach(({ bone, at, forward }, n) => {
+    const along = m.along.map((s) => (s === null ? null : s * this.size));
+    spineFrames(this.at, head.forward, spine, this.links, along, m.neck).forEach(({ bone, at, forward }, n) => {
       // The back stays up: the up carried along from the head, squared to each bone's forward.
       up = up.subtract(forward.scale(Vector3.Dot(forward, up)));
       if (up.lengthSquared() < 1e-6) up = Vector3.Cross(forward, Vector3.Right());
@@ -257,7 +260,8 @@ export class DragonAvatar implements Avatar {
     for (const w of m.wings) {
       const beat = now / 1000 / FLAP_SECONDS + this.phase - (w.pair / (pairs - 1)) * FLAP_SPREAD;
       const a = this.dead ? 0 : w.side * FLAP_LIFT * Math.sin(2 * Math.PI * beat);
-      this.place(w.bone, Vector3.FromArray(w.pivot), new Vector3(-Math.sin(a), Math.cos(a), 0), new Vector3(0, 0, 1));
+      const pivot = Vector3.FromArray(w.pivot).scale(this.size);
+      this.place(w.bone, pivot, new Vector3(-Math.sin(a), Math.cos(a), 0), new Vector3(0, 0, 1));
     }
   }
 
@@ -413,7 +417,7 @@ function spineFrames(
 }
 
 // Bone i's rest frame as a matrix: its right, up and forward axes and its position.
-function frameMatrix(frames: readonly number[], i: number): Matrix {
+function frameMatrix(frames: readonly number[], i: number, size: number): Matrix {
   const f = frames.slice(i * 12, i * 12 + 12);
   const m = Matrix.FromXYZAxesToRef(
     new Vector3(f[3], f[4], f[5]),
@@ -421,18 +425,20 @@ function frameMatrix(frames: readonly number[], i: number): Matrix {
     new Vector3(f[9], f[10], f[11]),
     new Matrix(),
   );
-  m.setTranslation(new Vector3(f[0], f[1], f[2]));
+  m.setTranslation(new Vector3(f[0] * size, f[1] * size, f[2] * size));
   return m;
 }
 
 const decoded = new Map<string, VertexData>();
 
-// A mesh's arrays, decoded once per page; the two bones a vertex follows become the four Babylon skins with.
-function vertexData(m: MeshData): VertexData {
-  let data = decoded.get(m.positions);
+// A mesh's arrays at the body's size, decoded once per page; the two bones a vertex follows become the four
+// Babylon skins with.
+function vertexData(m: MeshData, size: number): VertexData {
+  const key = `${size}:${m.positions}`;
+  let data = decoded.get(key);
   if (data) return data;
   data = new VertexData();
-  data.positions = Array.from(new Int16Array(bytes(m.positions).buffer), (mm) => mm / 1000);
+  data.positions = Array.from(new Int16Array(bytes(m.positions).buffer), (mm) => (mm / 1000) * size);
   data.normals = Array.from(new Int8Array(bytes(m.normals).buffer), (n) => n / 127);
   data.uvs = Array.from(new Uint16Array(bytes(m.uvs).buffer), (u) => u / 65535);
   data.indices = Array.from(new Uint16Array(bytes(m.indices).buffer));
@@ -446,6 +452,6 @@ function vertexData(m: MeshData): VertexData {
   }
   data.matricesIndices = indices;
   data.matricesWeights = weights;
-  decoded.set(m.positions, data);
+  decoded.set(key, data);
   return data;
 }

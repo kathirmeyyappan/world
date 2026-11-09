@@ -54,6 +54,10 @@ interface Look {
 // A look is of a class (classes.ts), and brings what its class's sim needs of it: a dragon its body.
 export type AvatarSpec = (Look & { class: 'walker' }) | (Look & { class: 'asian-dragon'; dragon: DragonShape });
 
+// How many times its model's size each dragon is (sim/dragon.ts DragonShape.size).
+const LIGHT_DRAGON_SIZE = 1.15;
+const COLGERA_SIZE = 1.15;
+
 const LOOKS = {
   standard: {
     id: 'standard',
@@ -174,8 +178,10 @@ const LOOKS = {
     blurb: 'become the light dragon',
     command: 'light-dragon',
     eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
-    hitbox: { top: 3.7, radius: 2, head: 3.7 }, // the head's 2 m sphere, all of it head; shots test the body too
+    // The head's 2 m sphere, all of it head, at the body's size; shots test the body too.
+    hitbox: { top: 3.7 * LIGHT_DRAGON_SIZE, radius: 2 * LIGHT_DRAGON_SIZE, head: 3.7 * LIGHT_DRAGON_SIZE },
     dragon: {
+      size: LIGHT_DRAGON_SIZE,
       links: Array.from({ length: 20 }, () => 1.875), // 37.5 m of body behind the eyes
       headRadius: 2.5,
       bodyRadius: 1.5,
@@ -199,8 +205,10 @@ const LOOKS = {
     blurb: 'become colgera from tears of the kingdom',
     command: 'colgera',
     eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
-    hitbox: { top: 4.5, radius: 2.25, head: 4.5 }, // the head's 2.25 m sphere, all of it head; shots test the body too
+    // The head's 2.25 m sphere, all of it head, at the body's size; shots test the body too.
+    hitbox: { top: 4.5 * COLGERA_SIZE, radius: 2.25 * COLGERA_SIZE, head: 4.5 * COLGERA_SIZE },
     dragon: {
+      size: COLGERA_SIZE,
       links: [
         0.78, 4.26, 0.82, 0.74, 0.68, 0.43, 4.45, 0.74, 0.71, 0.71, 0.71, 0.71, 0.69, 0.71, 0.52, 0.35, 4.35, 0.51,
         0.74, 0.6, 0.63, 0.73,

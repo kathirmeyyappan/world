@@ -394,7 +394,10 @@ rules are in that file; its body is its look's (`DragonShape`, the `dragon` on t
 `AVATARS`): the spine's links (metres from the eyes to the first point and between the points after
 it, so a skin with a long rigid stretch of body has one long link there), the head's and body's
 radius, how fast it cruises and how tight it turns, its `weak` points and how it comes up
-(`rising`). A weak point (`WeakPoint`: the link it's under, how far `below` the link's middle, its
+(`rising`), all as the model has them, and its `size`, how many times that the dragon is:
+`dragonShape` hands out the links, radii, turn and weak points at that size, the client draws the
+model that many times over, and the row's hitbox and the camera's boom (`DRAGON_BOOMS`) go with it,
+so a dragon grows or shrinks by that one number (and the bot map, which carries the hitboxes). A weak point (`WeakPoint`: the link it's under, how far `below` the link's middle, its
 radius) is a sphere hung under a link, there only while the link lies flat enough to have an
 underside (`weakPointAt`), and a shot reaches it only from below (`combat.ts` keeps it out of a
 shot coming down); a look with any is hurt through them alone (`hurt`: a whole heart a crystal,
