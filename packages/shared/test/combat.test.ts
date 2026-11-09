@@ -116,7 +116,7 @@ test('a dragon is hit on its head, a headshot, or anywhere along its body; its b
   assert.equal(findHit(me, [dragon], GUN)?.headshot, false, 'a level shot lands on the body');
   me.pitch = -Math.atan2(6 - EYE_HEIGHT, 10);
   assert.equal(findHit(me, [dragon], GUN)?.headshot, true, 'aiming up at the head');
-  me.pitch = -Math.atan2(10 - EYE_HEIGHT, 10);
+  me.pitch = -Math.atan2(6 + dragonShape('light-dragon').headRadius + 1.5 - EYE_HEIGHT, 10);
   assert.equal(findHit(me, [dragon], GUN), null, 'over the head');
   me.pitch = 0;
   assert.equal(resolveFire(ITEMS.flamethrower, me, [dragon]).length, 1, 'the body is in the cone');

@@ -463,7 +463,7 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
   assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, { steps: 2 }), /over/);
 });
 
-const LIGHT = dragonShape('light-dragon'); // 20 links of 1.875 m: the shape the tests fly
+const LIGHT = dragonShape('light-dragon'); // 20 links, at its size: the shape the tests fly
 const LINK = LIGHT.links[0];
 
 test('a dragon climbs straight out of the ground, flies forward where it looks in arcs with its head turned as far as the neck lets it, keeps 5 m up, and is too big for a door', () => {
@@ -515,7 +515,7 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   assert.ok(p.pos.x < back, 'and heading -x four seconds later');
 
   // Diving keeps the head MIN_ALTITUDE over the ground.
-  fly(p, 150, { my: 1, yaw: -Math.PI / 2, pitch: MAX_PITCH });
+  fly(p, 300, { my: 1, yaw: -Math.PI / 2, pitch: MAX_PITCH });
   assert.equal(p.pos.y, MIN_ALTITUDE);
 
   // Let go: it glides to a stop and the body stays where it is.
@@ -532,7 +532,8 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   q.dragon!.risen = true;
   q.dragon!.dir = { x: 0, y: 0, z: 1 }; // flying level at it
   fly(q, 120, { my: 1, yaw: 0 }, door);
-  assert.ok(q.pos.z > 2 && q.pos.z < 5 - LIGHT.headRadius + 0.01, `stopped at the door, z ${q.pos.z.toFixed(2)}`);
+  const stop = 5 - LIGHT.headRadius; // the head's edge at the wall
+  assert.ok(q.pos.z > stop - 0.5 && q.pos.z < stop + 0.01, `stopped at the door, z ${q.pos.z.toFixed(2)}`);
   assert.ok(!DRAGON.fits('light-dragon', { x: 0, y: EYE_HEIGHT, z: 4 }, door), 'no room to rise beside a wall');
   assert.ok(
     !DRAGON.fits(

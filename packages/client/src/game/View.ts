@@ -8,6 +8,7 @@
 import { Vector3, type UniversalCamera } from '@babylonjs/core';
 import {
   classOf,
+  dragonShape,
   isDragonAvatar,
   lookDirection,
   MAX_PITCH,
@@ -36,11 +37,16 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
   walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
   'asian-dragon': { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
 };
-// Each dragon skin's boom: far enough back and up to see a body of its size behind the head.
+// Each dragon skin's boom: far enough back and up to see a body of its size behind the head, for
+// the model as it comes, and as much again as the body is bigger than it (DragonShape.size).
 export const DRAGON_BOOMS: Record<AvatarsOf<'asian-dragon'>, Boom> = {
-  'light-dragon': VIEWS['asian-dragon'].boom,
-  colgera: { back: 26, right: 0, up: 9 },
+  'light-dragon': grown(VIEWS['asian-dragon'].boom, dragonShape('light-dragon').size),
+  colgera: grown({ back: 26, right: 0, up: 9 }, dragonShape('colgera').size),
 };
+
+function grown(boom: Boom, size: number): Boom {
+  return { back: boom.back * size, right: boom.right * size, up: boom.up * size };
+}
 
 // The boom the camera hangs on behind whoever wears `avatar`.
 export function boomOf(avatar: AvatarId): Boom {

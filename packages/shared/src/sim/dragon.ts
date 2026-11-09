@@ -57,6 +57,10 @@ export interface Rising {
 // A dragon skin's body: what the sim moves and shoots at. The client draws the skin's model along
 // the same spine, a bone wherever the model needs one (render/avatars/Dragon.ts).
 export interface DragonShape {
+  // How many times the model's size the dragon is: the links, the radii, the turn and the weak
+  // points below are the model's, and `dragonShape` hands out all of them that many times over,
+  // as the client draws the model.
+  size: number;
   // Metres from the eyes to the first spine point, then from each point to the next: the body's
   // length is their sum, and a point can be no further than its link from the one before it.
   links: readonly number[];
@@ -80,10 +84,26 @@ export interface DragonState {
 
 // The body a dragon skin has.
 export function dragonShape(avatar: AvatarId): DragonShape {
+  const grown = GROWN.get(avatar);
+  if (grown) return grown;
   const look = AVATARS[avatar];
   if (look.class !== 'asian-dragon') throw new Error(`${avatar} is no dragon`);
-  return look.dragon;
+  const { size } = look.dragon;
+  const grow = (metres: number) => Math.round(metres * size * 1e4) / 1e4; // to the tenth of a millimetre: no float dust
+  const shape: DragonShape = {
+    ...look.dragon,
+    links: look.dragon.links.map(grow),
+    headRadius: grow(look.dragon.headRadius),
+    bodyRadius: grow(look.dragon.bodyRadius),
+    turnRadius: grow(look.dragon.turnRadius),
+    weak: look.dragon.weak.map((w) => ({ ...w, below: grow(w.below), r: grow(w.r) })),
+  };
+  GROWN.set(avatar, shape);
+  return shape;
 }
+
+// Each look's shape at its size, made once.
+const GROWN = new Map<AvatarId, DragonShape>();
 
 // Metres of body behind the eyes.
 export function bodyLength(shape: DragonShape): number {
