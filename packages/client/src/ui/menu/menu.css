@@ -98,25 +98,156 @@
   box-shadow: 3px 3px 0 #000;
 }
 
-/* Your own body (Preview.ts) at the top of the PLAY tab: a box its view fills, dragged round. */
+/* The window at the top of the PLAY tab (Preview.ts): your own body and the map, one filling it,
+   named across its top, and the other a square in its corner, named under it, a button that swaps
+   them; and the hint under the window. */
+#menu .top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 #menu .preview {
   position: relative;
   aspect-ratio: 2 / 1;
   overflow: hidden;
   background: #05070c;
   border: 2px solid rgba(100, 181, 246, 0.6);
-  cursor: grab;
 }
-#menu .preview:active {
-  cursor: grabbing;
+#menu .preview .view {
+  position: absolute;
+  overflow: hidden;
+  background: #05070c;
 }
-#menu .preview canvas {
+#menu .preview .view.big {
+  inset: 0;
+}
+#menu .preview .view.small {
+  top: 8px;
+  left: 8px;
+  height: 36%;
+  aspect-ratio: 1;
+  z-index: 1;
+  overflow: visible; /* its caption hangs under it */
+  border: 2px solid rgba(100, 181, 246, 0.6);
+  box-shadow: 3px 3px 0 #000;
+}
+#menu .preview .view.small:hover {
+  border-color: var(--accent);
+}
+#menu .preview .view canvas {
   display: block;
   width: 100%;
   height: 100%;
   outline: none;
   touch-action: none;
+}
+#menu .preview .body canvas {
   image-rendering: pixelated;
+  cursor: grab;
+}
+#menu .preview .body canvas:active {
+  cursor: grabbing;
+}
+/* The big view's name across its top, on a dark tag so it reads over the map's lines too. */
+#menu .preview .view .title {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px 3px;
+  font: 9px var(--pixel);
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: rgba(5, 7, 12, 0.8);
+  white-space: nowrap;
+  pointer-events: none;
+}
+#menu .preview .view.small .title {
+  display: none;
+}
+/* The small view's button covers its square, with its name under the square. */
+#menu .preview .view .swap {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+#menu .preview .view.small .swap {
+  display: block;
+}
+#menu .preview .view.small .swap:hover {
+  background: rgba(100, 181, 246, 0.15);
+}
+#menu .preview .view .swap .caption {
+  position: absolute;
+  top: 100%;
+  left: -8px;
+  right: -8px;
+  margin-top: 7px;
+  font: 8px/1.5 var(--pixel);
+  letter-spacing: 1px;
+  color: var(--accent-soft);
+  text-shadow: 1px 1px 0 #000;
+  text-align: center;
+}
+#menu .preview .view.small .swap:hover .caption {
+  color: #fff;
+}
+/* The map's NEAR/WORLD toggle and your x, y, z, as on the HUD's; only while it's big. */
+#menu .preview .map .toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+}
+#menu .preview .map .toggle button {
+  min-width: 58px;
+  padding: 4px 6px 3px;
+  font: 9px var(--pixel);
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(5, 7, 12, 0.75);
+  border: 2px solid rgba(100, 181, 246, 0.3);
+  box-shadow: none;
+}
+#menu .preview .map .toggle button.on {
+  color: #05070c;
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+#menu .preview .map .coords {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  font: 14px var(--mono);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(5, 7, 12, 0.7);
+  white-space: nowrap;
+}
+#menu .preview .map.small .toggle,
+#menu .preview .map.small .coords {
+  display: none;
+}
+#menu .preview .map.big canvas {
+  cursor: move;
+}
+#menu .top .hint {
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 1px;
+}
+#menu .top .hint kbd {
+  padding: 0 5px;
+  font-family: inherit;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(100, 181, 246, 0.2);
+  border: 1px solid rgba(100, 181, 246, 0.5);
 }
 
 /* Every tab's panel in one cell, the hidden ones unseen, so the card keeps one height (Menu.select). */
@@ -450,7 +581,7 @@
   #menu .share .link,
   #menu .field .note[data-tone='hint'],
   #menu .stepper .hint,
-  #menu .preview {
+  #menu .top {
     display: none;
   }
   /* A stepper's AUTO button and its steps on one line of a column, a little smaller. */

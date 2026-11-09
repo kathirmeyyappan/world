@@ -1669,6 +1669,83 @@ body {
   overflow: auto;
   min-height: 0;
 }
+/* The title with the chat's mirror beside it (ui/CommandsMenu.ts), drawn like the chat's own box. */
+#commands .top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+#commands .chat-mirror {
+  position: relative;
+  flex: 0 1 300px;
+  min-width: 200px;
+}
+#commands .chat-mirror .label {
+  font: 9px var(--pixel);
+  letter-spacing: 1px;
+  color: var(--accent-soft);
+  margin-bottom: 8px;
+}
+#commands .chat-mirror .box {
+  min-height: 42px;
+  padding: 7px 11px;
+  font: 22px var(--mono);
+  line-height: 24px;
+  color: #fff;
+  background: var(--panel);
+  border: 2px solid rgba(100, 181, 246, 0.5);
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+#commands .chat-mirror .box.live {
+  border-color: var(--accent);
+  box-shadow: 3px 3px 0 #000;
+}
+#commands .chat-mirror .dim {
+  color: rgba(255, 255, 255, 0.4);
+}
+/* The completions drop down over the list in one column (wider than the box, out to the left),
+   the picked one lit. */
+#commands .completions {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  display: block;
+  width: min(460px, 70vw);
+  list-style: none;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-top: 0;
+  box-shadow: 3px 3px 0 #000;
+}
+#commands .completions:empty {
+  display: none;
+}
+#commands .completions li {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 4px 11px;
+  cursor: pointer;
+}
+#commands .completions li.on,
+#commands .completions li:hover {
+  background: rgba(100, 181, 246, 0.25);
+}
+#commands .completions .cmd {
+  font-size: 18px;
+}
+#commands .completions .note {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 #commands .footer {
   display: flex;
   align-items: baseline;

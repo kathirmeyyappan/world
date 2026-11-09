@@ -483,13 +483,31 @@ other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullsc
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
 an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A
 new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`. The PLAY
-tab opens on the player's own body (`Preview.ts`): a second `Engine` on a canvas of the card's,
-built the first time the tab is seen and drawn only while it is, where the world's own avatar
-builders stand the avatar on a little stage (a dragon hovering over it, its head weaving and its
-body trailing as the sim would keep it), holding what the player holds, so every skin's own idle
-motion runs there too; the view turns on its own and under a drag. A texture a renderer draws
-once and shares (the shadow, a portal's light, a storm's fog) is made per scene
-(`render/perScene.ts`), since a second scene can't use the first's.
+tab opens on a window (`Preview.ts`) with the player's own body in it and the map in a square in
+its corner, the two swapping places at a click on the small one, and under it the hint to press C
+(which closes the menu and opens the commands, as it would from the world). The body is a second
+`Engine` on a canvas of the card's, built the first time the tab is seen and drawn only while it
+is, where the world's own avatar builders stand the avatar on a floor ruled in metres that fades
+out toward its edge (a dragon hovering over it, its head weaving and its body trailing as the sim
+would keep it), holding what the player holds and as the player is (`Me`: frosted over, a
+dragon's crystals shot out), so every skin's own idle motion runs there too; the view turns on
+its own and under a drag, from above or below (the floor fades out as the view comes down to its
+level). The map (`menu/Map.ts`) is the HUD minimap's view, NEAR or WORLD, drawn by the same
+renderer (`ui/MapCanvas.ts`, which draws a `MinimapFrame` onto any canvas at the size it has; the
+HUD's `Minimap` is a panel round one, and keeps the view and the latest frame for the menu's),
+with the same toggle (P too), a wheel or a pinch to zoom it and a drag to slide it; on touch,
+where the HUD has no minimap, it's the only map. A texture a renderer draws once and shares (the
+shadow, a portal's light, a storm's fog) is made per scene (`render/perScene.ts`), since a second
+scene can't use the first's.
+
+The commands menu (C, `ui/CommandsMenu.ts`) is a reference card on a keyboard, with a mirror of
+the chat in its top corner (the chat's own box is down in the corner of the screen, under the
+card's shade): Enter opens the chat as anywhere, and the mirror shows the cursor and what's typed
+(`Hud.chatText`, read once a frame) until Enter sends it, which closes the card so what the
+command did is in view; a click on the mirror opens the chat too. Under the mirror the commands
+the text could be the start of drop down (the card's rows, by name then by shortcut), the arrows
+pick one and Enter or Tab puts it in the box (`Hud.onChatKey` gives the card the key first);
+nothing else completes anything. On touch it's buttons.
 
 The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
 pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows
