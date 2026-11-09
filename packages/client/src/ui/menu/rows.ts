@@ -13,7 +13,7 @@ export interface Section {
   rows: Row[];
 }
 
-export type Row = Toggle | Field | Buttons | Share;
+export type Row = Toggle | Stepper | Field | Buttons | Share;
 
 // A setting with a few values: its button reads the one it's on and moves it to the next.
 export interface Toggle {
@@ -22,6 +22,18 @@ export interface Toggle {
   key?: string; // its key in play, shown with a keyboard
   value: () => string;
   press: () => void;
+}
+
+// A setting stepped through its values, < and > either side of the one it's on. With `auto`, a
+// button before them hands the choice to the game, lit while it has it; a step takes it back.
+export interface Stepper {
+  kind: 'stepper';
+  label: string;
+  value: () => string;
+  step: (by: 1 | -1) => void;
+  can: (by: 1 | -1) => boolean; // whether there's a value that way
+  auto?: { label: () => string; on: () => boolean; press: () => void };
+  hint?: () => string | null; // a warning under it, while there's one to give
 }
 
 // Something typed and sent, a name or a room code. `note` is what to say under it (an error, or how
@@ -75,6 +87,8 @@ export function draw(row: Row): Drawn {
   switch (row.kind) {
     case 'toggle':
       return toggle(row);
+    case 'stepper':
+      return stepper(row);
     case 'field':
       return field(row);
     case 'buttons':
@@ -100,6 +114,60 @@ function toggle(row: Toggle): Drawn {
     button.classList.toggle('off', value === 'OFF');
   };
   el.append(name, button);
+  return { el, refresh };
+}
+
+function stepper(row: Stepper): Drawn {
+  const el = element('div', 'stepper');
+  const line = element('div', 'row');
+  const controls = element('div', 'controls');
+  const refreshers: (() => void)[] = [];
+  const pressing = (button: HTMLButtonElement, press: () => void) =>
+    button.addEventListener('click', () => {
+      press();
+      refresh();
+    });
+  const steps = element('div', 'steps');
+  if (row.auto) {
+    const { label, on, press } = row.auto;
+    const auto = element('button', 'auto');
+    auto.translate = false;
+    pressing(auto, press);
+    refreshers.push(() => {
+      const text = label();
+      if (auto.textContent !== text) auto.textContent = text;
+      auto.classList.toggle('on', on());
+      steps.classList.toggle('off', on());
+    });
+    controls.append(auto);
+  }
+  const reading = element('span', 'reading');
+  reading.translate = false;
+  for (const by of [-1, 1] as const) {
+    const button = element('button', 'step', by < 0 ? '<' : '>');
+    button.translate = false;
+    pressing(button, () => row.step(by));
+    refreshers.push(() => (button.disabled = !row.can(by)));
+    steps.append(by < 0 ? button : reading, by < 0 ? reading : button);
+  }
+  refreshers.push(() => {
+    const text = row.value();
+    if (reading.textContent !== text) reading.textContent = text;
+  });
+  controls.append(steps);
+  line.append(element('span', 'name', row.label), controls);
+  el.append(line);
+  if (row.hint) {
+    const { hint } = row;
+    const warning = element('div', 'hint');
+    refreshers.push(() => {
+      const text = hint() ?? '';
+      if (warning.textContent !== text) warning.textContent = text;
+      warning.hidden = !text;
+    });
+    el.append(warning);
+  }
+  const refresh = () => refreshers.forEach((r) => r());
   return { el, refresh };
 }
 

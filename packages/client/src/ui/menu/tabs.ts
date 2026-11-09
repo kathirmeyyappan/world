@@ -1,12 +1,13 @@
 // What's in the menu: a tab for playing (who you are, the room you're in and its link, other rooms)
 // and one for settings (sound, the view, the guide). Every row reads and changes something another
 // part of the client keeps (the connection for a rename, Sfx's channels, View's perspective, the
-// browser's fullscreen), handed in as MenuHooks, so a new setting is a row here and nothing else
-// has to know about it.
+// browser's fullscreen, the Picture's pixel size and frame rate), handed in as MenuHooks, so a new
+// setting is a row here and nothing else has to know about it.
 import { MAX_NAME_LENGTH, MAX_ROOM_ID_LENGTH, RENAME_SECONDS, cleanName, isValidRoomId } from '@world/shared';
 import type { Channel, Sfx } from '../../audio/Sfx';
 import type { View } from '../../game/View';
 import { SERVED_BY_ROOM_HOST, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
+import type { Picture } from '../../render/Picture';
 import type { Field, Note, Row, Section, Tab } from './rows';
 
 const GUIDE_URL = 'https://info.kathirm.com/kathir-world-guide?pvs=74';
@@ -21,6 +22,7 @@ export interface MenuHooks {
   online: boolean; // false offline, where no one else can come and there's no other room to go to
   sfx: Sfx;
   view: View;
+  picture: Picture;
   rename: (name: string) => void; // asks the room to call this player `name` from now on
 }
 
@@ -32,7 +34,7 @@ export interface Me {
 export function menuTabs(hooks: MenuHooks, me: Me): Tab[] {
   return [
     { title: 'PLAY', sections: [you(hooks, me), ...(hooks.online ? [thisRoom(hooks)] : []), switching(hooks, me)] },
-    { title: 'SETTINGS', sections: [sound(hooks.sfx), seeing(hooks.view), more()] },
+    { title: 'SETTINGS', sections: [sound(hooks.sfx), seeing(hooks.view), picture(hooks.picture), more()] },
   ];
 }
 
@@ -168,6 +170,38 @@ function seeing(view: View): Section {
       press: toggleFullscreen,
     });
   return { title: 'VIEW', rows };
+}
+
+// How the frame is drawn: the size of its pixels (auto moves with what the machine keeps up with,
+// or one chosen) and the frames a second.
+function picture(picture: Picture): Section {
+  const auto = () => picture.pixels === 'auto';
+  return {
+    title: 'PICTURE',
+    rows: [
+      {
+        kind: 'stepper',
+        label: 'PIXEL SIZE',
+        value: () => `${picture.level}×`,
+        step: (by) => picture.stepPixels(by),
+        can: (by) => picture.canStepPixels(by),
+        auto: {
+          label: () => (auto() ? `AUTO (${picture.level}×)` : 'AUTO'),
+          on: auto,
+          press: () => picture.setPixels('auto'),
+        },
+        // Finer than auto has seen this machine keep up with: the fill may be more than its tab survives.
+        hint: () => (picture.level < picture.autoLevel ? 'AT THIS SIZE THE GAME MIGHT CRASH' : null),
+      },
+      {
+        kind: 'stepper',
+        label: 'FRAME RATE',
+        value: () => `${picture.frameRate} FPS`,
+        step: (by) => picture.stepFrameRate(by),
+        can: (by) => picture.canStepFrameRate(by),
+      },
+    ],
+  };
 }
 
 function more(): Section {

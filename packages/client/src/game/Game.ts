@@ -256,6 +256,7 @@ export class Game {
       online: conn.kind !== 'local',
       sfx: this.sfx,
       view: this.view,
+      picture: this.engine.picture,
       rename: (name) => conn.send({ t: 'rename', name }),
     });
     // Closing it back into the world is a click or a key press, which lets us take the mouse too.

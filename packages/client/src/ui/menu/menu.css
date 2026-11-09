@@ -4,13 +4,13 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
+  gap: 10px;
+  padding: 7px 10px;
   background: rgba(10, 10, 15, 0.65);
   border: 2px solid rgba(100, 181, 246, 0.6);
   color: var(--accent);
-  font: 8px/1 var(--pixel);
-  letter-spacing: 1px;
+  font: 11px/1 var(--pixel);
+  letter-spacing: 2px;
   text-align: left;
 }
 #menu-button:hover {
@@ -18,14 +18,14 @@
   border-color: var(--accent);
 }
 #menu-button .gear {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   flex: none;
 }
 #menu-button kbd {
   margin-left: auto;
-  padding: 0 5px;
-  font: 16px/18px var(--mono);
+  padding: 0 6px;
+  font: 20px/22px var(--mono);
   color: rgba(255, 255, 255, 0.8);
   background: rgba(100, 181, 246, 0.2);
   border: 1px solid rgba(100, 181, 246, 0.5);
@@ -59,12 +59,18 @@
   font-size: 14px;
   margin: 0;
 }
+/* Every button on the card is set in the terminal face, at the size of the rows' names. */
+#menu button,
+#menu a.button {
+  font: 20px/1 var(--mono);
+  letter-spacing: 1px;
+  padding: 5px 12px;
+}
 #menu .close {
   flex: none;
   width: 34px;
   height: 34px;
   padding: 0;
-  font-size: 12px;
 }
 
 /* The tabs: the one shown is lit, the others are outlines. */
@@ -75,7 +81,7 @@
 }
 #menu nav button {
   flex: 1;
-  padding: 11px 8px;
+  padding: 7px 8px;
   color: rgba(255, 255, 255, 0.6);
   background: transparent;
   border-color: rgba(100, 181, 246, 0.35);
@@ -142,12 +148,79 @@
 }
 #menu .row .value {
   min-width: 150px;
-  padding: 10px;
 }
-#menu .row .value.off {
+#menu .row .value.off,
+#menu .steps.off {
   color: rgba(255, 255, 255, 0.5);
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* A stepper: its name, then an AUTO button (lit while the game has the choice) and the value
+   between < and > in one box, and a warning under them while there is one. On a phone the controls
+   take a line of their own, under the name, so each button is a fair target. */
+#menu .stepper + .stepper,
+#menu .row + .stepper,
+#menu .stepper + .row {
+  margin-top: 8px;
+}
+#menu .stepper .row {
+  flex-wrap: wrap;
+}
+#menu .stepper .controls {
+  display: flex;
+  flex-wrap: wrap; /* in a column too narrow for both, the steps go under the AUTO button */
+  gap: 8px;
+  margin-left: auto;
+}
+#menu .stepper .auto {
+  flex: 1 1 auto;
+  min-width: 128px;
+}
+#menu .stepper .auto.on {
+  color: #05070c;
+  background: var(--accent);
+  box-shadow: 3px 3px 0 #000;
+}
+#menu .steps {
+  display: flex;
+  flex: 1 1 auto;
+  background: rgba(100, 181, 246, 0.18);
+  border: 2px solid var(--accent);
+  box-shadow: 3px 3px 0 #000;
+}
+#menu .steps .step {
+  min-width: 34px;
+  padding: 5px 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+#menu .steps .step:disabled {
+  opacity: 0.3;
+}
+#menu .steps .reading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  padding: 0 8px;
+  border-left: 2px solid rgba(100, 181, 246, 0.4);
+  border-right: 2px solid rgba(100, 181, 246, 0.4);
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+#menu .steps.off .reading {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+#menu .stepper .hint {
+  margin-top: 2px;
+  font-size: 15px;
+  letter-spacing: 1px;
+  color: #ffb74d;
+  text-align: right;
 }
 
 /* A field: what it's for, a box and its button on one line, and a note under them. */
@@ -168,6 +241,7 @@
 #menu .field .go {
   flex: none;
   min-width: 76px;
+  padding: 5px 8px;
 }
 #menu .field .note {
   min-height: 20px;
@@ -194,10 +268,9 @@
   flex: 1;
 }
 #menu a.button {
-  padding: 12px 8px;
+  padding: 5px 8px;
   text-align: center;
   text-decoration: none;
-  font: 9px var(--pixel);
   color: #fff;
   background: rgba(100, 181, 246, 0.18);
   border: 2px solid var(--accent);
@@ -265,7 +338,7 @@
 
 @media (pointer: coarse) {
   #menu-button {
-    min-height: 34px;
+    min-height: 40px;
   }
   #menu .card {
     padding: 14px;
@@ -280,8 +353,20 @@
   #menu nav {
     margin-bottom: 12px;
   }
+  #menu button,
+  #menu a.button,
+  #menu .steps .reading {
+    font-size: 18px;
+  }
+  #menu button,
+  #menu a.button {
+    padding: 4px 8px;
+  }
   #menu nav button {
-    padding: 10px 6px;
+    padding: 6px 6px;
+  }
+  #menu .steps .step {
+    padding: 4px 0;
   }
   #menu .panel {
     gap: 14px;
@@ -297,16 +382,19 @@
   }
   #menu .row .value {
     min-width: 130px;
-    padding: 8px;
+  }
+  #menu .stepper .controls {
+    flex: 1 1 100%;
+  }
+  #menu .steps .reading {
+    min-width: 0;
+  }
+  #menu .stepper .hint {
+    font-size: 14px;
   }
   #menu .field input {
     font-size: 20px; /* 16 px and up, or a phone zooms in on it */
     padding: 6px 10px;
-  }
-  #menu .buttons button,
-  #menu a.button,
-  #menu .share button {
-    padding: 10px 8px;
   }
   #menu .share .link {
     margin-top: 6px;
@@ -339,7 +427,25 @@
     flex-direction: column;
   }
   #menu .share .link,
-  #menu .field .note[data-tone='hint'] {
+  #menu .field .note[data-tone='hint'],
+  #menu .stepper .hint {
     display: none;
+  }
+  /* A stepper's AUTO button and its steps on one line of a column, a little smaller. */
+  #menu .stepper .auto,
+  #menu .steps .step,
+  #menu .steps .reading {
+    font-size: 16px;
+  }
+  #menu .stepper .auto {
+    min-width: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  #menu .steps .step {
+    min-width: 26px;
+  }
+  #menu .steps .reading {
+    padding: 0 6px;
   }
 }

@@ -471,10 +471,30 @@ with the view frosted, and the hint bar under an ice weapon is frosted white (`H
 The menu (X, or the gear over the room panel) is `packages/client/src/ui/menu/`, and the rest of the
 client knows it only by its hooks: `Menu.ts` builds its button and card, has the keyboard while it's
 open and syncs with the player once a frame; `tabs.ts` is what's in it, rows that read and change what
-other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen), handed in as
-`MenuHooks`; `rows.ts` is the kinds of row (a toggle, a field, buttons, a link to share) and how each
-draws; and `menu.css` is its look. A new setting is a row in `tabs.ts`, and a new kind of row a type and
-a case in `rows.ts`.
+other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
+handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
+an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A
+new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`.
+
+The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
+pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows
+it up with nearest sampling, the retro grid) and its frame rate (15 to 90 by 15, `FRAME_RATES`).
+`Engine.run` draws a frame only when one is due, each due the rate's interval on from the last, so
+30 is every other tick of a 60 Hz display, 45 alternates one tick and two and comes out right over
+time, and a rate past the display's is the display's. The pixel size is auto
+unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a phone goes at most a
+step finer than the grid it has always had, to 2), steps coarser when a fifth of the last two seconds' frames came late (held
+past the tick they were due on, as `Engine.run` judges it against the display's tick, the
+shortest gap it has seen between its runs), and tries a step finer once it has kept up for twenty
+seconds, keeping it if it holds ten seconds and otherwise backing off twice as long before the
+next try, from a minute up to eight and then every eight minutes for the rest of the session. The
+tries never stop, and one that fails costs the player a few seconds of dropped frames (three
+seconds settling after the resize, then a second of frames to judge) before auto backs off: the
+price of finding the finest size the machine holds, paid only by a machine that can't go finer.
+The world's first seconds and the hitch of a resize don't count, nor does a sleeping tab. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
+row that the game might crash, and auto taken up again starts from there. Fill is what this game
+spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of the pixel size, so
+2 is a quarter of the cost of 1.
 
 A rename is the `rename` message: the Room cleans the name as it does a joining player's, refuses
 another within `RENAME_SECONDS`, and tells the room. Names ride in every snapshot, so the roster, the
