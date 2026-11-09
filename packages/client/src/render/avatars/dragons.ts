@@ -3,10 +3,11 @@
 // needed or at startup), what it rises out of the ground through, and the slow wave that runs down
 // its body in the air, if any. A new skin is a row here and a row in AVATARS; the renderer
 // (Dragon.ts) is the same for all of them.
-import type { Vector3 } from '@babylonjs/core';
+import type { AbstractMesh, Vector3 } from '@babylonjs/core';
 import type { AvatarsOf } from '@world/shared';
 import type { Engine } from '../Engine';
 import { Portal } from '../Portal';
+import { Storm } from '../Storm';
 
 export type DragonAvatarId = AvatarsOf<'asian-dragon'>;
 
@@ -38,14 +39,16 @@ export interface DragonModel {
   readonly parent: readonly (number | null)[];
   readonly frames: readonly number[];
   readonly head: MeshData; // round the head, hidden for its rider's view from the eyes
-  readonly maw: MeshData; // the inside of the mouth, drawn only while the jaw is open
+  readonly maw: MeshData | null; // the inside of the mouth, drawn only while the jaw is open
   readonly body: MeshData;
 }
 
 // What a dragon rises out of the ground through: `at` is over where the body comes out (its x and
-// z), `ground` the floor there, and `open` whether any of the body is still down in it.
+// z), `ground` the floor there, and `open` whether any of the body is still down in it. One that
+// shows the body (a mirror) is handed its meshes once they're built.
 export interface Rise {
   update(at: Vector3, ground: number, open: boolean, dt: number): void;
+  mirror?(meshes: AbstractMesh[]): void;
   dispose(): void;
 }
 
@@ -76,5 +79,11 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
     model: once(() => import('./dragonModel').then((m) => m.DRAGON_MODEL)),
     rise: (engine, name) => new Portal(engine, name),
     wave: { size: 0.375, bones: 7, seconds: 2.6, from: 4 },
+  },
+  // Colgera: rigid ring segments on a stiff spine, so no wave; it comes up through a storm.
+  colgera: {
+    model: once(() => import('./colgeraModel').then((m) => m.COLGERA_MODEL)),
+    rise: (engine, name) => new Storm(engine, name),
+    wave: null,
   },
 };

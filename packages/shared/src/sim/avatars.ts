@@ -21,7 +21,8 @@ export type AvatarId =
   | 'krabs'
   | 'squidward'
   | 'gary'
-  | 'light-dragon';
+  | 'light-dragon'
+  | 'colgera';
 
 // What shots at a walker test against (sim/combat.ts): a vertical capsule from the feet up to `top`
 // metres, `radius` round its axis, whose top `head` metres count as the head. Sized to the drawn
@@ -183,6 +184,30 @@ const LOOKS = {
       heartsEvery: 5,
     },
   },
+  // Colgera, the Tears of the Kingdom boss: a segmented ice wyrm (scripts/colgera-model.py, which
+  // prints these numbers), its three ring segments each a rigid link of the spine.
+  colgera: {
+    id: 'colgera',
+    class: 'asian-dragon',
+    item: 'firebreath',
+    regen: false,
+    nameTag: null,
+    blurb: 'become colgera from tears of the kingdom',
+    command: 'colgera',
+    eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
+    hitbox: { top: 4.8, radius: 2.4, head: 4.8 }, // the head's 2.4 m sphere, all of it head; shots test the body too
+    dragon: {
+      links: [
+        1.51, 4.54, 1.6, 1.44, 1.33, 0.83, 4.75, 1.44, 1.38, 1.38, 1.38, 1.38, 1.34, 1.38, 1.01, 0.69, 4.64, 0.99, 1.44,
+        1.16, 1.22, 1.41,
+      ], // 38.2 m of body behind the eyes: the rig's joints, a ring segment 4.5 to 4.8 m long
+      headRadius: 2.4,
+      bodyRadius: 2.2, // the spine is 4.2 m across, the rings 6.9 m
+      cruise: 12.5,
+      turnRadius: 14,
+      heartsEvery: 5,
+    },
+  },
 } satisfies Record<AvatarId, AvatarSpec>;
 
 export const AVATARS: Record<AvatarId, AvatarSpec> = LOOKS;
@@ -193,6 +218,10 @@ export type AvatarsOf<C extends AvatarSpec['class']> = {
 }[AvatarId];
 
 export const AVATAR_IDS = Object.keys(AVATARS) as AvatarId[];
+
+export function isDragonAvatar(id: AvatarId): id is AvatarsOf<'asian-dragon'> {
+  return AVATARS[id].class === 'asian-dragon';
+}
 
 export function isAvatarId(v: unknown): v is AvatarId {
   return typeof v === 'string' && Object.hasOwn(AVATARS, v);

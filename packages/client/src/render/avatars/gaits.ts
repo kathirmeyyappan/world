@@ -28,4 +28,5 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   // the show's 2.3 a second at a full walk.
   squidward: { stride: 3.5, steps: { bar: ['suction-1', 'suction-2', 'suction-3', 'suction-4'] }, pitch: 1 },
   'light-dragon': null,
+  colgera: null,
 };

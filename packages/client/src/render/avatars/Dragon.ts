@@ -146,10 +146,11 @@ export class DragonAvatar implements Avatar {
       return mesh;
     };
     this.head = mesh('head', m.head);
-    this.maw = mesh('maw', m.maw);
-    mesh('body', m.body);
+    this.maw = m.maw && mesh('maw', m.maw);
+    const body = mesh('body', m.body);
     this.head.setEnabled(!this.headless);
-    this.maw.setEnabled(false);
+    this.maw?.setEnabled(false);
+    this.rise.mirror?.([this.head, body]);
   }
 
   update(p: RemotePlayer): void {
