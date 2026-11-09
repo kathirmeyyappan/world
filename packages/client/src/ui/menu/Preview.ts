@@ -10,6 +10,7 @@ import {
   DynamicTexture,
   MeshBuilder,
   StandardMaterial,
+  Texture,
   Vector3,
   type Mesh,
 } from '@babylonjs/core';
@@ -23,6 +24,9 @@ const PIXELS = 1.5; // CSS pixels per rendered one: the world's grid on a mouse 
 const SPIN = 0.25; // radians a second the view turns on its own
 const FROM = Math.PI / 2 - 0.6; // where the view starts: three quarters on, the body's right side and what it holds in view
 const SPIN_PAUSE_MS = 2500; // after a drag, before it turns on its own again
+// The floor is ruled in metres, a fainter line at each half, so bodies compare: a stage is a whole
+// number of them across.
+const CELL = 1;
 // A walker's stage: metres across its floor, at least (a tall body gets a wider one), and how
 // far off the view stands, in stages.
 const WALKER_STAGE = 2.6;
@@ -105,7 +109,7 @@ export class Preview {
     camera.wheelDeltaPercentage = 0.02;
     camera.pinchDeltaPercentage = 0.02;
     camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
-    camera.attachControl(true);
+    camera.attachControl(false); // the wheel zooms the view, not the card under it
     scene.activeCamera = camera;
     this.engine = engine;
     this.camera = camera;
@@ -202,21 +206,23 @@ export class Preview {
 function stageOf(kind: AvatarId): Stage {
   if (AVATARS[kind].class === 'asian-dragon') {
     const r = dragonShape(kind).headRadius;
-    const size = r * DRAGON_STAGE;
+    const size = Math.ceil((r * DRAGON_STAGE) / CELL) * CELL;
     return { size, centre: new Vector3(0, r * DRAGON_HOVER, 0), radius: size * DRAGON_VIEW };
   }
   const { top } = AVATARS[kind].hitbox;
-  const size = Math.max(WALKER_STAGE, top * WALKER_HEADROOM);
+  const size = Math.ceil(Math.max(WALKER_STAGE, top * WALKER_HEADROOM) / CELL) * CELL;
   return { size, centre: new Vector3(0, top / 2, 0), radius: size * WALKER_VIEW };
 }
 
-// The stage: a floor ruled in the accent.
+// The stage: a floor ruled in the accent, a CELL to a tile.
 function buildFloor(engine: Engine, size: number): Mesh {
   const scene = engine.scene;
   const floor = MeshBuilder.CreateGround('preview-floor', { width: size, height: size }, scene);
   floor.isPickable = false;
   const ruled = new StandardMaterial('preview-floor', scene);
-  ruled.emissiveTexture = floorTexture(engine);
+  const tile = floorTexture(engine);
+  tile.uScale = tile.vScale = size / CELL;
+  ruled.emissiveTexture = tile;
   ruled.diffuseColor = Color3.Black();
   ruled.specularColor = Color3.Black();
   ruled.disableLighting = true;
@@ -224,27 +230,28 @@ function buildFloor(engine: Engine, size: number): Mesh {
   return floor;
 }
 
-// Dark, with a grid of eight in the accent and a brighter rim.
+// One cell of the floor: dark, ruled in the accent along two of its edges, with a fainter line
+// across its middle each way.
 function floorTexture(engine: Engine): DynamicTexture {
-  const size = 128;
-  const texture = new DynamicTexture('preview-floor', size, engine.scene, false);
+  const size = 64;
+  const texture = new DynamicTexture('preview-floor', size, engine.scene, true); // mipmapped: the far rules of a wide floor blend rather than sparkle
+  texture.wrapU = texture.wrapV = Texture.WRAP_ADDRESSMODE; // tiled across the floor
   const ctx = texture.getContext() as CanvasRenderingContext2D;
   ctx.fillStyle = '#0b0d14';
   ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = 'rgba(100, 181, 246, 0.28)';
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 8; i++) {
-    const at = (i * size) / 8 + 0.5;
+  const rule = (at: number, alpha: number) => {
+    ctx.strokeStyle = `rgba(100, 181, 246, ${alpha})`;
     ctx.beginPath();
     ctx.moveTo(at, 0);
     ctx.lineTo(at, size);
     ctx.moveTo(0, at);
     ctx.lineTo(size, at);
     ctx.stroke();
-  }
-  ctx.strokeStyle = 'rgba(100, 181, 246, 0.7)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(1, 1, size - 2, size - 2);
+  };
+  ctx.lineWidth = 3;
+  rule(size / 2, 0.14);
+  ctx.lineWidth = 4;
+  rule(2, 0.4);
   texture.update();
   return texture;
 }
