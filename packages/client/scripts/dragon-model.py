@@ -234,6 +234,7 @@ def mesh_lines(name: str, parts: list[dict]) -> list[str]:
         base += len(p["positions"])
     triangles = np.vstack(triangles)
     assert len(positions) < 65536, f"{name}: {len(positions)} vertices"
+    assert np.abs(positions).max() < 32.767, f"{name}: a vertex past what millimetres in an Int16 reach"
     order = np.argsort(-bones, axis=1)[:, :2]
     weights = np.take_along_axis(bones, order, axis=1)
     split = np.round(weights[:, 0] / weights.sum(axis=1) * 255).astype(np.int64)
