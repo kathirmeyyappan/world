@@ -478,8 +478,8 @@ it up with nearest sampling, the retro grid) and its frame rate (15 to 90 by 15,
 `Engine.run` draws a frame only when one is due, each due the rate's interval on from the last, so
 30 is every other tick of a 60 Hz display, 45 alternates one tick and two and comes out right over
 time, and a rate past the display's is the display's. The pixel size is auto
-unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a phone keeps the grid
-it has always had), steps coarser when a fifth of the last two seconds' frames came late (held
+unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a phone goes at most a
+step finer than the grid it has always had, to 2), steps coarser when a fifth of the last two seconds' frames came late (held
 past the tick they were due on, as `Engine.run` judges it against the display's tick, the
 shortest gap it has seen between its runs), and tries a step finer once it has kept up for twenty
 seconds, keeping it if it holds ten seconds and otherwise backing off twice as long before the

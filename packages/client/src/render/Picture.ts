@@ -10,11 +10,12 @@ export type PixelSize = (typeof PIXEL_SIZES)[number];
 export const FRAME_RATES = [15, 30, 45, 60, 75, 90] as const; // the choices, fifteen apart
 export type FrameRate = (typeof FRAME_RATES)[number];
 
-// Where auto starts and the finest it will try: a phone keeps the coarse grid it has always had.
+// Where auto starts and the finest it will try: a phone starts on the coarse grid it has always
+// had and goes at most a step finer, its tab's memory being the limit its frames never show.
 const AUTO_START: PixelSize = 1.5;
 const AUTO_FINEST: PixelSize = 1;
 const TOUCH_START: PixelSize = 2.5;
-const TOUCH_FINEST: PixelSize = 2.5;
+const TOUCH_FINEST: PixelSize = 2;
 const STARTUP_MS = 6000; // the world is still streaming in: its hitches say nothing about the machine
 const SETTLE_MS = 3000; // after a step, before its frames count (the resize itself hitches)
 const WINDOW = 120; // frames judged at a time: two seconds at 60
