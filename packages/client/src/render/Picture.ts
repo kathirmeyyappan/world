@@ -7,7 +7,7 @@
 
 export const PIXEL_SIZES = [1, 1.5, 2, 2.5, 3] as const; // the choices, and the steps auto moves along
 export type PixelSize = (typeof PIXEL_SIZES)[number];
-export const FRAME_RATES = [60, 30] as const;
+export const FRAME_RATES = [15, 30, 45, 60, 75, 90] as const; // the choices, fifteen apart
 export type FrameRate = (typeof FRAME_RATES)[number];
 
 // Where auto starts and the finest it will try: a phone keeps the coarse grid it has always had.
@@ -18,7 +18,6 @@ const TOUCH_FINEST: PixelSize = 2.5;
 const STARTUP_MS = 6000; // the world is still streaming in: its hitches say nothing about the machine
 const SETTLE_MS = 3000; // after a step, before its frames count (the resize itself hitches)
 const WINDOW = 120; // frames judged at a time: two seconds at 60
-const LATE = 1.5; // a frame this many times the frame rate's interval late is a dropped one
 const PAUSE_MS = 500; // an interval this long is the tab asleep, not a slow frame
 const BACK_OFF = 0.2; // the share of late frames in the window that steps coarser
 const KEPT_UP = 0.02; // at most this share late (a GC pause or two) counts as keeping up
@@ -62,15 +61,14 @@ export class Picture {
     return this.current;
   }
 
-  // What the menu's row says: a choice, or auto with where it has got to.
-  describePixels(): string {
-    return this.pixels === 'auto' ? `AUTO (${this.current}×)` : `${this.pixels}×`;
+  // A size coarser (`by` 1) or finer (-1) than what's drawn now, chosen for good.
+  stepPixels(by: 1 | -1): void {
+    const size = beside(PIXEL_SIZES, this.current, by);
+    if (size !== undefined) this.setPixels(size);
   }
 
-  // The next choice round: auto, then each size finest first.
-  cyclePixels(): void {
-    const at = this.pixels === 'auto' ? -1 : PIXEL_SIZES.indexOf(this.pixels);
-    this.setPixels(at + 1 >= PIXEL_SIZES.length ? 'auto' : PIXEL_SIZES[at + 1]);
+  canStepPixels(by: 1 | -1): boolean {
+    return beside(PIXEL_SIZES, this.current, by) !== undefined;
   }
 
   setPixels(pixels: PixelSize | 'auto'): void {
@@ -83,20 +81,27 @@ export class Picture {
     keep(PIXELS_KEY, String(pixels));
   }
 
-  toggleFrameRate(): void {
-    this.frameRate = this.frameRate === 60 ? 30 : 60;
+  // The frame rate a step up (`by` 1) or down (-1).
+  stepFrameRate(by: 1 | -1): void {
+    const rate = beside(FRAME_RATES, this.frameRate, by);
+    if (rate === undefined) return;
+    this.frameRate = rate;
     this.late = [];
-    keep(FRAME_RATE_KEY, String(this.frameRate));
+    keep(FRAME_RATE_KEY, String(rate));
   }
 
-  // A frame drawn `interval` ms after the last, against the `target` ms the frame rate allows.
-  // Auto judges the last WINDOW frames: a share of late ones steps coarser, next to none for a
-  // while earns a try at finer.
-  frame(now: number, interval: number, target: number): void {
+  canStepFrameRate(by: 1 | -1): boolean {
+    return beside(FRAME_RATES, this.frameRate, by) !== undefined;
+  }
+
+  // A frame drawn `interval` ms after the last, `late` when the machine held it past the tick it was
+  // due on (Engine.run judges that). Auto judges the last WINDOW frames: a share of late ones steps
+  // coarser, next to none for a while earns a try at finer.
+  frame(now: number, interval: number, late: boolean): void {
     if (this.pixels !== 'auto') return;
     if (this.holdUntil === Infinity) this.holdUntil = now + SETTLE_MS;
     if (now < this.holdUntil || interval > PAUSE_MS) return;
-    this.late.push(interval > target * LATE);
+    this.late.push(late);
     if (this.late.length > WINDOW) this.late.shift();
     if (this.late.length < WINDOW / 2) return;
     const share = this.late.filter(Boolean).length / this.late.length;
@@ -123,6 +128,11 @@ export class Picture {
     this.late = [];
     this.holdUntil = now + SETTLE_MS;
   }
+}
+
+// The entry `by` places on from `at` in `list`, if there is one.
+function beside<T>(list: readonly T[], at: T, by: 1 | -1): T | undefined {
+  return list[list.indexOf(at) + by];
 }
 
 function isPixelSize(n: number): n is PixelSize {

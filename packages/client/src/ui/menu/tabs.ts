@@ -172,23 +172,32 @@ function seeing(view: View): Section {
   return { title: 'VIEW', rows };
 }
 
-// How the frame is drawn: the size of its pixels (auto moves with what the machine keeps up with)
-// and the frames a second.
+// How the frame is drawn: the size of its pixels (auto moves with what the machine keeps up with,
+// or one chosen) and the frames a second.
 function picture(picture: Picture): Section {
+  const auto = () => picture.pixels === 'auto';
   return {
     title: 'PICTURE',
     rows: [
       {
-        kind: 'toggle',
+        kind: 'stepper',
         label: 'PIXEL SIZE',
-        value: () => picture.describePixels(),
-        press: () => picture.cyclePixels(),
+        value: () => `${picture.level}×`,
+        step: (by) => picture.stepPixels(by),
+        can: (by) => picture.canStepPixels(by),
+        auto: {
+          label: () => (auto() ? `AUTO (${picture.level}×)` : 'AUTO'),
+          on: auto,
+          press: () => picture.setPixels('auto'),
+        },
+        hint: 'SMALLER PIXELS COST MUCH MORE',
       },
       {
-        kind: 'toggle',
+        kind: 'stepper',
         label: 'FRAME RATE',
         value: () => `${picture.frameRate} FPS`,
-        press: () => picture.toggleFrameRate(),
+        step: (by) => picture.stepFrameRate(by),
+        can: (by) => picture.canStepFrameRate(by),
       },
     ],
   };

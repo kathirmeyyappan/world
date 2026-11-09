@@ -14,9 +14,11 @@ import {
 } from '@babylonjs/core';
 import { Picture } from './Picture';
 
-// A frame due this close to the display's next tick is drawn on it rather than the one after, so
-// a frame rate the display's doesn't divide (60 on 144 Hz) rounds to the nearest it can do.
+// A frame due this close to the display's next tick is drawn on it rather than the one after: the
+// loop runs a little after each tick, and a frame due a hair before the next would otherwise wait a
+// whole one.
 const TICK_SLACK_MS = 3;
+const MIN_TICK_MS = 4; // the loop never runs closer than this: a 240 Hz display's tick
 
 export const FOG_COLOR = new Color3(0.02, 0.02, 0.05);
 export const BASE_FOG_DENSITY = 0.012; // EXP2: players fade out past ~50 m
@@ -27,6 +29,9 @@ export class Engine {
   readonly glowLayer: GlowLayer;
   readonly picture = new Picture(window.matchMedia('(pointer: coarse)').matches, performance.now());
   private drawnAt = performance.now(); // when the last frame was drawn
+  private due = performance.now(); // when the next frame is due: the frame rate's interval on from the last
+  private ran = performance.now(); // when the loop last ran, on a tick of the display
+  private tick = Infinity; // ms between the display's ticks: the shortest gap the loop has seen between its runs
 
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new BabylonEngine(canvas, false, { preserveDrawingBuffer: false, stencil: true });
@@ -67,17 +72,27 @@ export class Engine {
     window.addEventListener('resize', () => this.engine.resize());
   }
 
-  // Every tick of the display, a frame when the frame rate allows one: the game steps by the time
-  // since the last frame drawn, the picture's auto pixel size judges the pace, and the frame is drawn
-  // at whatever size that has settled on.
+  // Every tick of the display, a frame when one is due: each is due the frame rate's interval on
+  // from the one before, so a rate the display's doesn't divide (45 on 60 Hz) comes out right over
+  // time, drawn on alternating ticks, and a rate past the display's is the display's. The game steps
+  // by the time since the last frame drawn, the picture's auto pixel size judges the pace, and the
+  // frame is drawn at whatever size that has settled on. A frame is late when the machine held it
+  // past the first tick it could have been drawn on, by more than half a tick.
   run(update: (dt: number) => void): void {
     this.engine.runRenderLoop(() => {
       const now = performance.now();
-      const target = 1000 / this.picture.frameRate;
-      if (now - this.drawnAt < target - TICK_SLACK_MS) return;
+      const gap = now - this.ran;
+      this.ran = now;
+      if (gap >= MIN_TICK_MS && gap < this.tick) this.tick = gap;
+      if (now < this.due - TICK_SLACK_MS) return;
       const interval = now - this.drawnAt;
+      const ticks = Math.max(1, Math.ceil((this.due - TICK_SLACK_MS - this.drawnAt) / this.tick));
+      const late = interval > (ticks + 0.5) * this.tick;
       this.drawnAt = now;
-      this.picture.frame(now, interval, target);
+      // Behind (a slow frame), the next is due sooner to catch up, but never already: a tab back
+      // from sleep draws on the next tick and goes on from there.
+      this.due = Math.max(this.due + 1000 / this.picture.frameRate, now);
+      this.picture.frame(now, interval, late);
       if (this.engine.getHardwareScalingLevel() !== this.picture.level)
         this.engine.setHardwareScalingLevel(this.picture.level);
       update(interval / 1000);

@@ -206,14 +206,14 @@ body {
   z-index: 100;
   font-family: var(--mono);
 }
-/* Top left: the menu's button (ui/menu) over the room panel, each as wide as its own content. */
+/* Top left: the menu's button (ui/menu) over the room panel, the two as wide as the wider. */
 #corner {
   position: absolute;
   top: 16px;
   left: 16px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 8px;
 }
 #hud .panel {
