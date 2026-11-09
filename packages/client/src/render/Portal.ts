@@ -4,7 +4,7 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, type Vector3 } from '@babylonjs/core';
 import type { Engine } from './Engine';
 
-const ACROSS = 8.75; // metres
+const ACROSS = 40; // metres: as wide as Colgera's storm, a pool the whole body comes up through
 const FADE = 0.6; // seconds to open or shut
 const TURN = 0.5; // radians a second
 
