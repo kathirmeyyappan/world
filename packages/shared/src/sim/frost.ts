@@ -262,6 +262,29 @@ export function splat(
 // it reaches round where it lands, wider the farther it flew, the floor included where `floor`
 // says there is one (inside the world's outline), doors excepted (they swing). Returns the cells
 // that changed.
+// Freezes every floor cell within `radius` metres of (x, z) that is inside the world (`floor`),
+// returning the cells that turned.
+export function frostDisc(
+  structures: Structures,
+  floor: (x: number, z: number) => boolean,
+  x: number,
+  z: number,
+  radius: number,
+): FrostCell[] {
+  const changed: FrostCell[] = [];
+  const [i0, j0] = cellOf(x - radius, z - radius);
+  const [i1, j1] = cellOf(x + radius, z + radius);
+  for (let i = i0; i <= i1; i++)
+    for (let j = j0; j <= j1; j++) {
+      const cx = (i + 0.5) * FROST_CELL;
+      const cz = (j + 0.5) * FROST_CELL;
+      if (Math.hypot(cx - x, cz - z) > radius || !floor(cx, cz)) continue;
+      const cell: FrostCell = [FLOOR, 0, i, j];
+      if (structures.frost.set(cell, true)) changed.push(cell);
+    }
+  return changed;
+}
+
 export function sprayFrost(
   structures: Structures,
   floor: (x: number, z: number) => boolean,

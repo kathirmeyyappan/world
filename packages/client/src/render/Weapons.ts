@@ -95,6 +95,7 @@ export function buildWeapon(
       return new Vector3(0, 0.03, 0.5);
     }
     case 'firebreath':
+    case 'frostbreath':
       return null;
   }
 }

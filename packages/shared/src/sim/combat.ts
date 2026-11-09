@@ -1,11 +1,13 @@
 // Shooting, resolved on the server from the shooter's avatar's eyes (eyeOf) along their look. A
 // shot has to land in the target's class's hit shape (classes.ts): a walker's upright capsule, sized
-// to their avatar, or a dragon's head and body spheres (none while it's still rising). Hitscan takes the nearest one the ray passes
-// through within range, and where on it the ray lands says whether it was a headshot; a cone takes
-// everyone with any of it inside. Structures stop shots: nothing behind a wall is hit. Damage
-// numbers live in health.ts.
+// to their avatar, or a dragon's head and body spheres (none while it's still rising) and the
+// spheres of its weak points, which only a shot coming up from below reaches. Hitscan takes the
+// nearest one the ray passes through within range, and where on it the ray lands says what part
+// was hit (a headshot, a weak point); a cone takes everyone with any of it inside, through a weak
+// point where the shooter is under one. Structures stop shots: nothing behind a wall is hit.
+// Damage numbers live in health.ts.
 import { eyeOf, type AvatarId, type Hitbox } from './avatars';
-import { classOf, type HitShape, type Sphere } from './classes';
+import { classOf, type HitPart, type HitShape, type Sphere } from './classes';
 import type { Structures } from './collision';
 import type { DragonState } from './dragon';
 import { capsuleFeetY, isHeadshot } from './health';
@@ -22,7 +24,7 @@ export interface Target {
   pos: Vec3;
   dead: boolean;
   avatar: AvatarId;
-  dragon: Pick<DragonState, 'spine' | 'risen'> | null;
+  dragon: Pick<DragonState, 'spine' | 'risen' | 'shattered'> | null;
 }
 
 export interface Shooter {
@@ -37,6 +39,7 @@ export interface Shooter {
 export interface Hit<T extends Target> {
   target: T;
   headshot: boolean;
+  part: HitPart;
 }
 
 // Everyone an item's shot reaches, per its fire shape: one player for hitscan, all of them
@@ -67,24 +70,41 @@ export function findConeHits<T extends Target>(
   const hits: Hit<T>[] = [];
   for (const p of players) {
     if (p.id === shooter.id || p.dead) continue;
-    if (inCone(o, dir, classOf(p.avatar).hitShape(p), range, halfAngle, structures))
-      hits.push({ target: p, headshot: false });
+    const part = inCone(o, dir, classOf(p.avatar).hitShape(p), range, halfAngle, structures);
+    if (part !== null) hits.push({ target: p, headshot: false, part });
   }
   return hits;
 }
 
-function inCone(o: Vec3, d: Vec3, shape: HitShape, range: number, halfAngle: number, structures: Structures): boolean {
-  if (shape.kind === 'spheres')
-    return shape.spheres.some((s) => sphereInCone(o, d, s, s.r, range, halfAngle) && structures.clear(o, s));
+// The part of `shape` the cone takes in, or null: a weak point where the shooter is under it,
+// else the body.
+function inCone(
+  o: Vec3,
+  d: Vec3,
+  shape: HitShape,
+  range: number,
+  halfAngle: number,
+  structures: Structures,
+): HitPart | null {
+  if (shape.kind === 'spheres') {
+    let part: HitPart | null = null;
+    for (const s of shape.spheres) {
+      if (s.weak !== undefined && o.y >= s.y) continue;
+      if (!sphereInCone(o, d, s, s.r, range, halfAngle) || !structures.clear(o, s)) continue;
+      if (s.weak !== undefined) return s.weak;
+      part = 'body';
+    }
+    return part;
+  }
   const { eye, box } = shape;
   const a = capsuleFeetY(eye.y);
   const b = a + box.top;
   const steps = 8;
   for (let i = 0; i <= steps; i++) {
     const c = { x: eye.x, y: a + ((b - a) * i) / steps, z: eye.z };
-    if (sphereInCone(o, d, c, box.radius, range, halfAngle)) return structures.clear(o, eye);
+    if (sphereInCone(o, d, c, box.radius, range, halfAngle)) return structures.clear(o, eye) ? 'body' : null;
   }
-  return false;
+  return null;
 }
 
 // Whether the sphere at `c` of radius `r` is within `range` of `o` and any of it within `halfAngle`
@@ -116,7 +136,7 @@ export function findHit<T extends Target>(
     const hit = rayShape(o, dir, classOf(p.avatar).hitShape(p), bestT);
     if (hit && hit.t < bestT) {
       bestT = hit.t;
-      best = { target: p, headshot: hit.headshot };
+      best = { target: p, headshot: hit.part === 'head', part: hit.part };
     }
   }
   return best;
@@ -141,19 +161,23 @@ export function reach<T extends Target>(
   return best;
 }
 
-// Where the ray first enters the shape within maxT, and whether that's a headshot: in a capsule's
-// head band, or on a sphere that is the head.
-function rayShape(o: Vec3, d: Vec3, shape: HitShape, maxT: number): { t: number; headshot: boolean } | null {
+// Where the ray first enters the shape within maxT, and what part that is: a capsule's head band
+// or body, the sphere that is the head, a weak point's sphere (passed through unless the ray is
+// coming up from below), or the body.
+function rayShape(o: Vec3, d: Vec3, shape: HitShape, maxT: number): { t: number; part: HitPart } | null {
   if (shape.kind === 'capsule') {
     const t = rayCapsule(o, d, shape.eye, shape.box, maxT);
-    return t === null ? null : { t, headshot: isHeadshot(o.y + d.y * t, shape.eye.y, shape.box) };
+    return t === null ? null : { t, part: isHeadshot(o.y + d.y * t, shape.eye.y, shape.box) ? 'head' : 'body' };
   }
   let best: { t: number; sphere: Sphere } | null = null;
   for (const s of shape.spheres) {
+    if (s.weak !== undefined && d.y <= 0) continue;
     const t = raySphere(o, d, s, s.r);
     if (t !== null && t <= maxT && (best === null || t < best.t)) best = { t, sphere: s };
   }
-  return best && { t: best.t, headshot: best.sphere.head };
+  if (!best) return null;
+  const { sphere } = best;
+  return { t: best.t, part: sphere.weak !== undefined ? sphere.weak : sphere.head ? 'head' : 'body' };
 }
 
 // Distance along the ray to the hitbox of a player whose eyes are at `eye`, or null. Checks the ray

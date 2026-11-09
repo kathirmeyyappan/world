@@ -547,6 +547,59 @@ body {
   }
 }
 
+/* Crystal hearts: a dragon's, one big ice crystal a ring segment, that shatters rather than cracks. */
+#hearts[data-sprite='crystal'] {
+  grid-template-columns: repeat(var(--heart-row, 3), 60px);
+  gap: 6px 10px;
+}
+.heart.crystal {
+  width: 60px;
+  height: 52px;
+  opacity: 0.9;
+}
+.heart.crystal svg rect {
+  fill: #2a4e74;
+}
+.heart.crystal svg rect.hi {
+  fill: #dff4ff;
+}
+.heart.crystal svg rect.shade {
+  fill: #78c2ec;
+}
+.heart.crystal svg rect.facet {
+  fill: #a6ddf7;
+}
+.heart.crystal svg rect.glint {
+  fill: #ffffff;
+}
+.heart.crystal.lost svg rect {
+  fill: #2a2e38;
+}
+.heart.crystal.lost svg rect.hi,
+.heart.crystal.lost svg rect.shade,
+.heart.crystal.lost svg rect.glint {
+  fill: #3a3f4c;
+}
+.heart.crystal.lost svg rect.facet {
+  fill: #333845;
+}
+.heart.crystal.breaking {
+  animation: crystal-shatter 0.5s steps(6) both;
+}
+@keyframes crystal-shatter {
+  0% {
+    transform: scale(1.5);
+    filter: brightness(2.5) drop-shadow(0 0 10px rgba(200, 240, 255, 1));
+  }
+  40% {
+    transform: scale(1.2) rotate(6deg);
+    filter: brightness(1.6) drop-shadow(0 0 6px rgba(200, 240, 255, 0.7));
+  }
+  100% {
+    transform: none;
+  }
+}
+
 /* A heart coming back: a gold pop that settles. */
 .heart.filling {
   animation: heart-fill 0.3s steps(5) both;
@@ -845,6 +898,11 @@ body {
   background: rgba(11, 13, 20, 0.8);
   border: 2px solid rgba(255, 59, 78, 0.6);
   box-shadow: 4px 4px 0 #000;
+}
+/* An ice item's hint is frosted over: white, not the red of the rest. */
+#item-hint.ice {
+  border-color: rgba(214, 240, 255, 0.75);
+  color: rgba(238, 248, 255, 0.95);
 }
 #item-hint .stats {
   margin-top: 4px;
@@ -1539,6 +1597,14 @@ body {
   .heart {
     width: 18px;
     height: 16px;
+  }
+  #hearts[data-sprite='crystal'] {
+    grid-template-columns: repeat(var(--heart-row, 3), 40px);
+    gap: 4px 6px;
+  }
+  .heart.crystal {
+    width: 40px;
+    height: 35px;
   }
 }
 

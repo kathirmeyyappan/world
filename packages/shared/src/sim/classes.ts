@@ -14,20 +14,27 @@ import type { WorldPart } from './world';
 export type PlayerClass = 'walker' | 'asian-dragon';
 
 // What a shot tests against (combat.ts): a walker's upright capsule from the feet under its eyes,
-// sized by its avatar, or a set of spheres, each a hit wherever it is, a `head` one a headshot.
+// sized by its avatar, or a set of spheres, each a hit wherever it is, a `head` one a headshot and
+// a `weak` one a weak point (its index), reached only from below.
 export interface Sphere {
   x: number;
   y: number;
   z: number;
   r: number;
   head: boolean;
+  weak?: number;
 }
 export type HitShape = { kind: 'capsule'; eye: Vec3; box: Hitbox } | { kind: 'spheres'; spheres: Sphere[] };
+// Where a shot landed: the head, the body, or a weak point by its index.
+export type HitPart = 'head' | 'body' | number;
 
-// A life: a full one's hearts, and how many to a row on the HUD (ui/Hearts.ts).
+// A life: a full one's hearts, how many to a row on the HUD, and what they look like there
+// (ui/Hearts.ts): pixel hearts, or crystals, big, one per weak point.
+export type HeartSprite = 'heart' | 'crystal';
 export interface LifeSpec {
   hearts: number;
   row: number;
+  sprite: HeartSprite;
 }
 
 export interface ClassSpec {
@@ -60,6 +67,9 @@ export interface ClassSpec {
   // The way a shot from `p` goes: a walker's look; a dragon's breath leaves the way its head points.
   aim(p: Shooter): Vec3;
   hitShape(p: Target): HitShape;
+  // The hearts a hit of `damage` landing on `part` costs `p`, the class keeping whatever else it
+  // means (a crystal shattered); without one, a hit costs its damage wherever it lands.
+  hurt?(p: PlayerState, part: HitPart, damage: number): number;
   // The floor points a dead one's body lies over, one per heart it leaves behind (CORPSE_DROP).
   lies(p: PlayerState, structures: Structures): Vec3[];
 }

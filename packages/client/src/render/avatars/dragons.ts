@@ -41,6 +41,9 @@ export interface DragonModel {
   readonly head: MeshData; // round the head, hidden for its rider's view from the eyes
   readonly maw: MeshData | null; // the inside of the mouth, drawn only while the jaw is open
   readonly body: MeshData;
+  // Per weak point of the sim's shape, in its order: the pieces that go when it shatters, the ring's
+  // crown of spikes and the crystal in its underside.
+  readonly weak: readonly { readonly crown: MeshData; readonly plate: MeshData }[];
 }
 
 // What a dragon rises out of the ground through: `at` is over where the body comes out (its x and

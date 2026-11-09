@@ -19,6 +19,14 @@ export function coneAngle(spec: ItemSpec): number {
   return spec.fire.kind === 'cone' ? spec.fire.halfAngle : 0;
 }
 
+// How much of a jet to draw: `density` times the usual particles, `size` times their usual size,
+// and for a flame `core` how much they keep to the middle of the cone (a dragon's breath is thick).
+export interface JetLook {
+  density?: number;
+  size?: number;
+  core?: number;
+}
+
 export function createJet(
   engine: Engine,
   name: string,
@@ -26,10 +34,11 @@ export function createJet(
   element: Element,
   length: number,
   halfAngle: number,
+  look: JetLook = {},
 ): Jet {
   return element === 'fire'
-    ? new FlameJet(engine, name, parent, length, halfAngle)
-    : new IceJet(engine, name, parent, length, halfAngle);
+    ? new FlameJet(engine, name, parent, length, halfAngle, look)
+    : new IceJet(engine, name, parent, length, halfAngle, look);
 }
 
 const COUNT = 16; // crystals in the air in a jet of BASE_LENGTH or shorter; longer ones get more
@@ -48,14 +57,21 @@ class IceJet implements Jet {
   private readonly systems: ParticleSystem[];
   private on = false;
 
-  constructor(engine: Engine, name: string, parent: TransformNode, length: number, halfAngle: number) {
+  constructor(
+    engine: Engine,
+    name: string,
+    parent: TransformNode,
+    length: number,
+    halfAngle: number,
+    { density = 1, size = 1 }: JetLook = {},
+  ) {
     const scene = engine.scene;
-    const stretch = Math.max(1, length / BASE_LENGTH);
+    const stretch = Math.max(1, length / BASE_LENGTH) * size;
     // The systems follow a mesh: an empty one at the nozzle, whose disposal takes them with it.
     const emitter = new Mesh(`${name}-ice`, scene);
     emitter.parent = parent;
     emitter.isPickable = false;
-    const count = Math.ceil(COUNT * stretch);
+    const count = Math.ceil(COUNT * stretch * density);
     const spread = Math.tan(halfAngle);
     const system = (kind: string) => {
       const ps = new ParticleSystem(`${name}-ice-${kind}`, count + 4, scene);
@@ -77,16 +93,16 @@ class IceJet implements Jet {
     };
     const crystals = system('crystals');
     plusSprites(engine, crystals, 2); // white and light grey, under the tint
-    crystals.addSizeGradient(0, START_SIZE);
-    crystals.addSizeGradient(1, START_SIZE + GROWTH * stretch);
+    crystals.addSizeGradient(0, START_SIZE * size);
+    crystals.addSizeGradient(1, START_SIZE * size + GROWTH * stretch);
     // white at the nozzle, sky blue in the middle, blue and fading at the end
     crystals.addColorGradient(0, new Color4(1, 1, 1, 1));
     crystals.addColorGradient(0.4, new Color4(0.6, 0.85, 1, 0.9));
     crystals.addColorGradient(1, new Color4(0.3, 0.6, 1, 0));
     const mist = system('mist');
     mist.particleTexture = mistSprite(engine);
-    mist.addSizeGradient(0, MIST_START);
-    mist.addSizeGradient(1, MIST_START + MIST_GROWTH * stretch);
+    mist.addSizeGradient(0, MIST_START * size);
+    mist.addSizeGradient(1, MIST_START * size + MIST_GROWTH * stretch);
     mist.addColorGradient(0, new Color4(0.85, 0.95, 1, 0.35));
     mist.addColorGradient(0.6, new Color4(0.55, 0.8, 1, 0.3));
     mist.addColorGradient(1, new Color4(0.3, 0.6, 1, 0));

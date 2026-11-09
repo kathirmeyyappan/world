@@ -761,6 +761,7 @@ export class Game {
       showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held ? itemStats(held.id) : '',
       showHint ? held.id : '',
+      held ? ITEMS[held.id].element : null,
     );
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(

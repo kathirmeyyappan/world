@@ -9,6 +9,7 @@ import {
   MAX_HEARTS,
   NAMED_COLORS,
   MAX_BOTS,
+  MAX_PITCH,
   MAX_REWIND_TICKS,
   MOVE_SPEED,
   PICKUP_AREAS,
@@ -925,6 +926,71 @@ test('a bot corpse lingers for 5 s while a browser gets the full death screen', 
 
   for (let i = 0; i < 30 * 9; i++) room.step();
   assert.ok(humanClosed, "the browser's fallback cleanup eventually closed it");
+});
+
+test('/colgera: a crystal heart a ring, shattered by a shot up into its underside and by nothing else, the third shot killing it; it rises in a storm that ices the floor and throws the bystanders', () => {
+  const room = new Room('colgera', { seed: 5, structures: new Structures([]), spawnBot: async () => {} });
+  const a = link();
+  const ida = room.join('alice', a, { room: 'colgera' })!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  const b = link();
+  const idb = room.join('bob', b)!;
+  const bob = room.players.find((p) => p.id === idb)!;
+  room.receive(idb, { t: 'chat', text: '/gun' });
+  bob.pos = { x: alice.pos.x + 6, y: EYE_HEIGHT, z: alice.pos.z };
+  room.receive(ida, { t: 'chat', text: '/colgera' });
+  assert.equal(alice.hearts, 3, 'a crystal a ring');
+  assert.deepEqual(alice.item, { id: 'frostbreath', locked: true, fuel: 7.5 });
+  // The storm: ice on the floor under it, and bob, 6 m off, thrown away and up for two hearts.
+  assert.ok(
+    a.inbox.some((m) => m.t === 'frost' && m.on.length > 100),
+    'the floor iced over',
+  );
+  assert.equal(bob.hearts, 8);
+  assert.ok(bob.vx > 0 && bob.vy > 0 && bob.thrown !== null, `thrown away and up: ${bob.vx}, ${bob.vy}, ${bob.thrown}`);
+  bob.vx = bob.vy = bob.vz = 0;
+  bob.thrown = null;
+
+  // Out and flying level 15 m up (in a gun's reach), the body laid along -x behind the head.
+  const shape = dragonShape('colgera');
+  const up = 15;
+  alice.pos = { x: 0, y: up, z: 0 };
+  const behind = shape.links.reduce<number[]>((at, link) => [...at, (at.at(-1) ?? 0) + link], []);
+  alice.dragon!.spine = behind.flatMap((x) => [-x, up, 0]);
+  alice.dragon!.risen = true;
+  room.step(); // shots are judged where the snapshots had her
+  // A shot straight up into a ring's middle from under it: MAX_PITCH leans the shot a little in
+  // +z, so bob stands that much back; the ring's crystal shatters and a heart goes with it.
+  const reload = () => {
+    for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) room.step();
+  };
+  const under = (link: number) => {
+    const x = -(behind[link - 1] + behind[link]) / 2;
+    const lean = ((up - 0.2 - EYE_HEIGHT) * Math.cos(MAX_PITCH)) / Math.sin(MAX_PITCH);
+    bob.pos = { x, y: EYE_HEIGHT, z: -lean };
+    reload();
+    press(room, idb, -MAX_PITCH);
+  };
+  under(1);
+  assert.equal(alice.hearts, 2);
+  assert.deepEqual(alice.dragon!.shattered, [0]);
+  assert.ok(
+    b.inbox.some((m) => m.t === 'hit' && m.victim === ida && m.damage === 1),
+    'a heart off',
+  );
+  under(1);
+  assert.equal(alice.hearts, 2, 'a shattered one is a hole');
+  // A level shot through the ring's middle from the side, over the crystal: nothing.
+  bob.pos = { x: -(behind[0] + behind[1]) / 2, y: up - 0.2, z: 10 };
+  reload();
+  press(room, idb, 0, false, Math.PI);
+  assert.equal(alice.hearts, 2, 'the shell takes nothing');
+  assert.equal(b.inbox.filter((m) => m.t === 'hit' && m.victim === ida).length, 1);
+  under(6);
+  under(16);
+  assert.equal(alice.hearts, 0);
+  assert.ok(alice.dead, 'the third crystal was the last');
+  assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === ida && m.shooter === idb));
 });
 
 test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts back a second, one roar at a time, no bots; dead, it lies 30 s and leaves hearts along its body', () => {
