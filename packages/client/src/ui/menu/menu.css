@@ -1,0 +1,345 @@
+/* The menu (Menu.ts): its button in the top-left corner, and the card of tabs it opens. */
+#menu-button {
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: rgba(10, 10, 15, 0.65);
+  border: 2px solid rgba(100, 181, 246, 0.6);
+  color: var(--accent);
+  font: 8px/1 var(--pixel);
+  letter-spacing: 1px;
+  text-align: left;
+}
+#menu-button:hover {
+  background: rgba(100, 181, 246, 0.2);
+  border-color: var(--accent);
+}
+#menu-button .gear {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+#menu-button kbd {
+  margin-left: auto;
+  padding: 0 5px;
+  font: 16px/18px var(--mono);
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(100, 181, 246, 0.2);
+  border: 1px solid rgba(100, 181, 246, 0.5);
+}
+
+#menu {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer; /* a click beside the card goes back to the world */
+}
+#menu .card {
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  cursor: default;
+}
+#menu .head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+#menu h1 {
+  font-size: 14px;
+  margin: 0;
+}
+#menu .close {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 12px;
+}
+
+/* The tabs: the one shown is lit, the others are outlines. */
+#menu nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+#menu nav button {
+  flex: 1;
+  padding: 11px 8px;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  border-color: rgba(100, 181, 246, 0.35);
+  box-shadow: none;
+}
+#menu nav button:hover {
+  color: #fff;
+  background: rgba(100, 181, 246, 0.12);
+}
+#menu nav button.on {
+  color: #05070c;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 3px 3px 0 #000;
+}
+
+/* Every tab's panel in one cell, the hidden ones unseen, so the card keeps one height (Menu.select). */
+#menu .body {
+  overflow: auto;
+  min-height: 0;
+  display: grid;
+}
+#menu .panel {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+#menu .panel.off {
+  visibility: hidden;
+}
+#menu h2 {
+  font: 10px var(--pixel);
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+#menu section > * + * {
+  margin-top: 12px;
+}
+#menu h2 + * {
+  margin-top: 0;
+}
+
+/* A toggle: its name, and a button reading what it's on. */
+#menu .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 20px;
+}
+#menu .row + .row {
+  margin-top: 8px;
+}
+#menu .row kbd,
+#menu .footer kbd {
+  margin-left: 10px;
+  padding: 0 5px;
+  font-family: inherit;
+  font-size: 16px;
+  background: rgba(100, 181, 246, 0.2);
+  border: 1px solid rgba(100, 181, 246, 0.5);
+}
+#menu .row .value {
+  min-width: 150px;
+  padding: 10px;
+}
+#menu .row .value.off {
+  color: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* A field: what it's for, a box and its button on one line, and a note under them. */
+#menu .field .name {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+#menu .field .line {
+  display: flex;
+  gap: 8px;
+}
+#menu .field input {
+  flex: 1;
+  min-width: 0;
+}
+#menu .field .go {
+  flex: none;
+  min-width: 76px;
+}
+#menu .field .note {
+  min-height: 20px;
+  margin-top: 4px;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.6);
+}
+#menu .field .note[data-tone='ok'] {
+  color: #81c784;
+}
+#menu .field .note[data-tone='bad'] {
+  color: #ffb74d;
+}
+#menu .field .note[data-tone='hint'] {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* A row of buttons, sharing the width; a link among them looks like a button. */
+#menu .buttons {
+  display: flex;
+  gap: 10px;
+}
+#menu .buttons > * {
+  flex: 1;
+}
+#menu a.button {
+  padding: 12px 8px;
+  text-align: center;
+  text-decoration: none;
+  font: 9px var(--pixel);
+  color: #fff;
+  background: rgba(100, 181, 246, 0.18);
+  border: 2px solid var(--accent);
+  box-shadow: 3px 3px 0 #000;
+}
+#menu a.button:hover {
+  background: rgba(100, 181, 246, 0.35);
+}
+#menu .buttons .danger {
+  background: rgba(255, 59, 78, 0.18);
+  border-color: #ff3b4e;
+}
+#menu .buttons .danger:hover {
+  background: rgba(255, 59, 78, 0.35);
+}
+
+/* A link to hand on: what it's to, the button, the link itself, and a warning. */
+#menu .share .code {
+  margin-bottom: 8px;
+  font-size: 26px;
+  line-height: 1;
+}
+#menu .share .link {
+  margin-top: 10px;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.55);
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+#menu .share .warn {
+  margin-top: 4px;
+  font-size: 16px;
+  color: #ffb74d;
+}
+
+#menu .footer {
+  margin-top: 14px;
+  border-top: 2px solid rgba(100, 181, 246, 0.35);
+  padding-top: 10px;
+  font: 18px var(--mono);
+  color: rgba(255, 255, 255, 0.8);
+  text-align: right;
+  letter-spacing: 1px;
+}
+#menu .footer kbd {
+  display: inline-block;
+  min-width: 26px;
+  text-align: center;
+  margin: 0 6px;
+  padding: 2px 6px 0;
+  background: var(--accent);
+  color: #05070c;
+  font: 13px/16px var(--pixel);
+  border: 0;
+  border-bottom: 3px solid #2f6db3;
+  vertical-align: middle;
+}
+#menu .cursor {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+
+@media (pointer: coarse) {
+  #menu-button {
+    min-height: 34px;
+  }
+  #menu .card {
+    padding: 14px;
+    max-width: 92vw;
+  }
+  #menu .head {
+    margin-bottom: 10px;
+  }
+  #menu h1 {
+    font-size: 12px;
+  }
+  #menu nav {
+    margin-bottom: 12px;
+  }
+  #menu nav button {
+    padding: 10px 6px;
+  }
+  #menu .panel {
+    gap: 14px;
+  }
+  #menu h2 {
+    margin-bottom: 6px;
+  }
+  #menu section > * + * {
+    margin-top: 10px;
+  }
+  #menu .row {
+    font-size: 18px;
+  }
+  #menu .row .value {
+    min-width: 130px;
+    padding: 8px;
+  }
+  #menu .field input {
+    font-size: 20px; /* 16 px and up, or a phone zooms in on it */
+    padding: 6px 10px;
+  }
+  #menu .buttons button,
+  #menu a.button,
+  #menu .share button {
+    padding: 10px 8px;
+  }
+  #menu .share .link {
+    margin-top: 6px;
+    font-size: 14px;
+  }
+}
+/* A phone on its side: a tab's three sections side by side, so the card fits without scrolling. In
+   columns that narrow every toggle's button goes under its name, buttons stack, and the link and
+   the hints are left out. */
+@media (pointer: coarse) and (max-height: 500px) {
+  #menu .card {
+    max-width: min(760px, 94vw);
+    max-height: 94vh;
+  }
+  #menu .panel {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 20px;
+    align-items: start;
+  }
+  #menu .row {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  #menu .row .value {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  #menu .buttons {
+    flex-direction: column;
+  }
+  #menu .share .link,
+  #menu .field .note[data-tone='hint'] {
+    display: none;
+  }
+}

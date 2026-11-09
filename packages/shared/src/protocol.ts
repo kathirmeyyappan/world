@@ -23,7 +23,11 @@ export interface PickupSnapshot {
   ry: number;
 }
 
-export type ClientMessage = { t: 'input'; f: InputFrame } | { t: 'chat'; text: string } | { t: 'ping'; at: number };
+export type ClientMessage =
+  | { t: 'input'; f: InputFrame }
+  | { t: 'chat'; text: string }
+  | { t: 'rename'; name: string } // what to be called from now on; everyone sees it in the next snapshot
+  | { t: 'ping'; at: number };
 
 export type ServerMessage =
   | {
@@ -76,6 +80,8 @@ export function isClientMessage(v: unknown): v is ClientMessage {
     }
     case 'chat':
       return typeof m.text === 'string';
+    case 'rename':
+      return typeof m.name === 'string';
     case 'ping':
       return isNum(m.at);
     default:

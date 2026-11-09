@@ -14,7 +14,10 @@ const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
 const startParams = new URLSearchParams(location.search);
 if (startParams.has('direct')) sessionStorage.setItem('world.direct', '1');
 if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.get('lobby')!);
-if (startParams.get('home')) sessionStorage.setItem('world.home', startParams.get('home')!);
+// Home is the launcher the player came from. Switching rooms goes through the lobby from this page,
+// and the lobby names whatever sent it there, so this host itself is never taken for home.
+const home = startParams.get('home');
+if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
 
 export function rememberRoom(roomId: string, name: string): void {
@@ -32,9 +35,46 @@ export function forgetRoom(): void {
   sessionStorage.removeItem('world.name');
 }
 
+// A new name, kept where the home screen looks for its default and where this tab's reload does.
+export function rememberName(name: string): void {
+  try {
+    localStorage.setItem('world.name', name);
+  } catch {
+    // Storage blocked: the home screen won't offer it next time.
+  }
+  if (sessionStorage.getItem('world.room')) sessionStorage.setItem('world.name', name);
+}
+
 // The launcher the player came from, or this host's own menu when that isn't known.
 export function homeUrl(): string {
   return sessionStorage.getItem('world.home') || location.pathname;
+}
+
+// Out of the room for good: the tab forgets it, so the home page doesn't rejoin it, and goes home.
+export function leaveRoom(): void {
+  forgetRoom();
+  location.href = homeUrl();
+}
+
+// The link into a room: a friend's invite, or with `name`, this player's own way to another room. On
+// Pages or in dev the page itself takes ?room=; the room host's page only works with its session's
+// cookie, so from there the link goes through the lobby, which starts or finds the room's session.
+export function roomLink(roomId: string, name?: string): string {
+  const lobby = lobbyUrl();
+  if (lobby && SERVED_BY_ROOM_HOST) {
+    const query = name ? `?${new URLSearchParams({ name })}` : '';
+    return `${lobby}/join/${encodeURIComponent(roomId)}${query}`;
+  }
+  const url = new URL(location.href);
+  url.search = '';
+  url.searchParams.set('room', roomId);
+  if (name) url.searchParams.set('name', name);
+  return url.toString();
+}
+
+// To another room under `name`: the page goes where that room's link goes, and joins it there.
+export function switchRoom(roomId: string, name: string): void {
+  location.href = roomLink(roomId, name);
 }
 
 export class LobbyUnavailableError extends Error {}

@@ -38,9 +38,9 @@ export class CommandsMenu {
   private open = false;
   private readonly noticeEl = document.createElement('div');
   private noticeTimer = 0;
-  everOpened = false;
   onCommand: ((text: string) => void) | null = null;
   onDraft: ((text: string) => void) | null = null; // opens chat with this typed
+  onOpen: (() => void) | null = null;
 
   constructor() {
     const groups = buildGroups();
@@ -74,8 +74,8 @@ export class CommandsMenu {
   set(open: boolean): void {
     if (open === this.open) return;
     this.open = open;
-    if (open) this.everOpened = true;
     this.el.classList.toggle('hidden', !open);
+    if (open) this.onOpen?.();
   }
 
   // Every tap closes the menu, so whatever a button did is in view. A button sends its command;
@@ -161,7 +161,7 @@ function keyboardHtml(groups: Group[]): string {
         <div class="groups">${sections.join('')}</div>
       </div>
       <div class="footer">
-        <div class="guide">SEE GUIDE IN HOME MENU FOR MORE INFO</div>
+        <div class="guide">MORE IN THE GUIDE: PRESS X FOR THE MENU</div>
         <div class="close-hint">PRESS <kbd>Q</kbd> TO CLOSE<span class="cursor">▮</span></div>
       </div>
     </div>`;
@@ -185,7 +185,7 @@ function touchHtml(groups: Group[]): string {
         <div class="groups">${sections.join('')}</div>
       </div>
       <div class="footer">
-        <div class="guide">SEE GUIDE IN HOME MENU FOR MORE INFO</div>
+        <div class="guide">MORE IN THE GUIDE, IN THE MENU</div>
         <div class="close-hint">TAP TO EXIT<span class="cursor">▮</span></div>
       </div>
     </div>`;

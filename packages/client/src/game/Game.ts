@@ -24,7 +24,6 @@ import {
   itemHelp,
   itemStats,
   lookDirection,
-  parseCommand,
   resolveFire,
   type FrostCell,
   type ItemAction,
@@ -78,6 +77,7 @@ import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
+import { Menu, toggleFullscreen } from '../ui/menu/Menu';
 import { VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
@@ -158,6 +158,7 @@ export class Game {
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
+  private readonly menu: Menu;
   private readonly damageFlash = new EdgeFlash(document.getElementById('damage-flash')!, 160);
   private readonly healFlash = new EdgeFlash(document.getElementById('heal-flash')!, 900);
   private readonly hitNotice = new HitNotice();
@@ -232,15 +233,30 @@ export class Game {
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => {
       conn.send({ t: 'chat', text });
-      if (parseCommand(text)) this.commandHint.markUsed(); // a command, even a bad one, means they know
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
+    // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
+    this.commandsMenu.onOpen = () => this.commandHint.retire();
     this.hud.onChatOpenChange = (open) => {
+      if (open) this.commandHint.retire();
       this.syncBlocked();
       // Sending or cancelling a message is a key press, so the browser lets us take the mouse
       // straight back rather than making the player click into the world again.
       if (!open && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
+    };
+    this.menu = new Menu({
+      roomId,
+      online: conn.kind !== 'local',
+      sfx: this.sfx,
+      view: this.view,
+      rename: (name) => conn.send({ t: 'rename', name }),
+    });
+    // Closing it back into the world is a click or a key press, which lets us take the mouse too.
+    this.menu.onOpenChange = (open, back) => {
+      if (open) this.commandHint.retire();
+      this.syncBlocked();
+      if (!open && back && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
     };
     window.addEventListener('keydown', (e) => {
       if (this.commandsMenu.isOpen) {
@@ -253,6 +269,7 @@ export class Game {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
       else if (e.code === 'KeyC') this.commandsMenu.set(true);
+      else if (e.code === 'KeyX') this.menu.show();
       else if (e.code === 'KeyO') toggleFullscreen();
       else if (e.code === 'KeyZ') this.view.toggle();
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
@@ -431,7 +448,9 @@ export class Game {
   }
 
   private isBlocked(): boolean {
-    return this.dead || this.overlay.isVisible() || this.hud.isChatOpen() || this.commandsMenu.isOpen;
+    return (
+      this.dead || this.overlay.isVisible() || this.hud.isChatOpen() || this.commandsMenu.isOpen || this.menu.isOpen
+    );
   }
 
   private syncBlocked(): void {
@@ -570,7 +589,6 @@ export class Game {
   // The local player died; `how` heads the death screen.
   private die(how: string): void {
     this.dead = true;
-    this.commandHint.markUsed(); // they've been in a fight; no onboarding after the reload
     this.setScoped(false);
     this.syncBlocked();
     this.death.show(how);
@@ -751,10 +769,8 @@ export class Game {
     );
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
-    this.commandHint.update(
-      !!held || !!self.gear || self.boost > 0 || self.avatar !== 'standard' || this.commandsMenu.everOpened,
-      this.dead || this.hud.isChatOpen(),
-    );
+    this.commandHint.update(this.isBlocked());
+    this.menu.sync(self.name);
 
     const stepLoops = this.footsteps.update(
       [
@@ -1019,12 +1035,6 @@ function targets(players: RemotePlayer[]) {
     avatar: p.avatar,
     dragon: p.dragon,
   }));
-}
-
-// The whole page, HUD included, so the browser's own Esc (or O again) comes back out.
-function toggleFullscreen(): void {
-  if (document.fullscreenElement) void document.exitFullscreen();
-  else void document.documentElement.requestFullscreen?.().catch(() => {});
 }
 
 // An angle brought within [-π, π].

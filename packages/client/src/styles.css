@@ -206,10 +206,17 @@ body {
   z-index: 100;
   font-family: var(--mono);
 }
-#hud .panel {
+/* Top left: the menu's button (ui/menu) over the room panel, each as wide as its own content. */
+#corner {
   position: absolute;
   top: 16px;
   left: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+#hud .panel {
   min-width: 180px;
   padding: 10px 12px;
   background: rgba(10, 10, 15, 0.65);
@@ -745,6 +752,12 @@ body {
   color: #fff;
   text-shadow: 2px 2px 0 #000;
 }
+#command-hint .line {
+  display: block;
+}
+#command-hint .line + .line {
+  margin-top: 6px;
+}
 #command-hint .count {
   display: block;
   margin-top: 6px;
@@ -1212,11 +1225,37 @@ body {
   border-bottom: 3px solid #2f6db3;
   vertical-align: middle;
 }
+/* The nudge's keys tap down into their shadow and back up, the second line's a beat after the first. */
 #command-hint kbd {
   font-size: 16px;
   line-height: 20px;
   margin: 0 10px;
   text-shadow: none;
+  border-bottom: 0;
+  box-shadow: 0 3px 0 #2f6db3;
+  animation: key-tap 2s infinite;
+}
+#command-hint .line + .line kbd {
+  animation-delay: 1s;
+}
+#command-hint kbd .gear {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
+@keyframes key-tap {
+  0%,
+  24%,
+  100% {
+    transform: none;
+    box-shadow: 0 3px 0 #2f6db3;
+  }
+  6%,
+  18% {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 #2f6db3;
+    background: #3f8fd8;
+  }
 }
 #info-card .cursor,
 #commands .cursor {
@@ -1484,6 +1523,11 @@ body {
     line-height: 22px;
     letter-spacing: 1px;
   }
+  #command-hint kbd {
+    font-size: 12px;
+    line-height: 16px;
+    margin: 0 8px;
+  }
   #command-hint .count {
     font-size: 12px;
   }
@@ -1495,6 +1539,36 @@ body {
   .heart {
     width: 18px;
     height: 16px;
+  }
+}
+
+/* Narrow and upright, the hearts fill the middle of the top, so the corner starts under them, and on
+   a phone the banners that come and go under the hearts start under the corner. */
+@media (max-width: 660px) and (orientation: portrait) {
+  #corner {
+    top: 76px;
+  }
+}
+@media (pointer: coarse) and (max-width: 660px) and (orientation: portrait) {
+  #area-title {
+    top: 176px;
+  }
+  /* Small enough for each of the nudge's lines to stay on one row. */
+  #command-hint .text {
+    font-size: 13px;
+    line-height: 26px;
+    letter-spacing: 1px;
+  }
+  #command-hint kbd {
+    font-size: 13px;
+    line-height: 16px;
+    margin: 0 8px;
+  }
+  #item-hint {
+    top: 214px;
+  }
+  #command-hint {
+    top: max(22%, 176px);
   }
 }
 

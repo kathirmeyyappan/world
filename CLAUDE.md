@@ -432,6 +432,22 @@ thaws it at once, as it melts frost (see Surfaces and frost). On the client
 `HitFlash` frosts a chilled body over, and `ui/Condition.ts` shows the chilled player the counter
 with the view frosted.
 
+## Menu
+
+The menu (X, or the gear over the room panel) is `packages/client/src/ui/menu/`, and the rest of the
+client knows it only by its hooks: `Menu.ts` builds its button and card, has the keyboard while it's
+open and syncs with the player once a frame; `tabs.ts` is what's in it, rows that read and change what
+other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen), handed in as
+`MenuHooks`; `rows.ts` is the kinds of row (a toggle, a field, buttons, a link to share) and how each
+draws; and `menu.css` is its look. A new setting is a row in `tabs.ts`, and a new kind of row a type and
+a case in `rows.ts`.
+
+A rename is the `rename` message: the Room cleans the name as it does a joining player's, refuses
+another within `RENAME_SECONDS`, and tells the room. Names ride in every snapshot, so the roster, the
+labels over heads and the bots follow; what a name gives (an avatar's or an item's `nameTag` in it) is
+read only when a player joins. Switching rooms is a page load through `roomLink` (`net/lobby.ts`), the
+link an invite is, with the player's name on it.
+
 ## Adding a Modal bot
 
 Keep this section synchronized with `AGENTS.md`. A bot is a headless Python client in
