@@ -98,6 +98,11 @@ export class FrostLayer {
       needAlphaBlending: true,
     });
     this.material.backFaceCulling = false;
+    // Pulled toward the eye in depth: FROST_LIFT off a face is centimetres, and a far-off face's
+    // depth, interpolated across a big triangle, wobbles by more than that, so a crust left at its
+    // lift alone sinks into the floor in patches as the camera moves.
+    this.material.zOffset = -2;
+    this.material.zOffsetUnits = -2;
     this.material.setColor3('fogColor', FOG_COLOR);
     this.material.setVector3('lightDir', LIGHT);
   }

@@ -69,7 +69,9 @@ export class Environment {
   private createGround(): void {
     const scene = this.engine.scene;
     const size = this.span * 6;
-    const ground = MeshBuilder.CreateGround('ground', { width: size, height: size, subdivisions: 1 }, scene);
+    // In tiles: one triangle across the whole world interpolates depth coarsely far off, and the
+    // crusts and sills laid a hair over the floor sink into it.
+    const ground = MeshBuilder.CreateGround('ground', { width: size, height: size, subdivisions: 16 }, scene);
     ground.position.set((this.bounds.minX + this.bounds.maxX) / 2, 0, (this.bounds.minZ + this.bounds.maxZ) / 2);
     ground.isPickable = false;
     const mat = new ShaderMaterial('groundMat', scene, 'worldGround', {

@@ -35,6 +35,7 @@ export type Element = 'fire' | 'ice';
 
 export interface ItemSpec {
   id: ItemId;
+  name: string; // what the hint calls it
   range: number; // metres a shot can reach
   damage: number; // hearts a hit takes; hitscan headshots multiply it (health.ts)
   cooldownTicks: number; // between shots, or between damage ticks while holding
@@ -51,6 +52,7 @@ export interface ItemSpec {
 export const ITEMS: Record<ItemId, ItemSpec> = {
   gun: {
     id: 'gun',
+    name: 'gun',
     range: 20,
     damage: 2,
     cooldownTicks: 7,
@@ -65,6 +67,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   },
   sniper: {
     id: 'sniper',
+    name: 'sniper',
     range: 500,
     damage: 4,
     cooldownTicks: 30,
@@ -79,6 +82,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   },
   flamethrower: {
     id: 'flamethrower',
+    name: 'flamethrower',
     range: 20,
     damage: 0.5,
     cooldownTicks: 5,
@@ -95,6 +99,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   // (constants.ts).
   'ice-blower': {
     id: 'ice-blower',
+    name: 'ice blower',
     range: 20,
     damage: 0.25,
     cooldownTicks: 5,
@@ -110,6 +115,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   // A dragon's: the flamethrower's burn and tank from a mouth, in a cone four times as wide.
   firebreath: {
     id: 'firebreath',
+    name: 'fire breath',
     range: 30,
     damage: 0.5,
     cooldownTicks: 5,
@@ -125,6 +131,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   // Colgera's: the ice blower's chill from a mouth, in the firebreath's cone.
   frostbreath: {
     id: 'frostbreath',
+    name: 'frost breath',
     range: 30,
     damage: 0.5,
     cooldownTicks: 5,

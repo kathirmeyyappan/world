@@ -40,7 +40,7 @@ import {
   statureOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
-import { ITEM_SOUNDS, loopsOf, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
+import { ITEM_SOUNDS, heard, loopsOf, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -862,7 +862,9 @@ export class Game {
     // recording has arrived, and heard again from the same player's next one); the nearest living
     // one's theme plays from its head, until another is THEME_HYSTERESIS nearer, one theme crossing
     // into the next. A theme runs from the first of its dragons rising for as long as any is alive,
-    // so one taken up again is heard from where it has got to, not from the top.
+    // so one taken up again is heard from where it has got to, not from the top. The rider's own
+    // plays flat, as loud as from the boom's length off, so the camera closing in on the head (at a
+    // wall) doesn't swell it.
     const dragons = [
       ...(self.dragon && !this.dead
         ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen, voice: voiceOf(self.avatar) }]
@@ -897,10 +899,11 @@ export class Game {
       ...(playing
         ? [
             {
-              key: 'dragon',
+              key: playing.id === this.myId ? 'own-dragon' : 'dragon',
               id: playing.voice!.theme,
-              at: playing.at,
+              at: playing.id === this.myId ? null : playing.at,
               elapsed: (performance.now() - this.themeClocks.get(playing.voice!.theme)!) / 1000,
+              level: playing.id === this.myId ? heard(playing.voice!.theme, boomLength(self.avatar)) : 1,
             },
           ]
         : []),
@@ -1039,13 +1042,19 @@ export class Game {
 // The hint bar's text. A scope-only weapon leads with the step that's missing; a class with
 // actions of its own (a dragon's roars) has them after the item's.
 function itemHint(id: ItemId, withKeys: boolean, scoped: boolean, cls: ClassSpec): string {
-  const parts = [id.toUpperCase()];
+  const parts = [ITEMS[id].name.toUpperCase()];
   if (ITEMS[id].fireNeedsScope && !scoped)
     parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
   else if (withKeys) parts.push(itemHelp(id, ' · '));
   const own = withKeys ? actionHelp(cls.actions) : '';
   if (own) parts.push(own);
   return parts.join(' · ');
+}
+
+// Metres the camera hangs behind whoever wears `avatar` in third person.
+function boomLength(avatar: RemotePlayer['avatar']): number {
+  const boom = boomOf(avatar);
+  return Math.hypot(boom.back, boom.right, boom.up);
 }
 
 function targets(players: RemotePlayer[]) {

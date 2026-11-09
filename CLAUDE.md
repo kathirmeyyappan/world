@@ -229,7 +229,8 @@ pieces do, so the house's rooms frost where the model draws them. Frost never th
 `MAX_FROST` cells the oldest melt. The client draws every cell as a crust a hair off its face
 (`render/Frost.ts`, from `frostQuad`, merged by region like the structures and rebuilt the frame
 after a change): a translucent glaze with crystals that glint and twinkle, the surface showing
-through it.
+through it, pulled toward the eye in depth (`zOffset`) so a far-off floor's depth, coarse across a
+big triangle, can't swallow a crust a hair over it.
 
 ### Models and doors
 
