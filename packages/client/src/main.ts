@@ -35,9 +35,8 @@ async function main(): Promise<void> {
 
 // The world waits behind one press. It's what lets the browser start sound (Sfx unlocks on it; on a
 // touchscreen only a tap does, never a drag), and with a mouse it takes the pointer, so moving the
-// mouse turns the view from the start. Pressing anywhere on it pushes the button in, and so does
-// Enter or Space; no other key gets past it, since Enter would open the chat behind it, and the
-// typing then holds the focus the press needs.
+// mouse turns the view from the start. Pressing anywhere on it pushes the button in. No key gets
+// past it: Enter would open the chat behind it, and the typing then holds the focus the press needs.
 const START_FADE_MS = 200; // matches #start's transition
 function showStart(canvas: HTMLCanvasElement): void {
   const gate = document.getElementById('start')!;
@@ -46,10 +45,7 @@ function showStart(canvas: HTMLCanvasElement): void {
   gate.addEventListener('pointerdown', () => gate.classList.add('pressed'));
   for (const up of ['pointerup', 'pointercancel', 'pointerleave'])
     gate.addEventListener(up, () => gate.classList.remove('pressed'));
-  const keys = (e: KeyboardEvent) => {
-    e.stopPropagation();
-    if (e.code === 'Enter' || e.code === 'Space') gate.click();
-  };
+  const keys = (e: KeyboardEvent) => e.stopPropagation();
   window.addEventListener('keydown', keys, { capture: true });
   gate.addEventListener(
     'click',
