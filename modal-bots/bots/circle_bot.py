@@ -1,4 +1,5 @@
-"""Orbit the nearest player, or the world origin when alone, tightening the circle on anything in the way."""
+"""Circle the nearest player, or the world origin when alone, clockwise at a fixed radius, and
+when something's in the way find a way round it through the world map instead."""
 
 from __future__ import annotations
 
@@ -23,27 +24,26 @@ from common import (
 )
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
+from common.navigation import Route
 from common.world import EYE_HEIGHT, load_world_map
 
-# The circle's radius in metres: the widest ring round the centre that the map says is walkable
-# all the way round, down the ladder to the floor, and tighter still each time the bot stops making
-# headway on it, easing back out toward that ring while the way round is clear.
-MAX_RADIUS = 12
-MIN_RADIUS = 0.1
-RADII = (12.0, 10.0, 8.0, 6.0, 4.0, 3.0, 2.0, 1.0, 0.5, MIN_RADIUS)
-SHRINK = 0.5  # the radius is multiplied by this on each block
-LOOSEN_RATE = 0.25  # metres per second the radius grows back while the way round is clear
-# A ring point is walkable when a node of the map's 1 m grid lies within this of it, so the ring
-# keeps a node's half-spacing from any edge or wall. The fit is sampled every few ticks.
-RING_REACH = 0.8
-FIT_TICKS = 10
+ORBIT_RADIUS = 12
 RADIAL_CORRECTION_DISTANCE = 6
+# Within this of the ring the bot circles; further off (a wall or the world's edge pushing it
+# off, or the target having moved) it walks to the ring by the map.
+RING_BAND = 3
+# The ring point a detour heads for is this far round the circle from where the bot is, so the
+# way there goes round whatever it stopped at; the next ones round are tried when the map has no
+# way to it.
+DETOUR_STEP = math.radians(60)
+# A detour is planned again when its target has moved this far since.
+REPLAN_DISTANCE = 4
 MOVE_SPEED = 8  # metres per second at full input (MOVE_SPEED in packages/shared/src/sim/constants.ts)
 # Blocked means covering under half the commanded distance over a few ticks: the world's edge or a
 # wall is soaking up the move. The window is long enough that one late snapshot doesn't count.
 BLOCKED_PROGRESS = 0.5
 BLOCKED_TICKS = 4
-# After joining or reversing, the snapshots still show the old input for a round trip, so the
+# After joining or a detour, the snapshots still show the old input for a round trip, so the
 # check waits this long before judging again.
 SETTLE_TICKS = 15
 
@@ -75,7 +75,7 @@ async def run_circle_bot(
     inputs = asyncio.create_task(run_input_loop(controls, stop))
     completed = False
     target_key: str | None = None
-    orbit = Orbit(load_world_map())
+    circler = Circler(load_world_map())
     observed_until = connected_at
 
     log_message(name, "joined room", player_id=connection.id, room=connection.room)
@@ -103,10 +103,8 @@ async def run_circle_bot(
 
                 target = state.nearest_player()
                 center = target.pos if target else Vec3(0, state.me.pos.y, 0)
-                orbit.fit(state.tick, Vec3(center.x, center.y - EYE_HEIGHT, center.z))
-                if orbit.blocked(state.tick, state.me.pos, controls):
-                    log_message(name, "orbit tightened", tick=state.tick, radius=orbit.radius)
-                _steer(state.me, controls, center, orbit.radius)
+                if circler.step(state.tick, state.me, center, controls):
+                    log_message(name, "detour", tick=state.tick, nodes=len(circler.route.path) if circler.route else 0)
                 next_target = target.id if target else "origin"
                 if next_target != target_key:
                     target_key = next_target
@@ -131,6 +129,7 @@ async def run_circle_bot(
         completed=completed,
         observed_seconds=round(observed_seconds, 3),
         target=target_key,
+        detours=circler.detours,
     )
     return {
         "bot": name,
@@ -138,45 +137,98 @@ async def run_circle_bot(
         "observed_seconds": round(observed_seconds, 6),
         "connection_seconds": round(connected_at - connect_started, 6),
         "target": target_key,
+        "detours": circler.detours,
         "last_tick": state.tick,
         "final_state": state.to_dict(),
     }
 
 
-class Orbit:
-    """How wide the circle is: the widest walkable ring, halved as soon as the bot stops making
-    headway, widening again slowly."""
+class Circler:
+    """Circling, or on a detour by the map to a point further round the ring."""
 
     def __init__(self, world: WorldMap) -> None:
         self.world = world
-        self.radius = float(MAX_RADIUS)
-        # The widest ring round the centre that is walkable all the way round.
-        self.cap = float(MAX_RADIUS)
-        self._fit_tick: int | None = None
+        self.stall = Stall()
+        self.route: Route | None = None
+        self.route_center: Vec3 | None = None
+        self.detours = 0
+
+    def step(self, tick: int, me: Player, center: Vec3, controls: Controls) -> bool:
+        """Set the controls for this snapshot; True when a detour was planned."""
+        controls.look_at(me.pos, center)
+        if self.route is not None and self.route_center is not None:
+            moved = math.hypot(center.x - self.route_center.x, center.z - self.route_center.z)
+            if self.route.done or moved > REPLAN_DISTANCE:
+                self.route = None
+                self.stall.reset(tick)
+            elif self.route.stuck(tick):
+                return self._detour(tick, me, center)
+            else:
+                self.route.steer(me.pos, tick, controls)
+                return False
+        distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
+        if abs(distance - ORBIT_RADIUS) > RING_BAND or self.stall.blocked(tick, me.pos, controls):
+            return self._detour(tick, me, center)
+        _orbit(controls, distance)
+        return False
+
+    def _detour(self, tick: int, me: Player, center: Vec3) -> bool:
+        """Plan a way round to the ring; back to circling (and the stall check) when there's none."""
+        self.route = None
+        self.route_center = center
+        self.stall.reset(tick)
+        start = self.world.node_at(_feet(me))
+        if start is None:
+            return False
+        for goal in self.ring_goals(me, center):
+            path = self.world.path(start, goal)
+            if path is not None:
+                self.route = Route(self.world, path, tick)
+                self.detours += 1
+                return True
+        return False
+
+    def ring_goals(self, me: Player, center: Vec3) -> list[int]:
+        """The map's nodes nearest the ring points round the circle from the bot's side, the
+        first a step on in the circling direction, in the order to try them."""
+        bearing = math.atan2(me.pos.x - center.x, me.pos.z - center.z)
+        feet_y = center.y - EYE_HEIGHT
+        goals: list[int] = []
+        for k in range(1, round(2 * math.pi / DETOUR_STEP) + 1):
+            a = bearing + _CIRCLING_SIGN * k * DETOUR_STEP
+            spot = Vec3(center.x + ORBIT_RADIUS * math.sin(a), feet_y, center.z + ORBIT_RADIUS * math.cos(a))
+            node = self.world.node_at(spot)
+            if node is not None and node not in goals:
+                goals.append(node)
+        return goals
+
+
+# Strafing right while facing the centre takes the bot clockwise seen from above, which is the
+# way its bearing from the centre decreases (bearing is atan2(x, z), yaw's frame).
+_CIRCLING_SIGN = -1
+
+
+def _orbit(controls: Controls, distance: float) -> None:
+    """Strafe round the centre, easing in or out toward the ring."""
+    radial = max(-1.0, min(1.0, (distance - ORBIT_RADIUS) / RADIAL_CORRECTION_DISTANCE))
+    controls.move(forward=radial, right=1)
+
+
+class Stall:
+    """Whether the bot has stopped making headway on the move it's commanding."""
+
+    def __init__(self) -> None:
         self._settle_until: int | None = None
         # Where the window started: tick, position, and the commanded move in world metres per
         # second at full speed.
         self._start: tuple[int, float, float, float, float] | None = None
 
-    def fit(self, tick: int, center: Vec3) -> None:
-        """Cap the radius at the widest ring round ``center`` (feet) that the map can walk."""
-        if self._fit_tick is not None and tick - self._fit_tick < FIT_TICKS:
-            return
-        self._fit_tick = tick
-        self.cap = next((r for r in RADII if self._walkable(center, r)), MIN_RADIUS)
-        self.radius = min(self.radius, self.cap)
-
-    def _walkable(self, center: Vec3, radius: float) -> bool:
-        samples = min(32, max(8, math.ceil(2 * math.pi * radius)))
-        for k in range(samples):
-            a = 2 * math.pi * k / samples
-            spot = Vec3(center.x + radius * math.sin(a), center.y, center.z + radius * math.cos(a))
-            if self.world.node_at(spot, RING_REACH) is None:
-                return False
-        return True
+    def reset(self, tick: int) -> None:
+        self._settle_until = tick + SETTLE_TICKS
+        self._start = None
 
     def blocked(self, tick: int, pos: Vec3, controls: Controls) -> bool:
-        """Judge the move commanded so far against where the bot got to; tighten if it stalled."""
+        """Judge the move commanded so far against where the bot got to."""
         if self._settle_until is None:
             self._settle_until = tick + SETTLE_TICKS
         dx, dz = _world_move(controls)
@@ -194,9 +246,7 @@ class Orbit:
         # Metres along the commanded line, scaled up as if the command had been full speed.
         made = ((pos.x - x) * sdx + (pos.z - z) * sdz) / wanted
         if made >= BLOCKED_PROGRESS * MOVE_SPEED * elapsed / TICK_RATE:
-            self.radius = min(self.cap, self.radius + LOOSEN_RATE * elapsed / TICK_RATE)
             return False
-        self.radius = max(MIN_RADIUS, self.radius * SHRINK)
         self._settle_until = tick + SETTLE_TICKS
         return True
 
@@ -212,15 +262,8 @@ def _world_move(controls: Controls) -> tuple[float, float]:
     )
 
 
-def _steer(me: Player, controls: Controls, center: Vec3, radius: float) -> None:
-    controls.look_at(me.pos, center)
-
-    distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
-    radial = max(
-        -1.0,
-        min(1.0, (distance - radius) / RADIAL_CORRECTION_DISTANCE),
-    )
-    controls.move(forward=radial, right=1)
+def _feet(p: Player) -> Vec3:
+    return Vec3(p.pos.x, p.pos.y - EYE_HEIGHT, p.pos.z)
 
 
 def _player_name(state: WorldState, player_id: str) -> str:
