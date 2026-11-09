@@ -1,5 +1,5 @@
 // The window at the top of the menu's PLAY tab: the player's own body, and the map (Map.ts) in a
-// square in its corner, the two swapping places at a click on the small one. The body is their
+// square in its corner, each named, the two swapping places at a click on the small one. The body is their
 // avatar standing on a floor ruled in metres, or a dragon hovering over it, holding what they
 // hold, drawn by the world's own avatar builders, so whatever a skin keeps moving while it stands
 // still (a walker's `extra`, a dragon's wave and wings) moves here as in the world, and what the
@@ -76,14 +76,17 @@ export class Preview {
     this.map = new MenuMap(minimap);
     this.body.className = 'view body';
     this.body.append(this.canvas);
-    // The small view is a button to bring it up: it covers the view, so no drag reaches it.
+    // Each view is named: a title across its top while it fills the window, a caption under its
+    // square while it's small, where it's a button to bring it up (the button covers the square, so
+    // no drag reaches it).
     for (const [view, name] of [
-      [this.body, 'YOU'],
+      [this.body, 'PLAYER VIEW'],
       [this.map.el, 'MAP'],
     ] as const) {
-      const swap = Object.assign(document.createElement('button'), { className: 'swap', textContent: name });
+      const swap = Object.assign(document.createElement('button'), { className: 'swap' });
+      swap.append(Object.assign(document.createElement('span'), { className: 'caption', textContent: name }));
       swap.addEventListener('click', () => this.swap());
-      view.append(swap);
+      view.append(Object.assign(document.createElement('span'), { className: 'title', textContent: name }), swap);
     }
     this.el.append(this.body, this.map.el);
     this.place();
