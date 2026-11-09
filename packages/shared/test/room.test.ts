@@ -1077,7 +1077,7 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   room.receive(ida, { t: 'chat', text: '/standard' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "not while you're dead" });
   for (let i = 0; i < 9 * TICK_RATE; i++) room.step();
-  assert.equal(alice.pos.y, dragonShape('light-dragon').headRadius, 'the head came to rest on the ground');
+  assert.equal(alice.pos.y, dragonShape('light-dragon').underside.head, 'the head came to rest on the ground');
   room.leave(ida);
   for (let i = 0; i < 20 * TICK_RATE; i++) room.step();
   assert.ok(

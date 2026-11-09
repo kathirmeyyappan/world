@@ -185,6 +185,8 @@ const LOOKS = {
       links: Array.from({ length: 20 }, () => 1.875), // 37.5 m of body behind the eyes
       headRadius: 2.5,
       bodyRadius: 1.5,
+      // The chin is 1.05 m under the eyes; the body lies on its belly, its legs in the ground.
+      underside: { head: 1.05, body: 1.5 },
       cruise: 12.5,
       turnRadius: 10,
       heartsEvery: 5,
@@ -215,6 +217,7 @@ const LOOKS = {
       ], // 25.6 m of body behind the eyes: the rig's joints, a ring segment 4.3 to 4.5 m long
       headRadius: 2.25,
       bodyRadius: 2, // the spine is 3.7 m across, the rings 6.5 m
+      underside: { head: 1.35, body: 0.95 }, // the jaw under the eyes; the rings' undersides, flat things
       cruise: 12.5,
       turnRadius: 14,
       heartsEvery: 5,

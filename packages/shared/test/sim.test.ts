@@ -581,14 +581,18 @@ test('a dead dragon drapes over an edge, its body a link apart, rather than stre
   p.dead = true;
   for (let i = 0; i < 300; i++) stepPlayer(p, frame(p.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, ledge);
   const spine = p.dragon!.spine;
-  assert.equal(p.pos.y, 20 + LIGHT.headRadius, 'the head rests on the ledge');
-  assert.equal(spine[1], 20 + LIGHT.bodyRadius, 'and so does the body over it');
+  assert.equal(p.pos.y, 20 + LIGHT.underside.head, 'the head rests on the ledge');
+  assert.equal(spine[1], 20 + LIGHT.underside.body, 'and so does the body over it');
   for (let i = 0; i < spine.length; i += 3) {
     const [lx, ly, lz] = i === 0 ? [p.pos.x, p.pos.y, p.pos.z] : spine.slice(i - 3, i);
-    assert.ok(Math.hypot(spine[i] - lx, spine[i + 1] - ly, spine[i + 2] - lz) <= LINK + 0.01, 'a link apart');
+    // The points are kept to the centimetre, so a link reads up to one long.
+    assert.ok(Math.hypot(spine[i] - lx, spine[i + 1] - ly, spine[i + 2] - lz) <= LINK + 0.015, 'a link apart');
   }
-  assert.equal(spine[spine.length - 2], LIGHT.bodyRadius, 'the tail lies on the ground');
-  assert.ok(spine[10] > LIGHT.bodyRadius + 1 && spine[10] < 20, `the body hangs between: point 3 is ${spine[10]} m up`);
+  assert.equal(spine[spine.length - 2], LIGHT.underside.body, 'the tail lies on the ground');
+  assert.ok(
+    spine[10] > LIGHT.underside.body + 1 && spine[10] < 20,
+    `the body hangs between: point 3 is ${spine[10]} m up`,
+  );
 });
 
 test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {
