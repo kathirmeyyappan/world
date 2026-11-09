@@ -7,7 +7,6 @@
 import {
   ArcRotateCamera,
   Color3,
-  Color4,
   DynamicTexture,
   MeshBuilder,
   StandardMaterial,
@@ -24,23 +23,21 @@ const PIXELS = 1.5; // CSS pixels per rendered one: the world's grid on a mouse 
 const SPIN = 0.25; // radians a second the view turns on its own
 const FROM = Math.PI / 2 - 0.6; // where the view starts: three quarters on, the body's right side and what it holds in view
 const SPIN_PAUSE_MS = 2500; // after a drag, before it turns on its own again
-const ACCENT = new Color3(0.39, 0.71, 0.96);
-// A walker's stage: metres across its floor and cage, at least (a tall body gets a taller one),
-// and how far off the view stands, in stages.
+// A walker's stage: metres across its floor, at least (a tall body gets a wider one), and how
+// far off the view stands, in stages.
 const WALKER_STAGE = 2.6;
-const WALKER_HEADROOM = 1.3; // the cage this many times the body's height
+const WALKER_HEADROOM = 1.3; // the floor this many times the body's height across
 const WALKER_VIEW = 1.7;
-// A dragon's, in its head's radius: it hovers HOVER radii up in a cage CAGE radii across.
+// A dragon's, in its head's radius: it hovers HOVER radii up over a floor STAGE radii across.
 const DRAGON_HOVER = 2.2;
-const DRAGON_CAGE = 6;
-const DRAGON_VIEW = 0.95; // in cages
+const DRAGON_STAGE = 6;
+const DRAGON_VIEW = 0.95; // in stages
 // A hovering head's weave: metres either way and seconds a swing takes, across and up.
 const WEAVE = { x: 0.6, y: 0.45, xSeconds: 7, ySeconds: 4.3 };
 const BODY_ARC = 25; // metres: the radius of the curve a dragon's body is laid on behind its head
-const EDGE = 3; // the cage's edges, in Babylon's world-sized line width: a hair at a stage's distance, whatever its size
 
 interface Stage {
-  size: number; // metres across the floor and cage
+  size: number; // metres across the floor
   centre: Vector3; // what the view looks at: the middle of the body
   radius: number; // metres the view stands off
 }
@@ -51,7 +48,7 @@ export class Preview {
   private engine: Engine | null = null;
   private camera: ArcRotateCamera | null = null;
   private avatar: Avatar | null = null;
-  private stage: (Stage & { floor: Mesh; cage: Mesh }) | null = null;
+  private stage: (Stage & { floor: Mesh }) | null = null;
   private spine: number[] = []; // a dragon's, trailing its head (sim/dragon.ts DragonState)
   private dragging = false;
   private draggedAt = -Infinity;
@@ -134,8 +131,7 @@ export class Preview {
     const camera = this.camera!;
     if (this.stage?.size !== stage.size) {
       this.stage?.floor.dispose(false, true);
-      this.stage?.cage.dispose(false, true);
-      this.stage = { ...stage, ...buildStage(engine, stage.size) };
+      this.stage = { ...stage, floor: buildFloor(engine, stage.size) };
     } else {
       this.stage = { ...this.stage, ...stage };
     }
@@ -206,7 +202,7 @@ export class Preview {
 function stageOf(kind: AvatarId): Stage {
   if (AVATARS[kind].class === 'asian-dragon') {
     const r = dragonShape(kind).headRadius;
-    const size = r * DRAGON_CAGE;
+    const size = r * DRAGON_STAGE;
     return { size, centre: new Vector3(0, r * DRAGON_HOVER, 0), radius: size * DRAGON_VIEW };
   }
   const { top } = AVATARS[kind].hitbox;
@@ -214,8 +210,8 @@ function stageOf(kind: AvatarId): Stage {
   return { size, centre: new Vector3(0, top / 2, 0), radius: size * WALKER_VIEW };
 }
 
-// The stage: a floor ruled in the accent, and a glass cage over it with its edges drawn.
-function buildStage(engine: Engine, size: number): { floor: Mesh; cage: Mesh } {
+// The stage: a floor ruled in the accent.
+function buildFloor(engine: Engine, size: number): Mesh {
   const scene = engine.scene;
   const floor = MeshBuilder.CreateGround('preview-floor', { width: size, height: size }, scene);
   floor.isPickable = false;
@@ -225,21 +221,7 @@ function buildStage(engine: Engine, size: number): { floor: Mesh; cage: Mesh } {
   ruled.specularColor = Color3.Black();
   ruled.disableLighting = true;
   floor.material = ruled;
-  const cage = MeshBuilder.CreateBox('preview-cage', { size }, scene);
-  cage.position.y = size / 2;
-  cage.isPickable = false;
-  const glass = new StandardMaterial('preview-cage', scene);
-  glass.emissiveColor = ACCENT;
-  glass.diffuseColor = Color3.Black();
-  glass.specularColor = Color3.Black();
-  glass.disableLighting = true;
-  glass.alpha = 0.04;
-  glass.backFaceCulling = false;
-  cage.material = glass;
-  cage.enableEdgesRendering();
-  cage.edgesWidth = EDGE;
-  cage.edgesColor = new Color4(ACCENT.r, ACCENT.g, ACCENT.b, 0.7);
-  return { floor, cage };
+  return floor;
 }
 
 // Dark, with a grid of eight in the accent and a brighter rim.
