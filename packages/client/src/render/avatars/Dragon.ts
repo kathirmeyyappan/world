@@ -28,7 +28,7 @@ import type { Engine } from '../Engine';
 import { coneAngle, createJet, type Jet } from '../Jet';
 import { shards } from '../Poof';
 import type { Avatar } from './common';
-import type { DragonLook, DragonModel, MeshData, Rise } from './dragons';
+import type { DragonLook, DragonModel, MeshData, Rise, Wave } from './dragons';
 import { HitFlash } from './HitFlash';
 import { bytes, skinMaterial } from './skinned';
 
@@ -236,19 +236,13 @@ export class DragonAvatar implements Avatar {
     this.place(0, this.at, head.up, head.forward);
     this.updateJaw(m, now, dt, breathing);
     const wave = this.look.wave;
-    const turn = wave ? ((now / 1000 / wave.seconds + this.phase) % 1) * 2 * Math.PI : 0;
+    const spine = wave && !p.dead ? this.waved(d?.spine ?? [], head.up, now, wave) : (d?.spine ?? []);
     let up = head.up;
-    const spine = d?.spine ?? [];
     const along = m.along.map((s) => (s === null ? null : s * this.size));
-    spineFrames(this.at, head.forward, spine, this.links, along, m.neck).forEach(({ bone, at, forward }, n) => {
+    spineFrames(this.at, head.forward, spine, this.links, along, m.neck).forEach(({ bone, at, forward }) => {
       // The back stays up: the up carried along from the head, squared to each bone's forward.
-      up = up.subtract(forward.scale(Vector3.Dot(forward, up)));
-      if (up.lengthSquared() < 1e-6) up = Vector3.Cross(forward, Vector3.Right());
-      up.normalize();
-      const i = n + 1;
-      const rise =
-        wave && !p.dead ? wave.size * Math.min(1, i / wave.from) * Math.sin(turn - (i * 2 * Math.PI) / wave.bones) : 0;
-      this.place(bone, at.add(up.scale(rise)), up, forward);
+      up = carried(up, forward);
+      this.place(bone, at, up, forward);
     });
     this.flap(m, now);
   }
@@ -263,6 +257,29 @@ export class DragonAvatar implements Avatar {
       const pivot = Vector3.FromArray(w.pivot).scale(this.size);
       this.place(w.bone, pivot, new Vector3(-Math.sin(a), Math.cos(a), 0), new Vector3(0, 0, 1));
     }
+  }
+
+  // The spine with the wave down it: each point lifted along the body's up there (the head's,
+  // carried along the spine as the bones' is) by a sine running from the head to the tail, growing
+  // in over the neck so the head stays put.
+  private waved(spine: readonly number[], headUp: Vector3, now: number, wave: Wave): number[] {
+    const turn = ((now / 1000 / wave.seconds + this.phase) % 1) * 2 * Math.PI;
+    const out = [...spine];
+    let up = headUp;
+    let last = this.at;
+    let behind = 0;
+    for (let k = 0, i = 0; k + 2 < spine.length; k += 3, i++) {
+      const point = new Vector3(spine[k], spine[k + 1], spine[k + 2]);
+      const forward = last.subtract(point);
+      if (forward.lengthSquared() > 1e-6) up = carried(up, forward.normalize());
+      behind += this.links[i] ?? 0;
+      const rise = wave.size * Math.min(1, behind / wave.from) * Math.sin(turn - (2 * Math.PI * behind) / wave.length);
+      out[k] += up.x * rise;
+      out[k + 1] += up.y * rise;
+      out[k + 2] += up.z * rise;
+      last = point;
+    }
+    return out;
   }
 
   // The lower jaw hangs from its hinge in the head, dropped open to breathe or roar: turned down
@@ -341,6 +358,14 @@ export class DragonAvatar implements Avatar {
 }
 
 const SCRATCH = new Matrix();
+
+// An up carried along the body: the last one squared to the way the body runs here, and where
+// that leaves nothing (the body doubling straight back), one from its side.
+function carried(up: Vector3, forward: Vector3): Vector3 {
+  const next = up.subtract(forward.scale(Vector3.Dot(forward, up)));
+  if (next.lengthSquared() < 1e-6) return Vector3.Cross(forward, Vector3.Right()).normalize();
+  return next.normalize();
+}
 
 // Which way a bone's back faces and which way it points.
 interface Frame {
