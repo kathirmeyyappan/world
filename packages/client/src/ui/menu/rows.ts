@@ -33,7 +33,7 @@ export interface Stepper {
   step: (by: 1 | -1) => void;
   can: (by: 1 | -1) => boolean; // whether there's a value that way
   auto?: { label: () => string; on: () => boolean; press: () => void };
-  hint?: string; // said under it, dimmed
+  hint?: () => string | null; // a warning under it, while there's one to give
 }
 
 // Something typed and sent, a name or a room code. `note` is what to say under it (an error, or how
@@ -157,7 +157,16 @@ function stepper(row: Stepper): Drawn {
   controls.append(steps);
   line.append(element('span', 'name', row.label), controls);
   el.append(line);
-  if (row.hint) el.append(element('div', 'hint', row.hint));
+  if (row.hint) {
+    const { hint } = row;
+    const warning = element('div', 'hint');
+    refreshers.push(() => {
+      const text = hint() ?? '';
+      if (warning.textContent !== text) warning.textContent = text;
+      warning.hidden = !text;
+    });
+    el.append(warning);
+  }
   const refresh = () => refreshers.forEach((r) => r());
   return { el, refresh };
 }

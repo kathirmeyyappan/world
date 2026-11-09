@@ -157,8 +157,8 @@
 }
 
 /* A stepper: its name, then an AUTO button (lit while the game has the choice) and the value
-   between < and > in one box, and a hint under them. On a phone the controls take a line of their
-   own, under the name, so each button is a fair target. */
+   between < and > in one box, and a warning under them while there is one. On a phone the controls
+   take a line of their own, under the name, so each button is a fair target. */
 #menu .stepper + .stepper,
 #menu .row + .stepper,
 #menu .stepper + .row {
@@ -219,7 +219,7 @@
   margin-top: 2px;
   font-size: 15px;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.38);
+  color: #ffb74d;
   text-align: right;
 }
 

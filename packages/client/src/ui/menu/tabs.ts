@@ -16,6 +16,8 @@ const GLOBAL_ROOM = 'global';
 // How long a rename may take to show in the room before the menu says it didn't: a snapshot comes
 // thirty times a second, so this is a lost message, not a slow one.
 const RENAME_TIMEOUT_MS = 3000;
+// Pixels finer than this are a warning: the fill at 1× can be more than a phone's tab survives.
+const CRASH_BELOW = 1.5;
 
 export interface MenuHooks {
   roomId: string;
@@ -190,7 +192,7 @@ function picture(picture: Picture): Section {
           on: auto,
           press: () => picture.setPixels('auto'),
         },
-        hint: 'SMALLER PIXELS COST MUCH MORE',
+        hint: () => (picture.level < CRASH_BELOW ? 'AT THIS SIZE THE GAME MIGHT CRASH' : null),
       },
       {
         kind: 'stepper',
