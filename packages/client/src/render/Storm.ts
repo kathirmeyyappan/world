@@ -16,6 +16,7 @@ import {
 } from '@babylonjs/core';
 import type { Rise } from './avatars/dragons';
 import type { Engine } from './Engine';
+import { perScene } from './perScene';
 import { plusSprites } from './Poof';
 
 const ACROSS = 40; // metres: wider than the wings
@@ -38,7 +39,6 @@ const FOG_RISE = 0.6; // m/s
 
 let base: HTMLCanvasElement | null = null; // the pool's white and blue, drawn once for every storm
 let grains: HTMLCanvasElement[] | null = null; // the tiles of static, likewise
-let puff: DynamicTexture | null = null;
 
 export class Storm implements Rise {
   private readonly spin: Mesh; // the gale's frame, turning round the pool's axis
@@ -105,7 +105,7 @@ export class Storm implements Rise {
     };
     // The fog: soft white puffs born round the rim, rolling round it slowly and lifting a little.
     this.fog = new ParticleSystem(`${name}-fog`, FOG, scene);
-    this.fog.particleTexture = puff ??= puffTexture(engine);
+    this.fog.particleTexture = puffTexture(engine.scene);
     this.fog.isLocal = true;
     this.fog.emitter = this.roll;
     this.fog.blendMode = ParticleSystem.BLENDMODE_STANDARD;
@@ -219,10 +219,10 @@ function grainTile(): HTMLCanvasElement {
   return canvas;
 }
 
-// A soft puff of fog.
-function puffTexture(engine: Engine): DynamicTexture {
+// A soft puff of fog, every storm's in a scene.
+const puffTexture = perScene((scene) => {
   const size = 64;
-  const texture = new DynamicTexture('storm-puff', size, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
+  const texture = new DynamicTexture('storm-puff', size, scene, false, Texture.BILINEAR_SAMPLINGMODE);
   texture.hasAlpha = true;
   const ctx = texture.getContext() as CanvasRenderingContext2D;
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
@@ -234,4 +234,4 @@ function puffTexture(engine: Engine): DynamicTexture {
   ctx.fillRect(0, 0, size, size);
   texture.update();
   return texture;
-}
+});

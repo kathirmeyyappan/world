@@ -98,6 +98,27 @@
   box-shadow: 3px 3px 0 #000;
 }
 
+/* Your own body (Preview.ts) at the top of the PLAY tab: a box its view fills, dragged round. */
+#menu .preview {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  background: #05070c;
+  border: 2px solid rgba(100, 181, 246, 0.6);
+  cursor: grab;
+}
+#menu .preview:active {
+  cursor: grabbing;
+}
+#menu .preview canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+  image-rendering: pixelated;
+}
+
 /* Every tab's panel in one cell, the hidden ones unseen, so the card keeps one height (Menu.select). */
 #menu .body {
   overflow: auto;
@@ -428,7 +449,8 @@
   }
   #menu .share .link,
   #menu .field .note[data-tone='hint'],
-  #menu .stepper .hint {
+  #menu .stepper .hint,
+  #menu .preview {
     display: none;
   }
   /* A stepper's AUTO button and its steps on one line of a column, a little smaller. */

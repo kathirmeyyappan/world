@@ -3,12 +3,11 @@
 // out. One per dragon; the light itself is drawn once and shared.
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, Texture, type Vector3 } from '@babylonjs/core';
 import type { Engine } from './Engine';
+import { perScene } from './perScene';
 
 const ACROSS = 40; // metres: as wide as Colgera's storm, a pool the whole body comes up through
 const FADE = 0.6; // seconds to open or shut
 const TURN = 0.5; // radians a second
-
-let light: DynamicTexture | null = null;
 
 export class Portal {
   private readonly disc: Mesh;
@@ -21,7 +20,7 @@ export class Portal {
     this.disc.rotation.x = Math.PI / 2;
     this.disc.isPickable = false;
     this.material = new StandardMaterial(name, scene);
-    const texture = (light ??= lightTexture(engine));
+    const texture = lightTexture(scene);
     this.material.diffuseTexture = texture;
     this.material.opacityTexture = texture;
     this.material.emissiveTexture = texture;
@@ -50,10 +49,10 @@ export class Portal {
   }
 }
 
-// Pale gold light: a soft disc with a brighter rim.
-function lightTexture(engine: Engine): DynamicTexture {
+// Pale gold light: a soft disc with a brighter rim, every portal's in a scene.
+const lightTexture = perScene((scene) => {
   const size = 128;
-  const texture = new DynamicTexture('portal-light', size, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
+  const texture = new DynamicTexture('portal-light', size, scene, false, Texture.BILINEAR_SAMPLINGMODE);
   texture.hasAlpha = true;
   const ctx = texture.getContext() as CanvasRenderingContext2D;
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
@@ -67,4 +66,4 @@ function lightTexture(engine: Engine): DynamicTexture {
   ctx.fillRect(0, 0, size, size);
   texture.update();
   return texture;
-}
+});

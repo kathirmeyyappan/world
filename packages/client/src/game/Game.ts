@@ -778,7 +778,13 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.commandHint.update(this.isBlocked());
-    this.menu.sync(self.name);
+    this.menu.sync({
+      name: self.name,
+      avatar: self.avatar,
+      color: self.color,
+      item: held?.id ?? null,
+      gear: self.gear?.id ?? null,
+    });
 
     const stepLoops = this.footsteps.update(
       [

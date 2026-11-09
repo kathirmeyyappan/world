@@ -13,6 +13,7 @@ import {
 import { MOVE_SPEED, WORLD_STRUCTURES, type AvatarId, type ItemAction } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
+import { perScene } from '../perScene';
 
 export interface Avatar {
   readonly id: string;
@@ -58,15 +59,12 @@ export function centreOf(node: TransformNode): Vector3 {
   return min.add(max).scale(0.5);
 }
 
-let shadowTexture: DynamicTexture | null = null;
-
-// Soft radial shadow, shared by everything that casts one.
-export function getShadowTexture(engine: Engine): DynamicTexture {
-  if (shadowTexture) return shadowTexture;
+// Soft radial shadow, shared by everything in a scene that casts one.
+const shadowTexture = perScene((scene) => {
   const size = 64;
-  shadowTexture = new DynamicTexture('shadowTex', size, engine.scene, false, Texture.NEAREST_SAMPLINGMODE);
-  shadowTexture.hasAlpha = true;
-  const ctx = shadowTexture.getContext() as CanvasRenderingContext2D;
+  const texture = new DynamicTexture('shadowTex', size, scene, false, Texture.NEAREST_SAMPLINGMODE);
+  texture.hasAlpha = true;
+  const ctx = texture.getContext() as CanvasRenderingContext2D;
   const g = ctx.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, size / 2);
   g.addColorStop(0, 'rgba(0,0,0,0.75)');
   g.addColorStop(0.6, 'rgba(0,0,0,0.35)');
@@ -74,8 +72,12 @@ export function getShadowTexture(engine: Engine): DynamicTexture {
   ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
-  shadowTexture.update();
-  return shadowTexture;
+  texture.update();
+  return texture;
+});
+
+export function getShadowTexture(engine: Engine): DynamicTexture {
+  return shadowTexture(engine.scene);
 }
 
 export function createShadowBlob(engine: Engine, name: string, diameter: number): Mesh {
