@@ -474,7 +474,14 @@ open and syncs with the player once a frame; `tabs.ts` is what's in it, rows tha
 other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
 an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A
-new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`.
+new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`. The PLAY
+tab opens on the player's own body (`Preview.ts`): a second `Engine` on a canvas of the card's,
+built the first time the tab is seen and drawn only while it is, where the world's own avatar
+builders stand the avatar on a little stage (a dragon hovering over it, its head weaving and its
+body trailing as the sim would keep it), holding what the player holds, so every skin's own idle
+motion runs there too; the view turns on its own and under a drag. A texture a renderer draws
+once and shares (the shadow, a portal's light, a storm's fog) is made per scene
+(`render/perScene.ts`), since a second scene can't use the first's.
 
 The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
 pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows

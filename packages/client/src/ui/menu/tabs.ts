@@ -3,7 +3,16 @@
 // part of the client keeps (the connection for a rename, Sfx's channels, View's perspective, the
 // browser's fullscreen, the Picture's pixel size and frame rate), handed in as MenuHooks, so a new
 // setting is a row here and nothing else has to know about it.
-import { MAX_NAME_LENGTH, MAX_ROOM_ID_LENGTH, RENAME_SECONDS, cleanName, isValidRoomId } from '@world/shared';
+import {
+  MAX_NAME_LENGTH,
+  MAX_ROOM_ID_LENGTH,
+  RENAME_SECONDS,
+  cleanName,
+  isValidRoomId,
+  type AvatarId,
+  type GearId,
+  type ItemId,
+} from '@world/shared';
 import type { Channel, Sfx } from '../../audio/Sfx';
 import type { View } from '../../game/View';
 import { SERVED_BY_ROOM_HOST, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
@@ -26,9 +35,14 @@ export interface MenuHooks {
   rename: (name: string) => void; // asks the room to call this player `name` from now on
 }
 
-// The player as the menu last saw them (Menu.sync, once a frame).
+// The player as the menu last saw them (Menu.sync, once a frame): their name, and the body the
+// PLAY tab's preview draws.
 export interface Me {
   name: string;
+  avatar: AvatarId;
+  color: string;
+  item: ItemId | null;
+  gear: GearId | null;
 }
 
 export function menuTabs(hooks: MenuHooks, me: Me): Tab[] {
