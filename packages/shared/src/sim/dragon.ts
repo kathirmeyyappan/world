@@ -66,6 +66,10 @@ export interface DragonShape {
   links: readonly number[];
   headRadius: number; // metres: the head's sphere, what walls, undersides and headshots meet
   bodyRadius: number; // metres: the body's, round each spine point
+  // Metres the model reaches below the eyes and below a spine point: where a dead one's points come
+  // to rest over whatever is under them, so the body lies on the ground rather than hanging at its
+  // radius over it (a body wider than it is deep, or a head whose eyes sit high in it).
+  underside: { head: number; body: number };
   cruise: number; // m/s flat out
   turnRadius: number; // metres: the tightest arc the head flies
   heartsEvery: number; // spine points between the hearts a dead one leaves, after the one at its head
@@ -96,6 +100,7 @@ export function dragonShape(avatar: AvatarId): DragonShape {
     links: look.dragon.links.map(grow),
     headRadius: grow(look.dragon.headRadius),
     bodyRadius: grow(look.dragon.bodyRadius),
+    underside: { head: grow(look.dragon.underside.head), body: grow(look.dragon.underside.body) },
     turnRadius: grow(look.dragon.turnRadius),
     weak: look.dragon.weak.map((w) => ({ ...w, below: grow(w.below), r: grow(w.r) })),
   };
@@ -311,7 +316,7 @@ function settle(p: PlayerState, d: DragonState, body: DragonShape, dt: number, s
   const points: Vec3[] = [p.pos];
   for (let i = 0; i < d.spine.length; i += 3) points.push({ x: d.spine[i], y: d.spine[i + 1], z: d.spine[i + 2] });
   const rests = points.map(
-    (q, i) => structures.groundAt(q.x, q.z, q.y) + (i === 0 ? body.headRadius : body.bodyRadius),
+    (q, i) => structures.groundAt(q.x, q.z, q.y) + (i === 0 ? body.underside.head : body.underside.body),
   );
   p.vy = 0;
   for (let i = 0; i < points.length; i++) points[i].y = Math.max(rests[i], points[i].y - SINK_SPEED * dt);
