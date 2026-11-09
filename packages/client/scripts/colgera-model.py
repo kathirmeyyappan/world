@@ -14,9 +14,10 @@ the rig's bind pose has it and turns the skeleton into the dragon's (sim/dragon.
 at each joint along the body, so the sim's links are the rig's joint spacings (a ring segment's
 long, the spine's short; the shape goes in AVATARS by hand, from what this prints), and a bone per
 link at its middle, lying along it, carrying every piece hung on the joint at the link's head (a
-ring segment's shell, crown, arms and wings with its stretch of spine, so they turn as one piece);
-the head and everything on it (the eyes, the scissor mandibles) is bone 0, at the eyes, and the jaw
-hangs on it at its hinge. The rig's bind pose is the body drawn out to its full length; the game
+ring segment's shell, crown and clavicles with its stretch of spine, so they turn as one piece);
+the head and everything on it (the eyes, the scissor mandibles) is bone 0, at the eyes, the jaw
+hangs on it at its hinge, and each wing (four pairs, the arm's segments and that side of the pair's
+membrane) hangs on its link's bone at its shoulder, for the renderer to flap. The rig's bind pose is the body drawn out to its full length; the game
 carries Colgera with the thin stretches of spine between the rings telescoped, so those links are
 THIN of the rig's spacing and each piece moves up the body with its link, nesting as the rig means
 them to (each overlaps the next), while the rings keep their length; that telescoped body is the
@@ -50,6 +51,7 @@ THIN = 0.55  # how much of the rig's spacing a link of thin spine keeps; a ring'
 # its own hangs on, down the rig) to the next.
 CHAIN = [f"Spine_{i}" for i in range(1, 20)] + ["Tail_1", "Tail_2"]
 RINGS = {"A": "Spine_1", "B": "Spine_6", "C": "Spine_16"}  # each ring segment starts at its joint
+WINGS = ["A", "B", "C", "D"]  # the wing pairs, head to tail; Arm_X_1_L is the left one's shoulder
 HEAD_JOINTS = {"Head", "Scissor_L", "Scissor_R"}  # one rigid piece with the eyes
 PAIRED = {"Tail_1_L": "Tail_1", "Tail_1_R": "Tail_1", "Tail_2_L": "Tail_2", "Tail_2_R": "Tail_2"}
 PAIRED_JOINT = {"Tail_1": "Tail_1_L", "Tail_2": "Tail_2_L"}  # the tail's joints come in pairs, side by side
@@ -160,18 +162,55 @@ def main(folder: str) -> None:
         "the crowns on the rings"
     )
 
-    # The bones: the eyes, the jaw at its hinge, and one per link at its middle, lying along the
-    # straight body, every piece bound rigidly to its own. Rows of position, right, up, forward.
+    # The bones: the eyes, the jaw at its hinge, one per link at its middle, lying along the
+    # straight body, and one per wing at its shoulder, hung on its link's; every piece bound
+    # rigidly to its own. Rows of position, right, up, forward.
     axes = np.array([1.0, 0, 0, 0, 1, 0, 0, 0, 1])
     jaw_hinge = frame(joints["Jaw"][:3, 3])[0]
     frames = [np.r_[0, 0, 0, axes], np.r_[jaw_hinge, axes]]
+    parent_bones: list[int | None] = [None, 0]
     for k in range(len(links)):
         frames.append(np.r_[0, 0, -middle[k], axes])
+        parent_bones.append(None)
+    wings = []
+    for pair, letter in enumerate(WINGS):
+        for side, sign in (("L", -1), ("R", 1)):
+            shoulder_joint = f"Arm_{letter}_1_{side}"
+            link = link_of(shoulder_joint, [shoulder_joint], parents)
+            assert link is not None
+            shoulder = frame(joints[shoulder_joint][:3, 3])[0]
+            shoulder[2] += rig_middle[link] - middle[link]  # telescoped up the body with its link
+            assert shoulder[0] * sign > 0, f"{shoulder_joint}'s shoulder on its own side"
+            wings.append(
+                {
+                    "bone": len(frames),
+                    "pivot": shoulder - frames[link + 2][:3],
+                    "side": sign,
+                    "pair": pair,
+                    "pieces": f"Arm_{letter}_",
+                    "membrane": f"Wing_{letter}_",
+                    "suffix": f"_{side}",
+                }
+            )
+            frames.append(np.r_[shoulder, axes])
+            parent_bones.append(link + 2)
     frames = np.array(frames)
     bones = len(frames)
     for part in parts:
         part["bones"] = np.zeros((len(part["positions"]), bones))
         part["bones"][:, 1 if part["name"].startswith("Jaw") else 0 if part["link"] is None else part["link"] + 2] = 1
+        for wing in wings:
+            # An arm's segments are the wing's; the pair's membrane goes to the side each of its
+            # vertices is weighted to.
+            if part["name"].startswith(wing["pieces"]) and part["name"].split("_")[3] == wing["suffix"][1:]:
+                part["bones"][:] = 0
+                part["bones"][:, wing["bone"]] = 1
+            elif part["name"].startswith(wing["membrane"]):
+                on_side = [j.endswith(wing["suffix"]) for j in part["joints"]]
+                mine = part["weights"][:, on_side].sum(axis=1) > 0.5
+                part["bones"][mine] = 0
+                part["bones"][mine, wing["bone"]] = 1
+    assert all(len(p["name"].split("_")) == 5 for p in parts if p["name"].startswith("Arm_")), "Arm_X_n_side_Shape"
     # The mouth: the lower jaw's tip, the farthest forward it goes on the middle line.
     jaw = np.vstack([p["positions"] for p in parts if p["name"].startswith("Jaw")])
     jaw = jaw[np.abs(jaw[:, 0]) < 0.2]
@@ -212,8 +251,7 @@ def main(folder: str) -> None:
     def vec(v: np.ndarray) -> str:
         return "[" + ", ".join(f"{c + 0.0:.4f}".replace("-0.0000", "0.0000") for c in v) + "]"
 
-    along_bones = ["0.0000", "null"] + [f"{m:.4f}" for m in middle]
-    parent_bones = ["null", "0"] + ["null"] * len(links)
+    along_bones = ["0.0000", "null"] + [f"{m:.4f}" for m in middle] + ["null"] * len(wings)
     lines = [
         "// Generated by packages/client/scripts/colgera-model.py from the Tears of the Kingdom Colgera rip; don't edit.",
         "// A dragon model (render/avatars/dragons.ts, DragonModel): skinned meshes in the dragon's frame (metres, the",
@@ -223,15 +261,22 @@ def main(folder: str) -> None:
         "// per vertex, the two bones it follows (Uint8) and the first's share of it (Uint8 of 255); all base64. A bone",
         "// sits on the spine `along` metres behind the eyes (bone 0 at them, the rest each at the middle of a link of",
         "// the sim's spine, carrying the pieces on it), or hangs on its `parent` with `along` null (the jaw, on the",
-        "// head); `neck` is how many bones behind the head lie on the neck's curve (none: the pieces are rigid), `jaw`",
-        "// the lower jaw's bone. `frames` is each bone's rest pose in index order (its position, then its right, up and",
-        "// forward unit vectors), and `mouth` the lower jaw's tip, where the breath starts.",
+        "// head; each wing, on its link's bone at the shoulder, listed in `wings` with its pivot in that bone's frame,",
+        "// its side and its pair); `neck` is how many bones behind the head lie on the neck's curve (none: the pieces",
+        "// are rigid), `jaw` the lower jaw's bone. `frames` is each bone's rest pose in index order (its position, then",
+        "// its right, up and forward unit vectors), and `mouth` the lower jaw's tip, where the breath starts.",
         "export const COLGERA_MODEL = {",
         f"  mouth: {vec(mouth)},",
         "  neck: 0,",
         "  jaw: 1,",
         f"  along: [{', '.join(along_bones)}],",
-        f"  parent: [{', '.join(parent_bones)}],",
+        f"  parent: [{', '.join('null' if b is None else str(b) for b in parent_bones)}],",
+        "  wings: [",
+        *(
+            f"    {{ bone: {w['bone']}, pivot: {vec(w['pivot'])}, side: {w['side']}, pair: {w['pair']} }},"
+            for w in wings
+        ),
+        "  ],",
         "  frames: [",
         *(f"    {', '.join(f'{c + 0.0:.4f}' for c in f)}," for f in frames),
         "  ],",
@@ -302,6 +347,8 @@ def read_parts(doc: ET.Element, link_of_piece: Callable[[str, list[str]], int | 
                 "uvs": geometry["uvs"],
                 "triangles": geometry["triangles"],
                 "material": materials[geometry["material"]],
+                "joints": skin["joints"],
+                "weights": weights,
             }
         )
     return parts

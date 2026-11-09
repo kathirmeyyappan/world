@@ -44,6 +44,15 @@ export interface DragonModel {
   // Per weak point of the sim's shape, in its order: the pieces that go when it shatters, the ring's
   // crown of spikes and the crystal in its underside.
   readonly weak: readonly { readonly crown: MeshData; readonly plate: MeshData }[];
+  // The wings: each a bone hung on its link's bone at the shoulder (`pivot`, in that bone's
+  // frame), which the renderer flaps; `side` is 1 for a right wing and -1 for a left, `pair` which
+  // pair down the body it belongs to, the first 0.
+  readonly wings: readonly {
+    readonly bone: number;
+    readonly pivot: readonly number[];
+    readonly side: 1 | -1;
+    readonly pair: number;
+  }[];
 }
 
 // What a dragon rises out of the ground through: `at` is over where the body comes out (its x and

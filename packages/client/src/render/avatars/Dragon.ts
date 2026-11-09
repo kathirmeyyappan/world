@@ -3,8 +3,9 @@
 // hung on those for the parts that move on their own (the lower jaw). The head points where the sim
 // says (the look, as far as the neck lets it) and the neck bends evenly after it; the body is drawn
 // along the spine, its back kept up the way the head's is, with the skin's slow wave running down
-// it so it never hangs still. Its breath (the look's own hold item, fire or frost) pours from the
-// open mouth while it's breathing, and it lifts its head and opens its mouth to roar: on its
+// it so it never hangs still, and its wings, where it has them, beating slowly. Its breath (the
+// look's own hold item, fire or frost) pours from the open mouth while it's breathing, and it
+// lifts its head and opens its mouth to roar: on its
 // rider's key, and as it rises out of the ground, through whatever its skin rises through, open
 // until the whole of it is out. A weak point the sim says is shattered loses its pieces here in a
 // burst of shards. What shots have to hit is the class's (sim/dragon.ts), not anything drawn here.
@@ -43,6 +44,11 @@ const CRY_SECONDS = 3.7;
 // The mouth: radians the jaw drops when open, and seconds it takes to open or shut.
 const JAW_OPEN = 0.8;
 const JAW_EASE = 0.15;
+// The wings: radians each swings up and down about the body from its shoulder, seconds a beat
+// takes, and how much of a beat the last pair is behind the first (the pairs between evenly so).
+const FLAP_LIFT = 0.3;
+const FLAP_SECONDS = 2.8;
+const FLAP_SPREAD = 0.4;
 // The breath: how many times a hand weapon's particles, how many times their size, how much a
 // flame's keep to the middle of the cone, and seconds it keeps pouring after the last tick that
 // said so, over a tick the sim ran without the rider's frame.
@@ -229,6 +235,18 @@ export class DragonAvatar implements Avatar {
         wave && !p.dead ? wave.size * Math.min(1, i / wave.from) * Math.sin(turn - (i * 2 * Math.PI) / wave.bones) : 0;
       this.place(bone, at.add(up.scale(rise)), up, forward);
     });
+    this.flap(m, now);
+  }
+
+  // Every wing swung about its shoulder, up and down about the body's line, the pairs beating
+  // one behind the other down the body; a dead one's hang where they are.
+  private flap(m: DragonModel, now: number): void {
+    const pairs = Math.max(2, ...m.wings.map((w) => w.pair + 1));
+    for (const w of m.wings) {
+      const beat = now / 1000 / FLAP_SECONDS + this.phase - (w.pair / (pairs - 1)) * FLAP_SPREAD;
+      const a = this.dead ? 0 : w.side * FLAP_LIFT * Math.sin(2 * Math.PI * beat);
+      this.place(w.bone, Vector3.FromArray(w.pivot), new Vector3(-Math.sin(a), Math.cos(a), 0), new Vector3(0, 0, 1));
+    }
   }
 
   // The lower jaw hangs from its hinge in the head, dropped open to breathe or roar: turned down
