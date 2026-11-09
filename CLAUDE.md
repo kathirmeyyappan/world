@@ -485,9 +485,11 @@ time, and a rate past the display's is the display's. The pixel size is auto
 unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a phone goes at most a
 step finer than the grid it has always had, to 2), steps coarser when a fifth of the last two seconds' frames came late (held
 past the tick they were due on, as `Engine.run` judges it against the display's tick, the
-shortest gap it has seen between its runs), and tries a step finer once it has kept up for twenty
-seconds, keeping it if it holds ten seconds and otherwise backing off twice as long before the
-next try, from a minute up to eight and then every eight minutes for the rest of the session. The
+median of the last second's gaps between its runs), and tries a step finer once it has kept up for
+twenty seconds. A step that keeps up through two seconds of frames after settling is kept and the
+next finer one tried at once, so a strong machine climbs from the coarsest to the finest in about
+twenty seconds; one that falls behind steps back and waits twice as long before the
+next try (a change of frame rate starts the judging afresh, trying finer as soon as it keeps up), from a minute up to eight and then every eight minutes for the rest of the session. The
 tries never stop, and one that fails costs the player a few seconds of dropped frames (three
 seconds settling after the resize, then a second of frames to judge) before auto backs off: the
 price of finding the finest size the machine holds, paid only by a machine that can't go finer.

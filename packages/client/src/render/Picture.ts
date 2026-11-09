@@ -2,8 +2,9 @@
 // the browser blows the frame up to) and how many frames a second it's drawn, each a setting the
 // menu shows and the device keeps. The pixel size is auto unless one is chosen: it starts fine on a
 // mouse device and coarse on a touch one, steps coarser whenever the machine falls behind the frame
-// rate, and tries a step finer again once it has kept up for a while, so a weak machine settles
-// where it keeps up and a strong one gets the detail. The tries never stop: one that fails costs
+// rate, and tries a step finer again once it has kept up for a while, and straight on to the next
+// while each holds, so a weak machine settles where it keeps up and a strong one climbs to the
+// detail in seconds. The tries never stop: one that fails costs
 // the player a few seconds of dropped frames before auto backs off, and the next waits twice as
 // long, from a minute up to eight, then every eight minutes for the rest of the session. That is
 // the price of finding the finest size the machine can hold, and it is paid only by a machine
@@ -27,7 +28,6 @@ const PAUSE_MS = 500; // an interval this long is the tab asleep, not a slow fra
 const BACK_OFF = 0.2; // the share of late frames in the window that steps coarser
 const KEPT_UP = 0.02; // at most this share late (a GC pause or two) counts as keeping up
 const PROBE_AFTER_MS = 20000; // kept up this long, auto tries a step finer
-const PROBE_PROVED_MS = 10000; // a finer step that holds this long is kept for good
 const RETRY_MS = 60000; // after a step finer fails, how long before trying again; doubles each time
 const RETRY_MAX_MS = 8 * 60000; // and never longer: a machine that can't go finer is tried this often for good
 const PIXELS_KEY = 'world.pixels';
@@ -43,7 +43,7 @@ export class Picture {
   private late: boolean[] = [];
   private holdUntil: number; // until when auto leaves the level alone
   private probeAt = Infinity; // when auto may next try a step finer
-  private probing: number | null = null; // when the step finer under trial began
+  private probing = false; // the level drawn is a step finer under trial
   private retryMs = RETRY_MS;
 
   constructor(touch: boolean, now: number) {
@@ -89,7 +89,7 @@ export class Picture {
     this.pixels = pixels;
     this.current = pixels === 'auto' ? this.settled : pixels;
     this.late = [];
-    this.probing = null;
+    this.probing = false;
     this.retryMs = RETRY_MS;
     this.holdUntil = Infinity; // auto picks up again from the next frame (frame() sets it)
     keep(PIXELS_KEY, String(pixels));
@@ -100,7 +100,12 @@ export class Picture {
     const rate = beside(FRAME_RATES, this.frameRate, by);
     if (rate === undefined) return;
     this.frameRate = rate;
+    // A new rate is a new question: auto judges it afresh, free to try finer at once if it keeps up.
     this.late = [];
+    this.probing = false;
+    this.retryMs = RETRY_MS;
+    this.probeAt = 0;
+    this.holdUntil = Infinity;
     keep(FRAME_RATE_KEY, String(rate));
   }
 
@@ -110,7 +115,8 @@ export class Picture {
 
   // A frame drawn `interval` ms after the last, `late` when the machine held it past the tick it was
   // due on (Engine.run judges that). Auto judges the last WINDOW frames: a share of late ones steps
-  // coarser, next to none for a while earns a try at finer.
+  // coarser, next to none for a while earns a try at finer, and a step finer that keeps up through a
+  // whole window is kept and tries the next one at once.
   frame(now: number, interval: number, late: boolean): void {
     if (this.pixels !== 'auto') return;
     if (this.holdUntil === Infinity) this.holdUntil = now + SETTLE_MS;
@@ -122,18 +128,22 @@ export class Picture {
     const at = PIXEL_SIZES.indexOf(this.current);
     if (share > BACK_OFF && at < PIXEL_SIZES.length - 1) {
       // Falling behind: a step coarser. A step finer under trial failed, so the next try waits longer.
-      if (this.probing !== null) this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
-      this.probing = null;
+      if (this.probing) this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
+      this.probing = false;
       this.probeAt = now + this.retryMs;
       this.step(at + 1, now);
-    } else if (this.probing !== null && now - this.probing > PROBE_PROVED_MS) {
-      this.probing = null;
-      this.retryMs = RETRY_MS;
-      this.probeAt = now + PROBE_AFTER_MS;
-    } else if (share <= KEPT_UP && now >= this.probeAt && this.current > this.finest) {
-      this.probing = now;
+    } else if (this.late.length < WINDOW) {
+      return; // a whole window before a step finer is judged to hold
+    } else if (share <= KEPT_UP && (this.probing || now >= this.probeAt) && this.current > this.finest) {
+      if (this.probing) this.retryMs = RETRY_MS;
+      this.probing = true;
       this.probeAt = Infinity;
       this.step(at - 1, now);
+    } else if (this.probing) {
+      // Held, but with little to spare or nothing finer to try: kept, and tried past again later.
+      this.probing = false;
+      this.retryMs = RETRY_MS;
+      this.probeAt = now + PROBE_AFTER_MS;
     }
   }
 
