@@ -43,25 +43,30 @@ body {
 }
 
 /* Anything that scrolls (the menu's and the commands' bodies, the cube card) has the rail of
-   ui/scrollRail.ts down the outside of its frame in place of the browser's own bar: a thick track
-   in the card's colours, with the arrows at its ends lit while there's more that way, the bottom
-   one blinking. On a phone it's slimmer, up against the frame, in the margin the cards leave. */
+   ui/scrollRail.ts in place of the browser's own bar: a thick track in the card's colours standing
+   inside the frame's edge, in the room the card's right padding keeps for it, clear of the text and
+   buttons, with the arrows at its ends lit while there's more that way, the bottom one blinking.
+   On a phone it's slimmer, as the padding is. */
 #menu .body,
 #commands .body,
-#info-card {
+#info-card .card-scroll {
   scrollbar-width: none;
 }
 #menu .body::-webkit-scrollbar,
 #commands .body::-webkit-scrollbar,
-#info-card::-webkit-scrollbar {
+#info-card .card-scroll::-webkit-scrollbar {
   display: none;
+}
+#commands .card {
+  position: relative;
+  padding-right: 30px;
 }
 .scroll-rail {
   position: absolute;
+  right: 3px;
   display: none;
   flex-direction: column;
-  width: 22px;
-  margin-left: 10px;
+  width: 18px;
   z-index: 1;
   pointer-events: auto;
   cursor: default;
@@ -71,14 +76,14 @@ body {
 }
 .scroll-rail .arrow {
   flex: none;
-  height: 24px;
+  height: 22px;
   padding: 0;
-  font: 10px/20px var(--pixel);
+  font: 9px/18px var(--pixel);
   text-align: center;
   color: rgba(100, 181, 246, 0.3);
   background: var(--panel);
   border: 2px solid var(--accent);
-  box-shadow: 3px 3px 0 #000;
+  box-shadow: 2px 2px 0 #000;
   cursor: pointer;
 }
 .scroll-rail .arrow.more {
@@ -101,7 +106,7 @@ body {
   margin: -2px 0; /* under the arrows' borders, so track and arrows share one edge */
   background: #05070c;
   border: 2px solid var(--accent);
-  box-shadow: 3px 0 0 #000;
+  box-shadow: 2px 0 0 #000;
 }
 .scroll-rail .thumb {
   position: absolute;
@@ -114,18 +119,21 @@ body {
   cursor: grabbing;
 }
 @media (pointer: coarse) {
+  #commands .card {
+    padding-right: 22px;
+  }
   .scroll-rail {
-    width: 14px;
-    margin-left: 3px;
+    right: 2px;
+    width: 12px;
   }
   .scroll-rail .arrow {
-    height: 18px;
-    font-size: 7px;
-    line-height: 14px;
-    box-shadow: 2px 2px 0 #000;
+    height: 16px;
+    font-size: 6px;
+    line-height: 12px;
+    box-shadow: 1px 1px 0 #000;
   }
   .scroll-rail .track {
-    box-shadow: 2px 0 0 #000;
+    box-shadow: 1px 0 0 #000;
   }
   .scroll-rail .thumb {
     left: 1px;
@@ -1272,9 +1280,11 @@ body {
 }
 #info-card {
   position: relative;
-  width: min(680px, 90vw);
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 94vw);
   max-height: 84vh;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--panel);
   border: 3px solid var(--accent);
   box-shadow:
@@ -1300,6 +1310,12 @@ body {
   color: #05070c;
   font: 10px var(--pixel);
   letter-spacing: 1px;
+}
+/* The bar stays put; the rest scrolls under it, with room at its right for the rail. */
+#info-card .card-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 10px;
 }
 #info-card .card-body {
   display: flex;
@@ -1905,7 +1921,7 @@ body {
   } /* a tap anywhere, backdrop included, closes it */
   #commands .card {
     padding: 14px;
-    max-width: 90vw;
+    max-width: 92vw;
   }
   #commands .groups {
     gap: 10px;

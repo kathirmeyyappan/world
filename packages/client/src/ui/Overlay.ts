@@ -22,7 +22,7 @@ export class Overlay {
     });
     onTap(this.overlay, () => this.hide());
     if (IS_TOUCH) this.card.querySelector('.close-hint')!.innerHTML = 'TAP TO CLOSE<span class="cursor">▮</span>';
-    railScroll(this.card);
+    railScroll(this.card.querySelector<HTMLElement>('.card-scroll')!, this.card);
   }
 
   show(info: CubeContent): void {

@@ -1,21 +1,20 @@
-// A bar down the outside of anything that scrolls: a rail beside its frame, as tall as the part in
-// view, with a thumb for the part in view and arrows at its ends, the bottom one blinking while
-// there's more below. It stands in for the browser's own bar (hidden: a Mac's comes and goes, a
-// phone's lies over the page), there whenever there's more than fits and taking nothing from the
-// frame. The thumb drags, a press on the track pages that way, an arrow steps, and the wheel and
-// the keys scroll as before. `frame` is the bordered box round `el` (or `el` itself); the rail
-// goes in the frame's parent, which must be positioned (the overlays the cards sit in are fixed)
-// and is told nothing of a press on the rail (its taps close the cards).
+// A bar beside anything that scrolls: a rail inside the right edge of its frame, as tall as the
+// part in view, with a thumb for the part in view and arrows at its ends, the bottom one blinking
+// while there's more below. It stands in for the browser's own bar (hidden: a Mac's comes and goes,
+// a phone's lies over the page), there whenever there's more than fits, in the room the frame's
+// right padding keeps for it (styles.css), clear of what's in the frame. The thumb drags, a press
+// on the track pages that way, an arrow steps, and the wheel and the keys scroll as before.
+// `frame` is the bordered box round `el`, positioned, whose scrolling part `el` is; the frame's
+// overlay is told nothing of a press on the rail (its taps close the cards).
 const STEP = 80; // pixels an arrow press scrolls
 const MIN_THUMB = 16; // pixels: a thumb for a long page still has something to take hold of
 
-export function railScroll(el: HTMLElement, frame: HTMLElement = el): void {
+export function railScroll(el: HTMLElement, frame: HTMLElement): void {
   const rail = document.createElement('div');
   rail.className = 'scroll-rail';
   rail.innerHTML =
     '<button class="arrow up">▲</button><div class="track"><div class="thumb"></div></div><button class="arrow down">▼</button>';
-  const parent = frame.parentElement!;
-  parent.append(rail);
+  frame.append(rail);
   const track = rail.querySelector<HTMLElement>('.track')!;
   const thumb = rail.querySelector<HTMLElement>('.thumb')!;
   const [up, down] = rail.querySelectorAll<HTMLElement>('.arrow');
@@ -27,9 +26,7 @@ export function railScroll(el: HTMLElement, frame: HTMLElement = el): void {
     if (!on) return;
     const f = frame.getBoundingClientRect();
     const e = el.getBoundingClientRect();
-    const p = parent.getBoundingClientRect();
-    rail.style.left = `${f.right - p.left - parent.clientLeft}px`;
-    rail.style.top = `${e.top - p.top - parent.clientTop}px`;
+    rail.style.top = `${e.top - f.top - frame.clientTop}px`;
     rail.style.height = `${e.height}px`;
     const room = track.clientHeight;
     const size = Math.max(MIN_THUMB, (room * el.clientHeight) / el.scrollHeight);
