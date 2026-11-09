@@ -1,0 +1,142 @@
+// How the picture is drawn: the size of its pixels (CSS pixels per rendered one, the retro grid
+// the browser blows the frame up to) and how many frames a second it's drawn, each a setting the
+// menu shows and the device keeps. The pixel size is auto unless one is chosen: it starts fine on a
+// mouse device and coarse on a touch one, steps coarser whenever the machine falls behind the frame
+// rate, and tries a step finer again once it has kept up for a while (backing off longer each time
+// that fails), so a weak machine settles where it keeps up and a strong one gets the detail.
+
+export const PIXEL_SIZES = [1, 1.5, 2, 2.5, 3] as const; // the choices, and the steps auto moves along
+export type PixelSize = (typeof PIXEL_SIZES)[number];
+export const FRAME_RATES = [60, 30] as const;
+export type FrameRate = (typeof FRAME_RATES)[number];
+
+// Where auto starts and the finest it will try: a phone keeps the coarse grid it has always had.
+const AUTO_START: PixelSize = 1.5;
+const AUTO_FINEST: PixelSize = 1;
+const TOUCH_START: PixelSize = 2.5;
+const TOUCH_FINEST: PixelSize = 2.5;
+const STARTUP_MS = 6000; // the world is still streaming in: its hitches say nothing about the machine
+const SETTLE_MS = 3000; // after a step, before its frames count (the resize itself hitches)
+const WINDOW = 120; // frames judged at a time: two seconds at 60
+const LATE = 1.5; // a frame this many times the frame rate's interval late is a dropped one
+const PAUSE_MS = 500; // an interval this long is the tab asleep, not a slow frame
+const BACK_OFF = 0.2; // the share of late frames in the window that steps coarser
+const KEPT_UP = 0.02; // at most this share late (a GC pause or two) counts as keeping up
+const PROBE_AFTER_MS = 20000; // kept up this long, auto tries a step finer
+const PROBE_PROVED_MS = 10000; // a finer step that holds this long is kept for good
+const RETRY_MS = 60000; // after a step finer fails, how long before trying again; doubles each time
+const RETRY_MAX_MS = 8 * 60000;
+const PIXELS_KEY = 'world.pixels';
+const FRAME_RATE_KEY = 'world.fps';
+
+export class Picture {
+  pixels: PixelSize | 'auto' = 'auto';
+  frameRate: FrameRate = 60;
+  private readonly start: PixelSize;
+  private readonly finest: PixelSize;
+  private current: PixelSize; // what's drawn now: the choice, or where auto has got to
+  private late: boolean[] = [];
+  private holdUntil: number; // until when auto leaves the level alone
+  private probeAt = Infinity; // when auto may next try a step finer
+  private probing: number | null = null; // when the step finer under trial began
+  private retryMs = RETRY_MS;
+
+  constructor(touch: boolean, now: number) {
+    this.start = touch ? TOUCH_START : AUTO_START;
+    this.finest = touch ? TOUCH_FINEST : AUTO_FINEST;
+    try {
+      const pixels = Number(localStorage.getItem(PIXELS_KEY));
+      if (isPixelSize(pixels)) this.pixels = pixels;
+      const rate = Number(localStorage.getItem(FRAME_RATE_KEY));
+      if (isFrameRate(rate)) this.frameRate = rate;
+    } catch {
+      // no storage: the defaults
+    }
+    this.current = this.pixels === 'auto' ? this.start : this.pixels;
+    this.holdUntil = now + STARTUP_MS;
+    this.probeAt = now + STARTUP_MS + PROBE_AFTER_MS;
+  }
+
+  // CSS pixels per rendered pixel, as drawn now.
+  get level(): PixelSize {
+    return this.current;
+  }
+
+  // What the menu's row says: a choice, or auto with where it has got to.
+  describePixels(): string {
+    return this.pixels === 'auto' ? `AUTO (${this.current}×)` : `${this.pixels}×`;
+  }
+
+  // The next choice round: auto, then each size finest first.
+  cyclePixels(): void {
+    const at = this.pixels === 'auto' ? -1 : PIXEL_SIZES.indexOf(this.pixels);
+    this.setPixels(at + 1 >= PIXEL_SIZES.length ? 'auto' : PIXEL_SIZES[at + 1]);
+  }
+
+  setPixels(pixels: PixelSize | 'auto'): void {
+    this.pixels = pixels;
+    this.current = pixels === 'auto' ? this.start : pixels;
+    this.late = [];
+    this.probing = null;
+    this.retryMs = RETRY_MS;
+    this.holdUntil = Infinity; // auto picks up again from the next frame (frame() sets it)
+    keep(PIXELS_KEY, String(pixels));
+  }
+
+  toggleFrameRate(): void {
+    this.frameRate = this.frameRate === 60 ? 30 : 60;
+    this.late = [];
+    keep(FRAME_RATE_KEY, String(this.frameRate));
+  }
+
+  // A frame drawn `interval` ms after the last, against the `target` ms the frame rate allows.
+  // Auto judges the last WINDOW frames: a share of late ones steps coarser, next to none for a
+  // while earns a try at finer.
+  frame(now: number, interval: number, target: number): void {
+    if (this.pixels !== 'auto') return;
+    if (this.holdUntil === Infinity) this.holdUntil = now + SETTLE_MS;
+    if (now < this.holdUntil || interval > PAUSE_MS) return;
+    this.late.push(interval > target * LATE);
+    if (this.late.length > WINDOW) this.late.shift();
+    if (this.late.length < WINDOW / 2) return;
+    const share = this.late.filter(Boolean).length / this.late.length;
+    const at = PIXEL_SIZES.indexOf(this.current);
+    if (share > BACK_OFF && at < PIXEL_SIZES.length - 1) {
+      // Falling behind: a step coarser. A step finer under trial failed, so the next try waits longer.
+      if (this.probing !== null) this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
+      this.probing = null;
+      this.probeAt = now + this.retryMs;
+      this.step(at + 1, now);
+    } else if (this.probing !== null && now - this.probing > PROBE_PROVED_MS) {
+      this.probing = null;
+      this.retryMs = RETRY_MS;
+      this.probeAt = now + PROBE_AFTER_MS;
+    } else if (share <= KEPT_UP && now >= this.probeAt && this.current > this.finest) {
+      this.probing = now;
+      this.probeAt = Infinity;
+      this.step(at - 1, now);
+    }
+  }
+
+  private step(to: number, now: number): void {
+    this.current = PIXEL_SIZES[to];
+    this.late = [];
+    this.holdUntil = now + SETTLE_MS;
+  }
+}
+
+function isPixelSize(n: number): n is PixelSize {
+  return (PIXEL_SIZES as readonly number[]).includes(n);
+}
+
+function isFrameRate(n: number): n is FrameRate {
+  return (FRAME_RATES as readonly number[]).includes(n);
+}
+
+function keep(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // not kept
+  }
+}

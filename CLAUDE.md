@@ -466,10 +466,22 @@ with the view frosted, and the hint bar under an ice weapon is frosted white (`H
 The menu (X, or the gear over the room panel) is `packages/client/src/ui/menu/`, and the rest of the
 client knows it only by its hooks: `Menu.ts` builds its button and card, has the keyboard while it's
 open and syncs with the player once a frame; `tabs.ts` is what's in it, rows that read and change what
-other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen), handed in as
-`MenuHooks`; `rows.ts` is the kinds of row (a toggle, a field, buttons, a link to share) and how each
-draws; and `menu.css` is its look. A new setting is a row in `tabs.ts`, and a new kind of row a type and
-a case in `rows.ts`.
+other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
+handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a field, buttons, a link to share)
+and how each draws; and `menu.css` is its look. A new setting is a row in `tabs.ts`, and a new kind of
+row a type and a case in `rows.ts`.
+
+The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
+pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows
+it up with nearest sampling, the retro grid) and its frame rate (60 or 30; `Engine.run` draws a
+frame only when one is due, so 30 is every other tick of a 60 Hz display). The pixel size is auto
+unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a phone keeps the grid
+it has always had), steps coarser when a fifth of the last two seconds' frames came late against
+the frame rate, and tries a step finer once it has kept up for twenty seconds, keeping it if it
+holds ten seconds and otherwise backing off twice as long before the next try; the world's first
+seconds and the hitch of a resize don't count, nor does a sleeping tab. Fill is what this game
+spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of the pixel size, so
+2 is a quarter of the cost of 1.
 
 A rename is the `rename` message: the Room cleans the name as it does a joining player's, refuses
 another within `RENAME_SECONDS`, and tells the room. Names ride in every snapshot, so the roster, the

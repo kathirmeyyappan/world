@@ -1,5 +1,6 @@
 // Babylon engine, scene, lights and post-processing. The retro look comes from rendering at a
-// reduced internal resolution and letting the browser upscale with nearest-neighbour filtering.
+// reduced internal resolution and letting the browser upscale with nearest-neighbour filtering;
+// how reduced, and how many frames a second, are the picture's settings (Picture.ts).
 import {
   Color3,
   Color4,
@@ -11,10 +12,11 @@ import {
   Scene,
   Vector3,
 } from '@babylonjs/core';
+import { Picture } from './Picture';
 
-// CSS pixels per internal pixel. 2 keeps the chunky look on a 1080p screen without turning text
-// on cubes into mush; touch devices render smaller still.
-const PIXEL_SCALE = window.matchMedia('(pointer: coarse)').matches ? 2.5 : 2;
+// A frame due this close to the display's next tick is drawn on it rather than the one after, so
+// a frame rate the display's doesn't divide (60 on 144 Hz) rounds to the nearest it can do.
+const TICK_SLACK_MS = 3;
 
 export const FOG_COLOR = new Color3(0.02, 0.02, 0.05);
 export const BASE_FOG_DENSITY = 0.012; // EXP2: players fade out past ~50 m
@@ -23,10 +25,12 @@ export class Engine {
   readonly engine: BabylonEngine;
   readonly scene: Scene;
   readonly glowLayer: GlowLayer;
+  readonly picture = new Picture(window.matchMedia('(pointer: coarse)').matches, performance.now());
+  private drawnAt = performance.now(); // when the last frame was drawn
 
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new BabylonEngine(canvas, false, { preserveDrawingBuffer: false, stencil: true });
-    this.engine.setHardwareScalingLevel(PIXEL_SCALE);
+    this.engine.setHardwareScalingLevel(this.picture.level);
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(FOG_COLOR.r, FOG_COLOR.g, FOG_COLOR.b, 1);
     this.scene.fogMode = Scene.FOGMODE_EXP2;
@@ -63,9 +67,20 @@ export class Engine {
     window.addEventListener('resize', () => this.engine.resize());
   }
 
+  // Every tick of the display, a frame when the frame rate allows one: the game steps by the time
+  // since the last frame drawn, the picture's auto pixel size judges the pace, and the frame is drawn
+  // at whatever size that has settled on.
   run(update: (dt: number) => void): void {
     this.engine.runRenderLoop(() => {
-      update(this.engine.getDeltaTime() / 1000);
+      const now = performance.now();
+      const target = 1000 / this.picture.frameRate;
+      if (now - this.drawnAt < target - TICK_SLACK_MS) return;
+      const interval = now - this.drawnAt;
+      this.drawnAt = now;
+      this.picture.frame(now, interval, target);
+      if (this.engine.getHardwareScalingLevel() !== this.picture.level)
+        this.engine.setHardwareScalingLevel(this.picture.level);
+      update(interval / 1000);
       this.scene.render();
     });
   }
