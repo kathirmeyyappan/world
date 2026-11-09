@@ -142,13 +142,16 @@ def swatch(colour: tuple[int, int, int], vertices: np.ndarray) -> Region:
     return (Image.new("RGB", (SWATCH, SWATCH), colour), vertices, 0.5, 0.5, 0, 0)
 
 
-def textured(image: Image.Image, uv: np.ndarray, vertices: np.ndarray, texture_size: int) -> Region:
+def textured(
+    image: Image.Image, uv: np.ndarray, vertices: np.ndarray, texture_size: int, flat_ok: bool = True
+) -> Region:
     """A texture's region for the `vertices` that use it: the image, no bigger than `texture_size`
     on its long side, tiled over the whole-number range their coordinates span (so repeats bake in
     and nothing wraps; a span that fits one tile but straddles a whole number gets the image rolled
-    round to it instead), or a swatch when it is one colour all over."""
+    round to it instead), or, with `flat_ok`, a swatch when it is one colour all over (a second
+    atlas laid out like the first, a glow map say, keeps every region the same size instead)."""
     extrema = image.getextrema()
-    if all(low == high for low, high in extrema):
+    if flat_ok and all(low == high for low, high in extrema):
         return swatch(tuple(low for low, _ in extrema), vertices)
     if max(image.size) > texture_size:
         shrink = texture_size / max(image.size)

@@ -36,9 +36,10 @@ import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
-from glb import Region, decimate, pack_regions, swatch, textured
+from glb import SWATCH, Region, decimate, pack_regions, swatch, textured
 from PIL import Image
 
 CLIENT = Path(__file__).resolve().parents[1]
@@ -57,26 +58,63 @@ PAIRED = {"Tail_1_L": "Tail_1", "Tail_1_R": "Tail_1", "Tail_2_L": "Tail_2", "Tai
 PAIRED_JOINT = {"Tail_1": "Tail_1_L", "Tail_2": "Tail_2_L"}  # the tail's joints come in pairs, side by side
 NECK_LINK = {"Neck": 0}  # the neck sits on the first link, from the eyes to Spine_1
 HEAD_MESH = ("Head", "Jaw", "Eyeball", "Eye_P", "Scissor")  # hidden for its rider's view from the eyes
-# What each material is painted with: an image of the rip (and how much brighter it's drawn: ice in
-# the night sky, not slate), or a plain colour.
-TEXTURES: dict[str, tuple[str, float] | tuple[int, int, int]] = {
-    "Mt_Enemy_DungeonBoss_Rito_Body": ("Enemy_DungeonBoss_Rito_Body_Alb.png", 1.3),
-    "Mt_Enemy_DungeonBoss_Rito_Body_Red": ("Enemy_DungeonBoss_Rito_Body_Alb.png", 1.3),
-    "Mt_Enemy_DungeonBoss_Rito_Body_Black": ("Enemy_DungeonBoss_Rito_Body_Alb.png", 1.3),
-    "Mt_Enemy_DungeonBoss_Rito_Wing_A": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
-    "Mt_Enemy_DungeonBoss_Rito_Wing_B": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
-    "Mt_Enemy_DungeonBoss_Rito_Wing_C": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
-    "Mt_Enemy_DungeonBoss_Rito_Wing_D": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
-    "Mt_Spike_01": ("Weakpoint/Enemy_DungeonBoss_Rito_Spike_Alb.png", 1.9),
-    "Mt_Weakpoint": ("Weakpoint/Enemy_DungeonBoss_Rito_Weakpoint_Alb.png", 1.2),  # the crystal's dark face
-    "Mt_Weakpoint_RedA": (190, 40, 255),  # its glowing heart
-    "Mt_Weakpoint_RedB": (235, 130, 255),
-    "Mt_Eye_OutSide": (36, 40, 52),  # the sockets
-    "Mt_Eye": (255, 226, 120),  # the eyes glow
-    "Mt_Eye_1": (255, 226, 120),
-    "Mt_Eye_2": (255, 226, 120),
-    "Mt_Eye_3": (255, 226, 120),
-    "Mt_Eye_4": (255, 226, 120),
+
+
+class Look(NamedTuple):
+    """How a material is painted: an image of the rip, drawn `lift` times as bright (ice in the
+    night sky, not slate) and tinted, over `under` where it's clear, or a plain colour; and what of
+    it shines in the dark (the glow atlas): an image (its emission map, over black) or a colour,
+    `shine` times as bright (a colour's worth, to tint it), or nothing."""
+
+    paint: str | tuple[int, int, int]
+    lift: float = 1.0
+    tint: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    under: tuple[int, int, int] = (0, 0, 0)
+    glow: str | tuple[int, int, int] | None = None
+    shine: float | tuple[float, float, float] = 1.0
+
+
+# How much of its own paint a skin with a glow map gives off as light, baked into the map (a skin
+# without one lights itself by render/avatars/skinned.ts GLOW, through its paint, which leaves it
+# all but unshaded): enough that the lit side is as bright as that and the shaded side a little
+# dimmer, so the body has some shape.
+SELF_LIGHT = 0.75
+BODY_ALB = "Enemy_DungeonBoss_Rito_Body_Alb.png"
+BODY_EMM = "Enemy_DungeonBoss_Rito_Body_Emm.png"  # the veins of light through the ice
+WING_ALB = "Enemy_DungeonBoss_Rito_Wing_Alb.png"
+ICE_ALB = "Weakpoint/Enemy_DungeonBoss_Rito_Weakpoint_Ice_Alb.png"  # the plates over the rings' hollows
+EYE = "Cmn_Enemy_DungeonBoss_Eye_Emc.png"  # the eyes' light, a slit of orange
+SOCKET = (36, 40, 52)
+CRYSTAL = (190, 40, 255)  # the weak point's glowing heart
+VEINS = (0.35, 0.5, 0.65)  # the veins shine this much, in ice blue: a glimmer, not a lamp
+EYES = 1.5  # the eyes shine past white, so they bloom
+TEXTURES: dict[str, Look] = {
+    "Mt_Enemy_DungeonBoss_Rito_Body": Look(BODY_ALB, lift=1.3, glow=BODY_EMM, shine=VEINS),
+    "Mt_Enemy_DungeonBoss_Rito_Body_Red": Look(BODY_ALB, lift=1.3, glow=BODY_EMM, shine=VEINS),
+    "Mt_Enemy_DungeonBoss_Rito_Body_Black": Look(BODY_ALB, lift=1.3, glow=BODY_EMM, shine=VEINS),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_A": Look(WING_ALB, lift=1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_B": Look(WING_ALB, lift=1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_C": Look(WING_ALB, lift=1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_D": Look(WING_ALB, lift=1.3),
+    "Mt_Spike_01": Look(
+        "Weakpoint/Enemy_DungeonBoss_Rito_Spike_Alb.png",
+        lift=1.9,
+        glow="Weakpoint/Enemy_DungeonBoss_Rito_Spike_Emm.png",
+        shine=VEINS,
+    ),
+    "Mt_Weakpoint": Look("Weakpoint/Enemy_DungeonBoss_Rito_Weakpoint_Alb.png", lift=1.2),  # the crystal's dark face
+    "Mt_Weakpoint_RedA": Look(CRYSTAL, glow=CRYSTAL, shine=1.2),
+    "Mt_Weakpoint_RedB": Look((235, 130, 255), glow=(235, 130, 255), shine=1.2),
+    # The ice over each hollow, top and bottom: the rip's slate-grey marble lifted to a pale
+    # lavender, with the crystal's glow showing through it (the client draws it translucent).
+    "Mt_Weakpoint_Down_00": Look(ICE_ALB, lift=2.6, tint=(1.0, 0.96, 1.08)),
+    "Mt_Weakpoint_Up_00": Look(ICE_ALB, lift=2.6, tint=(1.0, 0.96, 1.08)),
+    "Mt_Eye_OutSide": Look(SOCKET),  # the sockets
+    "Mt_Eye": Look(EYE, under=SOCKET, glow=EYE, shine=EYES),
+    "Mt_Eye_1": Look(EYE, under=SOCKET, glow=EYE, shine=EYES),
+    "Mt_Eye_2": Look(EYE, under=SOCKET, glow=EYE, shine=EYES),
+    "Mt_Eye_3": Look(EYE, under=SOCKET, glow=EYE, shine=EYES),
+    "Mt_Eye_4": Look(EYE, under=SOCKET, glow=EYE, shine=EYES),
 }
 TEXTURE_SIZE = 512
 # What each piece is cut down to, by the start of its name: triangles, or the share of its own it
@@ -95,6 +133,7 @@ BUDGET = {
     "Tail": 0.7,
     "Crown": 0.3,
     "Plate": 0.35,
+    "Ice": 0.5,
 }
 
 
@@ -112,9 +151,23 @@ def main(folder: str) -> None:
     spikes = [p for p in read_parts(crown, lambda name, _: None) if p["name"].startswith("Spike_")]
     plate = ET.parse(rip / "Weakpoint/colgera_weakpoint.dae").getroot()
     crystals = read_parts(plate, lambda name, _: None)
+    # The ice sealing each hollow, under the crystal and over it, on the ring's Ice nodes: the rip
+    # has each at three stages of cracking (00 whole), the cracks a mesh of their own, left out.
+    ice = {}
+    for face in ("Down", "Up"):
+        doc_ice = ET.parse(rip / f"Weakpoint/colgera_weakpoint_{face.lower()}.dae").getroot()
+        ice[face] = [
+            p for p in read_parts(doc_ice, lambda name, _: None) if p["material"] == f"Mt_Weakpoint_{face}_00-material"
+        ]
+        assert ice[face], f"no whole ice plate for the {face} of a hollow"
     for ring, joint in RINGS.items():
         link = CHAIN.index(joint) + 1
-        for kind, pieces, node in (("Crown", spikes, f"Spike_{ring}"), ("Plate", crystals, f"Weakpoint_{ring}")):
+        for kind, pieces, node in (
+            ("Crown", spikes, f"Spike_{ring}"),
+            ("Plate", crystals, f"Weakpoint_{ring}"),
+            ("IceDown", ice["Down"], f"Ice_{ring}_Down"),
+            ("IceUp", ice["Up"], f"Ice_{ring}_Up"),
+        ):
             at = joints[node][:3, 3]
             for piece in pieces:
                 parts.append(
@@ -160,6 +213,12 @@ def main(folder: str) -> None:
     assert next(p for p in parts if p["name"] == "Clavicle_A_L_Shape")["positions"][:, 0].mean() < 0, "the left to -x"
     assert all(p["positions"][:, 1].min() > 0 for p in parts if p["name"].startswith("Crown")), (
         "the crowns on the rings"
+    )
+    assert all(p["positions"][:, 1].mean() < -0.2 for p in parts if p["name"].startswith("IceDown")), (
+        "the ice under each hollow"
+    )
+    assert all(p["positions"][:, 1].mean() > 0.2 for p in parts if p["name"].startswith("IceUp")), (
+        "the ice over each hollow"
     )
 
     # The bones: the eyes, the jaw at its hinge, one per link at its middle, lying along the
@@ -225,24 +284,28 @@ def main(folder: str) -> None:
                 decimate(part, keep)
     print(f"decimated {total} triangles to {sum(len(p['triangles']) for p in parts)}")
 
-    # One atlas: each image of the rip once, for every vertex painted with it, and a swatch per
-    # plain colour.
+    # Two atlases laid out alike: each image of the rip once, for every vertex painted with it,
+    # and a swatch per plain colour; and the glow map, what shines in the dark (the eyes, the
+    # crystals, the veins) over SELF_LIGHT of the paint, region for region.
     uv = np.vstack([p["uvs"] for p in parts])
     material = np.concatenate([np.repeat(p["material"], len(p["positions"])) for p in parts])
     regions: list[Region] = []
-    by_image: dict[tuple[str, float], list[int]] = {}
+    glow_regions: list[Region] = []
+    by_look: dict[Look, list[int]] = {}
     for m in np.unique(material):
-        look = TEXTURES[m.removesuffix("-material")]
-        vertices = np.flatnonzero(material == m)
-        if len(look) == 2:
-            by_image.setdefault(look, []).extend(vertices.tolist())
+        by_look.setdefault(TEXTURES[m.removesuffix("-material")], []).extend(np.flatnonzero(material == m).tolist())
+    for look, vertices in by_look.items():
+        paint = painted(rip, look)
+        shine = shining(rip, look, paint.size)
+        if isinstance(look.paint, str):
+            regions.append(textured(paint, uv, np.array(vertices), TEXTURE_SIZE, flat_ok=False))
+            glow_regions.append(textured(shine, uv, np.array(vertices), TEXTURE_SIZE, flat_ok=False))
         else:
-            regions.append(swatch(look, vertices))
-    for (file, lift), vertices in by_image.items():
-        image = Image.open(rip / file).convert("RGB")
-        image = Image.fromarray(np.clip(np.asarray(image, dtype=np.float64) * lift, 0, 255).astype(np.uint8))
-        regions.append(textured(image, uv, np.array(vertices), TEXTURE_SIZE))
+            regions.append(swatch(look.paint, np.array(vertices)))
+            glow_regions.append(swatch(shine.getpixel((0, 0)), np.array(vertices)))
     atlas, uv = pack_regions(regions, uv)
+    glow_atlas, _ = pack_regions(glow_regions, uv)
+    assert glow_atlas.size == atlas.size, "the glow map laid out like the atlas"
     base = 0
     for part in parts:
         part["uvs"] = uv[base : base + len(part["uvs"])]
@@ -282,7 +345,7 @@ def main(folder: str) -> None:
         "  ],",
         *mesh_lines("head", [p for p in parts if p["name"].startswith(HEAD_MESH)]),
         "  maw: null,",
-        *mesh_lines("body", [p for p in parts if not p["name"].startswith((*HEAD_MESH, "Crown", "Plate"))]),
+        *mesh_lines("body", [p for p in parts if not p["name"].startswith((*HEAD_MESH, "Crown", "Plate", "Ice"))]),
         "  weak: [",
         *(
             line
@@ -291,6 +354,9 @@ def main(folder: str) -> None:
                 "    {",
                 *mesh_lines("crown", [p for p in parts if p["name"].startswith(f"Crown_{ring}_")], "      "),
                 *mesh_lines("plate", [p for p in parts if p["name"].startswith(f"Plate_{ring}_")], "      "),
+                *mesh_lines(
+                    "ice", [p for p in parts if p["name"].startswith((f"IceDown_{ring}_", f"IceUp_{ring}_"))], "      "
+                ),
                 "    },",
             )
         ),
@@ -303,6 +369,9 @@ def main(folder: str) -> None:
     texture_out.parent.mkdir(parents=True, exist_ok=True)
     atlas.quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(texture_out, optimize=True)
     print(f"wrote {texture_out} ({atlas.size[0]}x{atlas.size[1]}, {texture_out.stat().st_size} bytes)")
+    glow_out = texture_out.with_name("colgera-glow.png")
+    glow_atlas.quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(glow_out, optimize=True)
+    print(f"wrote {glow_out} ({glow_out.stat().st_size} bytes)")
 
     # What the sim's shape needs (AVATARS, sim/avatars.ts), in metres.
     print("links:", ", ".join(f"{link:.2f}" for link in links), f"({links.sum():.1f} m of body)")
@@ -313,6 +382,32 @@ def main(folder: str) -> None:
         f"head {np.ptp(head[:, 0]):.1f} m across; the body's widest piece {widest:.1f} m; wingspan {wings:.1f} m;"
         f" the mouth at {np.round(mouth, 2)}"
     )
+
+
+def painted(rip: Path, look: Look) -> Image.Image:
+    """A look's paint as an image: the rip's, over `under` where it's clear, lifted and tinted; a
+    plain colour as a swatch-sized square of it."""
+    if isinstance(look.paint, tuple):
+        return Image.new("RGB", (SWATCH, SWATCH), look.paint)
+    image = Image.open(rip / look.paint).convert("RGBA")
+    under = Image.new("RGBA", image.size, (*look.under, 255))
+    flat = np.asarray(Image.alpha_composite(under, image).convert("RGB"), dtype=np.float64)
+    return Image.fromarray(np.clip(flat * look.lift * np.array(look.tint), 0, 255).astype(np.uint8))
+
+
+def shining(rip: Path, look: Look, size: tuple[int, int]) -> Image.Image:
+    """What of a look shines, as an image the size of its paint: its glow (an emission map over
+    black, or a colour), `shine` times as bright, over SELF_LIGHT of the paint."""
+    base = np.asarray(painted(rip, look).resize(size), dtype=np.float64) * SELF_LIGHT
+    if isinstance(look.glow, str):
+        image = Image.open(rip / look.glow).convert("RGBA")
+        over_black = Image.alpha_composite(Image.new("RGBA", image.size, (0, 0, 0, 255)), image).convert("RGB")
+        glow = np.asarray(over_black.resize(size), dtype=np.float64) * np.array(look.shine)
+    elif look.glow is not None:
+        glow = np.full((size[1], size[0], 3), np.array(look.glow, dtype=np.float64) * np.array(look.shine))
+    else:
+        glow = np.zeros((size[1], size[0], 3))
+    return Image.fromarray(np.clip(base + glow, 0, 255).astype(np.uint8))
 
 
 def read_parts(doc: ET.Element, link_of_piece: Callable[[str, list[str]], int | None]) -> list[dict]:
