@@ -3,7 +3,7 @@ import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type PlayerClass 
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
-import { inviteLink } from '../net/lobby';
+import { roomLink } from '../net/lobby';
 
 const CHAT_LINES = 8;
 const CHAT_FADE_MS = 12_000;
@@ -37,7 +37,7 @@ export class Hud {
   constructor(roomId: string) {
     this.roomCode.textContent = roomId;
     this.roomCode.addEventListener('click', () => {
-      navigator.clipboard?.writeText(inviteLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
+      navigator.clipboard?.writeText(roomLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
     });
 
     this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
@@ -132,16 +132,33 @@ export class Hud {
     this.system(`${p.name} joined`);
   }
 
-  // Once per snapshot: hearts and kills on the roster. Re-renders only when a number moved.
+  // Once per snapshot: names (a rename shows here), hearts and kills on the roster. Re-renders only
+  // when something moved.
   updateStats(
-    list: { id: string; color: string; hearts: number; kills: number; dead: boolean; avatar: AvatarId }[],
+    list: {
+      id: string;
+      name: string;
+      color: string;
+      hearts: number;
+      kills: number;
+      dead: boolean;
+      avatar: AvatarId;
+    }[],
   ): void {
     let changed = false;
     for (const p of list) {
       const e = this.players.get(p.id);
       if (!e) continue;
       const life = heartsOf(p.avatar);
-      if (e.color !== p.color || e.hearts !== p.hearts || e.life !== life || e.kills !== p.kills || e.dead !== p.dead) {
+      if (
+        e.name !== p.name ||
+        e.color !== p.color ||
+        e.hearts !== p.hearts ||
+        e.life !== life ||
+        e.kills !== p.kills ||
+        e.dead !== p.dead
+      ) {
+        e.name = p.name;
         e.color = p.color;
         e.hearts = p.hearts;
         e.life = life;

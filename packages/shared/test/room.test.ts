@@ -12,6 +12,7 @@ import {
   MAX_REWIND_TICKS,
   MOVE_SPEED,
   PICKUP_AREAS,
+  RENAME_SECONDS,
   Room,
   SPAWN_AREAS,
   STEP_UP,
@@ -142,6 +143,30 @@ test('room seats players, applies inputs on step, and broadcasts', () => {
   room.leave(idb);
   assert.equal(a.inbox.at(-1)?.t, 'leave');
   assert.equal(room.playerCount, 1);
+});
+
+test('a rename is announced, shows in the next snapshot, and waits RENAME_SECONDS before another', () => {
+  const room = new Room('names', { seed: 1 });
+  const a = link();
+  const b = link();
+  const ida = room.join('alice', a)!;
+  room.join('bob', b);
+  const alice = () => room.players.find((p) => p.id === ida)!;
+  room.receive(ida, { t: 'rename', name: '  ali  ' });
+  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'alice is now called ali' });
+  room.step();
+  const snap = b.inbox.at(-1)!;
+  assert.ok(snap.t === 'snap' && snap.players.find((p) => p.id === ida)?.name === 'ali');
+
+  room.receive(ida, { t: 'rename', name: 'al' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'you can rename again in a few seconds' });
+  assert.equal(alice().name, 'ali', 'too soon');
+
+  for (let i = 0; i < RENAME_SECONDS * TICK_RATE; i++) room.step();
+  room.receive(ida, { t: 'rename', name: ' \u0007 ' });
+  assert.equal(alice().name, 'ali', 'nothing left of it');
+  room.receive(ida, { t: 'rename', name: 'al' });
+  assert.equal(alice().name, 'al');
 });
 
 test('room calls onEmpty when the last player leaves', () => {
