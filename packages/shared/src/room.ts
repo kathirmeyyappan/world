@@ -19,6 +19,7 @@ import {
   MAX_NAME_LENGTH,
   MAX_BOTS,
   MAX_PLAYERS,
+  RENAME_SECONDS,
   CHILL_SECONDS,
   DEATH_SCREEN_SECONDS,
   NAMED_COLORS,
@@ -74,6 +75,7 @@ export interface ClientLink {
 interface Seat {
   lastShotTick: number;
   lastActTick: number; // the class's own actions share one cooldown
+  lastRenameTick: number;
   held: ItemAction[]; // last frame's actions, for the press edge of tap ones
   diedTick: number | null;
   state: PlayerState;
@@ -203,6 +205,7 @@ export class Room {
       queue: [],
       lastShotTick: -Infinity,
       lastActTick: -Infinity,
+      lastRenameTick: -Infinity,
       held: [],
       diedTick: null,
     });
@@ -292,10 +295,30 @@ export class Room {
         else this.broadcast({ t: 'chat', id, name: seat.state.name, color: seat.state.color, text });
         return;
       }
+      case 'rename':
+        this.rename(seat, msg.name);
+        return;
       case 'ping':
         seat.link.send({ t: 'pong', at: msg.at });
         return;
     }
+  }
+
+  // A new name for a player, which every client sees in the next snapshot (names ride in every
+  // PlayerState) and the room is told of. A name's tags (an avatar's, an item's) are read when a
+  // player joins, so a rename changes what they're called, not what they are.
+  private rename(seat: Seat, raw: string): void {
+    const me = seat.state;
+    const name = cleanName(raw);
+    if (!name || name === me.name) return;
+    if (this.tick - seat.lastRenameTick < RENAME_SECONDS * TICK_RATE) {
+      seat.link.send({ t: 'system', text: 'you can rename again in a few seconds' });
+      return;
+    }
+    seat.lastRenameTick = this.tick;
+    this.broadcast({ t: 'system', text: `${me.name} is now called ${name}` });
+    this.log(`${me.name} (${me.id}) is now called ${name} in ${this.id}`);
+    me.name = name;
   }
 
   // The actions in one frame. The shoot action: a tap weapon fires on the press, a hold weapon fires
@@ -663,12 +686,18 @@ function howTo(spec: ItemSpec): string {
   return help;
 }
 
-export function sanitizeName(raw: string): string {
-  const cleaned = raw
+// A typed name made fit to show: no control characters, trimmed, at most MAX_NAME_LENGTH long; ''
+// when nothing is left.
+export function cleanName(raw: string): string {
+  return raw
     .replace(/[\u0000-\u001f]/g, '')
     .trim()
     .slice(0, MAX_NAME_LENGTH);
-  return cleaned || 'guest';
+}
+
+// The name a player joins with: their cleaned one, or 'guest'.
+export function sanitizeName(raw: string): string {
+  return cleanName(raw) || 'guest';
 }
 
 export function isValidRoomId(id: string): boolean {

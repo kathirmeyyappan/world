@@ -4,7 +4,7 @@
 // comes first, it's retired and this device never shows it again. Pure DOM, driven once a frame by
 // the Game.
 import { IS_TOUCH } from '../input/touch';
-import { gearIcon } from './gearIcon';
+import { gearIcon } from './menu/gearIcon';
 
 const DELAY_MS = 12_000; // from the press that starts play
 const SHOW_MS = 10_000;

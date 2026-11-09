@@ -45,7 +45,6 @@ import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
 import { IS_TOUCH, onTap } from '../input/touch';
 import type { Connection } from '../net/Connection';
-import { inviteLink } from '../net/lobby';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
 import { createAvatar, preloadAvatars, type Avatar } from '../render/avatars';
@@ -77,7 +76,7 @@ import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
-import { Settings, toggleFullscreen } from '../ui/Settings';
+import { Menu, toggleFullscreen } from '../ui/menu/Menu';
 import { VIEWS, View, screenBoom, screenFov, type Boom } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
@@ -158,7 +157,7 @@ export class Game {
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
-  private readonly settings: Settings;
+  private readonly menu: Menu;
   private readonly damageFlash = new EdgeFlash(document.getElementById('damage-flash')!, 160);
   private readonly healFlash = new EdgeFlash(document.getElementById('heal-flash')!, 900);
   private readonly hitNotice = new HitNotice();
@@ -245,23 +244,20 @@ export class Game {
       // straight back rather than making the player click into the world again.
       if (!open && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
     };
-    this.settings = new Settings({
+    this.menu = new Menu({
       roomId,
-      invite: conn.kind === 'local' ? null : inviteLink(roomId),
+      online: conn.kind !== 'local',
       sfx: this.sfx,
       view: this.view,
+      rename: (name) => conn.send({ t: 'rename', name }),
     });
     // Closing it back into the world is a click or a key press, which lets us take the mouse too.
-    this.settings.onOpenChange = (open, back) => {
+    this.menu.onOpenChange = (open, back) => {
       if (open) this.commandHint.retire();
       this.syncBlocked();
       if (!open && back && !IS_TOUCH && !this.isBlocked()) canvas.requestPointerLock?.();
     };
     window.addEventListener('keydown', (e) => {
-      if (this.settings.isOpen) {
-        if (!e.repeat) this.settings.key(e.code);
-        return;
-      }
       if (this.commandsMenu.isOpen) {
         // The menu is a little page: Q or C closes it (like the cube card), arrows and W/S scroll.
         if (e.code === 'KeyQ' || e.code === 'KeyC') this.commandsMenu.set(false);
@@ -272,7 +268,7 @@ export class Game {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
       else if (e.code === 'KeyC') this.commandsMenu.set(true);
-      else if (e.code === 'KeyX') this.settings.show();
+      else if (e.code === 'KeyX') this.menu.show();
       else if (e.code === 'KeyO') toggleFullscreen();
       else if (e.code === 'KeyZ') this.view.toggle();
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
@@ -452,7 +448,7 @@ export class Game {
 
   private isBlocked(): boolean {
     return (
-      this.dead || this.overlay.isVisible() || this.hud.isChatOpen() || this.commandsMenu.isOpen || this.settings.isOpen
+      this.dead || this.overlay.isVisible() || this.hud.isChatOpen() || this.commandsMenu.isOpen || this.menu.isOpen
     );
   }
 
@@ -772,6 +768,7 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.commandHint.update(this.isBlocked());
+    this.menu.sync(self.name);
 
     const stepLoops = this.footsteps.update(
       [
