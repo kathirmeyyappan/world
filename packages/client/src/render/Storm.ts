@@ -1,8 +1,10 @@
 // The storm Colgera rises through: a great white pool lying on the ground where it comes up, lit
 // blue round its rim and crawling with static like a screen between channels, with a gale turning
 // over it, pixel "+"s of grey and white whirling round and up and white fog rolling round its
-// edge; open while any of the body is still down in it and fading shut once the tail is out
-// (dragons.ts `rise`). The ice it leaves on the floor is the sim's (room.ts).
+// edge, and a dense column of white "+"s spiralling up out of the middle round the body, with fog
+// at its foot, so the body is hidden where it comes through the floor; open while any of the body
+// is still down in it and fading shut once the tail is out (dragons.ts `rise`). The ice it leaves
+// on the floor is the sim's (room.ts).
 import {
   Color3,
   Color4,
@@ -36,6 +38,17 @@ const FOG = 40; // puffs of fog at once
 const FOG_SECONDS = 3.2;
 const FOG_TURN = 0.45; // radians a second the fog rolls round
 const FOG_RISE = 0.6; // m/s
+// The column round the body: "+"s born close round the axis, climbing fast and drifting out as
+// they turn with the gale, a spiral widening to the rings' width (7.5 m across) and standing as
+// tall as the body's first stretch out of the floor.
+const COLUMN = 600; // "+"s in it at once
+const COLUMN_SECONDS = 1.5;
+const COLUMN_BORN = { inner: 1.2, outer: 3.2 }; // metres from the axis a "+" is born
+const COLUMN_RISE = 9; // m/s
+const COLUMN_SPREAD = 2.2; // m/s outward
+const SHROUD = 60; // puffs of fog round the foot of the column
+const SHROUD_SECONDS = 2;
+const SHROUD_RADIUS = 5.5; // metres from the axis the puffs are born within
 
 let base: HTMLCanvasElement | null = null; // the pool's white and blue, drawn once for every storm
 let grains: HTMLCanvasElement[] | null = null; // the tiles of static, likewise
@@ -48,6 +61,8 @@ export class Storm implements Rise {
   private readonly picture: DynamicTexture;
   private readonly plusses: ParticleSystem;
   private readonly fog: ParticleSystem;
+  private readonly column: ParticleSystem;
+  private readonly shroud: ParticleSystem;
   private open = 0; // 0 shut to 1 open
   private staticAt = 0; // seconds since the static last stepped
 
@@ -127,6 +142,59 @@ export class Storm implements Rise {
     this.fog.startDirectionFunction = (_world, direction) => {
       direction.set(0, FOG_RISE * (0.5 + Math.random()), 0);
     };
+    // The column: in the gale's turning frame too, so it spirals, white and light grey only.
+    this.column = new ParticleSystem(`${name}-column`, COLUMN, scene);
+    plusSprites(engine, this.column, 2);
+    this.column.isLocal = true;
+    this.column.emitter = this.spin;
+    this.column.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+    this.column.minSize = 0.8;
+    this.column.maxSize = 1.8;
+    this.column.minLifeTime = COLUMN_SECONDS * 0.7;
+    this.column.maxLifeTime = COLUMN_SECONDS;
+    this.column.emitRate = COLUMN / COLUMN_SECONDS;
+    this.column.color1 = new Color4(1, 1, 1, 1);
+    this.column.color2 = new Color4(1, 1, 1, 1);
+    this.column.colorDead = new Color4(1, 1, 1, 1);
+    this.column.minAngularSpeed = -5;
+    this.column.maxAngularSpeed = 5;
+    this.column.startPositionFunction = (_world, position) => {
+      const a = Math.random() * 2 * Math.PI;
+      const r = COLUMN_BORN.inner + Math.random() * (COLUMN_BORN.outer - COLUMN_BORN.inner);
+      position.set(Math.cos(a) * r, Math.random() * 1.5, Math.sin(a) * r);
+    };
+    this.column.startDirectionFunction = (_world, direction, particle) => {
+      const r = Math.hypot(particle.position.x, particle.position.z) || 1;
+      direction.set(
+        (particle.position.x / r) * COLUMN_SPREAD,
+        COLUMN_RISE * (0.75 + Math.random() * 0.5),
+        (particle.position.z / r) * COLUMN_SPREAD,
+      );
+    };
+    // The shroud: fog round the column's foot, where the body comes through the floor.
+    this.shroud = new ParticleSystem(`${name}-shroud`, SHROUD, scene);
+    this.shroud.particleTexture = puffTexture(engine.scene);
+    this.shroud.isLocal = true;
+    this.shroud.emitter = this.roll;
+    this.shroud.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+    this.shroud.minSize = 4;
+    this.shroud.maxSize = 7;
+    this.shroud.minLifeTime = SHROUD_SECONDS * 0.7;
+    this.shroud.maxLifeTime = SHROUD_SECONDS;
+    this.shroud.emitRate = SHROUD / SHROUD_SECONDS;
+    this.shroud.color1 = new Color4(1, 1, 1, 0.6);
+    this.shroud.color2 = new Color4(0.92, 0.96, 1, 0.45);
+    this.shroud.colorDead = new Color4(1, 1, 1, 0);
+    this.shroud.minAngularSpeed = -0.4;
+    this.shroud.maxAngularSpeed = 0.4;
+    this.shroud.startPositionFunction = (_world, position) => {
+      const a = Math.random() * 2 * Math.PI;
+      const r = SHROUD_RADIUS * Math.sqrt(Math.random());
+      position.set(Math.cos(a) * r, Math.random() * 2, Math.sin(a) * r);
+    };
+    this.shroud.startDirectionFunction = (_world, direction) => {
+      direction.set(0, 1 + Math.random() * 1.5, 0);
+    };
     this.spin.setEnabled(false);
   }
 
@@ -149,10 +217,14 @@ export class Storm implements Rise {
     if (open && !this.plusses.isStarted()) {
       this.plusses.start();
       this.fog.start();
+      this.column.start();
+      this.shroud.start();
     }
     if (!open && this.plusses.isStarted()) {
       this.plusses.stop();
       this.fog.stop();
+      this.column.stop();
+      this.shroud.stop();
     }
   }
 
@@ -178,6 +250,8 @@ export class Storm implements Rise {
   dispose(): void {
     this.plusses.dispose(); // its own sheet of "+"s with it
     this.fog.dispose(false); // not the puff: every storm's
+    this.column.dispose(); // its own sheet of "+"s with it
+    this.shroud.dispose(false);
     this.disc.dispose();
     this.material.dispose();
     this.picture.dispose();
