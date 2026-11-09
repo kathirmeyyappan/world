@@ -994,7 +994,9 @@ export class Game {
     let nextFrame: HungFrame | null = null;
     if (!this.isBlocked()) {
       const ray = new Ray(this.camera.position, this.camera.getForwardRay().direction, HOVER_RANGE);
-      const hit = this.engine.scene.pickWithRay(ray, (mesh) => /^(cube|sky|frame)-/.test(mesh.name));
+      // What a name says is there to point at, less what's drawn over it and not meant to be (an old
+      // screen's pass over a frame, a frame's border): a predicate of its own skips the pickable check.
+      const hit = this.engine.scene.pickWithRay(ray, (mesh) => mesh.isPickable && /^(cube|sky|frame)-/.test(mesh.name));
       // Structures aren't pickable; anything behind one is hidden by it.
       const blocked =
         !!hit?.pickedMesh && WORLD_STRUCTURES.raycast(ray.origin, ray.direction, hit.distance) < hit.distance;
