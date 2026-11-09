@@ -385,17 +385,27 @@ capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it 
 looks with a spine of points following it, kept 5 m up and too big for a door, its head turned
 toward the look only as far as the neck lets it, breathing a wide cone where the head points
 (`firebreath`, the look's own item) and roaring on A, S and D; a new one climbs straight out of the
-ground, head up, until its whole spine is out. Its rules and numbers are constants at the top of
-that file. `becomeAvatar` (`player.ts`) is the one way a player changes
-look: a new class is a new body at the same eye point, full when it's bigger and keeping the life it had, up
-to its full, when it's smaller.
+ground, head up, until its whole spine is out. Its rules are in that file; its body is its look's
+(`DragonShape`, the `dragon` on the look's row in `AVATARS`): the spine's links (metres from the
+eyes to the first point and between the points after it, so a skin with a long rigid stretch of
+body has one long link there), the head's and body's radius, how fast it cruises and how tight it
+turns. A life is a `LifeSpec` (hearts and the HUD's row), the class's unless the look has one of
+its own (`lifeOf`). `becomeAvatar` (`player.ts`) is the one way a player changes
+look: a new look is a new body at the same eye point, full when its life is bigger and keeping the
+life it had, up to its full, when it's smaller.
 
 A new look in a class is a row in `AVATARS` (with `item` for one that comes with its own weapon,
-`regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu). A new class is a spec
+`regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu, `life` for a
+life of its own), and for a dragon its shape there and a row in the client's `DRAGONS`
+(`render/avatars/dragons.ts`): the model it's drawn from, what it rises out of the ground through
+(the light dragon's portal of gold light, `render/Portal.ts`), and the wave down its body. A new class is a spec
 and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES`; nothing else
 has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
-(`game/View.ts`) for how it's seen. The dragon is drawn by `render/avatars/Dragon.ts` from a model
-`scripts/dragon-model.py` rigs along the spine (its docstring says how); the GLB helpers both
+(`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model
+puts a bone at the eyes, one wherever it needs on the spine (`along` metres behind the eyes) and
+one hung on another for a part that moves on its own (the jaw), and the renderer carries each
+along the spine the sim moves. The light dragon's is rigged by `scripts/dragon-model.py` (its
+docstring says how); the GLB helpers both
 model scripts share are in `scripts/glb.py`. Its roars are `ACTION_SOUNDS` in `audio/Sfx.ts`, and
 its theme and the cry it rises with are rows there too.
 

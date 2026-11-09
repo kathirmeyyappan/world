@@ -3,7 +3,7 @@
 // must stay pure: no Babylon, no DOM, no time reads.
 import { MAX_PITCH } from './constants';
 import { AVATARS, avatarFor, type AvatarId } from './avatars';
-import { classOf } from './classes';
+import { classOf, heartsOf } from './classes';
 import type { Structures } from './collision';
 import { ITEMS, createItem, nextFuel, lockedItemFor, type ItemState } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
@@ -37,7 +37,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     avatar,
     dragon: null,
     avatarLocked: avatar !== 'standard',
-    hearts: classOf(avatar).hearts,
+    hearts: heartsOf(avatar),
     kills: 0,
     dead: false,
   };
@@ -61,19 +61,22 @@ export function clonePlayer(p: PlayerState): PlayerState {
   };
 }
 
-// Puts `p` in `avatar`. A new class is a new body at the same eye point: its life in proportion to
-// the old, the old class's state gone and the new one's made, and the kit dropped where the class
-// has none. The look's own item is held for good; leaving one brings back whatever the name gives.
+// Puts `p` in `avatar`. A new look is a new body: a bigger life is a fresh one, a smaller one keeps
+// the life it had up to its full, and its class's state is made over (a dragon of another shape); a
+// new class also drops the old class's state and the kit where the class has none, at the same eye
+// point. The look's own item is held for good; leaving one brings back whatever the name gives.
 export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   const from = classOf(p.avatar);
   const to = classOf(avatar);
+  const had = heartsOf(p.avatar);
+  const has = heartsOf(avatar);
   const hadOwn = AVATARS[p.avatar].item !== null;
+  const changed = avatar !== p.avatar;
   p.avatar = avatar;
+  if (!p.dead && has !== had) p.hearts = has > had ? has : Math.min(has, p.hearts);
+  if (to !== from) from.exit(p);
+  if (changed) to.enter(p);
   if (to !== from) {
-    // A bigger body is a fresh one; a smaller one keeps the life it had, up to its full.
-    if (!p.dead) p.hearts = to.hearts > from.hearts ? to.hearts : Math.min(to.hearts, p.hearts);
-    from.exit(p);
-    to.enter(p);
     to.confine(p, WORLD_SHAPE);
     p.vy = 0;
     if (!to.kit) {

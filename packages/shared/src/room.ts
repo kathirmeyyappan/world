@@ -31,7 +31,7 @@ import {
 } from './sim/constants';
 import { parseCommand, type BotCallArgs, type Command } from './commands';
 import { AVATARS, eyeOf, type AvatarId } from './sim/avatars';
-import { classOf } from './sim/classes';
+import { classOf, heartsOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
 import { sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
@@ -407,7 +407,7 @@ export class Room {
         continue;
       }
       if (AVATARS[me.avatar].regen && !me.dead)
-        me.hearts = Math.min(classOf(me.avatar).hearts, me.hearts + REGEN_RATE * TICK_DT);
+        me.hearts = Math.min(heartsOf(me.avatar), me.hearts + REGEN_RATE * TICK_DT);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
         this.land(seat, stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures));
@@ -519,7 +519,7 @@ export class Room {
     const to = classOf(avatar);
     if (to === classOf(me.avatar)) return null;
     if (me.dead) return "not while you're dead";
-    if (!to.fits(me.pos, this.structures)) return `no room for a ${to.id} here`;
+    if (!to.fits(avatar, me.pos, this.structures)) return `no room for a ${to.id} here`;
     return null;
   }
 
