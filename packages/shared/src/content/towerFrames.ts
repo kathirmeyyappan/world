@@ -56,7 +56,6 @@ const FLOORS: Mural[][] = [
     {
       angle: 225,
       height: 10.8,
-      crt: true,
       show: {
         kind: 'image',
         src: '/assets/frames/nepal_libration_force.jpg',

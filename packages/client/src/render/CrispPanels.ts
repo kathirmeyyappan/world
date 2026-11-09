@@ -10,12 +10,13 @@
 // browser placing a texture; they're repainted only when their source changes.
 //
 // Only a panel in view and within CRISP_RANGE is shown this way (and whoever drew it told it's
-// seen). Further off, a picture is a few dozen pixels across, and every shown panel is layers the
-// browser composites on every frame (an old screen's several, however small), seen through a wall
-// or not; there its mesh draws the picture as an ordinary texture in the scene, as still as the
-// source was when it went. Over the last FADE metres in, that texture fades out over the crisp
-// picture rather than swapping in a frame: drawn first like a hole, it writes its opacity into the
-// canvas's alpha, and the page blends the canvas over the layer beneath.
+// seen). Further off, a picture is a few dozen pixels across, and every shown panel is a layer the
+// browser composites on every frame, seen through a wall or not; there its mesh draws the picture
+// as an ordinary texture in the scene, as still as the source was when it went. Over the last FADE
+// metres in, that texture fades out over the crisp picture rather than swapping in a frame: drawn
+// first like a hole, it writes its opacity into the canvas's alpha, and the page blends the canvas
+// over the layer beneath. An old screen's bands and static over a picture are a translucent mesh
+// in the scene (OldScreen), shown with the crisp picture; nothing else is composited per frame.
 import {
   Color3,
   Color4,
@@ -38,7 +39,7 @@ const CRISP_RANGE = 45; // metres: a round room's width, and a little past where
 const FADE = 10; // metres inside CRISP_RANGE over which the still picture gives way to the crisp one
 
 interface Panel {
-  box: HTMLDivElement; // placed in the scene; holds the picture and, on an old screen, its static
+  box: HTMLDivElement; // placed in the scene; holds the picture
   el: HTMLCanvasElement;
   toWorld: Matrix; // the element's CSS pixels (from its top-left, y down) to world metres
   u: [number, number]; // the stretch of the source it shows, as fractions of its width
@@ -52,6 +53,7 @@ interface Shown {
   panels: Panel[];
   visible: boolean; // shown crisp
   onShown?: (visible: boolean) => void;
+  screen?: AbstractMesh; // an old screen's look over the picture, shown while the picture is crisp
 }
 
 export class CrispPanels {
@@ -78,14 +80,13 @@ export class CrispPanels {
 
   // Show `source` across a frame's `panels` (its picture's layout, `u` running 0 to 1 across it),
   // cutting the hole with `mask`, the mesh of those panels; an image still loading shows once it
-  // has. `onShown` hears when the frame comes into and goes out of view, and `crt` plays it like an
-  // old screen, with faint bands rolling down it and a little static. Returns what to call when
-  // `source` has been drawn again.
+  // has. `onShown` hears when the frame comes into and goes out of view, and `screen` is drawn over
+  // the picture while it's crisp. Returns what to call when `source` has been drawn again.
   add(
     mask: AbstractMesh,
     panels: FramePanel[],
     source: HTMLCanvasElement | HTMLImageElement,
-    { onShown, crt = false }: { onShown?: (visible: boolean) => void; crt?: boolean } = {},
+    { onShown, screen }: { onShown?: (visible: boolean) => void; screen?: AbstractMesh } = {},
   ): () => void {
     const scene = mask.getScene();
     const hole = new StandardMaterial(`${mask.name}-hole`, scene);
@@ -104,7 +105,8 @@ export class CrispPanels {
     still.alphaMode = Constants.ALPHA_PREMULTIPLIED;
     mask.material = still;
     this.masks.set(mask, Infinity);
-    const frame: Shown = { mask, hole, still, stillTexture, panels: [], visible: false, onShown };
+    screen?.setEnabled(false);
+    const frame: Shown = { mask, hole, still, stillTexture, panels: [], visible: false, onShown, screen };
     this.shown.push(frame);
     const repaint = () => {
       for (const { el, u } of frame.panels) {
@@ -125,10 +127,6 @@ export class CrispPanels {
         box.style.height = `${el.height}px`;
         box.style.visibility = frame.visible ? '' : 'hidden';
         box.append(el);
-        // The bands and the static move by CSS animation alone, which the browser runs on the
-        // GPU without painting anything again.
-        if (crt)
-          box.append(div('crt-roll'), Object.assign(div('crt-static'), { style: `background-image: ${noise()}` }));
         this.layer.append(box);
         // Across the element runs from tl to tr, and down it from tl to bl.
         const ax = (tr.x - tl.x) / el.width;
@@ -172,6 +170,7 @@ export class CrispPanels {
       if (visible !== frame.visible) {
         frame.visible = visible;
         for (const { box } of frame.panels) box.style.visibility = visible ? '' : 'hidden';
+        frame.screen?.setEnabled(visible);
         frame.onShown?.(visible);
       }
       // How much of the still picture shows over the crisp one: all of it when the crisp one isn't.
@@ -190,26 +189,4 @@ export class CrispPanels {
         box.style.transform = `matrix3d(${toWorld.multiply(view).m.join(',')})`;
     }
   }
-}
-
-function div(className: string): HTMLDivElement {
-  return Object.assign(document.createElement('div'), { className });
-}
-
-// A tile of faint light and dark specks for the static, made once: a CSS image value.
-let noiseTile = '';
-function noise(): string {
-  if (noiseTile) return noiseTile;
-  const size = 128;
-  const c = Object.assign(document.createElement('canvas'), { width: size, height: size });
-  const ctx = c.getContext('2d')!;
-  const img = ctx.createImageData(size, size);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const light = Math.random() < 0.5;
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = light ? 255 : 0;
-    img.data[i + 3] = Math.random() * 40;
-  }
-  ctx.putImageData(img, 0, 0);
-  noiseTile = `url(${c.toDataURL()})`;
-  return noiseTile;
 }

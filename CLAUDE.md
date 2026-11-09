@@ -274,7 +274,8 @@ Murals hung inside a round room (the tower's floors) are listed per floor in
 `angle` in degrees from the main entrance (to your right as you stand in the middle facing it), a `height` in
 metres, and what it `show`s (an image's path, or a live `widget` by name; its aspect; and the
 `line` typed out while you look at it), with `crt: true` to play it like an old screen (faint bands
-rolling down it and a little static, animated by CSS alone). The width is height times aspect, and every frame is centred halfway up its storey (the
+rolling down it and a little static, a shader pass over the picture, `render/OldScreen.ts`, that
+costs no memory whatever the picture's size; the two widgets have it). The width is height times aspect, and every frame is centred halfway up its storey (the
 room's `middle`: 10 m up on the ground floor).
 `layoutWallFrame` (`sim/wallFrames.ts`) lays one out as a flat panel per wall segment it crosses, a
 few centimetres off the brick, and throws if it doesn't fit between floor and ceiling, comes down
