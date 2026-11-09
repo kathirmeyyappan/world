@@ -17,6 +17,7 @@ import {
   actionForKey,
   actionHelp,
   classOf,
+  lifeOf,
   createRng,
   hashSeed,
   isGrounded,
@@ -39,7 +40,7 @@ import {
   statureOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
-import { ACTION_SOUNDS, ITEM_SOUNDS, loopsOf, Sfx } from '../audio/Sfx';
+import { ITEM_SOUNDS, loopsOf, Sfx, voiceOf } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -77,7 +78,7 @@ import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 import { Menu, toggleFullscreen } from '../ui/menu/Menu';
-import { VIEWS, View, screenBoom, screenFov, type Boom } from './View';
+import { VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
@@ -435,12 +436,12 @@ export class Game {
     return this.engine.scene.getEngine().getAspectRatio(this.camera);
   }
 
-  // The boom the camera hangs on in third person: the class's, scaled to a walker's stature and
+  // The boom the camera hangs on in third person: the worn look's, scaled to a walker's stature and
   // fitted to a portrait screen.
   private boom(): Boom {
-    const cls = classOf(this.prediction!.state.avatar);
-    const { boom } = VIEWS[cls.id];
-    const scale = cls.id === 'walker' ? (this.stature ?? 1) : 1;
+    const avatar = this.prediction!.state.avatar;
+    const boom = boomOf(avatar);
+    const scale = classOf(avatar).id === 'walker' ? (this.stature ?? 1) : 1;
     // A small body is no narrower across the shoulders than its gun arm reaches.
     const scaled = { back: boom.back * scale, right: boom.right * Math.max(1, scale), up: boom.up * scale };
     return screenBoom(scaled, this.wornFov(), this.aspect());
@@ -489,7 +490,7 @@ export class Game {
         this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) {
-          this.hearts.setLife(classOf(me.avatar));
+          this.hearts.setLife(lifeOf(me.avatar));
           // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
           if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
@@ -538,13 +539,14 @@ export class Game {
         this.setFrost(m.off, false);
         return;
       case 'action': {
-        const sound = ACTION_SOUNDS[m.action];
+        const actor = m.id === this.myId ? this.ownAvatar : this.avatars.get(m.id);
+        const sound = actor && voiceOf(actor.kind)?.roars[m.action];
         const at = this.headOf(m.id);
         if (sound && at) {
           this.sfx.play(sound, at);
           this.sfx.play(sound, at, { delay: ECHO_DELAY, level: ECHO_LEVEL });
         }
-        (m.id === this.myId ? this.ownAvatar : this.avatars.get(m.id))?.act?.(m.action);
+        actor?.act?.(m.action);
         return;
       }
       case 'hit':
@@ -849,18 +851,22 @@ export class Game {
       this.hud.setCrosshairTarget(this.canHit);
     }
     this.sfx.listen(this.camera.position, this.input.yaw);
-    // Every dragon rises out of the ground with a cry (kept trying until the recording has arrived,
-    // and heard again from the same player's next one); the nearest living one's theme plays from
-    // its head.
+    // Every dragon with a voice rises out of the ground with its cry (kept trying until the
+    // recording has arrived, and heard again from the same player's next one); the nearest living
+    // one's theme plays from its head.
     const dragons = [
-      ...(self.dragon && !this.dead ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen }] : []),
+      ...(self.dragon && !this.dead
+        ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen, voice: voiceOf(self.avatar) }]
+        : []),
       ...sampled.players.flatMap((rp) =>
-        rp.dragon && !rp.dead ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon.risen }] : [],
+        rp.dragon && !rp.dead
+          ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon.risen, voice: voiceOf(rp.avatar) }]
+          : [],
       ),
-    ];
+    ].filter((d) => d.voice !== null);
     for (const d of dragons) {
       if (d.risen) this.cried.delete(d.id);
-      else if (!this.cried.has(d.id) && this.sfx.play('dragon-cry', d.at)) this.cried.add(d.id);
+      else if (!this.cried.has(d.id) && this.sfx.play(d.voice!.cry, d.at)) this.cried.add(d.id);
     }
     const ear = this.camera.position;
     const nearest = dragons.sort(
@@ -876,7 +882,7 @@ export class Game {
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...stepLoops,
-      ...(nearest ? [{ key: 'dragon', id: 'dragon-theme' as const, at: nearest.at }] : []),
+      ...(nearest ? [{ key: 'dragon', id: nearest.voice!.theme, at: nearest.at }] : []),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {

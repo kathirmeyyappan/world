@@ -27,6 +27,7 @@
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
 import {
+  LADDER_WIDTH,
   ladder,
   ramp,
   roundFloor,
@@ -456,10 +457,94 @@ const dune = terrain({
 // rail's outer face beside the slide's mouth and clear of the stairwell's hole in the floor: the
 // way up to the lobby and the attic, the slide being no way up (its ice). Where it stands and the
 // rail's height were measured against the model's platform; a climber steps off its top over the
-// rail onto the platform.
+// rail onto the platform. Steel like the platform, and wider than a ladder stands, to suit it.
 const RAIL_TOP = 0.75; // metres the platform's rail stands above its floor
 const LIBRARY_FLOOR = 17.25; // metres above the house's floor the library's floor boxes top out
-const hatchLadder = ladder(placed(0.5, 6.83), DUNE_HEIGHT + LIBRARY_FLOOR, DUNE_HEIGHT + hatch.sill + RAIL_TOP, YAW);
+const HATCH_LADDER_WIDTH = LADDER_WIDTH * 1.7;
+const hatchLadder = ladder(placed(0.5, 6.83), DUNE_HEIGHT + LIBRARY_FLOOR, DUNE_HEIGHT + hatch.sill + RAIL_TOP, YAW, {
+  material: 'steel',
+  width: HATCH_LADDER_WIDTH,
+});
+
+// The chimney on the shell's shoulder (the model's, in the trim): a pipe out of the shell, an
+// elbow turning it up, a neck, and a funnel opening on top with its rim tilted down toward the
+// house. Hidden pieces stand where the model draws it, measured off the trim mesh in the house's
+// frame (metres over the house's floor; the pipe runs along -x at z CHIMNEY_Z): the pipe and the
+// elbow as boxes, the neck a round column, the funnel's wall in bands, each a ring of boxes between
+// its inside and outside radius halfway up it, and a floor inside the funnel a hop below the rim's
+// low side. The funnel's own bottom is 4 m further down, too steep-sided to climb out of.
+const CHIMNEY_Z = 4.52;
+const CHIMNEY_PIPE = { from: -17.0, to: -21.3, bottom: 35.2, top: 37.1, width: 1.4 }; // x where it leaves the shell and meets the elbow
+const CHIMNEY_ELBOW = { from: -21.0, to: -24.9, width: 2.8 }; // as tall as the pipe, its top level with it
+const CHIMNEY_NECK = { x: -23.4, r: 1.25 }; // from the elbow's top to the funnel's foot
+// The funnel's wall from its foot up: [height, axis x, inside radius, outside radius]; it leans
+// toward the house as it widens.
+const CHIMNEY_FUNNEL: readonly (readonly [number, number, number, number])[] = [
+  [39.75, -23.4, 0.75, 1.25],
+  [40.5, -23.26, 0.83, 1.5],
+  [41.5, -23.3, 1.0, 1.75],
+  [42.5, -23.16, 1.3, 2.15],
+  [43.5, -23.03, 1.65, 2.6],
+  [44.25, -23.03, 2.1, 2.8],
+];
+// The rim's top at an angle round the funnel's axis (from +x toward +z in the house's frame):
+// lowest toward the house, highest away from it.
+const CHIMNEY_RIM = { middle: 44.97, tilt: 0.35 };
+const CHIMNEY_FLOOR = 44.05;
+const CHIMNEY_SEGMENTS = 24;
+const chimney = (): Structure[] => {
+  const along = (from: number, to: number, width: number): Box => ({
+    ...wall(placed(from, CHIMNEY_Z), placed(to, CHIMNEY_Z), CHIMNEY_PIPE.top - CHIMNEY_PIPE.bottom, width),
+    y: DUNE_HEIGHT + CHIMNEY_PIPE.bottom,
+    hidden: true,
+  });
+  const [foot] = CHIMNEY_FUNNEL;
+  const [, rimAxis, rimInside] = CHIMNEY_FUNNEL[CHIMNEY_FUNNEL.length - 2];
+  const pieces: Structure[] = [
+    along(CHIMNEY_PIPE.from, CHIMNEY_PIPE.to, CHIMNEY_PIPE.width),
+    along(CHIMNEY_ELBOW.from, CHIMNEY_ELBOW.to, CHIMNEY_ELBOW.width),
+    ...roundFloor({
+      ...placed(CHIMNEY_NECK.x, CHIMNEY_Z),
+      r: CHIMNEY_NECK.r,
+      y: DUNE_HEIGHT + foot[0],
+      thickness: foot[0] - CHIMNEY_PIPE.top + 0.05,
+      hidden: true,
+    }),
+    ...roundFloor({
+      ...placed(rimAxis, CHIMNEY_Z),
+      r: rimInside + 0.1,
+      y: DUNE_HEIGHT + CHIMNEY_FLOOR,
+      hidden: true,
+    }),
+  ];
+  // Long enough that neighbouring pieces meet at the outer face; the rim's band tops out where the
+  // rim stands at its middle.
+  const step = (2 * Math.PI) / CHIMNEY_SEGMENTS;
+  for (let i = 0; i + 1 < CHIMNEY_FUNNEL.length; i++) {
+    const [y0, x0, in0, out0] = CHIMNEY_FUNNEL[i];
+    const [y1, x1, in1, out1] = CHIMNEY_FUNNEL[i + 1];
+    const axis = (x0 + x1) / 2;
+    const inside = (in0 + in1) / 2;
+    const outside = (out0 + out1) / 2;
+    const rim = i + 2 === CHIMNEY_FUNNEL.length;
+    for (let k = 0; k < CHIMNEY_SEGMENTS; k++) {
+      const angle = (k + 0.5) * step;
+      const r = (inside + outside) / 2;
+      const top = rim ? CHIMNEY_RIM.middle - CHIMNEY_RIM.tilt * Math.cos(angle) : y1;
+      pieces.push({
+        kind: 'box',
+        ...placed(axis + r * Math.cos(angle), CHIMNEY_Z + r * Math.sin(angle)),
+        y: DUNE_HEIGHT + y0,
+        yaw: YAW + Math.PI / 2 - angle,
+        w: 2 * outside * Math.tan(step / 2) + 0.02,
+        d: outside - inside,
+        h: top - y0,
+        hidden: true,
+      });
+    }
+  }
+  return pieces;
+};
 
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
@@ -471,4 +556,5 @@ export const PINEAPPLE_HOUSE: Structure[] = [
   ...top,
   ...PINEAPPLE_DOORS.flatMap((d) => doorPieces(d)),
   ...flights,
+  ...chimney(),
 ];

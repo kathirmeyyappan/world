@@ -1,7 +1,7 @@
 // The health bar: a life's worth of pixel hearts in rows at the top of the screen, as many as the
-// worn class has (classes.ts). Hearts you've lost turn grey and crack. Pure DOM, driven by the
+// worn look has (classes.ts `lifeOf`). Hearts you've lost turn grey and crack. Pure DOM, driven by the
 // server's heart count; nothing here decides damage.
-import { WALKER, type ClassSpec } from '@world/shared';
+import { WALKER, type LifeSpec } from '@world/shared';
 import { HEART as FULL, pixelSvg } from './pixelIcons';
 
 // 9x8 pixel heart. '#' body, '+' highlight, '.' empty. The broken one has a crack down it; the
@@ -25,27 +25,27 @@ export class Hearts {
   private fills: number[] = [];
 
   constructor() {
-    this.setLife(WALKER);
+    this.setLife(WALKER.life);
   }
 
   get count(): number {
     return this.target;
   }
 
-  // The bar for a life of `cls`'s hearts in its rows, full when that changes (a new class).
-  setLife(cls: Pick<ClassSpec, 'hearts' | 'heartRow'>): void {
-    if (cls.hearts === this.max) return;
+  // The bar for `life`'s hearts in its rows, full when that changes (a new look).
+  setLife(life: LifeSpec): void {
+    if (life.hearts === this.max) return;
     this.root.replaceChildren();
-    this.root.style.setProperty('--heart-row', String(cls.heartRow));
+    this.root.style.setProperty('--heart-row', String(life.row));
     this.hearts = [];
-    for (let i = 0; i < cls.hearts; i++) {
+    for (let i = 0; i < life.hearts; i++) {
       const heart = document.createElement('div');
       heart.className = 'heart';
       heart.append(pixelSvg(FULL, 'full', PIX), pixelSvg(BROKEN, 'broken', PIX), pixelSvg(HALF, 'half', PIX));
       this.root.append(heart);
       this.hearts.push(heart);
     }
-    this.max = this.shown = this.target = cls.hearts;
+    this.max = this.shown = this.target = life.hearts;
   }
 
   // A loss shows at once; hearts coming back fill one at a time, FILL_MS apart. Only the bar

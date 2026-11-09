@@ -129,20 +129,25 @@ function build(scene: Scene, name: string, s: Structure, mapping: Mapping): Mesh
 }
 
 // A ladder: two rails and a rung every RUNG metres up them, thinner than the frame the sim meets
-// so a climber's hands reach past the rungs, each painted like the piece and all merged into one.
+// so a climber's hands reach past the rungs, each painted like the piece and all merged into one,
+// tipped over together by the piece's lean.
 function frame(scene: Scene, name: string, s: Ladder, mapping: Mapping): Mesh {
   const depth = Math.min(s.d, 0.14);
+  const lean = s.lean ?? 0;
+  const length = s.h / Math.cos(lean); // of the rails
   const parts: Mesh[] = [];
-  const part = (label: string, w: number, h: number, d: number, lx: number, ly: number) => {
+  // A part `along` metres up the rails, `lx` across them.
+  const part = (label: string, w: number, h: number, d: number, lx: number, along: number) => {
     const mesh = MeshBuilder.CreateBox(`${name}-${label}`, { width: w, height: h, depth: d }, scene);
-    mesh.position.set(lx, ly, 0);
+    mesh.rotation.x = lean;
+    mesh.position.set(lx, along * Math.cos(lean), along * Math.sin(lean));
     mesh.bakeCurrentTransformIntoVertices();
     const positions = mesh.getVerticesData(VertexBuffer.PositionKind)!;
     paintFaces(mesh, s, positions, mesh.getVerticesData(VertexBuffer.NormalKind)!, 0, mapping);
     parts.push(mesh);
   };
-  for (const side of [-1, 1]) part(`rail${side}`, RAIL, s.h, depth, side * (s.w / 2 - RAIL / 2), s.h / 2);
-  for (let y = RUNG; y < s.h - RAIL; y += RUNG) part(`rung${y}`, s.w - 2 * RAIL, RAIL * 0.6, depth * 0.6, 0, y);
+  for (const side of [-1, 1]) part(`rail${side}`, RAIL, length, depth, side * (s.w / 2 - RAIL / 2), length / 2);
+  for (let a = RUNG; a < length - RAIL; a += RUNG) part(`rung${a}`, s.w - 2 * RAIL, RAIL * 0.6, depth * 0.6, 0, a);
   return Mesh.MergeMeshes(parts, true, true)!;
 }
 

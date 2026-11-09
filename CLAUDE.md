@@ -124,8 +124,8 @@ wire: server and client both build the world from that file.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
 - Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`,
-  `plaster`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a new
-  one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
+  `plaster`, `steel`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a
+  new one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
   they look the same inside and out; don't reach for lights. `hidden` pieces are collided with but
   never drawn: the shape of something the client draws its own way.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
@@ -149,9 +149,18 @@ wire: server and client both build the world from that file.
 
 ### Ladders
 
-A ladder (`sim/structures.ts` `ladder`, kind `ladder`) is an upright frame of two rails and rungs,
-`LADDER_WIDTH` across and `LADDER_GIRTH` through, climbed from either of its faces (its local ±z);
-to everything else it is a thin box, and it never frosts. A walker holding forward (W) within
+A ladder (`sim/structures.ts` `ladder(foot, y, top, yaw, { material, width, lean, hidden })`, kind
+`ladder`) is a frame of two rails and rungs, `LADDER_WIDTH` across unless given a width, and
+`LADDER_GIRTH` through, climbed from either of its faces (its local ±z); to everything else it is
+a thin box, and it never frosts. With a `lean` (radians from upright, `MAX_LADDER_LEAN`, 45°, at
+most, further over being a ramp with rungs) its top is over toward its local +z, as a ladder stood
+against a wall there leans: the climb keeps to the rails (`CLIMB_SPEED`
+along them, the body moving over as it rises, the face it reaches for and the spot it swaps to at
+its feet's height, the step over the top where the top is), the avatar leans with it, and the
+drawn frame tips over; a jump is still straight up, and gravity still straight down. Where it leans
+it is the wedge under its rails to everyone else (a ramp over its footprint, in the sim and the
+bots' map), so a body never fits under it: lean one against something, and only the face it leans
+away from is climbed. A walker holding forward (W) within
 `LADDER_REACH` of a face, between the rails, facing it, takes hold (`walker.ts` `takeHold`,
 `PlayerState.climb`: the piece and the face, ±1) and climbs at `CLIMB_SPEED` on W and S, nothing
 pulling it down: holding up at the top steps it over onto whatever is beyond the ladder there (so
@@ -170,8 +179,9 @@ the camera swinging after it; every avatar on foot squares up to the rungs, step
 whatever legs it has and reaches up with its free hand, points its weapon arm where the look goes,
 and swings half a turn round the ladder on a swap (`render/avatars/Walker.ts`). Bots' map treats a
 ladder as a wall.
-The one ladder stands in the library (`content/pineapple.ts`), from the floor to the hatch's
-platform, since the slide is no way up.
+The one ladder stands upright in the library (`content/pineapple.ts`), from the floor to the
+hatch's platform, since the slide is no way up. A ladder a model draws (the bedroom's, say) is a
+`hidden` one stood on the model's rails with their lean.
 
 ### Surfaces and frost
 
@@ -375,19 +385,37 @@ capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it 
 looks with a spine of points following it, kept 5 m up and too big for a door, its head turned
 toward the look only as far as the neck lets it, breathing a wide cone where the head points
 (`firebreath`, the look's own item) and roaring on A, S and D; a new one climbs straight out of the
-ground, head up, until its whole spine is out. Its rules and numbers are constants at the top of
-that file. `becomeAvatar` (`player.ts`) is the one way a player changes
-look: a new class is a new body at the same eye point, full when it's bigger and keeping the life it had, up
-to its full, when it's smaller.
+ground, head up, until its whole spine is out. Its rules are in that file; its body is its look's
+(`DragonShape`, the `dragon` on the look's row in `AVATARS`): the spine's links (metres from the
+eyes to the first point and between the points after it, so a skin with a long rigid stretch of
+body has one long link there), the head's and body's radius, how fast it cruises and how tight it
+turns. A life is a `LifeSpec` (hearts and the HUD's row), the class's unless the look has one of
+its own (`lifeOf`). `becomeAvatar` (`player.ts`) is the one way a player changes
+look: a new look is a new body at the same eye point, full when its life is bigger and keeping the
+life it had, up to its full, when it's smaller.
 
 A new look in a class is a row in `AVATARS` (with `item` for one that comes with its own weapon,
-`regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu). A new class is a spec
+`regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu, `life` for a
+life of its own), and for a dragon its shape there and a row in the client's `DRAGONS`
+(`render/avatars/dragons.ts`): the model it's drawn from, what it rises out of the ground through
+(the light dragon's portal of gold light, `render/Portal.ts`; Colgera's storm, `render/Storm.ts`,
+a wide white disc that mirrors the body coming up, with a hurricane turning round its edge), and
+the wave down its body; with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars, the cry it
+rises with and its theme; null for a silent one) and how far back it's watched from in
+`DRAGON_BOOMS` (`game/View.ts`). A new class is a spec
 and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES`; nothing else
 has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
-(`game/View.ts`) for how it's seen. The dragon is drawn by `render/avatars/Dragon.ts` from a model
-`scripts/dragon-model.py` rigs along the spine (its docstring says how); the GLB helpers both
-model scripts share are in `scripts/glb.py`. Its roars are `ACTION_SOUNDS` in `audio/Sfx.ts`, and
-its theme and the cry it rises with are rows there too.
+(`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model
+puts a bone at the eyes, one wherever it needs on the spine (`along` metres behind the eyes) and
+one hung on another for a part that moves on its own (the jaw), and the renderer carries each
+along the spine the sim moves. The light dragon's is rigged by `scripts/dragon-model.py` (its
+docstring says how) from a Sketchfab GLB; Colgera's (`colgera`, the Tears of the Kingdom boss: three
+ring segments, each a rigid link of the spine, on a stiff spine with wings and arms) by
+`scripts/colgera-model.py` from the game's own rip, a Collada file whose every piece is rigid on a
+joint of a straight skeleton, so the sim's links are the rig's joint spacings and a bone sits at
+the middle of each link carrying the pieces hung on it (the script prints the shape for `AVATARS`).
+The helpers the model scripts share (reading a GLB, decimating, packing an atlas) are in
+`scripts/glb.py`.
 
 ## Weapons
 

@@ -24,10 +24,15 @@ export interface Sphere {
 }
 export type HitShape = { kind: 'capsule'; eye: Vec3; box: Hitbox } | { kind: 'spheres'; spheres: Sphere[] };
 
+// A life: a full one's hearts, and how many to a row on the HUD (ui/Hearts.ts).
+export interface LifeSpec {
+  hearts: number;
+  row: number;
+}
+
 export interface ClassSpec {
   id: PlayerClass;
-  hearts: number; // a full life
-  heartRow: number; // hearts per row on the HUD
+  life: LifeSpec; // for a look of the class with none of its own
   kit: boolean; // may draw weapons, wear gear and take /speedy; false: its look's own item is all it has
   bots: boolean; // whether a bot may wear one of its looks
   // Seconds a dead one lies in the room before its seat goes, whether or not its client stays; null:
@@ -38,8 +43,9 @@ export interface ClassSpec {
   // time: none for `actionTicks` after the last.
   actions: Partial<Record<ItemAction, ActionSpec>>;
   actionTicks: number;
-  // Whether a body of this class can be where `pos` (an eye point) is, for a switch into it.
-  fits(pos: Vec3, structures: Structures): boolean;
+  // Whether a body of this class, in the look `avatar`, can be where `pos` (an eye point) is, for
+  // a switch into it.
+  fits(avatar: AvatarId, pos: Vec3, structures: Structures): boolean;
   // Keeps `p` where a body of this class may be: a walker inside the world's outline, a dragon's
   // head within its reach. The class's own step applies it as the body moves; a switch into the
   // class applies it at once, at the same height, so a dragon over the void lands a walker on the
@@ -64,7 +70,12 @@ export function classOf(avatar: AvatarId): ClassSpec {
   return CLASSES[AVATARS[avatar].class];
 }
 
+// The life of whoever wears `avatar`: the look's own, else its class's.
+export function lifeOf(avatar: AvatarId): LifeSpec {
+  return AVATARS[avatar].life ?? classOf(avatar).life;
+}
+
 // A full life for whoever wears `avatar`.
 export function heartsOf(avatar: AvatarId): number {
-  return classOf(avatar).hearts;
+  return lifeOf(avatar).hearts;
 }

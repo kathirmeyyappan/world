@@ -91,6 +91,9 @@ def decimate(part: dict, keep: float) -> None:
     part["bones"] = (weights / np.bincount(keys[:, 0], minlength=len(kept_points))[:, None])[keys[:, 0]]
 
 
+Region = tuple[Image.Image, np.ndarray, float, float, float, float]  # image, vertices, u0, v0, u span, v span
+
+
 def pack_atlas(
     doc: dict,
     blob: bytes,
@@ -105,9 +108,7 @@ def pack_atlas(
     to it instead), each plain colour a swatch (`colours` for materials with none in the file); laid
     out in rows no wider than MAX_ATLAS_WIDTH, with the coordinates moved into their region. A model
     with one texture and no repeats gets it back as it is."""
-    regions: list[
-        tuple[Image.Image, np.ndarray, float, float, float, float]
-    ] = []  # image, vertices, u0, v0, u span, v span
+    regions: list[Region] = []
     textures = doc.get("textures", [])
     by_texture: dict[int, list[int]] = {}
     for m, mat in enumerate(doc["materials"]):
@@ -121,7 +122,7 @@ def pack_atlas(
                 factor = mat.get("pbrMetallicRoughness", {}).get("baseColorFactor", [1, 1, 1, 1])
                 colour = tuple(round(c ** (1 / 2.2) * 255) for c in factor[:3])
                 print(f"material {mat['name']} has no texture; using {colour}")
-            regions.append((Image.new("RGB", (SWATCH, SWATCH), colour), vertices, 0.5, 0.5, 0, 0))
+            regions.append(swatch(colour, vertices))
         else:
             by_texture.setdefault(texture, []).append(m)
     for texture, mats in by_texture.items():
@@ -132,32 +133,47 @@ def pack_atlas(
         image = Image.open(io.BytesIO(blob[view["byteOffset"] : view["byteOffset"] + view["byteLength"]])).convert(
             "RGB"
         )
-        extrema = image.getextrema()
-        if all(low == high for low, high in extrema):
-            # One colour all over: a swatch is the same thing in 64 pixels.
-            colour = tuple(low for low, _ in extrema)
-            regions.append((Image.new("RGB", (SWATCH, SWATCH), colour), vertices, 0.5, 0.5, 0, 0))
-            continue
-        if max(image.size) > texture_size:
-            shrink = texture_size / max(image.size)
-            image = image.resize((round(image.width * shrink), round(image.height * shrink)), Image.LANCZOS)
-        low, high = uv[vertices].min(axis=0), uv[vertices].max(axis=0)
-        if all(high - low <= 1 + 1e-3):
-            # The texture repeats, so rolling it round by the fraction the span starts at puts the
-            # whole span on one copy.
-            pixels = np.roll(
-                np.asarray(image), (-round((low[1] % 1) * image.height), -round((low[0] % 1) * image.width)), (0, 1)
-            )
-            regions.append((Image.fromarray(pixels), vertices, float(low[0]), float(low[1]), 1, 1))
-            continue
-        u0, v0 = (math.floor(c) for c in low)
-        u1, v1 = (math.ceil(c) for c in high)
-        u1, v1 = max(u1, u0 + 1), max(v1, v0 + 1)
-        tiled = Image.new("RGB", (image.width * (u1 - u0), image.height * (v1 - v0)))
-        for i in range(u1 - u0):
-            for j in range(v1 - v0):
-                tiled.paste(image, (i * image.width, j * image.height))
-        regions.append((tiled, vertices, u0, v0, u1 - u0, v1 - v0))
+        regions.append(textured(image, uv, vertices, texture_size))
+    return pack_regions(regions, uv)
+
+
+def swatch(colour: tuple[int, int, int], vertices: np.ndarray) -> Region:
+    """A plain colour's region: a square of it, every vertex at its middle."""
+    return (Image.new("RGB", (SWATCH, SWATCH), colour), vertices, 0.5, 0.5, 0, 0)
+
+
+def textured(image: Image.Image, uv: np.ndarray, vertices: np.ndarray, texture_size: int) -> Region:
+    """A texture's region for the `vertices` that use it: the image, no bigger than `texture_size`
+    on its long side, tiled over the whole-number range their coordinates span (so repeats bake in
+    and nothing wraps; a span that fits one tile but straddles a whole number gets the image rolled
+    round to it instead), or a swatch when it is one colour all over."""
+    extrema = image.getextrema()
+    if all(low == high for low, high in extrema):
+        return swatch(tuple(low for low, _ in extrema), vertices)
+    if max(image.size) > texture_size:
+        shrink = texture_size / max(image.size)
+        image = image.resize((round(image.width * shrink), round(image.height * shrink)), Image.LANCZOS)
+    low, high = uv[vertices].min(axis=0), uv[vertices].max(axis=0)
+    if all(high - low <= 1 + 1e-3):
+        # The texture repeats, so rolling it round by the fraction the span starts at puts the
+        # whole span on one copy.
+        pixels = np.roll(
+            np.asarray(image), (-round((low[1] % 1) * image.height), -round((low[0] % 1) * image.width)), (0, 1)
+        )
+        return (Image.fromarray(pixels), vertices, float(low[0]), float(low[1]), 1, 1)
+    u0, v0 = (math.floor(c) for c in low)
+    u1, v1 = (math.ceil(c) for c in high)
+    u1, v1 = max(u1, u0 + 1), max(v1, v0 + 1)
+    tiled = Image.new("RGB", (image.width * (u1 - u0), image.height * (v1 - v0)))
+    for i in range(u1 - u0):
+        for j in range(v1 - v0):
+            tiled.paste(image, (i * image.width, j * image.height))
+    return (tiled, vertices, u0, v0, u1 - u0, v1 - v0)
+
+
+def pack_regions(regions: list[Region], uv: np.ndarray) -> tuple[Image.Image, np.ndarray]:
+    """The regions laid out in rows no wider than MAX_ATLAS_WIDTH, with the coordinates moved into
+    their region. One texture with no repeats comes back as it is."""
     if len(regions) == 1 and regions[0][4] == 1 and regions[0][5] == 1:
         image, _, u0, v0, _, _ = regions[0]
         return image, uv - [u0, v0]

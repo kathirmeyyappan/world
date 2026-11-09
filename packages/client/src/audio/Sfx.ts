@@ -1,13 +1,21 @@
 // Sound effects: short recordings in public/assets/sounds, fetched in the background once the
 // browser lets the page make sound (after the first click or key), or, for a big one (`lazy`), the
 // first time it's wanted; one that hasn't arrived yet doesn't play. SOUNDS says what each one is,
-// and ITEM_SOUNDS, GEAR_SOUNDS and ACTION_SOUNDS which item, gear or class action makes which, so a
+// and ITEM_SOUNDS, GEAR_SOUNDS and DRAGON_VOICES which item, gear or dragon makes which, so a
 // new weapon is a row in each (the Records make the compiler ask). Other players' sounds are placed
 // where they are and fade with distance (falloff); the local player's own play flat. Everything
 // goes through one limiter, so a pile of shots at once gets squashed rather than clipping. Music and
 // everything else come through a channel each, so either can be muted on its own, and the device
 // keeps the choice.
-import type { GearId, ItemAction, ItemId, Vec3 } from '@world/shared';
+import {
+  isDragonAvatar,
+  type AvatarId,
+  type AvatarsOf,
+  type GearId,
+  type ItemAction,
+  type ItemId,
+  type Vec3,
+} from '@world/shared';
 
 export type Channel = 'music' | 'effects';
 
@@ -133,11 +141,27 @@ export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
 };
 
 // What a class's own actions sound like, played where whoever did it is.
-export const ACTION_SOUNDS: Partial<Record<ItemAction, SoundId>> = {
-  'roar-1': 'roar-1',
-  'roar-2': 'roar-2',
-  'roar-3': 'roar-3',
+// What a dragon skin sounds like (render/avatars/dragons.ts lists the skins): its roars by action,
+// the cry it rises out of the ground with, and the theme that plays from its head; null for a
+// skin with no voice yet.
+export interface DragonVoice {
+  roars: Partial<Record<ItemAction, SoundId>>;
+  cry: SoundId;
+  theme: SoundId;
+}
+export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null> = {
+  'light-dragon': {
+    roars: { 'roar-1': 'roar-1', 'roar-2': 'roar-2', 'roar-3': 'roar-3' },
+    cry: 'dragon-cry',
+    theme: 'dragon-theme',
+  },
+  colgera: null,
 };
+
+// The voice of whoever wears `avatar`, if it has one.
+export function voiceOf(avatar: AvatarId): DragonVoice | null {
+  return isDragonAvatar(avatar) ? DRAGON_VOICES[avatar] : null;
+}
 
 // The loops a player is making this frame: their hold weapon spraying, their gear thrusting.
 export function loopsOf(p: {

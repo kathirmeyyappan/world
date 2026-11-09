@@ -25,8 +25,8 @@ import {
   DUNE_HEIGHT,
   FLOOR,
   FROST_CELL,
-  HEAD_RADIUS,
   wall,
+  dragonShape,
   PINEAPPLE_DOOR,
   PINEAPPLE_PLACEMENT,
   defaultBotsFor,
@@ -1007,7 +1007,7 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   room.receive(ida, { t: 'chat', text: '/standard' });
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "not while you're dead" });
   for (let i = 0; i < 7 * TICK_RATE; i++) room.step();
-  assert.equal(alice.pos.y, HEAD_RADIUS, 'the head came to rest on the ground');
+  assert.equal(alice.pos.y, dragonShape('light-dragon').headRadius, 'the head came to rest on the ground');
   room.leave(ida);
   for (let i = 0; i < 22 * TICK_RATE; i++) room.step();
   assert.ok(

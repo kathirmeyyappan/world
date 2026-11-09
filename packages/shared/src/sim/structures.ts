@@ -27,7 +27,7 @@ export interface Footprint {
 }
 
 // Surface looks the renderer knows how to paint.
-export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'plaster';
+export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'plaster' | 'steel';
 
 // A solid block: walls, buildings, platforms, pillars.
 export interface Box extends Footprint {
@@ -55,7 +55,11 @@ export interface Terrain extends Footprint {
 // and climbs it (walker.ts). To everything else it is a thin box, and frost never lies on it.
 export interface Ladder extends Footprint {
   kind: 'ladder';
-  h: number;
+  h: number; // metres from its foot to its top, straight up
+  // Radians from upright, up to MAX_LADDER_LEAN, its top that far over toward its local +z, as a
+  // ladder stood against a wall there leans; climbed on the face it leans away from. Where it
+  // leans it is solid underneath, like a ramp (surfaceOf), so lean one against something.
+  lean?: number;
 }
 
 export type Structure = Box | Ramp | Terrain | Ladder;
@@ -71,8 +75,13 @@ export interface Surface {
 export function surfaceOf(s: Structure): Surface {
   switch (s.kind) {
     case 'box':
-    case 'ladder':
       return { top: () => s.h, height: s.h };
+    case 'ladder': {
+      // A leaning ladder's footprint runs from its foot to under its top (collision.ts), and it
+      // is the wedge under its rails: a ramp from the foot's edge up to the top's.
+      const d = s.d + ladderRun(s);
+      return { top: (_lx, lz) => (s.lean ? s.h * (lz / d + 0.5) : s.h), height: s.h };
+    }
     case 'ramp':
       return { top: (_lx, lz) => s.h * (lz / s.d + 0.5), height: s.h };
     case 'terrain':
@@ -98,6 +107,8 @@ export function validateStructure(s: Structure, label: string): void {
   const bad = (why: string) => new Error(`structure ${label} (${s.kind}): ${why}`);
   if (!(s.w > 0 && s.d > 0)) throw bad('w and d must be positive');
   if (s.kind !== 'terrain' && !(s.h > 0)) throw bad('h must be positive');
+  if (s.kind === 'ladder' && s.lean !== undefined && !(s.lean >= 0 && s.lean <= MAX_LADDER_LEAN))
+    throw bad(`lean must be from 0 to ${MAX_LADDER_LEAN} radians`);
   if (s.surface !== undefined && !isSurfaceId(s.surface)) throw bad(`unknown surface ${String(s.surface)}`);
   if (s.worldTop !== undefined && typeof s.worldTop !== 'boolean') throw bad('worldTop must be a boolean');
   if (s.kind === 'terrain') {
@@ -126,17 +137,45 @@ export function wall(a: { x: number; z: number }, b: { x: number; z: number }, h
 
 export const LADDER_WIDTH = 0.7; // metres across the rails
 export const LADDER_GIRTH = 0.3; // metres through the frame: what a body or a shot meets
+export const MAX_LADDER_LEAN = Math.PI / 4; // radians from upright: further over, it's a ramp with rungs
 
 // A ladder standing on `foot` (its underside at y) up to `top`, its faces turned to `yaw` (the
 // frame runs across it), of wood unless told otherwise.
+export interface LadderOptions {
+  material?: StructureMaterial;
+  width?: number; // metres across the rails
+  lean?: number; // radians from upright, toward the ladder's local +z
+  hidden?: boolean; // for one a model draws
+}
+
+// A ladder standing on `foot` (the middle of its rails at the floor, at height y) up to `top`,
+// its rungs across local x and its faces toward local ±z.
 export function ladder(
   foot: { x: number; z: number },
   y: number,
   top: number,
   yaw: number,
-  material: StructureMaterial = 'wood',
+  { material = 'wood', width = LADDER_WIDTH, lean = 0, hidden }: LadderOptions = {},
 ): Ladder {
-  return { kind: 'ladder', x: foot.x, z: foot.z, y, yaw, w: LADDER_WIDTH, d: LADDER_GIRTH, h: top - y, material };
+  const piece: Ladder = {
+    kind: 'ladder',
+    x: foot.x,
+    z: foot.z,
+    y,
+    yaw,
+    w: width,
+    d: LADDER_GIRTH,
+    h: top - y,
+    material,
+  };
+  if (lean) piece.lean = lean;
+  if (hidden) piece.hidden = true;
+  return piece;
+}
+
+// Metres a ladder's top is over from its foot, along its local +z: none upright.
+export function ladderRun(s: Ladder): number {
+  return s.h * Math.tan(s.lean ?? 0);
 }
 
 // A ramp from `low` on the floor (or at y) up to `high`, rising by h, width w.
