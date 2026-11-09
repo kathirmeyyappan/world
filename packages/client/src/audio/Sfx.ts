@@ -135,7 +135,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // dragon's, and one recorded from a way off, dull with the distance, played past FAR metres instead
   // (as loud there as the close one would have been, then falling off slower, the distance being in
   // the take). Its theme (the battle theme's last movement, cut to loop on itself after its lead-in)
-  // is louder up close than the light dragon's and as quiet from afar.
+  // falls off like the light dragon's, a little louder, the music being the bigger of the two.
   'colgera-roar-1': { file: 'colgera-roar-1.mp3', half: 60, volume: 0.35 },
   'colgera-roar-2': { file: 'colgera-roar-2.mp3', half: 60, volume: 0.35 },
   'colgera-roar-3': { file: 'colgera-roar-3.mp3', half: 60, volume: 0.35 },
@@ -147,9 +147,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'colgera-theme': {
     file: 'colgera-theme.mp3',
     intro: 'colgera-theme-start.mp3',
-    half: 22,
+    half: 25,
     reach: 300,
-    volume: 0.34,
+    volume: 0.26,
     loop: true,
     swell: 2.5,
     fade: 2.5,
@@ -160,6 +160,12 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
 
 // Metres from a call past which its far take, if it has one, is the one played.
 export const FAR = 45;
+
+// The share of a sound's volume left `metres` from it (falloff): what a loop played flat, with no
+// place, is given as its `level` to sound as if from there.
+export function heard(id: SoundId, metres: number): number {
+  return falloff(metres, SOUNDS[id]);
+}
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
 // passes within `within` metres of you without hitting (placed where it passed, so a far one is
@@ -370,10 +376,11 @@ export class Sfx {
   }
 
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
-  // for the local player's own). A loop that hasn't been listed for LINGER fades out, over its
-  // `fade`. `elapsed` is how far into it a loop already is when it starts: a theme that has been
-  // running since its dragon rose, heard again from where it has got to rather than from the top.
-  setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number }[]): void {
+  // for the local player's own, played flat at `level` of its volume). A loop that hasn't been
+  // listed for LINGER fades out, over its `fade`. `elapsed` is how far into it a loop already is
+  // when it starts: a theme that has been running since its dragon rose, heard again from where it
+  // has got to rather than from the top.
+  setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number; level?: number }[]): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     for (const w of wanted) {
@@ -387,7 +394,7 @@ export class Sfx {
         }
         continue;
       }
-      const started = this.startLoop(w.id, w.at, w.elapsed ?? 0);
+      const started = this.startLoop(w.id, w.at, w.elapsed ?? 0, w.level ?? 1);
       if (started) this.loops.set(key, started);
     }
     for (const [key, voice] of this.loops) {
@@ -400,9 +407,9 @@ export class Sfx {
     }
   }
 
-  // A loop fading in, `elapsed` seconds along: in its intro, if it has one, or round its body as
-  // many times as that takes; null until its files have arrived.
-  private startLoop(id: SoundId, at: Vec3 | null, elapsed: number): Voice | null {
+  // A loop fading in to `level` of its volume, `elapsed` seconds along: in its intro, if it has
+  // one, or round its body as many times as that takes; null until its files have arrived.
+  private startLoop(id: SoundId, at: Vec3 | null, elapsed: number, level: number): Voice | null {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
     const buffer = this.buffer(id);
@@ -410,7 +417,7 @@ export class Sfx {
     if (!buffer || (spec.intro && !intro)) return null;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
-    voice.gain.gain.linearRampToValueAtTime(spec.volume, t + (spec.swell ?? FADE));
+    voice.gain.gain.linearRampToValueAtTime(spec.volume * level, t + (spec.swell ?? FADE));
     const sources: AudioBufferSourceNode[] = [];
     const loop = new AudioBufferSourceNode(ctx, { buffer, loop: true });
     const lead = intro?.duration ?? 0;

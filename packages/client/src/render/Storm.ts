@@ -25,6 +25,7 @@ const GRAIN = 64; // pixels across a tile of static, laid over the pool a few ti
 const STATIC_STEP = 1 / 15; // seconds between the static's frames
 const STATIC_TILES = 4; // tiles of static to cycle through
 const STATIC_LEVEL = 0.4; // how much of the static shows through the white
+const POOL_ALPHA = 0.5; // how solid the pool is: the floor and the ice on it show through
 const PLUSSES = 360; // "+"s in the air at once
 const PLUS_SECONDS = 2.4;
 const PLUS_TURN = 1.5; // radians a second the gale turns round the pool
@@ -40,7 +41,6 @@ let grains: HTMLCanvasElement[] | null = null; // the tiles of static, likewise
 let puff: DynamicTexture | null = null;
 
 export class Storm implements Rise {
-  private readonly engine: Engine;
   private readonly spin: Mesh; // the gale's frame, turning round the pool's axis
   private readonly roll: Mesh; // the fog's, turning slower
   private readonly disc: Mesh;
@@ -52,7 +52,6 @@ export class Storm implements Rise {
   private staticAt = 0; // seconds since the static last stepped
 
   constructor(engine: Engine, name: string) {
-    this.engine = engine;
     const scene = engine.scene;
     this.spin = new Mesh(`${name}-spin`, scene);
     this.roll = new Mesh(`${name}-roll`, scene);
@@ -71,7 +70,6 @@ export class Storm implements Rise {
     this.material.disableLighting = true;
     this.material.backFaceCulling = false;
     this.disc.material = this.material;
-    engine.glowLayer.addIncludedOnlyMesh(this.disc);
     this.paint();
     // The gale: "+"s born over the pool, climbing and drawn in toward the middle, in the frame of a
     // node that turns, so every one of them goes round with it (a solid whirl, faster out at the
@@ -141,7 +139,7 @@ export class Storm implements Rise {
     this.spin.setEnabled(this.open > 0);
     this.spin.rotation.y += dt * PLUS_TURN;
     this.roll.rotation.y -= dt * FOG_TURN;
-    this.material.alpha = this.open;
+    this.material.alpha = POOL_ALPHA * this.open;
     this.disc.scaling.setAll(0.7 + 0.3 * this.open);
     this.staticAt += dt;
     if (this.open > 0 && this.staticAt >= STATIC_STEP) {
@@ -180,7 +178,6 @@ export class Storm implements Rise {
   dispose(): void {
     this.plusses.dispose(); // its own sheet of "+"s with it
     this.fog.dispose(false); // not the puff: every storm's
-    this.engine.glowLayer.removeIncludedOnlyMesh(this.disc);
     this.disc.dispose();
     this.material.dispose();
     this.picture.dispose();
@@ -189,15 +186,15 @@ export class Storm implements Rise {
   }
 }
 
-// The pool: white in the middle, through pale to deep blue at the rim, and gone just past it.
+// The pool: pale in the middle, through blue to deep blue at the rim, and gone just past it.
 function poolPicture(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = POOL;
   const ctx = canvas.getContext('2d')!;
   const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
-  g.addColorStop(0, 'rgba(255,255,255,0.96)');
-  g.addColorStop(0.55, 'rgba(236,246,255,0.96)');
-  g.addColorStop(0.8, 'rgba(150,205,255,0.92)');
+  g.addColorStop(0, 'rgba(226,238,255,0.9)');
+  g.addColorStop(0.55, 'rgba(206,228,255,0.9)');
+  g.addColorStop(0.8, 'rgba(140,195,255,0.88)');
   g.addColorStop(0.93, 'rgba(70,150,255,0.7)');
   g.addColorStop(1, 'rgba(50,130,255,0)');
   ctx.fillStyle = g;
