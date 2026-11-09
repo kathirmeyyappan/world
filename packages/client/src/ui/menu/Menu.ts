@@ -1,11 +1,12 @@
 // The menu, behind the gear over the room panel, the X key or Esc: tabs of rows (tabs.ts) for who
 // you are, the room and its link, other rooms, sound, the view and the guide, with a look at your
-// own body (Preview.ts) at the top of the first. It builds its own button and card and keeps its
-// own look (menu.css), so the rest of the page knows it only as the button in the top-left corner.
-// With a mouse it frees the pointer to click around in, and it is what Esc brings up from the world
-// (the game opens it when the pointer is let go, since the browser answers that Esc itself);
-// closing it with X, Esc, its corner button or a click beside the card puts the player back in the
-// world. On touch a tap on its corner button or beside the card closes it.
+// own body and the map (Preview.ts) at the top of the first. It builds its own button and card and
+// keeps its own look (menu.css), so the rest of the page knows it only as the button in the top-left
+// corner. With a mouse it frees the pointer to click around in, and it is what Esc brings up from
+// the world (the game opens it when the pointer is let go, since the browser answers that Esc
+// itself); closing it with X, Esc, its corner button or a click beside the card puts the player
+// back in the world, and C swaps it for the commands menu. On touch a tap on its corner button or
+// beside the card closes it.
 import { IS_TOUCH } from '../../input/touch';
 import { rememberName } from '../../net/lobby';
 import { gearIcon } from './gearIcon';
@@ -22,14 +23,23 @@ export class Menu {
   private readonly drawn: Drawn[] = [];
   private readonly tabs: HTMLButtonElement[] = [];
   private readonly panels: HTMLElement[] = [];
-  private readonly preview = new Preview();
-  private readonly me: Me = { name: '', avatar: 'standard', color: '#ffffff', item: null, gear: null };
+  private readonly preview: Preview;
+  private readonly me: Me = {
+    name: '',
+    avatar: 'standard',
+    color: '#ffffff',
+    item: null,
+    gear: null,
+    chilled: false,
+    shattered: [],
+  };
   private open = false;
   private shown = 0; // the tab selected
   // After it opens or closes; `back` when the close should put the player back in the world.
   onOpenChange: ((open: boolean, back: boolean) => void) | null = null;
 
-  constructor(hooks: MenuHooks) {
+  constructor(private readonly hooks: MenuHooks) {
+    this.preview = new Preview(hooks.minimap);
     this.el.id = 'menu';
     this.el.className = 'hidden';
     this.el.translate = true;
@@ -91,13 +101,18 @@ export class Menu {
   }
 
   // While it's open the menu has the keyboard: X, the key that opened it, Esc, which does too, or
-  // Q, which closes the other cards, goes back to the world. Keys typed into its fields are theirs
-  // (rows.ts).
+  // Q, which closes the other cards, goes back to the world; C goes back and brings up the commands
+  // menu, as it would from the world; P turns the map, as in the world. Keys typed into its fields
+  // are theirs (rows.ts).
   private key(e: KeyboardEvent): void {
     if (!this.open || (e.target instanceof HTMLInputElement && this.el.contains(e.target))) return;
     e.stopPropagation();
     if (e.repeat) return;
     if (e.code === 'KeyX' || e.code === 'KeyQ' || e.code === 'Escape') this.hide(true);
+    else if (e.code === 'KeyC') {
+      this.hide(true);
+      this.hooks.commands();
+    } else if (e.code === 'KeyP') this.hooks.minimap.toggle();
   }
 
   private refresh(): void {
@@ -151,7 +166,16 @@ export class Menu {
       body.append(panel);
     });
     nav.append(...this.tabs);
-    this.panels[0].prepend(this.preview.el);
+    // The window of the body and the map, with the way to the commands under it.
+    const top = document.createElement('div');
+    top.className = 'top';
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.innerHTML = IS_TOUCH
+      ? 'hint: tap CMDS to see available commands'
+      : 'hint: press <kbd translate="no">C</kbd> to see available commands';
+    top.append(this.preview.el, hint);
+    this.panels[0].prepend(top);
     card.append(head, nav, body);
     // With a keyboard the footer teaches the key; on touch the corner button says it all.
     if (!IS_TOUCH) {

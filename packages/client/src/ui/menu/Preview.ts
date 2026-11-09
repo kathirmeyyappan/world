@@ -1,9 +1,12 @@
-// The player's own body at the top of the menu's PLAY tab: their avatar standing on a little
-// stage, or a dragon hovering over it, holding what they hold, drawn by the world's own avatar
-// builders, so whatever a skin keeps moving while it stands still (a walker's `extra`, a dragon's
-// wave and wings) moves here as in the world. The view turns slowly on its own and under a drag.
-// The scene is a second Engine on a canvas of the card's, lit and finished like the world, built
-// the first time the tab is seen and drawn only while it's seen.
+// The window at the top of the menu's PLAY tab: the player's own body, and the map (Map.ts) in a
+// square in its corner, the two swapping places at a click on the small one. The body is their
+// avatar standing on a floor ruled in metres, or a dragon hovering over it, holding what they
+// hold, drawn by the world's own avatar builders, so whatever a skin keeps moving while it stands
+// still (a walker's `extra`, a dragon's wave and wings) moves here as in the world, and what the
+// body has been through (frosted over, a crystal shot out) shows on it. The view turns slowly on
+// its own and under a drag, from any side, above or below (the floor fades away as the view comes
+// down to its level). The scene is a second Engine on a canvas of the card's, lit and finished like
+// the world, built the first time the tab is seen and drawn only while it's seen.
 import {
   ArcRotateCamera,
   Color3,
@@ -18,21 +21,27 @@ import { AVATARS, EYE_HEIGHT, dragonShape, type AvatarId, type DragonState } fro
 import type { RemotePlayer } from '../../net/Interpolation';
 import { createAvatar, type Avatar } from '../../render/avatars';
 import { Engine } from '../../render/Engine';
+import type { Minimap } from '../Minimap';
+import { MenuMap } from './Map';
 import type { Me } from './tabs';
 
 const PIXELS = 1.5; // CSS pixels per rendered one: the world's grid on a mouse device, whatever the picture is set to
 const SPIN = 0.25; // radians a second the view turns on its own
 const FROM = Math.PI / 2 - 0.6; // where the view starts: three quarters on, the body's right side and what it holds in view
+const TILT = 0.35; // radians the view keeps off straight above and straight below
 const SPIN_PAUSE_MS = 2500; // after a drag, before it turns on its own again
-// The floor is ruled in metres, a fainter line at each half, so bodies compare: a stage is a whole
-// number of them across.
+// The floor is ruled in squares a metre across, so bodies compare; it reaches REACH stages out from
+// the middle, fading to nothing by its edge, and fades out altogether as the view comes down to its
+// level, over this fraction of the view's distance in height.
 const CELL = 1;
-// A walker's stage: metres across its floor, at least (a tall body gets a wider one), and how
-// far off the view stands, in stages.
+const REACH = 10;
+const HORIZON_FADE = 0.12;
+// A walker's stage: metres across, at least (a tall body gets a wider one), and how far off the
+// view stands, in stages.
 const WALKER_STAGE = 2.6;
-const WALKER_HEADROOM = 1.3; // the floor this many times the body's height across
+const WALKER_HEADROOM = 1.3; // the stage this many times the body's height across
 const WALKER_VIEW = 1.7;
-// A dragon's, in its head's radius: it hovers HOVER radii up over a floor STAGE radii across.
+// A dragon's, in its head's radius: it hovers HOVER radii up over a stage STAGE radii across.
 const DRAGON_HOVER = 2.2;
 const DRAGON_STAGE = 6;
 const DRAGON_VIEW = 0.95; // in stages
@@ -41,14 +50,17 @@ const WEAVE = { x: 0.6, y: 0.45, xSeconds: 7, ySeconds: 4.3 };
 const BODY_ARC = 25; // metres: the radius of the curve a dragon's body is laid on behind its head
 
 interface Stage {
-  size: number; // metres across the floor
+  size: number; // metres across
   centre: Vector3; // what the view looks at: the middle of the body
   radius: number; // metres the view stands off
 }
 
 export class Preview {
   readonly el = document.createElement('div');
+  private readonly body = document.createElement('div'); // the view of the body
   private readonly canvas = document.createElement('canvas');
+  private readonly map: MenuMap;
+  private mapBig = false; // the map fills the window and the body is in the corner
   private engine: Engine | null = null;
   private camera: ArcRotateCamera | null = null;
   private avatar: Avatar | null = null;
@@ -59,9 +71,22 @@ export class Preview {
   private seen = false; // drawn since it was last hidden: the first frame shown sizes the canvas
   private lastNow = performance.now();
 
-  constructor() {
+  constructor(minimap: Minimap) {
     this.el.className = 'preview';
-    this.el.append(this.canvas);
+    this.map = new MenuMap(minimap);
+    this.body.className = 'view body';
+    this.body.append(this.canvas);
+    // The small view is a button to bring it up: it covers the view, so no drag reaches it.
+    for (const [view, name] of [
+      [this.body, 'YOU'],
+      [this.map.el, 'MAP'],
+    ] as const) {
+      const swap = Object.assign(document.createElement('button'), { className: 'swap', textContent: name });
+      swap.addEventListener('click', () => this.swap());
+      view.append(swap);
+    }
+    this.el.append(this.body, this.map.el);
+    this.place();
     this.canvas.addEventListener('pointerdown', () => (this.dragging = true));
     window.addEventListener('pointerup', () => this.drop());
     window.addEventListener('pointercancel', () => this.drop());
@@ -82,11 +107,30 @@ export class Preview {
     }
     const dt = Math.min(0.1, (now - this.lastNow) / 1000);
     this.lastNow = now;
-    const avatar = this.body(engine, me);
+    const avatar = this.body3d(engine, me);
     const stage = this.stage!;
     avatar.update(this.state(me, stage, now), 0);
-    if (!this.dragging && now - this.draggedAt > SPIN_PAUSE_MS) this.camera!.alpha += dt * SPIN;
+    const camera = this.camera!;
+    if (!this.dragging && now - this.draggedAt > SPIN_PAUSE_MS) camera.alpha += dt * SPIN;
+    // The floor goes as the view comes down to its level, and is gone from below it.
+    const height = camera.position.y / (HORIZON_FADE * camera.radius);
+    stage.floor.visibility = Math.min(1, Math.max(0, height));
+    stage.floor.setEnabled(height > 0);
+    this.map.sync();
     engine.scene.render();
+  }
+
+  private swap(): void {
+    this.mapBig = !this.mapBig;
+    this.place();
+    this.engine?.engine.resize(); // the canvas is another size
+  }
+
+  private place(): void {
+    this.body.classList.toggle('big', !this.mapBig);
+    this.body.classList.toggle('small', this.mapBig);
+    this.map.el.classList.toggle('big', this.mapBig);
+    this.map.el.classList.toggle('small', !this.mapBig);
   }
 
   private drop(): void {
@@ -100,12 +144,12 @@ export class Preview {
     engine.engine.setHardwareScalingLevel(PIXELS);
     const scene = engine.scene;
     // From in front of the body (it faces +z), a little above, turned by a drag or a pinch; never
-    // slid about, never from underneath.
+    // slid about.
     const camera = new ArcRotateCamera('preview', FROM, 1.25, 4, new Vector3(0, 1, 0), scene);
     camera.minZ = 0.1;
     camera.panningSensibility = 0;
-    camera.lowerBetaLimit = 0.35;
-    camera.upperBetaLimit = 1.9;
+    camera.lowerBetaLimit = TILT;
+    camera.upperBetaLimit = Math.PI - TILT;
     camera.wheelDeltaPercentage = 0.02;
     camera.pinchDeltaPercentage = 0.02;
     camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
@@ -118,7 +162,7 @@ export class Preview {
 
   // The avatar as `me` is, made afresh when the look or the colour changes, with the stage to
   // suit it.
-  private body(engine: Engine, me: Me): Avatar {
+  private body3d(engine: Engine, me: Me): Avatar {
     const old = this.avatar;
     if (old && (old.kind !== me.avatar || (old.color !== undefined && old.color !== me.color))) {
       old.dispose();
@@ -174,7 +218,7 @@ export class Preview {
         head: { x: head.x, y: head.y, z: head.z },
         risen: true,
         spine: this.spine,
-        shattered: [],
+        shattered: me.shattered,
       };
     }
     return {
@@ -193,7 +237,7 @@ export class Preview {
       thrusting: false,
       walk: 0,
       climb: null,
-      chilled: false,
+      chilled: me.chilled,
       dead: false,
       avatar: me.avatar,
       dragon: body,
@@ -214,15 +258,19 @@ function stageOf(kind: AvatarId): Stage {
   return { size, centre: new Vector3(0, top / 2, 0), radius: size * WALKER_VIEW };
 }
 
-// The stage: a floor ruled in the accent, a CELL to a tile.
+// The floor: a plain ruled in the accent, a CELL to a square, solid over the stage in the middle
+// and fading out to nothing by its edge, so it reads as going on for ever.
 function buildFloor(engine: Engine, size: number): Mesh {
   const scene = engine.scene;
-  const floor = MeshBuilder.CreateGround('preview-floor', { width: size, height: size }, scene);
+  const width = size * REACH;
+  const floor = MeshBuilder.CreateGround('preview-floor', { width, height: width }, scene);
   floor.isPickable = false;
+  floor.alphaIndex = 0; // drawn before the shadow and anything else translucent laid over it
   const ruled = new StandardMaterial('preview-floor', scene);
-  const tile = floorTexture(engine);
-  tile.uScale = tile.vScale = size / CELL;
+  const tile = gridTexture(engine);
+  tile.uScale = tile.vScale = width / CELL;
   ruled.emissiveTexture = tile;
+  ruled.opacityTexture = fadeTexture(engine);
   ruled.diffuseColor = Color3.Black();
   ruled.specularColor = Color3.Black();
   ruled.disableLighting = true;
@@ -230,28 +278,51 @@ function buildFloor(engine: Engine, size: number): Mesh {
   return floor;
 }
 
-// One cell of the floor: dark, ruled in the accent along two of its edges, with a fainter line
-// across its middle each way.
-function floorTexture(engine: Engine): DynamicTexture {
+// One square of the floor: dark, ruled along its edges with half a line's width either side of each
+// seam, so every edge rules alike as the tile repeats.
+function gridTexture(engine: Engine): DynamicTexture {
   const size = 64;
-  const texture = new DynamicTexture('preview-floor', size, engine.scene, true); // mipmapped: the far rules of a wide floor blend rather than sparkle
+  const texture = new DynamicTexture('preview-grid', size, engine.scene, true); // mipmapped: the far rules blend rather than sparkle
   texture.wrapU = texture.wrapV = Texture.WRAP_ADDRESSMODE; // tiled across the floor
   const ctx = texture.getContext() as CanvasRenderingContext2D;
   ctx.fillStyle = '#0b0d14';
   ctx.fillRect(0, 0, size, size);
-  const rule = (at: number, alpha: number) => {
-    ctx.strokeStyle = `rgba(100, 181, 246, ${alpha})`;
-    ctx.beginPath();
+  ctx.strokeStyle = 'rgba(100, 181, 246, 0.45)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (const at of [0, size]) {
     ctx.moveTo(at, 0);
     ctx.lineTo(at, size);
     ctx.moveTo(0, at);
     ctx.lineTo(size, at);
-    ctx.stroke();
-  };
-  ctx.lineWidth = 3;
-  rule(size / 2, 0.14);
-  ctx.lineWidth = 4;
-  rule(2, 0.4);
+  }
+  ctx.stroke();
+  texture.update();
+  return texture;
+}
+
+// The floor's fade, read as alpha from its brightness: solid out to the stage's edge, thinning to
+// nothing at the floor's.
+function fadeTexture(engine: Engine): DynamicTexture {
+  const size = 256;
+  const texture = new DynamicTexture('preview-fade', size, engine.scene, true);
+  texture.wrapU = texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+  texture.getAlphaFromRGB = true;
+  const ctx = texture.getContext() as CanvasRenderingContext2D;
+  const fade = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (const [at, white] of [
+    [0, 1],
+    [1 / REACH, 1],
+    [0.4, 0.72],
+    [0.6, 0.42],
+    [0.8, 0.16],
+    [1, 0],
+  ]) {
+    const v = Math.round(white * 255);
+    fade.addColorStop(at, `rgb(${v}, ${v}, ${v})`);
+  }
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, size, size);
   texture.update();
   return texture;
 }

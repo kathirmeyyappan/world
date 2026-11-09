@@ -81,6 +81,11 @@ export class Hud {
     return !this.chatInput.classList.contains('hidden');
   }
 
+  // What's typed in the chat so far, or null while it's closed.
+  chatText(): string | null {
+    return this.isChatOpen() ? this.chatInput.value : null;
+  }
+
   openChat(text = ''): void {
     if (document.pointerLockElement) document.exitPointerLock();
     this.chatInput.classList.remove('hidden');

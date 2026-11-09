@@ -1,8 +1,10 @@
 // The commands menu: every chat command, grouped, built from the item, gear and avatar registries so
 // a new item or skin shows up here without anyone remembering to add it. Toggled with a key
 // or the touch button, closed with Q/C or, on touch, any tap. On a keyboard it is a reference
-// card; on touch each command is a button that sends it as a chat message, and one that needs
-// arguments is greyed and opens chat with it typed, to finish there.
+// card with a mirror of the chat in its top corner (the chat itself is down in the corner of the
+// screen, easy to miss behind the card): Enter puts the cursor in it, and what's typed shows there
+// until Enter sends it. On touch each command is a button that sends it as a chat message, and one
+// that needs arguments is greyed and opens chat with it typed, to finish there.
 // Blocks game input while open, like the cube card.
 import {
   AVATARS,
@@ -38,14 +40,24 @@ export class CommandsMenu {
   private open = false;
   private readonly noticeEl = document.createElement('div');
   private noticeTimer = 0;
+  private readonly mirrorEl: HTMLElement | null; // the chat's mirror, with a keyboard
+  private mirrored: string | null | undefined; // what the mirror shows: the chat's text, or null while it's closed
   onCommand: ((text: string) => void) | null = null;
   onDraft: ((text: string) => void) | null = null; // opens chat with this typed
-  onOpen: (() => void) | null = null;
+  onChat: (() => void) | null = null; // opens chat, from a click on its mirror
+  onOpenChange: ((open: boolean) => void) | null = null;
 
   constructor() {
     const groups = buildGroups();
-    // The body scrolls; the footer (guide note + close hint) stays put under it.
+    // The body scrolls; the top (the title and the chat's mirror) and the footer (guide note + close
+    // hint) stay put either side of it.
     this.el.innerHTML = IS_TOUCH ? touchHtml(groups) : keyboardHtml(groups);
+    this.mirrorEl = this.el.querySelector('.chat-mirror');
+    // A press on the mirror leaves the chat's own box focused, and a click brings it up when it's down.
+    this.mirrorEl?.addEventListener('pointerdown', (e) => e.preventDefault());
+    this.mirrorEl?.addEventListener('click', () => {
+      if (this.mirrored === null) this.onChat?.();
+    });
     onTap(this.el, (e) => this.tap(e));
     // A tap hides the menu on its up, so the mouse events the browser follows it with would land on
     // the world beneath (taking focus from the chat a greyed button opens). Swipes still scroll.
@@ -75,7 +87,22 @@ export class CommandsMenu {
     if (open === this.open) return;
     this.open = open;
     this.el.classList.toggle('hidden', !open);
-    if (open) this.onOpen?.();
+    this.onOpenChange?.(open);
+  }
+
+  // Once a frame: the chat's text in the mirror, with a cursor, or an idle word while it's closed.
+  mirror(text: string | null): void {
+    if (!this.mirrorEl || text === this.mirrored) return;
+    this.mirrored = text;
+    const box = this.mirrorEl.querySelector('.box')!;
+    box.classList.toggle('live', text !== null);
+    if (text === null) box.innerHTML = '<span class="dim">press Enter to type</span>';
+    else if (text === '') box.innerHTML = '<span class="cursor">▮</span><span class="dim">say something</span>';
+    else
+      box.replaceChildren(
+        text,
+        Object.assign(document.createElement('span'), { className: 'cursor', textContent: '▮' }),
+      );
   }
 
   // Every tap closes the menu, so whatever a button did is in view. A button sends its command;
@@ -155,9 +182,17 @@ function keyboardHtml(groups: Group[]): string {
   });
   return `
     <div class="card">
+      <div class="top">
+        <div>
+          <h1>COMMANDS</h1>
+          <p class="how">press Enter, type a command, Enter again</p>
+        </div>
+        <div class="chat-mirror" translate="no">
+          <div class="label">CHAT</div>
+          <div class="box"></div>
+        </div>
+      </div>
       <div class="body">
-        <h1>COMMANDS</h1>
-        <p class="how">press Enter, type a command, Enter again</p>
         <div class="groups">${sections.join('')}</div>
       </div>
       <div class="footer">

@@ -17,6 +17,7 @@ import type { Channel, Sfx } from '../../audio/Sfx';
 import type { View } from '../../game/View';
 import { SERVED_BY_ROOM_HOST, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
 import type { Picture } from '../../render/Picture';
+import type { Minimap } from '../Minimap';
 import type { Field, Note, Row, Section, Tab } from './rows';
 
 const GUIDE_URL = 'https://info.kathirm.com/kathir-world-guide?pvs=74';
@@ -32,17 +33,21 @@ export interface MenuHooks {
   sfx: Sfx;
   view: View;
   picture: Picture;
+  minimap: Minimap; // the HUD's, whose view the PLAY tab's map shares
   rename: (name: string) => void; // asks the room to call this player `name` from now on
+  commands: () => void; // opens the commands menu, which C does from the menu as from the world
 }
 
 // The player as the menu last saw them (Menu.sync, once a frame): their name, and the body the
-// PLAY tab's preview draws.
+// PLAY tab's preview draws, as it is.
 export interface Me {
   name: string;
   avatar: AvatarId;
   color: string;
   item: ItemId | null;
   gear: GearId | null;
+  chilled: boolean; // frosted over by an ice hit
+  shattered: number[]; // a dragon's weak points shot out (sim/dragon.ts DragonState)
 }
 
 export function menuTabs(hooks: MenuHooks, me: Me): Tab[] {

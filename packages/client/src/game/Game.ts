@@ -239,11 +239,18 @@ export class Game {
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => {
       conn.send({ t: 'chat', text });
+      this.commandsMenu.set(false); // typed over the commands: the card goes, so what it did is in view
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
+    this.commandsMenu.onChat = () => this.hud.openChat();
     // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
-    this.commandsMenu.onOpen = () => this.commandHint.retire();
+    // The commands come up with the mouse captured or free (over the menu, after a chat); either
+    // way the world has it back when they go.
+    this.commandsMenu.onOpenChange = (open) => {
+      if (open) this.commandHint.retire();
+      else if (!IS_TOUCH && !document.pointerLockElement && !this.isBlocked()) canvas.requestPointerLock?.();
+    };
     this.hud.onChatOpenChange = (open) => {
       if (open) this.commandHint.retire();
       this.syncBlocked();
@@ -257,7 +264,9 @@ export class Game {
       sfx: this.sfx,
       view: this.view,
       picture: this.engine.picture,
+      minimap: this.minimap,
       rename: (name) => conn.send({ t: 'rename', name }),
+      commands: () => this.commandsMenu.set(true),
     });
     // Closing it back into the world is a click or a key press, which lets us take the mouse too.
     this.menu.onOpenChange = (open, back) => {
@@ -785,12 +794,20 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.commandHint.update(this.isBlocked());
+    this.commandsMenu.mirror(this.hud.chatText());
+    this.minimap.update({
+      me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
+      players: sampled.players,
+      cubes: sampled.cubes,
+    });
     this.menu.sync({
       name: self.name,
       avatar: self.avatar,
       color: self.color,
       item: held?.id ?? null,
       gear: self.gear?.id ?? null,
+      chilled: self.chilled > 0,
+      shattered: self.dragon?.shattered ?? [],
     });
 
     const stepLoops = this.footsteps.update(
@@ -839,11 +856,6 @@ export class Game {
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.frameBubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.areaTitle.update(p);
-    this.minimap.update({
-      me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
-      players: sampled.players,
-      cubes: sampled.cubes,
-    });
 
     this.loader.update(p.x, p.z);
     this.models.update();

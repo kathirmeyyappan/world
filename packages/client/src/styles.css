@@ -1669,6 +1669,41 @@ body {
   overflow: auto;
   min-height: 0;
 }
+/* The title with the chat's mirror beside it (ui/CommandsMenu.ts), drawn like the chat's own box. */
+#commands .top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+#commands .chat-mirror {
+  flex: 0 1 300px;
+  min-width: 200px;
+}
+#commands .chat-mirror .label {
+  font: 9px var(--pixel);
+  letter-spacing: 1px;
+  color: var(--accent-soft);
+  margin-bottom: 8px;
+}
+#commands .chat-mirror .box {
+  min-height: 42px;
+  padding: 7px 11px;
+  font: 22px var(--mono);
+  line-height: 24px;
+  color: #fff;
+  background: var(--panel);
+  border: 2px solid rgba(100, 181, 246, 0.5);
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+#commands .chat-mirror .box.live {
+  border-color: var(--accent);
+  box-shadow: 3px 3px 0 #000;
+}
+#commands .chat-mirror .dim {
+  color: rgba(255, 255, 255, 0.4);
+}
 #commands .footer {
   display: flex;
   align-items: baseline;
