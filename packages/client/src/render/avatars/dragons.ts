@@ -63,11 +63,13 @@ export interface Rise {
   dispose(): void;
 }
 
-// The wave down a body in the air: metres up and down at full size, bones per wavelength, seconds
-// per wave, and the bone by which it is at full size (none at the neck, so the head stays put).
+// The wave down a body in the air, running from the head to the tail: metres up and down at full
+// size, metres of body per wavelength, seconds per wave, and metres behind the eyes by which it is
+// at full size (none at the neck, so the head stays put). The spine's points ride it, so a body of
+// rigid pieces tilts along it joint by joint and a skinned one bends.
 export interface Wave {
   size: number;
-  bones: number;
+  length: number;
   seconds: number;
   from: number;
 }
@@ -91,15 +93,16 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
   'light-dragon': {
     model: once(() => import('./dragonModel').then((m) => m.DRAGON_MODEL)),
     rise: (engine, name) => new Portal(engine, name),
-    wave: { size: 0.375, bones: 7, seconds: 2.6, from: 4 },
+    wave: { size: 0.375, length: 13.1, seconds: 2.6, from: 7.5 },
     glow: false,
     mouth: 0.7,
   },
-  // Colgera: rigid ring segments on a stiff spine, so no wave; it comes up through a storm.
+  // Colgera: rigid ring segments on a jointed spine, which a long slow wave flexes; it comes up
+  // through a storm.
   colgera: {
     model: once(() => import('./colgeraModel').then((m) => m.COLGERA_MODEL)),
     rise: (engine, name) => new Storm(engine, name),
-    wave: null,
+    wave: { size: 0.3, length: 14, seconds: 3.2, from: 4 },
     glow: true, // its eyes, the crystals and the veins through the ice
     mouth: 1.8, // between the mandibles
   },

@@ -417,7 +417,8 @@ life of its own), and for a dragon its shape there and a row in the client's `DR
 (the light dragon's portal of gold light, `render/Portal.ts`; Colgera's storm, `render/Storm.ts`,
 a wide white pool lit blue at its rim and crawling with static, with a gale of grey and white "+"s
 and white fog whirling over it), and
-the wave down its body; with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars by action and
+the wave down its body (`Wave`, in metres of body: the spine's points ride it, so a body of rigid
+pieces tilts along it joint by joint and a skinned one bends); with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars by action and
 the cry it rises with, each a `Call` with a take heard up close and, where the rip has one, a take
 recorded from afar that plays instead past `FAR` metres; and its theme, a loop with an intro) and
 how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`). The theme a player hears is the
