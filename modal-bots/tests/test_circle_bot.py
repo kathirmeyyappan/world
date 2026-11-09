@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from bots.circle_bot import (
     BLOCKED_TICKS,
+    FIT_TICKS,
     LOOSEN_RATE,
     MAX_RADIUS,
     MIN_RADIUS,
@@ -12,6 +13,7 @@ from bots.circle_bot import (
 )
 from common import Controls, Vec3
 from common.controls import TICK_RATE
+from common.world import load_world_map
 
 from tests.test_controls import FakeConnection
 
@@ -20,7 +22,7 @@ def test_orbit_tightens_when_blocked_and_loosens_when_clear() -> None:
     controls = Controls(FakeConnection())  # type: ignore[arg-type]
     controls.look(0)  # facing +z, so moving right heads for +x
     controls.move(right=1)
-    orbit = Orbit()
+    orbit = Orbit(load_world_map())
     x = 0.0
     blocks: list[int] = []
     for tick in range(120):
@@ -44,3 +46,14 @@ def test_orbit_tightens_when_blocked_and_loosens_when_clear() -> None:
         x += MOVE_SPEED / TICK_RATE
         orbit.blocked(tick, Vec3(x, 1.7, 0), controls)
     assert orbit.radius == MAX_RADIUS
+
+
+def test_orbit_fits_the_ring_to_walkable_ground() -> None:
+    world = load_world_map()
+    orbit = Orbit(world)
+    orbit.fit(0, Vec3(0, 0, 0))  # the middle of the main disc: room for the widest ring
+    assert orbit.cap == MAX_RADIUS
+
+    orbit.fit(FIT_TICKS, Vec3(34, 0, 34))  # 2 m from the edge, no bridge this way: the ring pulls in
+    assert orbit.cap == 1
+    assert orbit.radius == orbit.cap
