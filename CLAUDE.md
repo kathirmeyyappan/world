@@ -427,8 +427,9 @@ and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES
 has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
 (`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model
 puts a bone at the eyes, one wherever it needs on the spine (`along` metres behind the eyes) and
-one hung on another for a part that moves on its own (the jaw), and the renderer carries each
-along the spine the sim moves; the pieces that go with a weak point (`DragonModel.weak`, a ring's
+one hung on another for a part that moves on its own (the jaw; a wing, hung at its shoulder and
+listed in `wings`, which the renderer beats slowly, each pair behind the one before), and the
+renderer carries each along the spine the sim moves; the pieces that go with a weak point (`DragonModel.weak`, a ring's
 crown of spikes and the crystal plate in its hollow) are hidden once the sim says it's shattered,
 with a burst of shards where it was (`render/Poof.ts` `shards`), so the ring is left a hole. The light dragon's is rigged by `scripts/dragon-model.py` (its
 docstring says how) from a Sketchfab GLB; Colgera's (`colgera`, the Tears of the Kingdom boss: three
