@@ -575,7 +575,7 @@ export class Room {
     const to = classOf(avatar);
     if (to === classOf(me.avatar)) return null;
     if (me.dead) return "not while you're dead";
-    if (!to.fits(avatar, me.pos, this.structures)) return `no room for a ${to.id} here`;
+    if (!to.fits(avatar, me.pos, this.structures)) return `no room for ${avatar} here`;
     return null;
   }
 
