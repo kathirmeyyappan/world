@@ -206,6 +206,13 @@
 #menu a.button:hover {
   background: rgba(100, 181, 246, 0.35);
 }
+#menu .buttons .danger {
+  background: rgba(255, 59, 78, 0.18);
+  border-color: #ff3b4e;
+}
+#menu .buttons .danger:hover {
+  background: rgba(255, 59, 78, 0.35);
+}
 
 /* A link to hand on: what it's to, the button, the link itself, and a warning. */
 #menu .share .code {

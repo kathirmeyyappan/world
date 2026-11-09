@@ -64,7 +64,7 @@ function thisRoom(hooks: MenuHooks): Section {
 
 // Other rooms, and the way out. Offline there's no other room to go to, only home.
 function switching(hooks: MenuHooks, me: Me): Section {
-  const leave = { label: 'LEAVE ROOM', press: leaveRoom, subtle: true };
+  const leave = { label: 'LEAVE ROOM', press: leaveRoom, danger: true };
   if (!hooks.online) return { title: 'SWITCH ROOM', rows: [{ kind: 'buttons', buttons: [leave] }] };
   const global = hooks.roomId === GLOBAL_ROOM ? [] : [{ label: 'JOIN GLOBAL', press: () => go(GLOBAL_ROOM, me) }];
   return { title: 'SWITCH ROOM', rows: [roomField(hooks, me), { kind: 'buttons', buttons: [...global, leave] }] };

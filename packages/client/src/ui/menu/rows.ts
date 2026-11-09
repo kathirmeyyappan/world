@@ -52,7 +52,7 @@ export interface Button {
   label: string;
   press?: () => void;
   href?: string; // opens in a new tab
-  subtle?: boolean;
+  danger?: boolean; // red: a way out of the room
 }
 
 // A link to hand on: copied, or on a phone sent through the share sheet, and shown to copy by hand.
@@ -143,7 +143,7 @@ function buttons(row: Buttons): Drawn {
   const el = element('div', 'buttons');
   for (const b of row.buttons) {
     const button = b.href ? element('a', 'button', b.label) : element('button', '', b.label);
-    if (b.subtle) button.classList.add('subtle');
+    if (b.danger) button.classList.add('danger');
     if (button instanceof HTMLAnchorElement && b.href) {
       button.href = b.href;
       button.target = '_blank';
