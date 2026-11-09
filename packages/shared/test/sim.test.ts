@@ -45,16 +45,13 @@ import {
   OFF_WALL,
   WALL_FRAMES,
   layoutWallFrame,
-  CRUISE_SPEED,
   DRAGON,
   HEAD_YAW,
-  BODY_RADIUS,
-  HEAD_RADIUS,
   MAX_PITCH,
   MIN_ALTITUDE,
-  SPINE_POINTS,
-  SPINE_SPACING,
   becomeAvatar,
+  bodyLength,
+  dragonShape,
   wall,
   PLAYER_PADDING,
   FLOOR,
@@ -466,6 +463,9 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
   assert.throws(() => stairs({ x: 0, z: 0 }, { x: 0, z: 1 }, 2, 1, { steps: 2 }), /over/);
 });
 
+const LIGHT = dragonShape('light-dragon'); // 20 links of 1.875 m: the shape the tests fly
+const LINK = LIGHT.links[0];
+
 test('a dragon climbs straight out of the ground, flies forward where it looks in arcs with its head turned as far as the neck lets it, keeps 5 m up, and is too big for a door', () => {
   const open = new Structures([]);
   const fly = (p: ReturnType<typeof createPlayer>, ticks: number, over: Partial<InputFrame>, world = open) => {
@@ -476,8 +476,8 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   becomeAvatar(p, 'light-dragon');
   assert.equal(p.hearts, 40, 'a dragon starts full');
   assert.deepEqual(p.item, { id: 'firebreath', locked: true, fuel: 7.5 });
-  assert.equal(p.dragon?.spine.length, SPINE_POINTS * 3);
-  assert.ok(p.dragon!.spine[SPINE_POINTS * 3 - 2] < 0, 'the body starts in the ground under the head');
+  assert.equal(p.dragon?.spine.length, LIGHT.links.length * 3);
+  assert.ok(p.dragon!.spine[LIGHT.links.length * 3 - 2] < 0, 'the body starts in the ground under the head');
 
   // The rise: straight up on its own, head up, whatever the keys and the look, until the whole
   // spine is out of the ground; then round toward the look.
@@ -487,17 +487,14 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   assert.ok(p.pos.y > MIN_ALTITUDE + 1 && p.pos.x === 0 && p.pos.z === 0 && !p.dragon!.risen, 'climbing straight up');
   assert.deepEqual(p.dragon!.head, { x: 0, y: 1, z: 0 }, 'looking straight up');
   fly(p, 120, { yaw: Math.PI / 2 });
-  assert.ok(p.dragon!.risen && p.pos.y >= SPINE_POINTS * SPINE_SPACING, `out at ${p.pos.y.toFixed(1)} m`);
+  assert.ok(p.dragon!.risen && p.pos.y >= bodyLength(LIGHT), `out at ${p.pos.y.toFixed(1)} m`);
   fly(p, 120, { my: 1, yaw: Math.PI / 2 });
   assert.ok(p.pos.x > 15 && Math.abs(p.pos.z) < 1e-9, `came round to +x: ${p.pos.x.toFixed(1)}`);
-  assert.ok(Math.abs(p.dragon!.speed - CRUISE_SPEED) < 0.2, 'at cruise');
+  assert.ok(Math.abs(p.dragon!.speed - LIGHT.cruise) < 0.2, 'at cruise');
   const spine = p.dragon!.spine;
   for (let i = 0; i < spine.length; i += 3) {
     const [lx, ly, lz] = i === 0 ? [p.pos.x, p.pos.y, p.pos.z] : spine.slice(i - 3, i);
-    assert.ok(
-      Math.hypot(spine[i] - lx, spine[i + 1] - ly, spine[i + 2] - lz) <= SPINE_SPACING + 0.01,
-      'the body follows',
-    );
+    assert.ok(Math.hypot(spine[i] - lx, spine[i + 1] - ly, spine[i + 2] - lz) <= LINK + 0.01, 'the body follows');
   }
   assert.ok(spine[0] < p.pos.x && spine[spine.length - 3] < spine[0], 'nearest first, tail last');
 
@@ -535,15 +532,16 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   q.dragon!.risen = true;
   q.dragon!.dir = { x: 0, y: 0, z: 1 }; // flying level at it
   fly(q, 120, { my: 1, yaw: 0 }, door);
-  assert.ok(q.pos.z > 2 && q.pos.z < 5 - HEAD_RADIUS + 0.01, `stopped at the door, z ${q.pos.z.toFixed(2)}`);
-  assert.ok(!DRAGON.fits({ x: 0, y: EYE_HEIGHT, z: 4 }, door), 'no room to rise beside a wall');
+  assert.ok(q.pos.z > 2 && q.pos.z < 5 - LIGHT.headRadius + 0.01, `stopped at the door, z ${q.pos.z.toFixed(2)}`);
+  assert.ok(!DRAGON.fits('light-dragon', { x: 0, y: EYE_HEIGHT, z: 4 }, door), 'no room to rise beside a wall');
   assert.ok(
     !DRAGON.fits(
+      'light-dragon',
       { x: 0, y: EYE_HEIGHT, z: 0 },
       new Structures(building({ x: 0, z: 0, w: 8, d: 8, h: 3, doorHeight: 2.2 })),
     ),
   );
-  assert.ok(DRAGON.fits({ x: 0, y: EYE_HEIGHT, z: 0 }, door));
+  assert.ok(DRAGON.fits('light-dragon', { x: 0, y: EYE_HEIGHT, z: 0 }, door));
 
   // Back on foot eye to eye, with the life kept up to a walker's full, and the fall from there is
   // the walker's.
@@ -576,20 +574,20 @@ test('a dead dragon drapes over an edge, its body a link apart, rather than stre
   const p = createPlayer('f', 'f', '#fff', { x: 0, y: 30, z: 0 });
   becomeAvatar(p, 'light-dragon');
   p.dragon!.risen = true;
-  p.dragon!.spine = Array.from({ length: SPINE_POINTS * 3 }, (_, k) =>
-    k % 3 === 0 ? (k / 3 + 1) * SPINE_SPACING : k % 3 === 1 ? 30 : 0,
+  p.dragon!.spine = Array.from({ length: LIGHT.links.length * 3 }, (_, k) =>
+    k % 3 === 0 ? (k / 3 + 1) * LINK : k % 3 === 1 ? 30 : 0,
   );
   p.dead = true;
   for (let i = 0; i < 300; i++) stepPlayer(p, frame(p.lastSeq + 1, {}), TICK_DT, WORLD_SHAPE, ledge);
   const spine = p.dragon!.spine;
-  assert.equal(p.pos.y, 20 + HEAD_RADIUS, 'the head rests on the ledge');
-  assert.equal(spine[1], 20 + BODY_RADIUS, 'and so does the body over it');
+  assert.equal(p.pos.y, 20 + LIGHT.headRadius, 'the head rests on the ledge');
+  assert.equal(spine[1], 20 + LIGHT.bodyRadius, 'and so does the body over it');
   for (let i = 0; i < spine.length; i += 3) {
     const [lx, ly, lz] = i === 0 ? [p.pos.x, p.pos.y, p.pos.z] : spine.slice(i - 3, i);
-    assert.ok(Math.hypot(spine[i] - lx, spine[i + 1] - ly, spine[i + 2] - lz) <= SPINE_SPACING + 0.01, 'a link apart');
+    assert.ok(Math.hypot(spine[i] - lx, spine[i + 1] - ly, spine[i + 2] - lz) <= LINK + 0.01, 'a link apart');
   }
-  assert.equal(spine[spine.length - 2], BODY_RADIUS, 'the tail lies on the ground');
-  assert.ok(spine[10] > BODY_RADIUS + 1 && spine[10] < 20, `the body hangs between: point 3 is ${spine[10]} m up`);
+  assert.equal(spine[spine.length - 2], LIGHT.bodyRadius, 'the tail lies on the ground');
+  assert.ok(spine[10] > LIGHT.bodyRadius + 1 && spine[10] < 20, `the body hangs between: point 3 is ${spine[10]} m up`);
 });
 
 test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {

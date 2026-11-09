@@ -4,8 +4,9 @@
 // avatar whose class takes bots when it joins (BotPlacement), including one with no command. Adding
 // one means a row here, a builder in the client's render/avatars/, and `npm run bot-map` (bots aim
 // with these hitboxes).
-import type { PlayerClass } from './classes';
+import type { LifeSpec } from './classes';
 import { EYE_HEIGHT } from './constants';
+import type { DragonShape } from './dragon';
 import type { ItemId } from './items';
 import type { Vec3 } from './types';
 
@@ -34,7 +35,7 @@ export interface Hitbox {
   head: number;
 }
 
-export interface AvatarSpec {
+interface Look {
   id: AvatarId;
   nameTag: string | null; // a name containing this spawns with the avatar
   blurb: string; // one plain line for the commands menu
@@ -44,12 +45,15 @@ export interface AvatarSpec {
   // body everyone moves with has its eyes at EYE_HEIGHT, and `pos` stays that point.
   eye: number;
   hitbox: Hitbox;
-  class: PlayerClass; // what its wearer is (classes.ts)
   item: ItemId | null; // held for good while it's worn, in place of anything else (a dragon's breath)
   regen: boolean; // hearts back steadily at REGEN_RATE (health.ts)
+  life?: LifeSpec; // a life of its own, in place of its class's (classes.ts `lifeOf`)
 }
 
-export const AVATARS: Record<AvatarId, AvatarSpec> = {
+// A look is of a class (classes.ts), and brings what its class's sim needs of it: a dragon its body.
+export type AvatarSpec = (Look & { class: 'walker' }) | (Look & { class: 'asian-dragon'; dragon: DragonShape });
+
+const LOOKS = {
   standard: {
     id: 'standard',
     class: 'walker',
@@ -170,8 +174,23 @@ export const AVATARS: Record<AvatarId, AvatarSpec> = {
     command: 'light-dragon',
     eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
     hitbox: { top: 3.7, radius: 2, head: 3.7 }, // the head's 2 m sphere, all of it head; shots test the body too
+    dragon: {
+      links: Array.from({ length: 20 }, () => 1.875), // 37.5 m of body behind the eyes
+      headRadius: 2.5,
+      bodyRadius: 1.5,
+      cruise: 12.5,
+      turnRadius: 10,
+      heartsEvery: 5,
+    },
   },
-};
+} satisfies Record<AvatarId, AvatarSpec>;
+
+export const AVATARS: Record<AvatarId, AvatarSpec> = LOOKS;
+
+// The looks of a class: a table over them makes the compiler ask for a new look's row.
+export type AvatarsOf<C extends AvatarSpec['class']> = {
+  [K in AvatarId]: (typeof LOOKS)[K]['class'] extends C ? K : never;
+}[AvatarId];
 
 export const AVATAR_IDS = Object.keys(AVATARS) as AvatarId[];
 
