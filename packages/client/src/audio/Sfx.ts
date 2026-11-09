@@ -54,7 +54,16 @@ export type SoundId =
   | 'roar-2'
   | 'roar-3'
   | 'dragon-cry'
-  | 'dragon-theme';
+  | 'dragon-theme'
+  | 'colgera-roar-1'
+  | 'colgera-roar-2'
+  | 'colgera-roar-3'
+  | 'colgera-roar-far-1'
+  | 'colgera-roar-far-2'
+  | 'colgera-roar-far-3'
+  | 'colgera-cry'
+  | 'colgera-cry-far'
+  | 'colgera-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -64,6 +73,7 @@ interface SoundSpec {
   loop?: boolean;
   intro?: string; // played once first, ending on the sample the loop starts on
   swell?: number; // seconds it takes to rise from silence to its volume (a loop FADE, a one-shot ATTACK)
+  fade?: number; // seconds a loop takes to go out once it's no longer wanted (FADE): music crosses over slowly
   lazy?: boolean; // fetched the first time it's wanted, not up front: a big one few will hear
   music?: boolean; // on the music channel, not the effects'
 }
@@ -117,10 +127,39 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     volume: 0.22,
     loop: true,
     swell: 2.5,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
+  // Colgera's, from the game's own rip, each call in two takes: one up close, carrying like the light
+  // dragon's, and one recorded from a way off, dull with the distance, played past FAR metres instead
+  // (as loud there as the close one would have been, then falling off slower, the distance being in
+  // the take). Its theme (the battle theme's last movement, cut to loop on itself after its lead-in)
+  // is louder up close than the light dragon's and as quiet from afar.
+  'colgera-roar-1': { file: 'colgera-roar-1.mp3', half: 60, volume: 0.35 },
+  'colgera-roar-2': { file: 'colgera-roar-2.mp3', half: 60, volume: 0.35 },
+  'colgera-roar-3': { file: 'colgera-roar-3.mp3', half: 60, volume: 0.35 },
+  'colgera-roar-far-1': { file: 'colgera-roar-far-1.mp3', half: 120, volume: 0.26 },
+  'colgera-roar-far-2': { file: 'colgera-roar-far-2.mp3', half: 120, volume: 0.26 },
+  'colgera-roar-far-3': { file: 'colgera-roar-far-3.mp3', half: 120, volume: 0.26 },
+  'colgera-cry': { file: 'colgera-cry.mp3', half: 60, volume: 0.35, swell: 0.3 },
+  'colgera-cry-far': { file: 'colgera-cry-far.mp3', half: 120, volume: 0.26, swell: 0.3 },
+  'colgera-theme': {
+    file: 'colgera-theme.mp3',
+    intro: 'colgera-theme-start.mp3',
+    half: 22,
+    reach: 300,
+    volume: 0.34,
+    loop: true,
+    swell: 2.5,
+    fade: 2.5,
     lazy: true,
     music: true,
   },
 };
+
+// Metres from a call past which its far take, if it has one, is the one played.
+export const FAR = 45;
 
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
 // passes within `within` metres of you without hitting (placed where it passed, so a far one is
@@ -141,22 +180,35 @@ export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
   jetpack: { thrusting: 'jet' },
 };
 
-// What a class's own actions sound like, played where whoever did it is.
+// A call: the take heard up close and, where there is one, the take heard from FAR metres off.
+export interface Call {
+  near: SoundId;
+  far?: SoundId;
+}
+
 // What a dragon skin sounds like (render/avatars/dragons.ts lists the skins): its roars by action,
 // the cry it rises out of the ground with, and the theme that plays from its head; null for a
 // skin with no voice yet.
 export interface DragonVoice {
-  roars: Partial<Record<ItemAction, SoundId>>;
-  cry: SoundId;
+  roars: Partial<Record<ItemAction, Call>>;
+  cry: Call;
   theme: SoundId;
 }
 export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null> = {
   'light-dragon': {
-    roars: { 'roar-1': 'roar-1', 'roar-2': 'roar-2', 'roar-3': 'roar-3' },
-    cry: 'dragon-cry',
+    roars: { 'roar-1': { near: 'roar-1' }, 'roar-2': { near: 'roar-2' }, 'roar-3': { near: 'roar-3' } },
+    cry: { near: 'dragon-cry' },
     theme: 'dragon-theme',
   },
-  colgera: null,
+  colgera: {
+    roars: {
+      'roar-1': { near: 'colgera-roar-1', far: 'colgera-roar-far-1' },
+      'roar-2': { near: 'colgera-roar-2', far: 'colgera-roar-far-2' },
+      'roar-3': { near: 'colgera-roar-3', far: 'colgera-roar-far-3' },
+    },
+    cry: { near: 'colgera-cry', far: 'colgera-cry-far' },
+    theme: 'colgera-theme',
+  },
 };
 
 // The voice of whoever wears `avatar`, if it has one.
@@ -196,6 +248,7 @@ interface Voice {
   panner: PannerNode | null;
   stop: () => void;
   wanted: number; // when it was last asked for, in the audio clock
+  fade: number; // seconds it takes to go out
 }
 
 export class Sfx {
@@ -310,9 +363,17 @@ export class Sfx {
     return true;
   }
 
+  // A call from `at`: its far take, when it has one and `at` is past FAR metres off, else its near.
+  call(call: Call, at: Vec3, o: { delay?: number; level?: number } = {}): boolean {
+    const far = call.far !== undefined && distance(at, this.heard) > FAR;
+    return this.play(far ? call.far! : call.near, at, o);
+  }
+
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
-  // for the local player's own). A loop that hasn't been listed for LINGER fades out.
-  setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null }[]): void {
+  // for the local player's own). A loop that hasn't been listed for LINGER fades out, over its
+  // `fade`. `elapsed` is how far into it a loop already is when it starts: a theme that has been
+  // running since its dragon rose, heard again from where it has got to rather than from the top.
+  setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number }[]): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     for (const w of wanted) {
@@ -326,33 +387,43 @@ export class Sfx {
         }
         continue;
       }
-      const started = this.startLoop(w.id, w.at);
+      const started = this.startLoop(w.id, w.at, w.elapsed ?? 0);
       if (started) this.loops.set(key, started);
     }
     for (const [key, voice] of this.loops) {
       if (t - voice.wanted < LINGER) continue;
+      voice.gain.gain.cancelScheduledValues(t);
       voice.gain.gain.setValueAtTime(voice.gain.gain.value, t);
-      voice.gain.gain.linearRampToValueAtTime(0, t + FADE);
-      setTimeout(voice.stop, FADE * 2000);
+      voice.gain.gain.linearRampToValueAtTime(0, t + voice.fade);
+      setTimeout(voice.stop, voice.fade * 1000 + 100);
       this.loops.delete(key);
     }
   }
 
-  // A loop fading in, after its intro if it has one; null until its file has arrived.
-  private startLoop(id: SoundId, at: Vec3 | null): Voice | null {
+  // A loop fading in, `elapsed` seconds along: in its intro, if it has one, or round its body as
+  // many times as that takes; null until its files have arrived.
+  private startLoop(id: SoundId, at: Vec3 | null, elapsed: number): Voice | null {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
     const buffer = this.buffer(id);
-    if (!buffer) return null;
+    const intro = spec.intro ? this.buffers.get(spec.intro) : undefined;
+    if (!buffer || (spec.intro && !intro)) return null;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
     voice.gain.gain.linearRampToValueAtTime(spec.volume, t + (spec.swell ?? FADE));
-    const intro = spec.intro ? this.buffers.get(spec.intro) : undefined;
-    const sources = [new AudioBufferSourceNode(ctx, { buffer, loop: true })];
-    if (intro) sources.unshift(new AudioBufferSourceNode(ctx, { buffer: intro }));
-    for (const src of sources) src.connect(voice.gain);
-    sources[0].start(t);
-    if (intro) sources[1].start(t + intro.duration);
+    const sources: AudioBufferSourceNode[] = [];
+    const loop = new AudioBufferSourceNode(ctx, { buffer, loop: true });
+    const lead = intro?.duration ?? 0;
+    if (intro && elapsed < lead) {
+      const lead = new AudioBufferSourceNode(ctx, { buffer: intro });
+      lead.connect(voice.gain);
+      lead.start(t, elapsed);
+      sources.push(lead);
+    }
+    loop.connect(voice.gain);
+    if (elapsed < lead) loop.start(t + lead - elapsed);
+    else loop.start(t, (elapsed - lead) % buffer.duration);
+    sources.push(loop);
     voice.stop = () => sources.forEach((src) => src.stop());
     return voice;
   }
@@ -375,13 +446,17 @@ export class Sfx {
     } else {
       near.connect(channel);
     }
-    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime };
+    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime, fade: spec.fade ?? FADE };
   }
 
-  // A sound's recording, if it has arrived; a lazy one is sent for the first time it's asked for.
+  // A sound's recording, if it has arrived; a lazy one (and its intro) is sent for the first time
+  // it's asked for.
   private buffer(id: SoundId): AudioBuffer | undefined {
     const spec = SOUNDS[id];
-    if (spec.lazy && this.ctx) this.fetch(this.ctx, spec.file);
+    if (spec.lazy && this.ctx) {
+      this.fetch(this.ctx, spec.file);
+      if (spec.intro) this.fetch(this.ctx, spec.intro);
+    }
     return this.buffers.get(spec.file);
   }
 

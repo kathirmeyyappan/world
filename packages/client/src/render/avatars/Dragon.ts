@@ -156,12 +156,11 @@ export class DragonAvatar implements Avatar {
     };
     this.head = mesh('head', m.head);
     this.maw = m.maw && mesh('maw', m.maw);
-    const body = mesh('body', m.body);
+    mesh('body', m.body);
     this.weak = m.weak.map((w, n) => ({ crown: mesh(`crown-${n}`, w.crown), plate: mesh(`plate-${n}`, w.plate) }));
     for (const n of this.gone) this.hideWeak(n);
     this.head.setEnabled(!this.headless);
     this.maw?.setEnabled(false);
-    this.rise.mirror?.([this.head, body, ...this.weak.flatMap((w) => [w.crown, w.plate])]);
   }
 
   private hideWeak(n: number): void {

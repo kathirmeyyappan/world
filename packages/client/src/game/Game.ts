@@ -40,7 +40,7 @@ import {
   statureOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
-import { ITEM_SOUNDS, loopsOf, Sfx, voiceOf } from '../audio/Sfx';
+import { ITEM_SOUNDS, loopsOf, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -111,6 +111,9 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 // A roar comes back off the world: the same again, this much later and this much quieter.
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
+// Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
+// so two at a like distance don't trade it back and forth.
+const THEME_HYSTERESIS = 15;
 const LOOK_HOLD = Math.PI / 2 - 0.01; // radians either side of facing a ladder the look may turn while on it
 const SWING_HALF_LIFE = 0.08; // seconds: the camera's swing round a ladder is mostly over in a third of a second
 
@@ -144,6 +147,9 @@ export class Game {
   private swing = 0; // radians the camera has still to turn after a swap round a ladder
   private swapRequested = false; // the touch SWAP button was pressed since the last frame
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
+  private themeOf: string | null = null; // the dragon whose theme is playing
+  // When the first dragon of each theme rose (ms): its theme has been running since, heard or not.
+  private readonly themeClocks = new Map<SoundId, number>();
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
@@ -540,11 +546,11 @@ export class Game {
         return;
       case 'action': {
         const actor = m.id === this.myId ? this.ownAvatar : this.avatars.get(m.id);
-        const sound = actor && voiceOf(actor.kind)?.roars[m.action];
+        const call = actor && voiceOf(actor.kind)?.roars[m.action];
         const at = this.headOf(m.id);
-        if (sound && at) {
-          this.sfx.play(sound, at);
-          this.sfx.play(sound, at, { delay: ECHO_DELAY, level: ECHO_LEVEL });
+        if (call && at) {
+          this.sfx.call(call, at);
+          this.sfx.call(call, at, { delay: ECHO_DELAY, level: ECHO_LEVEL });
         }
         actor?.act?.(m.action);
         return;
@@ -854,7 +860,9 @@ export class Game {
     this.sfx.listen(this.camera.position, this.input.yaw);
     // Every dragon with a voice rises out of the ground with its cry (kept trying until the
     // recording has arrived, and heard again from the same player's next one); the nearest living
-    // one's theme plays from its head.
+    // one's theme plays from its head, until another is THEME_HYSTERESIS nearer, one theme crossing
+    // into the next. A theme runs from the first of its dragons rising for as long as any is alive,
+    // so one taken up again is heard from where it has got to, not from the top.
     const dragons = [
       ...(self.dragon && !this.dead
         ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen, voice: voiceOf(self.avatar) }]
@@ -867,14 +875,17 @@ export class Game {
     ].filter((d) => d.voice !== null);
     for (const d of dragons) {
       if (d.risen) this.cried.delete(d.id);
-      else if (!this.cried.has(d.id) && this.sfx.play(d.voice!.cry, d.at)) this.cried.add(d.id);
+      else if (!this.cried.has(d.id) && this.sfx.call(d.voice!.cry, d.at)) this.cried.add(d.id);
     }
     const ear = this.camera.position;
-    const nearest = dragons.sort(
-      (a, b) =>
-        Vector3.Distance(ear, new Vector3(a.at.x, a.at.y, a.at.z)) -
-        Vector3.Distance(ear, new Vector3(b.at.x, b.at.y, b.at.z)),
-    )[0];
+    const away = (d: { at: Vec3 }) => Vector3.Distance(ear, new Vector3(d.at.x, d.at.y, d.at.z));
+    const nearest = dragons.sort((a, b) => away(a) - away(b))[0];
+    const kept = dragons.find((d) => d.id === this.themeOf);
+    const playing = kept && nearest && away(kept) < away(nearest) + THEME_HYSTERESIS ? kept : nearest;
+    this.themeOf = playing?.id ?? null;
+    const themes = new Set(dragons.map((d) => d.voice!.theme));
+    for (const theme of this.themeClocks.keys()) if (!themes.has(theme)) this.themeClocks.delete(theme);
+    for (const theme of themes) if (!this.themeClocks.has(theme)) this.themeClocks.set(theme, performance.now());
     this.sfx.setLoops([
       ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
         key: this.myId,
@@ -883,7 +894,16 @@ export class Game {
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...stepLoops,
-      ...(nearest ? [{ key: 'dragon', id: nearest.voice!.theme, at: nearest.at }] : []),
+      ...(playing
+        ? [
+            {
+              key: 'dragon',
+              id: playing.voice!.theme,
+              at: playing.at,
+              elapsed: (performance.now() - this.themeClocks.get(playing.voice!.theme)!) / 1000,
+            },
+          ]
+        : []),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
