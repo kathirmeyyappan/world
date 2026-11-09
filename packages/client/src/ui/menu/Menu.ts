@@ -1,9 +1,11 @@
-// The menu, behind the gear over the room panel or the X key: tabs of rows (tabs.ts) for who you
-// are, the room and its link, other rooms, sound, the view and the guide, with a look at your own
-// body (Preview.ts) at the top of the first. It builds its own button and card and keeps its own
-// look (menu.css), so the rest of the page knows it only as the button in the top-left corner. With a mouse it frees the pointer to click around in; closing it with X, its
-// corner button or a click beside the card puts the player back in the world, and Esc closes it
-// leaving the mouse free. On touch a tap on its corner button or beside the card closes it.
+// The menu, behind the gear over the room panel, the X key or Esc: tabs of rows (tabs.ts) for who
+// you are, the room and its link, other rooms, sound, the view and the guide, with a look at your
+// own body (Preview.ts) at the top of the first. It builds its own button and card and keeps its
+// own look (menu.css), so the rest of the page knows it only as the button in the top-left corner.
+// With a mouse it frees the pointer to click around in, and it is what Esc brings up from the world
+// (the game opens it when the pointer is let go, since the browser answers that Esc itself);
+// closing it with X, Esc, its corner button or a click beside the card puts the player back in the
+// world. On touch a tap on its corner button or beside the card closes it.
 import { IS_TOUCH } from '../../input/touch';
 import { rememberName } from '../../net/lobby';
 import { gearIcon } from './gearIcon';
@@ -88,15 +90,14 @@ export class Menu {
     if (this.open) this.refresh();
   }
 
-  // While it's open the menu has the keyboard: X, the key that opened it, or Q, which closes the
-  // other cards, goes back to the world, and Esc closes it with the mouse left free. Keys typed into
-  // its fields are theirs (rows.ts).
+  // While it's open the menu has the keyboard: X, the key that opened it, Esc, which does too, or
+  // Q, which closes the other cards, goes back to the world. Keys typed into its fields are theirs
+  // (rows.ts).
   private key(e: KeyboardEvent): void {
     if (!this.open || (e.target instanceof HTMLInputElement && this.el.contains(e.target))) return;
     e.stopPropagation();
     if (e.repeat) return;
-    if (e.code === 'KeyX' || e.code === 'KeyQ') this.hide(true);
-    else if (e.code === 'Escape') this.hide(false);
+    if (e.code === 'KeyX' || e.code === 'KeyQ' || e.code === 'Escape') this.hide(true);
   }
 
   private refresh(): void {
