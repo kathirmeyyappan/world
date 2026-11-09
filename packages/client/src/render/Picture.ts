@@ -34,6 +34,7 @@ export class Picture {
   private readonly start: PixelSize;
   private readonly finest: PixelSize;
   private current: PixelSize; // what's drawn now: the choice, or where auto has got to
+  private settled: PixelSize; // where auto has got to on this machine, kept through a choice
   private late: boolean[] = [];
   private holdUntil: number; // until when auto leaves the level alone
   private probeAt = Infinity; // when auto may next try a step finer
@@ -51,6 +52,7 @@ export class Picture {
     } catch {
       // no storage: the defaults
     }
+    this.settled = this.start;
     this.current = this.pixels === 'auto' ? this.start : this.pixels;
     this.holdUntil = now + STARTUP_MS;
     this.probeAt = now + STARTUP_MS + PROBE_AFTER_MS;
@@ -59,6 +61,12 @@ export class Picture {
   // CSS pixels per rendered pixel, as drawn now.
   get level(): PixelSize {
     return this.current;
+  }
+
+  // The size auto has settled on for this machine (its start until it has judged anything): a
+  // choice finer than this is one the machine hasn't been seen to keep up with.
+  get autoLevel(): PixelSize {
+    return this.settled;
   }
 
   // A size coarser (`by` 1) or finer (-1) than what's drawn now, chosen for good.
@@ -71,9 +79,10 @@ export class Picture {
     return beside(PIXEL_SIZES, this.current, by) !== undefined;
   }
 
+  // Auto takes up again where it had got to.
   setPixels(pixels: PixelSize | 'auto'): void {
     this.pixels = pixels;
-    this.current = pixels === 'auto' ? this.start : pixels;
+    this.current = pixels === 'auto' ? this.settled : pixels;
     this.late = [];
     this.probing = null;
     this.retryMs = RETRY_MS;
@@ -124,7 +133,7 @@ export class Picture {
   }
 
   private step(to: number, now: number): void {
-    this.current = PIXEL_SIZES[to];
+    this.current = this.settled = PIXEL_SIZES[to];
     this.late = [];
     this.holdUntil = now + SETTLE_MS;
   }

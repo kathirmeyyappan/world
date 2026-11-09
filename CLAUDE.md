@@ -484,8 +484,10 @@ past the tick they were due on, as `Engine.run` judges it against the display's 
 shortest gap it has seen between its runs), and tries a step finer once it has kept up for twenty
 seconds, keeping it if it holds ten seconds and otherwise backing off twice as long before the
 next try; the world's first seconds and the hitch of a resize don't count, nor does a sleeping
-tab. Fill is what this game spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the
-square of the pixel size, so 2 is a quarter of the cost of 1.
+tab. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
+row that the game might crash, and auto taken up again starts from there. Fill is what this game
+spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of the pixel size, so
+2 is a quarter of the cost of 1.
 
 A rename is the `rename` message: the Room cleans the name as it does a joining player's, refuses
 another within `RENAME_SECONDS`, and tells the room. Names ride in every snapshot, so the roster, the
