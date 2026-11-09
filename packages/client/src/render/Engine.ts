@@ -19,6 +19,8 @@ import { Picture } from './Picture';
 // whole one.
 const TICK_SLACK_MS = 3;
 const MIN_TICK_MS = 4; // the loop never runs closer than this: a 240 Hz display's tick
+const MAX_TICK_MS = 100; // a gap longer than this is a hitch or a sleeping tab, not the display's tick
+const TICK_SAMPLES = 61; // gaps the tick is the median of: a second at 60 Hz
 
 export const FOG_COLOR = new Color3(0.02, 0.02, 0.05);
 export const BASE_FOG_DENSITY = 0.012; // EXP2: players fade out past ~50 m
@@ -31,7 +33,8 @@ export class Engine {
   private drawnAt = performance.now(); // when the last frame was drawn
   private due = performance.now(); // when the next frame is due: the frame rate's interval on from the last
   private ran = performance.now(); // when the loop last ran, on a tick of the display
-  private tick = Infinity; // ms between the display's ticks: the shortest gap the loop has seen between its runs
+  private tick = Infinity; // ms between the display's ticks: the median of the last gaps between the loop's runs
+  private gaps: number[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new BabylonEngine(canvas, false, { preserveDrawingBuffer: false, stencil: true });
@@ -83,7 +86,7 @@ export class Engine {
       const now = performance.now();
       const gap = now - this.ran;
       this.ran = now;
-      if (gap >= MIN_TICK_MS && gap < this.tick) this.tick = gap;
+      if (gap >= MIN_TICK_MS && gap < MAX_TICK_MS) this.measureTick(gap);
       if (now < this.due - TICK_SLACK_MS) return;
       const interval = now - this.drawnAt;
       const ticks = Math.max(1, Math.ceil((this.due - TICK_SLACK_MS - this.drawnAt) / this.tick));
@@ -98,6 +101,15 @@ export class Engine {
       update(interval / 1000);
       this.scene.render();
     });
+  }
+
+  // The median, since the loop's runs jitter by a millisecond or two round the tick and now and then
+  // come in a pair close together: a tick taken too short turns every frame on time into a late one.
+  private measureTick(gap: number): void {
+    this.gaps.push(gap);
+    if (this.gaps.length > TICK_SAMPLES) this.gaps.shift();
+    const sorted = [...this.gaps].sort((a, b) => a - b);
+    this.tick = sorted[sorted.length >> 1];
   }
 
   dispose(): void {
