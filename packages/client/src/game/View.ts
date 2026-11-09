@@ -7,9 +7,13 @@
 // pace the eyes rise when the look changes; the scope is always looked down from the eyes, at once.
 import { Vector3, type UniversalCamera } from '@babylonjs/core';
 import {
+  classOf,
+  isDragonAvatar,
   lookDirection,
   MAX_PITCH,
   reach,
+  type AvatarId,
+  type AvatarsOf,
   type PlayerClass,
   type Structures,
   type Target,
@@ -32,6 +36,16 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
   walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
   'asian-dragon': { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
 };
+// Each dragon skin's boom: far enough back and up to see a body of its size behind the head.
+export const DRAGON_BOOMS: Record<AvatarsOf<'asian-dragon'>, Boom> = {
+  'light-dragon': VIEWS['asian-dragon'].boom,
+  colgera: { back: 26, right: 0, up: 9 },
+};
+
+// The boom the camera hangs on behind whoever wears `avatar`.
+export function boomOf(avatar: AvatarId): Boom {
+  return isDragonAvatar(avatar) ? DRAGON_BOOMS[avatar] : VIEWS[classOf(avatar).id].boom;
+}
 // Portrait. The camera's field of view is vertical, so a screen taller than wide (a phone held
 // upright) sees a narrow slice across, and a body off to the side on the boom lands near its edge
 // or past it (a small body's camera is close behind it, so the same shoulder is a wider angle).

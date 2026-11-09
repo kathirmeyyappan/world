@@ -58,6 +58,7 @@ const MAKERS: Record<AvatarId, Make> = {
   squidward: walker(buildSquidward),
   gary: walker(buildGary),
   'light-dragon': dragon('light-dragon'),
+  colgera: dragon('colgera'),
 };
 
 export function preloadAvatars(engine: Engine): void {

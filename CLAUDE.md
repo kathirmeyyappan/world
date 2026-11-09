@@ -398,16 +398,24 @@ A new look in a class is a row in `AVATARS` (with `item` for one that comes with
 `regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu, `life` for a
 life of its own), and for a dragon its shape there and a row in the client's `DRAGONS`
 (`render/avatars/dragons.ts`): the model it's drawn from, what it rises out of the ground through
-(the light dragon's portal of gold light, `render/Portal.ts`), and the wave down its body. A new class is a spec
+(the light dragon's portal of gold light, `render/Portal.ts`; Colgera's storm, `render/Storm.ts`,
+a wide white disc that mirrors the body coming up, with a hurricane turning round its edge), and
+the wave down its body; with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars, the cry it
+rises with and its theme; null for a silent one) and how far back it's watched from in
+`DRAGON_BOOMS` (`game/View.ts`). A new class is a spec
 and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES`; nothing else
 has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
 (`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model
 puts a bone at the eyes, one wherever it needs on the spine (`along` metres behind the eyes) and
 one hung on another for a part that moves on its own (the jaw), and the renderer carries each
 along the spine the sim moves. The light dragon's is rigged by `scripts/dragon-model.py` (its
-docstring says how); the GLB helpers both
-model scripts share are in `scripts/glb.py`. Its roars are `ACTION_SOUNDS` in `audio/Sfx.ts`, and
-its theme and the cry it rises with are rows there too.
+docstring says how) from a Sketchfab GLB; Colgera's (`colgera`, the Tears of the Kingdom boss: three
+ring segments, each a rigid link of the spine, on a stiff spine with wings and arms) by
+`scripts/colgera-model.py` from the game's own rip, a Collada file whose every piece is rigid on a
+joint of a straight skeleton, so the sim's links are the rig's joint spacings and a bone sits at
+the middle of each link carrying the pieces hung on it (the script prints the shape for `AVATARS`).
+The helpers the model scripts share (reading a GLB, decimating, packing an atlas) are in
+`scripts/glb.py`.
 
 ## Weapons
 
