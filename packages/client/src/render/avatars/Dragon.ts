@@ -103,7 +103,10 @@ export class DragonAvatar implements Avatar {
     this.breath = element && own ? own : null;
     this.jet =
       spec && element
-        ? createJet(engine, `dragon-${id}`, this.mouth, element, spec.range, coneAngle(spec), BREATH)
+        ? createJet(engine, `dragon-${id}`, this.mouth, element, spec.range, coneAngle(spec), {
+            ...BREATH,
+            width: look.mouth,
+          })
         : null;
     this.rise = look.rise(engine, `dragon-${id}-rise`);
     void look.model().then((m) => this.build(engine, m));

@@ -77,6 +77,7 @@ export interface DragonLook {
   rise(engine: Engine, name: string): Rise;
   wave: Wave | null;
   glow: boolean; // the skin has a glow atlas (<id>-glow.png): what shines on it in the dark
+  mouth: number; // metres across the mouth: the breath starts all along that line, not from a point
 }
 
 // A loader that fetches once and hands everyone the same promise.
@@ -92,6 +93,7 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
     rise: (engine, name) => new Portal(engine, name),
     wave: { size: 0.375, bones: 7, seconds: 2.6, from: 4 },
     glow: false,
+    mouth: 0.7,
   },
   // Colgera: rigid ring segments on a stiff spine, so no wave; it comes up through a storm.
   colgera: {
@@ -99,5 +101,6 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
     rise: (engine, name) => new Storm(engine, name),
     wave: null,
     glow: true, // its eyes, the crystals and the veins through the ice
+    mouth: 1.8, // between the mandibles
   },
 };

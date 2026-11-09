@@ -453,7 +453,7 @@ actions and their keys, the shape of its fire, its `element` and its tank), a sh
 `render/Weapons.ts`, and a sound in `audio/Sfx.ts` (`ITEM_SOUNDS`). A hold weapon with an element
 gets its tank on the back and its jet at the nozzle from that alone, on every avatar and in the
 viewmodel (`render/Jet.ts`: blocks of fire, or for ice the "+" crystals of a corpse's poof, drawn as
-one particle system). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`;
+one particle system; a cone from a point, or from a line across a dragon's mouth, `DragonLook.mouth`). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`;
 a hit that throws its victim is a `throwWalker` there, see Surfaces and frost):
 ice chills for `CHILL_SECONDS` from the last touch (`sim/constants.ts`), a walk at
 `CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees, and fire's touch
