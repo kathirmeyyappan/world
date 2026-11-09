@@ -185,7 +185,8 @@ const LOOKS = {
     },
   },
   // Colgera, the Tears of the Kingdom boss: a segmented ice wyrm (scripts/colgera-model.py, which
-  // prints these numbers), its three ring segments each a rigid link of the spine.
+  // prints these numbers), its three ring segments each a rigid link of the spine, the thin spine
+  // between them telescoped as the game carries it.
   colgera: {
     id: 'colgera',
     class: 'asian-dragon',
@@ -195,14 +196,14 @@ const LOOKS = {
     blurb: 'become colgera from tears of the kingdom',
     command: 'colgera',
     eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
-    hitbox: { top: 4.8, radius: 2.4, head: 4.8 }, // the head's 2.4 m sphere, all of it head; shots test the body too
+    hitbox: { top: 4.5, radius: 2.25, head: 4.5 }, // the head's 2.25 m sphere, all of it head; shots test the body too
     dragon: {
       links: [
-        1.51, 4.54, 1.6, 1.44, 1.33, 0.83, 4.75, 1.44, 1.38, 1.38, 1.38, 1.38, 1.34, 1.38, 1.01, 0.69, 4.64, 0.99, 1.44,
-        1.16, 1.22, 1.41,
-      ], // 38.2 m of body behind the eyes: the rig's joints, a ring segment 4.5 to 4.8 m long
-      headRadius: 2.4,
-      bodyRadius: 2.2, // the spine is 4.2 m across, the rings 6.9 m
+        0.78, 4.26, 0.82, 0.74, 0.68, 0.43, 4.45, 0.74, 0.71, 0.71, 0.71, 0.71, 0.69, 0.71, 0.52, 0.35, 4.35, 0.51,
+        0.74, 0.6, 0.63, 0.73,
+      ], // 25.6 m of body behind the eyes: the rig's joints, a ring segment 4.3 to 4.5 m long
+      headRadius: 2.25,
+      bodyRadius: 2, // the spine is 3.7 m across, the rings 6.5 m
       cruise: 12.5,
       turnRadius: 14,
       heartsEvery: 5,

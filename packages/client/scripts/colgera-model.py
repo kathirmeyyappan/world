@@ -8,18 +8,23 @@ The rip is the game's own model and rig, in Collada (colgera.dae; the FBX is the
 every piece of the body (a ring of shell, a stretch of spine, a wing's finger, an arm's segment,
 the head, the jaw) is a rigid mesh bound to one joint of a skeleton that runs straight down the
 body, Spine_1 to Spine_19 and the tail, the wing membranes alone skinned over the fingers'
-joints. This puts every vertex where the rig's bind pose has it and turns the skeleton into the
-dragon's (sim/dragon.ts): a spine point at each joint along the body, so the sim's links are the
-rig's joint spacings (a ring segment's long, the spine's short; the shape goes in AVATARS by
-hand, from what this prints), and a bone per link at its middle, lying along it, carrying every
-piece hung on the joint at the link's head (a ring segment's shell, arms and wings with its
-stretch of spine, so they turn as one piece); the head and everything on it (the eyes, the
-scissor mandibles) is bone 0, at the eyes, and the jaw hangs on it at its hinge. Each piece keeps
-its own texture (the body's or the wings'), packed into one atlas with a swatch for each plain
-colour (the eyes), and the model is written as dragon-model.py writes the light dragon's, in the
-dragon's frame: metres, the eyes at the origin, x to its right (mirrored, the rip being
-right-handed), the body down -z. SCALE is the rip's unit in metres; everything the sim needs of
-the body (links, radii) is printed in metres at the end.
+joints; the spiky crown each ring wears is a file of its own (Weakpoint/colgera_weakpoint_spike.dae,
+a ring of spikes round the origin), stood on each ring's Spike node. This puts every vertex where
+the rig's bind pose has it and turns the skeleton into the dragon's (sim/dragon.ts): a spine point
+at each joint along the body, so the sim's links are the rig's joint spacings (a ring segment's
+long, the spine's short; the shape goes in AVATARS by hand, from what this prints), and a bone per
+link at its middle, lying along it, carrying every piece hung on the joint at the link's head (a
+ring segment's shell, crown, arms and wings with its stretch of spine, so they turn as one piece);
+the head and everything on it (the eyes, the scissor mandibles) is bone 0, at the eyes, and the jaw
+hangs on it at its hinge. The rig's bind pose is the body drawn out to its full length; the game
+carries Colgera with the thin stretches of spine between the rings telescoped, so those links are
+THIN of the rig's spacing, the pieces on them nesting as the rig means them to (each overlaps the
+next), while the rings keep their length. Each piece keeps its own texture (the body's, the
+wings' or the spikes'), packed into one atlas with a swatch for each plain colour (the eyes), and
+the model is written as dragon-model.py writes the light dragon's, in the dragon's frame: metres,
+the eyes at the origin, x to its right (mirrored, the rip being right-handed), the body down -z.
+SCALE is the rip's unit in metres; everything the sim needs of the body (links, radii) is printed
+in metres at the end.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ from __future__ import annotations
 import base64
 import sys
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -35,25 +41,30 @@ from PIL import Image
 
 CLIENT = Path(__file__).resolve().parents[1]
 NS = "{http://www.collada.org/2005/11/COLLADASchema}"
-SCALE = 0.16  # metres per unit of the rip: a 37 m body, a 24 m wingspan
+SCALE = 0.15  # metres per unit of the rip: a 25 m body, a 22 m wingspan
+THIN = 0.55  # how much of the rig's spacing a link of thin spine keeps; a ring's link keeps all of it
 
 # The joints the sim's spine runs through, head to tail: a spine point at each after the eyes, and
 # the tail's tip past the last. A piece follows the link from the joint it hangs on (or the joint
 # its own hangs on, down the rig) to the next.
 CHAIN = [f"Spine_{i}" for i in range(1, 20)] + ["Tail_1", "Tail_2"]
+RINGS = {"A": "Spine_1", "B": "Spine_6", "C": "Spine_16"}  # each ring segment starts at its joint
 HEAD_JOINTS = {"Head", "Scissor_L", "Scissor_R"}  # one rigid piece with the eyes
 PAIRED = {"Tail_1_L": "Tail_1", "Tail_1_R": "Tail_1", "Tail_2_L": "Tail_2", "Tail_2_R": "Tail_2"}
 PAIRED_JOINT = {"Tail_1": "Tail_1_L", "Tail_2": "Tail_2_L"}  # the tail's joints come in pairs, side by side
 NECK_LINK = {"Neck": 0}  # the neck sits on the first link, from the eyes to Spine_1
 HEAD_MESH = ("Head", "Jaw", "Eyeball", "Eye_P", "Scissor")  # hidden for its rider's view from the eyes
-TEXTURES = {  # what each material is painted with: an image of the rip, or a plain colour
-    "Mt_Enemy_DungeonBoss_Rito_Body": "Enemy_DungeonBoss_Rito_Body_Alb.png",
-    "Mt_Enemy_DungeonBoss_Rito_Body_Red": "Enemy_DungeonBoss_Rito_Body_Alb.png",
-    "Mt_Enemy_DungeonBoss_Rito_Body_Black": "Enemy_DungeonBoss_Rito_Body_Alb.png",
-    "Mt_Enemy_DungeonBoss_Rito_Wing_A": "Enemy_DungeonBoss_Rito_Wing_Alb.png",
-    "Mt_Enemy_DungeonBoss_Rito_Wing_B": "Enemy_DungeonBoss_Rito_Wing_Alb.png",
-    "Mt_Enemy_DungeonBoss_Rito_Wing_C": "Enemy_DungeonBoss_Rito_Wing_Alb.png",
-    "Mt_Enemy_DungeonBoss_Rito_Wing_D": "Enemy_DungeonBoss_Rito_Wing_Alb.png",
+# What each material is painted with: an image of the rip (and how much brighter it's drawn: ice in
+# the night sky, not slate), or a plain colour.
+TEXTURES: dict[str, tuple[str, float] | tuple[int, int, int]] = {
+    "Mt_Enemy_DungeonBoss_Rito_Body": ("Enemy_DungeonBoss_Rito_Body_Alb.png", 1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Body_Red": ("Enemy_DungeonBoss_Rito_Body_Alb.png", 1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Body_Black": ("Enemy_DungeonBoss_Rito_Body_Alb.png", 1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_A": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_B": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_C": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
+    "Mt_Enemy_DungeonBoss_Rito_Wing_D": ("Enemy_DungeonBoss_Rito_Wing_Alb.png", 1.3),
+    "Mt_Spike_01": ("Weakpoint/Enemy_DungeonBoss_Rito_Spike_Alb.png", 1.9),
     "Mt_Eye_OutSide": (36, 40, 52),  # the sockets
     "Mt_Eye": (255, 226, 120),  # the eyes glow
     "Mt_Eye_1": (255, 226, 120),
@@ -62,7 +73,6 @@ TEXTURES = {  # what each material is painted with: an image of the rip, or a pl
     "Mt_Eye_4": (255, 226, 120),
 }
 TEXTURE_SIZE = 512
-LIFT = 1.3  # how much brighter the rip's textures are drawn: ice in the night sky, not slate
 # What each piece is cut down to, by the start of its name: triangles, or the share of its own it
 # keeps; the rest (the head, the jaw) keep theirs.
 BUDGET = {
@@ -77,6 +87,7 @@ BUDGET = {
     "Shell": 0.55,
     "Scissor": 0.6,
     "Tail": 0.7,
+    "Crown": 0.3,
 }
 
 
@@ -85,48 +96,33 @@ def main(folder: str) -> None:
     texture_out = CLIENT / "public/assets/textures/avatars/colgera.png"
     rip = Path(folder)
     doc = ET.parse(rip / "colgera.dae").getroot()
-    geometries = read_geometries(doc)
-    skins = read_skins(doc)
-    joints, parents, armature = read_skeleton(doc)
-
-    # Every piece, posed: its vertices where the rig's bind pose puts them, in the rip's world
-    # (the skinning formula, with every joint at its bind pose), then in the dragon's frame.
-    parts = []
-    for node in doc.find(NS + "library_visual_scenes").iter(NS + "node"):
-        inst = node.find(NS + "instance_controller")
-        if inst is None or node.get("id", "").endswith("_UV_1"):  # the same piece with another UV set
-            continue
-        skin = skins[inst.get("url")[1:]]
-        geometry = geometries[skin["geometry"]]
-        name = node.get("id").split("__")[0]
-        materials = {im.get("symbol"): im.get("target")[1:] for im in inst.iter(NS + "instance_material")}
-        place = np.zeros((len(geometry["positions"]), 4, 4))
-        weights = skin["weights"][geometry["position_index"]]  # the rip weights each position, not each corner
-        for j, joint in enumerate(skin["joints"]):
-            matrix = armature @ joints[joint] @ skin["inverse_bind"][j] @ skin["bind_shape"]
-            place += weights[:, j][:, None, None] * matrix[None]
-        positions = np.einsum("nij,nj->ni", place, np.c_[geometry["positions"], np.ones(len(geometry["positions"]))])[
-            :, :3
-        ]
-        normals = np.einsum("nij,nj->ni", place[:, :3, :3], geometry["normals"])
-        parts.append(
-            {
-                "name": name,
-                "link": link_of(name, skin["joints"], parents),
-                "positions": positions,
-                "normals": normals / np.linalg.norm(normals, axis=1)[:, None],
-                "uvs": geometry["uvs"],
-                "triangles": geometry["triangles"],
-                "material": materials[geometry["material"]],
-            }
-        )
+    joints, parents, _ = read_skeleton(doc)
+    parts = read_parts(doc, lambda name, skin_joints: link_of(name, skin_joints, parents))
+    # The crowns: the ring of spikes stood on each ring segment's Spike node, one piece with it.
+    crown = ET.parse(rip / "Weakpoint/colgera_weakpoint_spike.dae").getroot()
+    spikes = [p for p in read_parts(crown, lambda name, _: None) if p["name"].startswith("Spike_")]
+    for ring, joint in RINGS.items():
+        at = joints[f"Spike_{ring}"][:3, 3]
+        for spike in spikes:
+            parts.append(
+                {
+                    **spike,
+                    "name": f"Crown_{ring}_{spike['name']}",
+                    "link": CHAIN.index(joint) + 1,
+                    "positions": spike["positions"] + at,
+                }
+            )
     eyes = np.vstack([p["positions"] for p in parts if p["name"].startswith("Eyeball")]).mean(axis=0)
     # The chain's joints along the body, as distance behind the eyes: the rip's world runs +y down
-    # the body (its up is +z), so a joint's y past the eyes' is how far back it is.
+    # the body (its up is +z), so a joint's y past the eyes' is how far back it is. The rig's
+    # stations place the pieces; the sim's are those with the thin stretches telescoped.
     along = {name: joints[PAIRED_JOINT.get(name, name)][1, 3] - eyes[1] for name in CHAIN}
     tip = max(p["positions"][:, 1].max() for p in parts if p["name"].startswith("Tail_2")) - eyes[1]
-    stations = [0.0] + [along[name] for name in CHAIN] + [tip]  # the eyes, each spine point, the tip
-    links = np.diff(stations) * SCALE
+    rig_stations = [0.0] + [along[name] for name in CHAIN] + [tip]  # the eyes, each spine point, the tip
+    rig_links = np.diff(rig_stations)
+    ring_links = [CHAIN.index(joint) + 1 for joint in RINGS.values()]
+    links = np.array([link if k in ring_links else link * THIN for k, link in enumerate(rig_links)]) * SCALE
+    stations = np.r_[0, np.cumsum(links)]
 
     def frame(p: np.ndarray) -> np.ndarray:
         """The rip's world to the dragon's frame: x to its right, y up, z forward, from the eyes."""
@@ -144,15 +140,19 @@ def main(folder: str) -> None:
         "the shells on the back"
     )
     assert next(p for p in parts if p["name"] == "Clavicle_A_L_Shape")["positions"][:, 0].mean() < 0, "the left to -x"
+    assert all(p["positions"][:, 1].min() > 0 for p in parts if p["name"].startswith("Crown")), (
+        "the crowns on the rings"
+    )
 
-    # The bones: the eyes, the jaw at its hinge, and one per link at its middle, lying along the
-    # straight body of the rest pose, every piece bound rigidly to its own. Rows of position, right,
-    # up, forward.
+    # The bones: the eyes, the jaw at its hinge, and one per link at the middle of the rig's link,
+    # lying along the straight body of the bind pose, every piece bound rigidly to its own; placed
+    # on the sim's spine at the middle of its own (shorter) link, which is what telescopes the thin
+    # stretches. Rows of position, right, up, forward.
     axes = np.array([1.0, 0, 0, 0, 1, 0, 0, 0, 1])
     jaw_hinge = frame(joints["Jaw"][:3, 3])[0]
     frames = [np.r_[0, 0, 0, axes], np.r_[jaw_hinge, axes]]
     for k in range(len(links)):
-        middle = (stations[k] + stations[k + 1]) / 2 * SCALE
+        middle = (rig_stations[k] + rig_stations[k + 1]) / 2 * SCALE
         frames.append(np.r_[0, 0, -middle, axes])
     frames = np.array(frames)
     bones = len(frames)
@@ -176,19 +176,19 @@ def main(folder: str) -> None:
     # One atlas: each image of the rip once, for every vertex painted with it, and a swatch per
     # plain colour.
     uv = np.vstack([p["uvs"] for p in parts])
-    material = material_per_vertex(parts)
+    material = np.concatenate([np.repeat(p["material"], len(p["positions"])) for p in parts])
     regions: list[Region] = []
-    by_image: dict[str, list[int]] = {}
+    by_image: dict[tuple[str, float], list[int]] = {}
     for m in np.unique(material):
         look = TEXTURES[m.removesuffix("-material")]
         vertices = np.flatnonzero(material == m)
-        if isinstance(look, str):
+        if len(look) == 2:
             by_image.setdefault(look, []).extend(vertices.tolist())
         else:
             regions.append(swatch(look, vertices))
-    for file, vertices in by_image.items():
+    for (file, lift), vertices in by_image.items():
         image = Image.open(rip / file).convert("RGB")
-        image = Image.fromarray(np.clip(np.asarray(image, dtype=np.float64) * LIFT, 0, 255).astype(np.uint8))
+        image = Image.fromarray(np.clip(np.asarray(image, dtype=np.float64) * lift, 0, 255).astype(np.uint8))
         regions.append(textured(image, uv, np.array(vertices), TEXTURE_SIZE))
     atlas, uv = pack_regions(regions, uv)
     base = 0
@@ -199,8 +199,7 @@ def main(folder: str) -> None:
     def vec(v: np.ndarray) -> str:
         return "[" + ", ".join(f"{c + 0.0:.4f}".replace("-0.0000", "0.0000") for c in v) + "]"
 
-    along_bones = ["null", "null"] + [f"{(stations[k] + stations[k + 1]) / 2 * SCALE:.4f}" for k in range(len(links))]
-    along_bones[0] = "0.0000"
+    along_bones = ["0.0000", "null"] + [f"{(stations[k] + stations[k + 1]) / 2:.4f}" for k in range(len(links))]
     parent_bones = ["null", "0"] + ["null"] * len(links)
     lines = [
         "// Generated by packages/client/scripts/colgera-model.py from the Tears of the Kingdom Colgera rip; don't edit.",
@@ -238,15 +237,48 @@ def main(folder: str) -> None:
     print("links:", ", ".join(f"{link:.2f}" for link in links), f"({links.sum():.1f} m of body)")
     head = np.vstack([p["positions"] for p in parts if p["name"] == "Head_Shape"])
     widest = max(np.ptp(p["positions"][:, 0]) for p in parts if p["name"].startswith(("Spine", "Shell")))
+    wings = max(np.ptp(p["positions"][:, 0]) for p in parts if p["name"].startswith("Wing"))
     print(
-        f"head {np.ptp(head[:, 0]):.1f} m across; the body's widest piece {widest:.1f} m; the mouth at {np.round(mouth, 2)}"
+        f"head {np.ptp(head[:, 0]):.1f} m across; the body's widest piece {widest:.1f} m; wingspan {wings:.1f} m;"
+        f" the mouth at {np.round(mouth, 2)}"
     )
 
 
-def material_per_vertex(parts: list[dict]) -> np.ndarray:
-    """Each vertex's material id, in the order the parts' vertices are stacked: a piece is painted
-    with one material."""
-    return np.concatenate([np.repeat(p["material"], len(p["positions"])) for p in parts])
+def read_parts(doc: ET.Element, link_of_piece: Callable[[str, list[str]], int | None]) -> list[dict]:
+    """Every piece the file draws, posed: its vertices where the rig's bind pose puts them in the
+    rip's world (the skinning formula, with every joint at its bind pose), with its normals, texture
+    coordinates, triangles, material and which link of the sim's spine it lies on."""
+    geometries = read_geometries(doc)
+    skins = read_skins(doc)
+    joints, _, armature = read_skeleton(doc)
+    parts = []
+    for node in doc.find(NS + "library_visual_scenes").iter(NS + "node"):
+        inst = node.find(NS + "instance_controller")
+        if inst is None or node.get("id", "").endswith("_UV_1"):  # the same piece with another UV set
+            continue
+        skin = skins[inst.get("url")[1:]]
+        geometry = geometries[skin["geometry"]]
+        name = node.get("id").split("__")[0]
+        materials = {im.get("symbol"): im.get("target")[1:] for im in inst.iter(NS + "instance_material")}
+        place = np.zeros((len(geometry["positions"]), 4, 4))
+        weights = skin["weights"][geometry["position_index"]]  # the rip weights each position, not each corner
+        for j, joint in enumerate(skin["joints"]):
+            matrix = armature @ joints[joint] @ skin["inverse_bind"][j] @ skin["bind_shape"]
+            place += weights[:, j][:, None, None] * matrix[None]
+        positions = np.einsum("nij,nj->ni", place, np.c_[geometry["positions"], np.ones(len(geometry["positions"]))])
+        normals = np.einsum("nij,nj->ni", place[:, :3, :3], geometry["normals"])
+        parts.append(
+            {
+                "name": name,
+                "link": link_of_piece(name, skin["joints"]),
+                "positions": positions[:, :3],
+                "normals": normals / np.linalg.norm(normals, axis=1)[:, None],
+                "uvs": geometry["uvs"],
+                "triangles": geometry["triangles"],
+                "material": materials[geometry["material"]],
+            }
+        )
+    return parts
 
 
 def mesh_lines(name: str, parts: list[dict]) -> list[str]:

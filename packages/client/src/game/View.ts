@@ -39,7 +39,7 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
 // Each dragon skin's boom: far enough back and up to see a body of its size behind the head.
 export const DRAGON_BOOMS: Record<AvatarsOf<'asian-dragon'>, Boom> = {
   'light-dragon': VIEWS['asian-dragon'].boom,
-  colgera: { back: 34, right: 0, up: 12 },
+  colgera: { back: 26, right: 0, up: 9 },
 };
 
 // The boom the camera hangs on behind whoever wears `avatar`.
