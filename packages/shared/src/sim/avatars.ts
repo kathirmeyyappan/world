@@ -182,6 +182,8 @@ const LOOKS = {
       cruise: 12.5,
       turnRadius: 10,
       heartsEvery: 5,
+      weak: [],
+      rising: null,
     },
   },
   // Colgera, the Tears of the Kingdom boss: a segmented ice wyrm (scripts/colgera-model.py, which
@@ -190,8 +192,9 @@ const LOOKS = {
   colgera: {
     id: 'colgera',
     class: 'asian-dragon',
-    item: 'firebreath',
+    item: 'frostbreath',
     regen: false,
+    life: { hearts: 3, row: 3, sprite: 'crystal' }, // a crystal heart per ring segment
     nameTag: null,
     blurb: 'become colgera from tears of the kingdom',
     command: 'colgera',
@@ -207,6 +210,14 @@ const LOOKS = {
       cruise: 12.5,
       turnRadius: 14,
       heartsEvery: 5,
+      // The crystal in the hollow of each ring's underside: the rings are links 1, 6 and 16.
+      weak: [
+        { link: 1, below: 0.2, r: 1.6 },
+        { link: 6, below: 0.2, r: 1.6 },
+        { link: 16, below: 0.2, r: 1.6 },
+      ],
+      // It comes up through a storm: ice under the pool, and a gale that throws the bystanders.
+      rising: { ice: 12, blast: { reach: 20, speed: 9, lift: 5, damage: 2, grip: 6 } },
     },
   },
 } satisfies Record<AvatarId, AvatarSpec>;

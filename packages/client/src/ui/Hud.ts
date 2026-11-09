@@ -1,5 +1,5 @@
 // Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events.
-import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type PlayerClass } from '@world/shared';
+import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type PlayerClass } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
@@ -207,9 +207,10 @@ export class Hud {
   private walkerKeys: string | null = null;
 
   // `item` names what the hint is for: its text changes with the scope, but only a new item (or the
-  // same one drawn again) starts the hint's time on touch over.
-  setItemHint(text: string, stats = '', item = ''): void {
+  // same one drawn again) starts the hint's time on touch over. An ice item's hint is frosted.
+  setItemHint(text: string, stats = '', item = '', element: Element | null = null): void {
     const key = `${text}\n${stats}`;
+    this.itemHint.classList.toggle('ice', element === 'ice');
     if (key === this.itemHintText) return;
     this.itemHintText = key;
     this.itemHintMain.textContent = text;

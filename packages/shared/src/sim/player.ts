@@ -57,23 +57,22 @@ export function clonePlayer(p: PlayerState): PlayerState {
       dir: { ...p.dragon.dir },
       head: { ...p.dragon.head },
       spine: [...p.dragon.spine],
+      shattered: [...p.dragon.shattered],
     },
   };
 }
 
-// Puts `p` in `avatar`. A new look is a new body: a bigger life is a fresh one, a smaller one keeps
-// the life it had up to its full, and its class's state is made over (a dragon of another shape); a
-// new class also drops the old class's state and the kit where the class has none, at the same eye
-// point. The look's own item is held for good; leaving one brings back whatever the name gives.
+// Puts `p` in `avatar`. A new look is a new body with a full life, its class's state made over (a
+// dragon of another shape); a new class also drops the old class's state and the kit where the
+// class has none, at the same eye point. The look's own item is held for good; leaving one brings
+// back whatever the name gives.
 export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   const from = classOf(p.avatar);
   const to = classOf(avatar);
-  const had = heartsOf(p.avatar);
-  const has = heartsOf(avatar);
   const hadOwn = AVATARS[p.avatar].item !== null;
   const changed = avatar !== p.avatar;
   p.avatar = avatar;
-  if (!p.dead && has !== had) p.hearts = has > had ? has : Math.min(has, p.hearts);
+  if (changed && !p.dead) p.hearts = heartsOf(avatar);
   if (to !== from) from.exit(p);
   if (changed) to.enter(p);
   if (to !== from) {

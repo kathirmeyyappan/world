@@ -34,7 +34,7 @@ import { parseCommand, type BotCallArgs, type Command } from './commands';
 import { AVATARS, eyeOf, type AvatarId } from './sim/avatars';
 import { classOf, heartsOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
-import { sprayFrost } from './sim/frost';
+import { frostDisc, sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
 import { REGEN_RATE, applyDamage, damageFor, fallDamage } from './sim/health';
 import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
@@ -45,6 +45,7 @@ import { createCubes, stepCubes } from './sim/cubes';
 import { randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
+import { throwWalker } from './sim/walker';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import { Structures } from './sim/collision';
@@ -359,9 +360,12 @@ export class Room {
     // Ice chills from the last touch; fire thaws, as it thaws the frost it lands on.
     for (const hit of resolveFire(spec, me, targets, this.structures)) {
       const victim = hit.target.player;
+      const cost = damageFor(spec, hit.headshot);
+      const hearts = classOf(victim.avatar).hurt?.(victim, hit.part, cost) ?? cost;
+      if (hearts === 0) continue; // off a dragon's shell: nothing
       if (spec.element === 'ice') victim.chilled = CHILL_SECONDS;
       else if (spec.element === 'fire') victim.chilled = 0;
-      this.damage(victim, damageFor(spec, hit.headshot), { shooter: seat, headshot: hit.headshot });
+      this.damage(victim, hearts, { shooter: seat, headshot: hit.headshot });
     }
     if (spec.element && spec.fire.kind === 'cone') this.spray(me, spec.fire.halfAngle, spec.range, spec.element);
   }
@@ -531,7 +535,36 @@ export class Room {
       return false;
     }
     becomeAvatar(seat.state, avatar);
+    this.storm(seat);
     return true;
+  }
+
+  // A dragon that rises in a storm (its shape's `rising`): the floor under it ices over, and the
+  // gale throws everyone on foot near it back and up, hurt, with the rider to thank for it.
+  private storm(seat: Seat): void {
+    const me = seat.state;
+    const look = AVATARS[me.avatar];
+    const rising = look.class === 'asian-dragon' ? look.dragon.rising : null;
+    if (!rising) return;
+    const feet = me.pos.y - EYE_HEIGHT;
+    if (Math.abs(feet) < 0.01) {
+      const floor = (x: number, z: number) => worldDistance(x, z, this.worldShape) < 0;
+      const on = frostDisc(this.structures, floor, me.pos.x, me.pos.z, rising.ice);
+      const off = this.structures.frost.trim();
+      if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
+    }
+    const { reach, speed, lift, damage, grip } = rising.blast;
+    for (const other of this.seats.values()) {
+      const p = other.state;
+      if (p === me || p.dead || classOf(p.avatar).id !== 'walker') continue;
+      const dx = p.pos.x - me.pos.x;
+      const dz = p.pos.z - me.pos.z;
+      const flat = Math.hypot(dx, dz);
+      if (flat > reach || Math.abs(p.pos.y - me.pos.y) > reach) continue;
+      const out = flat > 1e-6 ? { x: dx / flat, z: dz / flat } : { x: 1, z: 0 };
+      throwWalker(p, { x: out.x * speed, y: lift, z: out.z * speed }, grip);
+      this.damage(p, damage, { shooter: seat, headshot: false });
+    }
   }
 
   // A name-given look can't be changed, the dead stay what they died as, and a new class needs room

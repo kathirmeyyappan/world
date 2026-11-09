@@ -134,6 +134,7 @@ export const ITEM_SOUNDS: Record<
   flamethrower: { firing: 'flame' },
   'ice-blower': { firing: 'ice' },
   firebreath: { firing: 'flame' },
+  frostbreath: { firing: 'ice' },
 };
 
 export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {

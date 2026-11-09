@@ -212,6 +212,7 @@ def main(glb: str) -> None:
         *mesh_lines("head", [p for p in parts if p["group"] in HEAD_MESH]),
         *mesh_lines("maw", [p for p in parts if p["group"] == "Mouth"]),
         *mesh_lines("body", [p for p in parts if p["group"] not in (*HEAD_MESH, "Mouth")]),
+        "  weak: [],",
         "} as const;",
         "",
     ]

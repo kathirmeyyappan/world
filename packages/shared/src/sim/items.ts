@@ -8,7 +8,7 @@
 import { CHILL_SECONDS, TICK_RATE } from './constants';
 import { HEADSHOT_MULTIPLIER } from './health';
 
-export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebreath';
+export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebreath' | 'frostbreath';
 
 // Things an item, or a player's class (classes.ts), can do. Each is bound to a key on the client and
 // reported in InputFrame.actions:
@@ -121,6 +121,21 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     nameTag: null,
     own: true,
     blurb: 'breathe fire',
+  },
+  // Colgera's: the ice blower's chill from a mouth, in the firebreath's cone.
+  frostbreath: {
+    id: 'frostbreath',
+    range: 30,
+    damage: 0.5,
+    cooldownTicks: 5,
+    actions: { shoot: { key: 'KeyK', mode: 'hold' } },
+    fire: { kind: 'cone', halfAngle: Math.PI / 5 },
+    element: 'ice',
+    fireNeedsScope: false,
+    fuelSeconds: 7.5,
+    nameTag: null,
+    own: true,
+    blurb: 'breathe frost',
   },
 };
 

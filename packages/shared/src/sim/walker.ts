@@ -29,7 +29,7 @@ import { WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
 
 export const WALKER: ClassSpec = {
   id: 'walker',
-  life: { hearts: MAX_HEARTS, row: 5 },
+  life: { hearts: MAX_HEARTS, row: 5, sprite: 'heart' },
   kit: true,
   bots: true,
   corpseSeconds: null,

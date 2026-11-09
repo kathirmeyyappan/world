@@ -1,7 +1,8 @@
 // The health bar: a life's worth of pixel hearts in rows at the top of the screen, as many as the
-// worn look has (classes.ts `lifeOf`). Hearts you've lost turn grey and crack. Pure DOM, driven by the
+// worn look has (classes.ts `lifeOf`), drawn as its life says: hearts, or the big crystals of a
+// dragon with a crystal a segment. Hearts you've lost turn grey and crack. Pure DOM, driven by the
 // server's heart count; nothing here decides damage.
-import { WALKER, type LifeSpec } from '@world/shared';
+import { WALKER, type HeartSprite, type LifeSpec } from '@world/shared';
 import { HEART as FULL, pixelSvg } from './pixelIcons';
 
 // 9x8 pixel heart. '#' body, '+' highlight, '.' empty. The broken one has a crack down it; the
@@ -11,7 +12,50 @@ const BROKEN = ['.##...##.', '#+##.####', '###.#####', '####.####', '.####.##.',
 
 const HALF = ['.LL...RR.', 'L+LL.RRRR', 'LLL.RRRRR', 'LLLL.RRRR', '.LLLL.RR.', '..LL.RR..', '...L.R...', '....L....'];
 
-const PIX = { '+': 'hi', R: 'grey' };
+// 15x13 pixel crystal heart, cut like a gem: '#' its edges, '+' the light on the crown above the
+// girdle ('=' the facet lines, '*' the glint on it), 'o' the pavilion facets below in shade. A lost
+// one is shattered, a crack zigzagging down it; it is never half.
+const CRYSTAL = [
+  '..####...####..',
+  '.#+*++#.#++++#.',
+  '#+*+++=#=+++++#',
+  '#+++++=+=+++++#',
+  '#=============#',
+  '#oo+++++++++oo#',
+  '.#oo=+++++=oo#.',
+  '..#oo=+++=oo#..',
+  '...#oo=+=oo#...',
+  '....#oo=oo#....',
+  '.....#ooo#.....',
+  '......#o#......',
+  '.......#.......',
+];
+const CRYSTAL_BROKEN = [
+  '..####...####..',
+  '.#+*++#.#++++#.',
+  '#+*+++=#=+++++#',
+  '#+++++=.=+++++#',
+  '#=====.=======#',
+  '#oo+++.+++++oo#',
+  '.#oo=++.++=oo#.',
+  '..#oo=+.+=oo#..',
+  '...#oo.+=oo#...',
+  '....#o.=oo#....',
+  '.....#.oo#.....',
+  '......#.#......',
+  '.......#.......',
+];
+
+const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: string[]; pix: Record<string, string> }> =
+  {
+    heart: { full: FULL, broken: BROKEN, half: HALF, pix: { '+': 'hi', R: 'grey' } },
+    crystal: {
+      full: CRYSTAL,
+      broken: CRYSTAL_BROKEN,
+      half: CRYSTAL_BROKEN,
+      pix: { '+': 'hi', o: 'shade', '=': 'facet', '*': 'glint' },
+    },
+  };
 const FILL_MS = 70; // between one heart filling and the next as hearts come back
 const RANK = { lost: 0, half: 1, full: 2 };
 type State = keyof typeof RANK;
@@ -19,7 +63,8 @@ type State = keyof typeof RANK;
 export class Hearts {
   private readonly root = document.getElementById('hearts')!;
   private hearts: HTMLElement[] = [];
-  private max = 0; // a full life for the worn class
+  private max = 0; // a full life for the worn look
+  private sprite: HeartSprite | null = null;
   private shown = 0; // what the bar shows
   private target = 0; // what the server says, which a fill catches the bar up to
   private fills: number[] = [];
@@ -34,18 +79,25 @@ export class Hearts {
 
   // The bar for `life`'s hearts in its rows, full when that changes (a new look).
   setLife(life: LifeSpec): void {
-    if (life.hearts === this.max) return;
+    if (life.hearts === this.max && life.sprite === this.sprite) return;
+    const art = SPRITES[life.sprite];
     this.root.replaceChildren();
     this.root.style.setProperty('--heart-row', String(life.row));
+    this.root.dataset.sprite = life.sprite;
     this.hearts = [];
     for (let i = 0; i < life.hearts; i++) {
       const heart = document.createElement('div');
-      heart.className = 'heart';
-      heart.append(pixelSvg(FULL, 'full', PIX), pixelSvg(BROKEN, 'broken', PIX), pixelSvg(HALF, 'half', PIX));
+      heart.className = `heart ${life.sprite}`;
+      heart.append(
+        pixelSvg(art.full, 'full', art.pix),
+        pixelSvg(art.broken, 'broken', art.pix),
+        pixelSvg(art.half, 'half', art.pix),
+      );
       this.root.append(heart);
       this.hearts.push(heart);
     }
     this.max = this.shown = this.target = life.hearts;
+    this.sprite = life.sprite;
   }
 
   // A loss shows at once; hearts coming back fill one at a time, FILL_MS apart. Only the bar

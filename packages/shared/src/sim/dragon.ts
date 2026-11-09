@@ -15,7 +15,7 @@
 // nothing can hit it: a rider is caught half in the ground, unable to steer, and would be a
 // sitting duck.
 import { AVATARS, type AvatarId } from './avatars';
-import type { ClassSpec, HitShape, Sphere } from './classes';
+import type { ClassSpec, HitPart, HitShape, Sphere } from './classes';
 import type { Body, Structures } from './collision';
 import type { Shooter, Target } from './combat';
 import { EYE_HEIGHT, TICK_RATE } from './constants';
@@ -37,6 +37,23 @@ const ROAR_SECONDS = 3; // one roar at a time
 
 const UP: Vec3 = { x: 0, y: 1, z: 0 };
 
+// A crystal on the underside of a ring segment: on the `link`, `below` metres under its middle,
+// `r` metres round. A dragon with any is hurt through them alone, a whole heart a crystal: the
+// first shot to reach one from below shatters it, and the ring stays open.
+export interface WeakPoint {
+  link: number;
+  below: number;
+  r: number;
+}
+
+// What a new one's rising does round it: `ice` metres of frost left on the floor under the pool
+// it comes up through, and the `blast` that throws anyone on foot within `reach` metres away at
+// `speed` m/s and `lift` m/s up, for `damage` hearts, with `grip` m/s² of air control left to them.
+export interface Rising {
+  ice: number;
+  blast: { reach: number; speed: number; lift: number; damage: number; grip: number };
+}
+
 // A dragon skin's body: what the sim moves and shoots at. The client draws the skin's model along
 // the same spine, a bone wherever the model needs one (render/avatars/Dragon.ts).
 export interface DragonShape {
@@ -48,6 +65,8 @@ export interface DragonShape {
   cruise: number; // m/s flat out
   turnRadius: number; // metres: the tightest arc the head flies
   heartsEvery: number; // spine points between the hearts a dead one leaves, after the one at its head
+  weak: readonly WeakPoint[]; // none: shots hurt it anywhere
+  rising: Rising | null; // null: it comes up quietly
 }
 
 export interface DragonState {
@@ -56,6 +75,7 @@ export interface DragonState {
   head: Vec3; // the way the head points, a unit vector: the look, as far round as the neck lets it
   risen: boolean; // the whole spine out of the ground it rose from, and free to fly
   spine: number[]; // x, y, z of each spine point, nearest the head first, each within its link of the last
+  shattered: number[]; // the weak points shot out (their indices in the shape's list), in that order
 }
 
 // The body a dragon skin has.
@@ -78,12 +98,12 @@ export function createDragon(head: Vec3, shape: DragonShape): DragonState {
     below += link;
     spine.push(head.x, round(head.y - below), head.z);
   }
-  return { dir: { ...UP }, speed: 0, head: { ...UP }, risen: false, spine };
+  return { dir: { ...UP }, speed: 0, head: { ...UP }, risen: false, spine, shattered: [] };
 }
 
 export const DRAGON: ClassSpec = {
   id: 'asian-dragon',
-  life: { hearts: 40, row: 8 },
+  life: { hearts: 40, row: 8, sprite: 'heart' },
   kit: false,
   bots: false,
   corpseSeconds: 30,
@@ -104,6 +124,7 @@ export const DRAGON: ClassSpec = {
   step: stepDragon,
   aim: (p: Shooter) => p.dragon?.head ?? lookDirection(p.yaw, p.pitch),
   hitShape,
+  hurt,
   lies,
 };
 
@@ -353,6 +374,7 @@ function round(v: number): number {
   return Math.round(v * 100) / 100;
 }
 
+// The head, a sphere at every spine point, and a sphere at each weak point still whole.
 function hitShape(p: Target): HitShape {
   if (p.dragon && !p.dragon.risen) return { kind: 'spheres', spheres: [] };
   const body = dragonShape(p.avatar);
@@ -360,7 +382,49 @@ function hitShape(p: Target): HitShape {
   const spine = p.dragon?.spine ?? [];
   for (let i = 0; i < spine.length; i += 3)
     spheres.push({ x: spine[i], y: spine[i + 1], z: spine[i + 2], r: body.bodyRadius, head: false });
+  body.weak.forEach((w, n) => {
+    if (p.dragon?.shattered.includes(n)) return;
+    const at = weakPointAt(p.pos, spine, w);
+    if (at) spheres.push({ ...at, r: w.r, head: false, weak: n });
+  });
   return { kind: 'spheres', spheres };
+}
+
+// Where a weak point is: under the middle of its link, as far below it as straight down goes
+// square to the link. A link standing on end has no underside, so none.
+export function weakPointAt(head: Vec3, spine: readonly number[], w: WeakPoint): Vec3 | null {
+  const a = pointOf(head, spine, w.link - 1);
+  const b = pointOf(head, spine, w.link);
+  if (!a || !b) return null;
+  const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  if (len < 1e-6) return null;
+  const f = { x: (b.x - a.x) / len, y: (b.y - a.y) / len, z: (b.z - a.z) / len };
+  const down = { x: f.x * f.y, y: f.y * f.y - 1, z: f.z * f.y };
+  const flat = Math.hypot(down.x, down.y, down.z);
+  if (flat < 0.3) return null;
+  return {
+    x: (a.x + b.x) / 2 + (down.x / flat) * w.below,
+    y: (a.y + b.y) / 2 + (down.y / flat) * w.below,
+    z: (a.z + b.z) / 2 + (down.z / flat) * w.below,
+  };
+}
+
+// Spine point `i`, the head being point -1.
+function pointOf(head: Vec3, spine: readonly number[], i: number): Vec3 | null {
+  if (i < 0) return head;
+  if (i * 3 + 2 >= spine.length) return null;
+  return { x: spine[i * 3], y: spine[i * 3 + 1], z: spine[i * 3 + 2] };
+}
+
+// A dragon with weak points is hurt through them alone, a whole heart a crystal: the shot that
+// reaches one shatters it. Anywhere else, or one already shattered, costs nothing. One without
+// them takes the damage as it comes.
+function hurt(p: PlayerState, part: HitPart, damage: number): number {
+  const shape = dragonShape(p.avatar);
+  if (shape.weak.length === 0) return damage;
+  if (typeof part !== 'number' || !p.dragon || p.dragon.shattered.includes(part)) return 0;
+  p.dragon.shattered.push(part);
+  return 1;
 }
 
 // Under the head and under every `heartsEvery`-th spine point.

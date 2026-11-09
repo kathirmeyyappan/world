@@ -47,6 +47,36 @@ export function plusSprites(engine: Engine, ps: ParticleSystem, greys = GREYS.le
   ps.spriteCellChangeSpeed = 0;
 }
 
+const SHARDS = 90;
+const SHARD_RADIUS = 1.2; // metres: a crystal the size of a ring's underside
+const SHARD_SIZE = 0.45; // metres across a shard
+
+// A crystal shattering: shards flung every way from `at`, white turning to ice blue, falling as
+// they go out; gone in about a second.
+export function shards(engine: Engine, at: Vector3): void {
+  const ps = new ParticleSystem('shards', SHARDS, engine.scene);
+  plusSprites(engine, ps, 2);
+  ps.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+  ps.emitter = at.clone();
+  ps.createSphereEmitter(SHARD_RADIUS);
+  ps.minSize = SHARD_SIZE * 0.6;
+  ps.maxSize = SHARD_SIZE;
+  ps.color1 = new Color4(0.95, 0.98, 1, 1);
+  ps.color2 = new Color4(0.6, 0.85, 1, 1);
+  ps.colorDead = new Color4(0.4, 0.7, 1, 0);
+  ps.minLifeTime = 0.6;
+  ps.maxLifeTime = 1.1;
+  ps.minEmitPower = 6;
+  ps.maxEmitPower = 14;
+  ps.minAngularSpeed = -4;
+  ps.maxAngularSpeed = 4;
+  ps.gravity = new Vector3(0, -9, 0);
+  ps.manualEmitCount = SHARDS;
+  ps.targetStopDuration = 1.2;
+  ps.disposeOnStop = true;
+  ps.start();
+}
+
 export function poof(engine: Engine, at: Vector3): void {
   const ps = new ParticleSystem('poof', COUNT, engine.scene);
   plusSprites(engine, ps);

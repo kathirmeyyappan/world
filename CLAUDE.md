@@ -380,19 +380,30 @@ by command, gear, `/speedy`), whether bots may wear it, how long its dead body s
 (outliving the socket), its own tap actions on keys of their own (reported in `InputFrame.actions`
 like an item's and announced by the Room as `action` messages), whether it `fits` where a player is
 switching into it, `enter`/`exit` for its own state on `PlayerState`, its `hitShape` for shots (a
-capsule or spheres, `combat.ts`), and where a dead one `lies` for the hearts it leaves. The walker
+capsule or spheres, `combat.ts`; a hit lands on a `HitPart`, the head, the body or one of the
+shape's weak points by number), `hurt` for what a hit on a part costs when it isn't the damage as
+it comes, and where a dead one `lies` for the hearts it leaves. The walker
 (`walker.ts`) is everyone on foot; the asian dragon (`asian-dragon`, `dragon.ts`) is a head sphere flying where its rider
 looks with a spine of points following it, kept 5 m up and too big for a door, its head turned
 toward the look only as far as the neck lets it, breathing a wide cone where the head points
-(`firebreath`, the look's own item) and roaring on A, S and D; a new one climbs straight out of the
-ground, head up, until its whole spine is out. Its rules are in that file; its body is its look's
-(`DragonShape`, the `dragon` on the look's row in `AVATARS`): the spine's links (metres from the
-eyes to the first point and between the points after it, so a skin with a long rigid stretch of
-body has one long link there), the head's and body's radius, how fast it cruises and how tight it
-turns. A life is a `LifeSpec` (hearts and the HUD's row), the class's unless the look has one of
-its own (`lifeOf`). `becomeAvatar` (`player.ts`) is the one way a player changes
-look: a new look is a new body at the same eye point, full when its life is bigger and keeping the
-life it had, up to its full, when it's smaller.
+(the look's own hold item: the light dragon's `firebreath`, Colgera's `frostbreath`) and roaring on
+A, S and D; a new one climbs straight out of the ground, head up, until its whole spine is out. Its
+rules are in that file; its body is its look's (`DragonShape`, the `dragon` on the look's row in
+`AVATARS`): the spine's links (metres from the eyes to the first point and between the points after
+it, so a skin with a long rigid stretch of body has one long link there), the head's and body's
+radius, how fast it cruises and how tight it turns, its `weak` points and how it comes up
+(`rising`). A weak point (`WeakPoint`: the link it's under, how far `below` the link's middle, its
+radius) is a sphere hung under a link, there only while the link lies flat enough to have an
+underside (`weakPointAt`), and a shot reaches it only from below (`combat.ts` keeps it out of a
+shot coming down); a look with any is hurt through them alone (`hurt`: a whole heart a crystal,
+the shot that reaches one shattering it, `DragonState.shattered` over the wire, and nothing for a
+hit anywhere else or on one already gone), so Colgera's three rings are three crystal hearts.
+With `rising` the look comes up in a storm (`Room.storm`): a disc of ice on the floor under it
+(`frost.ts` `frostDisc`) and a blast that throws every walker within reach away and up for its
+damage (`throwWalker`). A life is a `LifeSpec` (hearts, the HUD's row and the sprite it's drawn
+with: `heart`, or Colgera's `crystal`, each a pixel shape in `ui/Hearts.ts`), the class's unless
+the look has one of its own (`lifeOf`). `becomeAvatar` (`player.ts`) is the one way a player
+changes look: a new look is a new body at the same eye point with its full life.
 
 A new look in a class is a row in `AVATARS` (with `item` for one that comes with its own weapon,
 `regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu, `life` for a
@@ -408,7 +419,9 @@ has to know it exists, except the client's `createAvatar` for how it's drawn and
 (`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model
 puts a bone at the eyes, one wherever it needs on the spine (`along` metres behind the eyes) and
 one hung on another for a part that moves on its own (the jaw), and the renderer carries each
-along the spine the sim moves. The light dragon's is rigged by `scripts/dragon-model.py` (its
+along the spine the sim moves; the pieces that go with a weak point (`DragonModel.weak`, a ring's
+crown of spikes and the crystal plate in its hollow) are hidden once the sim says it's shattered,
+with a burst of shards where it was (`render/Poof.ts` `shards`), so the ring is left a hole. The light dragon's is rigged by `scripts/dragon-model.py` (its
 docstring says how) from a Sketchfab GLB; Colgera's (`colgera`, the Tears of the Kingdom boss: three
 ring segments, each a rigid link of the spine, on a stiff spine with wings and arms) by
 `scripts/colgera-model.py` from the game's own rip, a Collada file whose every piece is rigid on a
@@ -429,8 +442,8 @@ a hit that throws its victim is a `throwWalker` there, see Surfaces and frost):
 ice chills for `CHILL_SECONDS` from the last touch (`sim/constants.ts`), a walk at
 `CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees, and fire's touch
 thaws it at once, as it melts frost (see Surfaces and frost). On the client
-`HitFlash` frosts a chilled body over, and `ui/Condition.ts` shows the chilled player the counter
-with the view frosted.
+`HitFlash` frosts a chilled body over, `ui/Condition.ts` shows the chilled player the counter
+with the view frosted, and the hint bar under an ice weapon is frosted white (`Hud.setItemHint`).
 
 ## Menu
 

@@ -12,7 +12,7 @@ import type { Vec3 } from './types';
 
 export interface Was {
   pos: Vec3;
-  dragon: Pick<DragonState, 'spine' | 'risen'> | null;
+  dragon: Pick<DragonState, 'spine' | 'risen' | 'shattered'> | null;
 }
 
 interface Entry {
@@ -27,7 +27,10 @@ export class PositionHistory {
   record(tick: number, players: Iterable<Pick<Was, 'pos' | 'dragon'> & { id: string }>): void {
     const was = new Map<string, Was>();
     for (const p of players)
-      was.set(p.id, { pos: { ...p.pos }, dragon: p.dragon && { spine: [...p.dragon.spine], risen: p.dragon.risen } });
+      was.set(p.id, {
+        pos: { ...p.pos },
+        dragon: p.dragon && { spine: [...p.dragon.spine], risen: p.dragon.risen, shattered: [...p.dragon.shattered] },
+      });
     this.entries.push({ tick, was });
     while (this.entries.length > MAX_REWIND_TICKS + 1) this.entries.shift();
   }

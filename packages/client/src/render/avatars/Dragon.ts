@@ -3,23 +3,29 @@
 // hung on those for the parts that move on their own (the lower jaw). The head points where the sim
 // says (the look, as far as the neck lets it) and the neck bends evenly after it; the body is drawn
 // along the spine, its back kept up the way the head's is, with the skin's slow wave running down
-// it so it never hangs still. Fire breath pours from the open mouth while it's breathing, and it
-// lifts its head and opens its mouth to roar: on its rider's key, and as it rises out of the
-// ground, through whatever its skin rises through, open until the whole of it is out. What shots
-// have to hit is the class's (sim/dragon.ts), not anything drawn here.
+// it so it never hangs still. Its breath (the look's own hold item, fire or frost) pours from the
+// open mouth while it's breathing, and it lifts its head and opens its mouth to roar: on its
+// rider's key, and as it rises out of the ground, through whatever its skin rises through, open
+// until the whole of it is out. A weak point the sim says is shattered loses its pieces here in a
+// burst of shards. What shots have to hit is the class's (sim/dragon.ts), not anything drawn here.
 import { Bone, Matrix, Mesh, Quaternion, Skeleton, TransformNode, Vector3, VertexData } from '@babylonjs/core';
 import {
+  AVATARS,
   ITEMS,
   WORLD_STRUCTURES,
   dragonShape,
   lookDirection,
+  weakPointAt,
   type AvatarId,
+  type DragonState,
   type ItemAction,
+  type ItemId,
   type Vec3,
 } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { FlameJet } from '../FlameJet';
+import { coneAngle, createJet, type Jet } from '../Jet';
+import { shards } from '../Poof';
 import type { Avatar } from './common';
 import type { DragonLook, DragonModel, MeshData, Rise } from './dragons';
 import { HitFlash } from './HitFlash';
@@ -37,9 +43,9 @@ const CRY_SECONDS = 3.7;
 // The mouth: radians the jaw drops when open, and seconds it takes to open or shut.
 const JAW_OPEN = 0.8;
 const JAW_EASE = 0.15;
-// The breath: how many times the flamethrower's blocks, how many times their size, how much they
-// keep to the middle of the cone, and seconds it keeps pouring after the last tick that said so,
-// over a tick the sim ran without the rider's frame.
+// The breath: how many times a hand weapon's particles, how many times their size, how much a
+// flame's keep to the middle of the cone, and seconds it keeps pouring after the last tick that
+// said so, over a tick the sim ran without the rider's frame.
 const BREATH = { density: 3, size: 1.6, core: 2.5 };
 const BREATH_HOLD = 0.2;
 
@@ -47,10 +53,14 @@ export class DragonAvatar implements Avatar {
   private readonly root: TransformNode;
   private readonly bones: TransformNode[] = [];
   private readonly mouth: TransformNode;
-  private readonly jet: FlameJet;
+  private readonly breath: ItemId | null; // the look's own hold item, breathed from the mouth
+  private readonly jet: Jet | null;
   private readonly rise: Rise;
   private readonly links: readonly number[]; // the sim's spine: metres between its points
   private model: DragonModel | null = null;
+  private weak: { crown: Mesh; plate: Mesh }[] = [];
+  private readonly gone = new Set<number>(); // the weak points shattered, their pieces hidden
+  private seen = false; // past the first update: a weak point shattered after that bursts
   private roaredAt = -Infinity;
   private roarSeconds = 0;
   private rose = false; // roared its way out of the ground
@@ -69,7 +79,7 @@ export class DragonAvatar implements Avatar {
   private lastNow = performance.now();
 
   constructor(
-    engine: Engine,
+    private readonly engine: Engine,
     readonly id: string,
     readonly kind: AvatarId, // the skin worn: its atlas paints the model
     private readonly look: DragonLook,
@@ -80,15 +90,14 @@ export class DragonAvatar implements Avatar {
     this.root = new TransformNode(`avatar-${id}`, scene);
     this.mouth = new TransformNode(`dragon-${id}-mouth`, scene);
     this.mouth.parent = this.root;
-    const breath = ITEMS['firebreath'];
-    this.jet = new FlameJet(
-      engine,
-      `dragon-${id}`,
-      this.mouth,
-      breath.range,
-      breath.fire.kind === 'cone' ? breath.fire.halfAngle : 0,
-      BREATH,
-    );
+    const own = AVATARS[kind].item;
+    const spec = own && ITEMS[own];
+    const element = spec && spec.actions.shoot?.mode === 'hold' ? spec.element : null;
+    this.breath = element && own ? own : null;
+    this.jet =
+      spec && element
+        ? createJet(engine, `dragon-${id}`, this.mouth, element, spec.range, coneAngle(spec), BREATH)
+        : null;
     this.rise = look.rise(engine, `dragon-${id}-rise`);
     void look.model().then((m) => this.build(engine, m));
   }
@@ -148,9 +157,29 @@ export class DragonAvatar implements Avatar {
     this.head = mesh('head', m.head);
     this.maw = m.maw && mesh('maw', m.maw);
     const body = mesh('body', m.body);
+    this.weak = m.weak.map((w, n) => ({ crown: mesh(`crown-${n}`, w.crown), plate: mesh(`plate-${n}`, w.plate) }));
+    for (const n of this.gone) this.hideWeak(n);
     this.head.setEnabled(!this.headless);
     this.maw?.setEnabled(false);
-    this.rise.mirror?.([this.head, body]);
+    this.rise.mirror?.([this.head, body, ...this.weak.flatMap((w) => [w.crown, w.plate])]);
+  }
+
+  private hideWeak(n: number): void {
+    this.weak[n]?.crown.setEnabled(false);
+    this.weak[n]?.plate.setEnabled(false);
+  }
+
+  // The weak points shot out since the last frame lose their pieces, in a burst of shards at the
+  // spot; the ones already gone when the body first shows just stay gone.
+  private shatter(p: RemotePlayer, d: DragonState): void {
+    for (const n of d.shattered) {
+      if (this.gone.has(n)) continue;
+      this.gone.add(n);
+      this.hideWeak(n);
+      const at = this.seen ? weakPointAt({ x: p.x, y: p.y, z: p.z }, d.spine, dragonShape(this.kind).weak[n]) : null;
+      if (at) shards(this.engine, new Vector3(at.x, at.y, at.z));
+    }
+    this.seen = true;
   }
 
   update(p: RemotePlayer): void {
@@ -165,7 +194,7 @@ export class DragonAvatar implements Avatar {
       this.rose = true;
       this.roar(CRY_SECONDS);
     }
-    if (!p.dead && p.firing && p.item === 'firebreath') this.breathUntil = now + BREATH_HOLD * 1000;
+    if (!p.dead && p.firing && p.item !== null && p.item === this.breath) this.breathUntil = now + BREATH_HOLD * 1000;
     const breathing = now < this.breathUntil;
     this.rise.update(
       this.at,
@@ -173,9 +202,10 @@ export class DragonAvatar implements Avatar {
       !!d && !d.risen && !this.dead,
       dt,
     );
+    if (d) this.shatter(p, d);
     if (this.model) this.pose(this.model, p, now, dt, breathing);
-    this.jet.set(breathing);
-    this.jet.update(dt);
+    this.jet?.set(breathing);
+    this.jet?.update(dt);
     this.root.setEnabled(true);
   }
 
@@ -266,7 +296,7 @@ export class DragonAvatar implements Avatar {
 
   dispose(): void {
     this.disposed = true;
-    this.jet.dispose();
+    this.jet?.dispose();
     this.rise.dispose();
     this.root.dispose(false, true);
     this.skeleton?.dispose();
