@@ -483,8 +483,11 @@ step finer than the grid it has always had, to 2), steps coarser when a fifth of
 past the tick they were due on, as `Engine.run` judges it against the display's tick, the
 shortest gap it has seen between its runs), and tries a step finer once it has kept up for twenty
 seconds, keeping it if it holds ten seconds and otherwise backing off twice as long before the
-next try; the world's first seconds and the hitch of a resize don't count, nor does a sleeping
-tab. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
+next try, from a minute up to eight and then every eight minutes for the rest of the session. The
+tries never stop, and one that fails costs the player a few seconds of dropped frames (three
+seconds settling after the resize, then a second of frames to judge) before auto backs off: the
+price of finding the finest size the machine holds, paid only by a machine that can't go finer.
+The world's first seconds and the hitch of a resize don't count, nor does a sleeping tab. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
 row that the game might crash, and auto taken up again starts from there. Fill is what this game
 spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of the pixel size, so
 2 is a quarter of the cost of 1.

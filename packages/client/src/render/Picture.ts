@@ -2,8 +2,12 @@
 // the browser blows the frame up to) and how many frames a second it's drawn, each a setting the
 // menu shows and the device keeps. The pixel size is auto unless one is chosen: it starts fine on a
 // mouse device and coarse on a touch one, steps coarser whenever the machine falls behind the frame
-// rate, and tries a step finer again once it has kept up for a while (backing off longer each time
-// that fails), so a weak machine settles where it keeps up and a strong one gets the detail.
+// rate, and tries a step finer again once it has kept up for a while, so a weak machine settles
+// where it keeps up and a strong one gets the detail. The tries never stop: one that fails costs
+// the player a few seconds of dropped frames before auto backs off, and the next waits twice as
+// long, from a minute up to eight, then every eight minutes for the rest of the session. That is
+// the price of finding the finest size the machine can hold, and it is paid only by a machine
+// that can't go finer.
 
 export const PIXEL_SIZES = [1, 1.5, 2, 2.5, 3] as const; // the choices, and the steps auto moves along
 export type PixelSize = (typeof PIXEL_SIZES)[number];
@@ -25,7 +29,7 @@ const KEPT_UP = 0.02; // at most this share late (a GC pause or two) counts as k
 const PROBE_AFTER_MS = 20000; // kept up this long, auto tries a step finer
 const PROBE_PROVED_MS = 10000; // a finer step that holds this long is kept for good
 const RETRY_MS = 60000; // after a step finer fails, how long before trying again; doubles each time
-const RETRY_MAX_MS = 8 * 60000;
+const RETRY_MAX_MS = 8 * 60000; // and never longer: a machine that can't go finer is tried this often for good
 const PIXELS_KEY = 'world.pixels';
 const FRAME_RATE_KEY = 'world.fps';
 
