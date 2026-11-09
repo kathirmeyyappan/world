@@ -47,34 +47,98 @@ export function plusSprites(engine: Engine, ps: ParticleSystem, greys = GREYS.le
   ps.spriteCellChangeSpeed = 0;
 }
 
-const SHARDS = 90;
-const SHARD_RADIUS = 1.2; // metres: a crystal the size of a ring's underside
-const SHARD_SIZE = 0.45; // metres across a shard
+const SHARDS = 48;
+const SHARD_RADIUS = 0.9; // metres: a crystal the size of a ring's underside
+const SHARD_SIZE = 0.42; // metres across a shard
+const FLASH_SECONDS = 0.45;
+const FLASH_ACROSS = 7; // metres the light spreads to
+const SPARKLES = 4; // pink ones among the shards, bigger and slower, for the glint of the core
+const SPARKLE_SIZE = 0.75;
 
-// A crystal shattering: shards flung every way from `at`, white turning to ice blue, falling as
-// they go out; gone in about a second.
+let light: DynamicTexture | null = null; // the flash's soft glow, drawn once
+
+// A crystal shattering, seen from under it: a soft flash of light where it was, and its shards
+// popping out, then fluttering down, spinning and twinkling, fading as they fall, a few pink
+// sparkles of the core among them; gone in a couple of seconds.
 export function shards(engine: Engine, at: Vector3): void {
+  const flash = new ParticleSystem('shatter-flash', 3, engine.scene);
+  flash.particleTexture = light ??= lightTexture(engine);
+  flash.blendMode = ParticleSystem.BLENDMODE_ADD;
+  flash.emitter = at.clone();
+  flash.minEmitPower = flash.maxEmitPower = 0;
+  flash.minLifeTime = flash.maxLifeTime = FLASH_SECONDS;
+  flash.addSizeGradient(0, FLASH_ACROSS * 0.25);
+  flash.addSizeGradient(1, FLASH_ACROSS);
+  flash.addColorGradient(0, new Color4(1, 0.96, 1, 0.9));
+  flash.addColorGradient(0.4, new Color4(0.95, 0.75, 1, 0.5));
+  flash.addColorGradient(1, new Color4(0.8, 0.45, 1, 0));
+  flash.manualEmitCount = 3;
+  flash.targetStopDuration = FLASH_SECONDS + 0.1;
+  flash.disposeOnStop = true;
+  flash.start();
+
   const ps = new ParticleSystem('shards', SHARDS, engine.scene);
   plusSprites(engine, ps, 2);
+  ps.spriteCellChangeSpeed = 5; // flicking between the sheet's sizes and greys: a twinkle
   ps.blendMode = ParticleSystem.BLENDMODE_STANDARD;
   ps.emitter = at.clone();
   ps.createSphereEmitter(SHARD_RADIUS);
   ps.minSize = SHARD_SIZE * 0.6;
   ps.maxSize = SHARD_SIZE;
-  ps.color1 = new Color4(0.95, 0.98, 1, 1);
-  ps.color2 = new Color4(0.6, 0.85, 1, 1);
-  ps.colorDead = new Color4(0.4, 0.7, 1, 0);
-  ps.minLifeTime = 0.6;
-  ps.maxLifeTime = 1.1;
-  ps.minEmitPower = 6;
-  ps.maxEmitPower = 14;
-  ps.minAngularSpeed = -4;
-  ps.maxAngularSpeed = 4;
-  ps.gravity = new Vector3(0, -9, 0);
+  ps.color1 = new Color4(1, 1, 1, 1);
+  ps.color2 = new Color4(0.75, 0.9, 1, 1);
+  ps.colorDead = new Color4(0.6, 0.8, 1, 0);
+  ps.minLifeTime = 1.4;
+  ps.maxLifeTime = 2.4;
+  ps.minEmitPower = 0.6;
+  ps.maxEmitPower = 2.4;
+  ps.minAngularSpeed = -5;
+  ps.maxAngularSpeed = 5;
+  ps.gravity = new Vector3(0, -3, 0); // a flutter, not a drop
   ps.manualEmitCount = SHARDS;
-  ps.targetStopDuration = 1.2;
+  ps.targetStopDuration = 2.5;
   ps.disposeOnStop = true;
   ps.start();
+
+  const sparkles = new ParticleSystem('shatter-sparkles', SPARKLES, engine.scene);
+  plusSprites(engine, sparkles, 1); // the lightest grey alone, so the pink stays pink
+  sparkles.spriteCellChangeSpeed = 6;
+  sparkles.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+  sparkles.emitter = at.clone();
+  sparkles.createSphereEmitter(SHARD_RADIUS * 0.6);
+  sparkles.minSize = SPARKLE_SIZE * 0.8;
+  sparkles.maxSize = SPARKLE_SIZE;
+  sparkles.color1 = new Color4(1, 0.6, 0.95, 1);
+  sparkles.color2 = new Color4(0.95, 0.4, 1, 1);
+  sparkles.colorDead = new Color4(0.9, 0.3, 1, 0);
+  sparkles.minLifeTime = 1.8;
+  sparkles.maxLifeTime = 2.6;
+  sparkles.minEmitPower = 0.3;
+  sparkles.maxEmitPower = 1.2;
+  sparkles.minAngularSpeed = -3;
+  sparkles.maxAngularSpeed = 3;
+  sparkles.gravity = new Vector3(0, -2, 0);
+  sparkles.manualEmitCount = SPARKLES;
+  sparkles.targetStopDuration = 2.7;
+  sparkles.disposeOnStop = true;
+  sparkles.start();
+}
+
+// A soft disc of light for the flash.
+function lightTexture(engine: Engine): DynamicTexture {
+  const size = 64;
+  const texture = new DynamicTexture('shatter-light', size, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
+  texture.hasAlpha = true;
+  const ctx = texture.getContext() as CanvasRenderingContext2D;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,240,255,0.6)');
+  g.addColorStop(1, 'rgba(255,220,255,0)');
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  texture.update();
+  return texture;
 }
 
 export function poof(engine: Engine, at: Vector3): void {

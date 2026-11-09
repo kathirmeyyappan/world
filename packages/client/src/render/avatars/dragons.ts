@@ -42,8 +42,9 @@ export interface DragonModel {
   readonly maw: MeshData | null; // the inside of the mouth, drawn only while the jaw is open
   readonly body: MeshData;
   // Per weak point of the sim's shape, in its order: the pieces that go when it shatters, the ring's
-  // crown of spikes and the crystal in its underside.
-  readonly weak: readonly { readonly crown: MeshData; readonly plate: MeshData }[];
+  // crown of spikes, the crystal in its hollow and the ice sealing the hollow over and under it
+  // (drawn translucent, the crystal showing through).
+  readonly weak: readonly { readonly crown: MeshData; readonly plate: MeshData; readonly ice: MeshData }[];
   // The wings: each a bone hung on its link's bone at the shoulder (`pivot`, in that bone's
   // frame), which the renderer flaps; `side` is 1 for a right wing and -1 for a left, `pair` which
   // pair down the body it belongs to, the first 0.
@@ -75,6 +76,8 @@ export interface DragonLook {
   model(): Promise<DragonModel>;
   rise(engine: Engine, name: string): Rise;
   wave: Wave | null;
+  glow: boolean; // the skin has a glow atlas (<id>-glow.png): what shines on it in the dark
+  mouth: number; // metres across the mouth: the breath starts all along that line, not from a point
 }
 
 // A loader that fetches once and hands everyone the same promise.
@@ -89,11 +92,15 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
     model: once(() => import('./dragonModel').then((m) => m.DRAGON_MODEL)),
     rise: (engine, name) => new Portal(engine, name),
     wave: { size: 0.375, bones: 7, seconds: 2.6, from: 4 },
+    glow: false,
+    mouth: 0.7,
   },
   // Colgera: rigid ring segments on a stiff spine, so no wave; it comes up through a storm.
   colgera: {
     model: once(() => import('./colgeraModel').then((m) => m.COLGERA_MODEL)),
     rise: (engine, name) => new Storm(engine, name),
     wave: null,
+    glow: true, // its eyes, the crystals and the veins through the ice
+    mouth: 1.8, // between the mandibles
   },
 };

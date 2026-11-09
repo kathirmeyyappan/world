@@ -549,12 +549,12 @@ body {
 
 /* Crystal hearts: a dragon's, one big ice crystal a ring segment, that shatters rather than cracks. */
 #hearts[data-sprite='crystal'] {
-  grid-template-columns: repeat(var(--heart-row, 3), 60px);
+  grid-template-columns: repeat(var(--heart-row, 3), 68px);
   gap: 6px 10px;
 }
 .heart.crystal {
-  width: 60px;
-  height: 52px;
+  width: 68px;
+  height: 60px;
   opacity: 0.9;
 }
 .heart.crystal svg rect {
@@ -566,8 +566,11 @@ body {
 .heart.crystal svg rect.shade {
   fill: #78c2ec;
 }
+.heart.crystal svg rect.dark {
+  fill: #3f8fcc;
+}
 .heart.crystal svg rect.facet {
-  fill: #a6ddf7;
+  fill: #b9e6fb;
 }
 .heart.crystal svg rect.glint {
   fill: #ffffff;
@@ -579,6 +582,9 @@ body {
 .heart.crystal.lost svg rect.shade,
 .heart.crystal.lost svg rect.glint {
   fill: #3a3f4c;
+}
+.heart.crystal.lost svg rect.dark {
+  fill: #30343f;
 }
 .heart.crystal.lost svg rect.facet {
   fill: #333845;
@@ -1599,12 +1605,12 @@ body {
     height: 16px;
   }
   #hearts[data-sprite='crystal'] {
-    grid-template-columns: repeat(var(--heart-row, 3), 40px);
+    grid-template-columns: repeat(var(--heart-row, 3), 51px);
     gap: 4px 6px;
   }
   .heart.crystal {
-    width: 40px;
-    height: 35px;
+    width: 51px;
+    height: 45px;
   }
 }
 

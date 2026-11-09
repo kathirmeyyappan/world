@@ -54,6 +54,7 @@ const FLAP_SPREAD = 0.4;
 // said so, over a tick the sim ran without the rider's frame.
 const BREATH = { density: 3, size: 1.6, core: 2.5 };
 const BREATH_HOLD = 0.2;
+const ICE_ALPHA = 0.25; // how solid the ice over a hollow looks: a glaze, the lattice and the glowing core under it plain
 
 export class DragonAvatar implements Avatar {
   private readonly root: TransformNode;
@@ -64,7 +65,7 @@ export class DragonAvatar implements Avatar {
   private readonly rise: Rise;
   private readonly links: readonly number[]; // the sim's spine: metres between its points
   private model: DragonModel | null = null;
-  private weak: { crown: Mesh; plate: Mesh }[] = [];
+  private weak: { crown: Mesh; plate: Mesh; ice: Mesh }[] = [];
   private readonly gone = new Set<number>(); // the weak points shattered, their pieces hidden
   private seen = false; // past the first update: a weak point shattered after that bursts
   private roaredAt = -Infinity;
@@ -102,7 +103,10 @@ export class DragonAvatar implements Avatar {
     this.breath = element && own ? own : null;
     this.jet =
       spec && element
-        ? createJet(engine, `dragon-${id}`, this.mouth, element, spec.range, coneAngle(spec), BREATH)
+        ? createJet(engine, `dragon-${id}`, this.mouth, element, spec.range, coneAngle(spec), {
+            ...BREATH,
+            width: look.mouth,
+          })
         : null;
     this.rise = look.rise(engine, `dragon-${id}-rise`);
     void look.model().then((m) => this.build(engine, m));
@@ -147,13 +151,16 @@ export class DragonAvatar implements Avatar {
     this.mouth.position = Vector3.TransformCoordinates(new Vector3(...m.mouth), toHead);
     if (m.jaw !== null)
       this.hinge = Vector3.TransformCoordinates(frameMatrix(m.frames, m.jaw).getTranslation(), toHead);
-    const material = skinMaterial(scene, `dragon-${this.id}`, this.kind);
+    const material = skinMaterial(scene, `dragon-${this.id}`, this.kind, this.look.glow);
     material.backFaceCulling = false; // plates, strands and fins are open shells, seen from both sides
-    this.hitFlash = new HitFlash([material]);
-    const mesh = (name: string, data: MeshData) => {
+    // The ice over a hollow: the same skin, seen through.
+    const ice = material.clone(`dragon-${this.id}-ice`);
+    ice.alpha = ICE_ALPHA;
+    this.hitFlash = new HitFlash([material, ice]);
+    const mesh = (name: string, data: MeshData, skin = material) => {
       const mesh = new Mesh(`dragon-${this.id}-${name}`, scene);
       vertexData(data).applyToMesh(mesh);
-      mesh.material = material;
+      mesh.material = skin;
       mesh.skeleton = this.skeleton;
       mesh.parent = this.root;
       mesh.isPickable = false;
@@ -163,7 +170,11 @@ export class DragonAvatar implements Avatar {
     this.head = mesh('head', m.head);
     this.maw = m.maw && mesh('maw', m.maw);
     mesh('body', m.body);
-    this.weak = m.weak.map((w, n) => ({ crown: mesh(`crown-${n}`, w.crown), plate: mesh(`plate-${n}`, w.plate) }));
+    this.weak = m.weak.map((w, n) => ({
+      crown: mesh(`crown-${n}`, w.crown),
+      plate: mesh(`plate-${n}`, w.plate),
+      ice: mesh(`ice-${n}`, w.ice, ice),
+    }));
     for (const n of this.gone) this.hideWeak(n);
     this.head.setEnabled(!this.headless);
     this.maw?.setEnabled(false);
@@ -172,6 +183,7 @@ export class DragonAvatar implements Avatar {
   private hideWeak(n: number): void {
     this.weak[n]?.crown.setEnabled(false);
     this.weak[n]?.plate.setEnabled(false);
+    this.weak[n]?.ice.setEnabled(false);
   }
 
   // The weak points shot out since the last frame lose their pieces, in a burst of shards at the

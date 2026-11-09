@@ -2,7 +2,7 @@
 // blocks of fire (FlameJet.ts), or the ice blower's crystals, the "+"s of a corpse's poof (Poof.ts)
 // flying out white and fading to blue in a glowing mist. Cosmetic only; the server decides who
 // burns or freezes. One per nozzle (viewmodel or avatar), running along its parent's +z.
-import { Color4, DynamicTexture, Mesh, ParticleSystem, Texture, Vector3, type TransformNode } from '@babylonjs/core';
+import { Color4, DynamicTexture, Mesh, ParticleSystem, Texture, type TransformNode } from '@babylonjs/core';
 import type { Element, ItemSpec } from '@world/shared';
 import type { Engine } from './Engine';
 import { FlameJet } from './FlameJet';
@@ -20,11 +20,14 @@ export function coneAngle(spec: ItemSpec): number {
 }
 
 // How much of a jet to draw: `density` times the usual particles, `size` times their usual size,
-// and for a flame `core` how much they keep to the middle of the cone (a dragon's breath is thick).
+// for a flame `core` how much they keep to the middle of the cone (a dragon's breath is thick),
+// and `width` metres across the source: a nozzle is a point, a dragon's mouth a line across it
+// (the parent's x), the cone opening from all along it.
 export interface JetLook {
   density?: number;
   size?: number;
   core?: number;
+  width?: number;
 }
 
 export function createJet(
@@ -63,7 +66,7 @@ class IceJet implements Jet {
     parent: TransformNode,
     length: number,
     halfAngle: number,
-    { density = 1, size = 1 }: JetLook = {},
+    { density = 1, size = 1, width = 0 }: JetLook = {},
   ) {
     const scene = engine.scene;
     const stretch = Math.max(1, length / BASE_LENGTH) * size;
@@ -80,12 +83,16 @@ class IceJet implements Jet {
       ps.blendMode = ParticleSystem.BLENDMODE_ADD;
       ps.applyFog = false;
       ps.updateSpeed = 1 / 60; // so lifetimes are seconds and powers metres per second
-      ps.createBoxEmitter(
-        new Vector3(-spread, -spread, 1),
-        new Vector3(spread, spread, 1),
-        Vector3.Zero(),
-        Vector3.Zero(),
-      );
+      // Born along the source's line and sent out anywhere in the cone (a direction a metre out
+      // along the axis and up to `spread` across it, evenly over the disc), in the nozzle's space.
+      ps.startPositionFunction = (_world, position) => {
+        position.set((Math.random() - 0.5) * width, 0, 0);
+      };
+      ps.startDirectionFunction = (_world, direction) => {
+        const r = spread * Math.sqrt(Math.random());
+        const a = Math.random() * 2 * Math.PI;
+        direction.set(Math.cos(a) * r, Math.sin(a) * r, 1);
+      };
       ps.minEmitPower = ps.maxEmitPower = length / FLIGHT_SECONDS;
       ps.minLifeTime = ps.maxLifeTime = FLIGHT_SECONDS;
       ps.emitRate = count / FLIGHT_SECONDS;

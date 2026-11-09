@@ -12,38 +12,43 @@ const BROKEN = ['.##...##.', '#+##.####', '###.#####', '####.####', '.####.##.',
 
 const HALF = ['.LL...RR.', 'L+LL.RRRR', 'LLL.RRRRR', 'LLLL.RRRR', '.LLLL.RR.', '..LL.RR..', '...L.R...', '....L....'];
 
-// 15x13 pixel crystal heart, cut like a gem: '#' its edges, '+' the light on the crown above the
-// girdle ('=' the facet lines, '*' the glint on it), 'o' the pavilion facets below in shade. A lost
-// one is shattered, a crack zigzagging down it; it is never half.
+// 17x15 pixel crystal heart, cut like a gem: straight edges and sharp corners ('#'), the crown's
+// facets catching the light from the upper left ('+' lit, '*' the glint) and falling into shade
+// toward the lower right ('o' half-lit, 'O' dark), '=' the edges between facets. A lost one is
+// shattered, a crack zigzagging down it and a shard gone from its rim; it is never half.
 const CRYSTAL = [
-  '..####...####..',
-  '.#+*++#.#++++#.',
-  '#+*+++=#=+++++#',
-  '#+++++=+=+++++#',
-  '#=============#',
-  '#oo+++++++++oo#',
-  '.#oo=+++++=oo#.',
-  '..#oo=+++=oo#..',
-  '...#oo=+=oo#...',
-  '....#oo=oo#....',
-  '.....#ooo#.....',
-  '......#o#......',
-  '.......#.......',
+  '..#####...#####..',
+  '.#+*+++#.#++++O#.',
+  '#++++++###+++OOO#',
+  '#+++++=+++=+OOOO#',
+  '#oo+++=+++=+OOOO#',
+  '.#oo++=+++=+OOO#.',
+  '.#ooo=+++++=OOO#.',
+  '..#oo=+++++=OO#..',
+  '..#ooo=+++=OOO#..',
+  '...#oo=+++=OO#...',
+  '....#oo=+=OO#....',
+  '.....#oo=OO#.....',
+  '......#oOO#......',
+  '.......#O#.......',
+  '........#........',
 ];
 const CRYSTAL_BROKEN = [
-  '..####...####..',
-  '.#+*++#.#++++#.',
-  '#+*+++=#=+++++#',
-  '#+++++=.=+++++#',
-  '#=====.=======#',
-  '#oo+++.+++++oo#',
-  '.#oo=++.++=oo#.',
-  '..#oo=+.+=oo#..',
-  '...#oo.+=oo#...',
-  '....#o.=oo#....',
-  '.....#.oo#.....',
-  '......#.#......',
-  '.......#.......',
+  '..#####...##.#...',
+  '.#+*+++#.#++.O#..',
+  '#++++++##.++OOO#.',
+  '#+++++=++.=+OOOO#',
+  '#oo+++=+.+=+OOOO#',
+  '.#oo++=+.+=+OOO#.',
+  '.#ooo=++.++=OOO#.',
+  '..#oo=+.+++=OO#..',
+  '..#ooo=.++=OOO#..',
+  '...#oo=+.+=OO#...',
+  '....#oo=.=OO#....',
+  '.....#oo.OO#.....',
+  '......#o.O#......',
+  '.......#.#.......',
+  '........#........',
 ];
 
 const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: string[]; pix: Record<string, string> }> =
@@ -53,7 +58,7 @@ const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: str
       full: CRYSTAL,
       broken: CRYSTAL_BROKEN,
       half: CRYSTAL_BROKEN,
-      pix: { '+': 'hi', o: 'shade', '=': 'facet', '*': 'glint' },
+      pix: { '+': 'hi', o: 'shade', O: 'dark', '=': 'facet', '*': 'glint' },
     },
   };
 const FILL_MS = 70; // between one heart filling and the next as hearts come back

@@ -430,8 +430,14 @@ puts a bone at the eyes, one wherever it needs on the spine (`along` metres behi
 one hung on another for a part that moves on its own (the jaw; a wing, hung at its shoulder and
 listed in `wings`, which the renderer beats slowly, each pair behind the one before), and the
 renderer carries each along the spine the sim moves; the pieces that go with a weak point (`DragonModel.weak`, a ring's
-crown of spikes and the crystal plate in its hollow) are hidden once the sim says it's shattered,
-with a burst of shards where it was (`render/Poof.ts` `shards`), so the ring is left a hole. The light dragon's is rigged by `scripts/dragon-model.py` (its
+crown of spikes, the crystal plate in its hollow and the ice sealing the hollow over and under it,
+drawn translucent so the crystal glows through) are hidden once the sim says it's shattered,
+with a burst of shards where it was (`render/Poof.ts` `shards`), so the ring is left a hole. A
+skin with a glow atlas (`DragonLook.glow`: `<id>-glow.png` beside its atlas, laid out alike, what
+shines on it in the dark: Colgera's eyes, crystals and the veins through its ice, from the rip's
+emission maps, with the self-light every skin has baked in) shines by that as light itself
+(`skinMaterial`'s `glow`); the model script's `Look` says what paints each material and what of
+it shines. The light dragon's is rigged by `scripts/dragon-model.py` (its
 docstring says how) from a Sketchfab GLB; Colgera's (`colgera`, the Tears of the Kingdom boss: three
 ring segments, each a rigid link of the spine, on a stiff spine with wings and arms) by
 `scripts/colgera-model.py` from the game's own rip, a Collada file whose every piece is rigid on a
@@ -447,7 +453,7 @@ actions and their keys, the shape of its fire, its `element` and its tank), a sh
 `render/Weapons.ts`, and a sound in `audio/Sfx.ts` (`ITEM_SOUNDS`). A hold weapon with an element
 gets its tank on the back and its jet at the nozzle from that alone, on every avatar and in the
 viewmodel (`render/Jet.ts`: blocks of fire, or for ice the "+" crystals of a corpse's poof, drawn as
-one particle system). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`;
+one particle system; a cone from a point, or from a line across a dragon's mouth, `DragonLook.mouth`). What a hit does besides its damage is the Room's (`room.ts`, `applyActions`;
 a hit that throws its victim is a `throwWalker` there, see Surfaces and frost):
 ice chills for `CHILL_SECONDS` from the last touch (`sim/constants.ts`), a walk at
 `CHILLED_SPEED_MULTIPLIER` counted down in `stepPlayer`, so prediction agrees, and fire's touch

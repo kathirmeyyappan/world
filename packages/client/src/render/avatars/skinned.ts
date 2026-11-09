@@ -103,17 +103,21 @@ export class SkinnedBody<B extends string> {
 // textures; glTF texture coordinates run down the image, so it isn't flipped on load. Fetched once a
 // page: Babylon hands later askers the texture already loaded, so a look whose atlas came in at
 // startup (preloadAvatars) goes on without a wait.
-export function skinTexture(scene: Engine['scene'], avatar: AvatarId): Texture {
+export function skinTexture(scene: Engine['scene'], avatar: AvatarId | `${AvatarId}-glow`): Texture {
   return new Texture(`/assets/textures/avatars/${avatar}.png`, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
 }
 
-// The model's texture, lit, with a little of itself as glow.
-export function skinMaterial(scene: Engine['scene'], name: string, avatar: AvatarId): StandardMaterial {
+// The model's texture, lit, with a little of itself as glow (the shader puts the emissive through
+// the texture and caps the sum, so a bright skin comes out all but unshaded); a skin with a glow
+// atlas (<id>-glow.png: what shines on it in the dark, with a share of its own paint baked in) adds
+// that as light itself, uncapped, so its eyes bloom.
+export function skinMaterial(scene: Engine['scene'], name: string, avatar: AvatarId, glow = false): StandardMaterial {
   const image = skinTexture(scene, avatar);
   const material = new StandardMaterial(`${name}-skin`, scene);
   material.diffuseTexture = image;
-  material.emissiveTexture = image;
-  material.emissiveColor = new Color3(GLOW, GLOW, GLOW);
+  material.emissiveTexture = glow ? skinTexture(scene, `${avatar}-glow`) : image;
+  material.emissiveColor = glow ? Color3.Black() : new Color3(GLOW, GLOW, GLOW);
+  material.useEmissiveAsIllumination = glow;
   material.specularColor = new Color3(0.06, 0.06, 0.06);
   material.specularPower = 8;
   return material;
