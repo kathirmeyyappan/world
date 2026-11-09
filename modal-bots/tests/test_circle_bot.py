@@ -1,46 +1,46 @@
 from __future__ import annotations
 
-from bots.circle_bot import (
-    BLOCKED_TICKS,
-    LOOSEN_RATE,
-    MAX_RADIUS,
-    MIN_RADIUS,
-    MOVE_SPEED,
-    SETTLE_TICKS,
-    SHRINK,
-    Orbit,
-)
+import dataclasses
+import math
+
+from bots.circle_bot import BLOCKED_TICKS, MOVE_SPEED, ORBIT_RADIUS, SETTLE_TICKS, Circler, Stall
 from common import Controls, Vec3
 from common.controls import TICK_RATE
+from common.world import load_world_map
 
 from tests.test_controls import FakeConnection
 
 
-def test_orbit_tightens_when_blocked_and_loosens_when_clear() -> None:
+def test_stall_fires_once_per_settle_when_the_bot_stops_making_headway() -> None:
     controls = Controls(FakeConnection())  # type: ignore[arg-type]
     controls.look(0)  # facing +z, so moving right heads for +x
     controls.move(right=1)
-    orbit = Orbit()
+    stall = Stall()
     x = 0.0
-    blocks: list[int] = []
+    stalls: list[int] = []
     for tick in range(120):
         if tick < 60:
             x += MOVE_SPEED / TICK_RATE  # walking freely, then pinned against the edge from tick 60
-        if orbit.blocked(tick, Vec3(x, 1.7, 0), controls):
-            blocks.append(tick)
+        if stall.blocked(tick, Vec3(x, 1.7, 0), controls):
+            stalls.append(tick)
 
-    assert blocks[0] - 60 <= 2 * BLOCKED_TICKS
-    # Still pinned, it waits out the round trip before judging (and tightening) again.
-    assert blocks[1] - blocks[0] >= SETTLE_TICKS
-    assert orbit.radius < MAX_RADIUS * SHRINK ** (len(blocks) - 1)
+    assert stalls[0] - 60 <= 2 * BLOCKED_TICKS
+    # Still pinned, it waits out the round trip before judging again.
+    assert stalls[1] - stalls[0] >= SETTLE_TICKS
 
-    # Pinned for long enough, the circle shrinks to the floor and no further.
-    for tick in range(120, 2000):
-        orbit.blocked(tick, Vec3(x, 1.7, 0), controls)
-    assert orbit.radius == MIN_RADIUS
 
-    # Walking freely again, it eases back out to the widest.
-    for tick in range(2000, 2000 + int(MAX_RADIUS / LOOSEN_RATE * TICK_RATE) + 1):
-        x += MOVE_SPEED / TICK_RATE
-        orbit.blocked(tick, Vec3(x, 1.7, 0), controls)
-    assert orbit.radius == MAX_RADIUS
+def test_detour_heads_round_the_ring_by_the_map() -> None:
+    world = load_world_map()
+    circler = Circler(world)
+    center = Vec3(0, 1.7, 0)
+    me = dataclasses.replace(FakeConnection().welcome.players[0], pos=Vec3(ORBIT_RADIUS, 1.7, 0))
+    goals = circler.ring_goals(me, center)
+    assert goals
+    first = world.nodes[goals[0]]
+    assert abs(math.hypot(first.x, first.z) - ORBIT_RADIUS) < 1
+    # A step on in the circling direction from +x (bearing falls): round toward +z.
+    assert first.z > ORBIT_RADIUS / 2
+    # Every candidate sits on the ring, and the way there exists from where the bot stands.
+    assert all(abs(math.hypot(world.nodes[g].x, world.nodes[g].z) - ORBIT_RADIUS) < 1 for g in goals)
+    start = world.node_at(Vec3(ORBIT_RADIUS, 0, 0))
+    assert start is not None and world.path(start, goals[0]) is not None
