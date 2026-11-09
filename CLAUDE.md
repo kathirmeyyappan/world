@@ -506,11 +506,12 @@ pick one and Enter or Tab puts it in the box (`Hud.onChatKey` gives the card the
 nothing else completes anything. On touch it's buttons.
 
 Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its
-bar) has the rail of `ui/scrollRail.ts` in place of the browser's own bar (hidden in styles.css):
-a thick track standing inside the right edge of the card, in the room the card's right padding
-keeps for it, clear of the text and buttons, with a thumb to drag and arrows to press, the bottom
-one blinking while there's more below. A new scrolling area gets `railScroll(el, frame)`, its
-native bar hidden, and its card the padding.
+bar) stands in a `.scroller` beside the rail of `ui/scrollRail.ts`, in place of the browser's
+own bar (hidden in styles.css): a column of its own at the right, set first, the content drawn in
+the room that's left with a clear gap between, always there (dim, its thumb filling the track,
+while everything fits), with a thumb to drag and arrows to press, the bottom one blinking while
+there's more below. A new scrolling area goes in a `.scroller`, gets `railScroll(el)`, and has
+its native bar hidden.
 
 The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
 pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows

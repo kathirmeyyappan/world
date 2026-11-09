@@ -46,7 +46,7 @@ export class Menu {
     this.el.translate = true;
     const card = this.card(hooks);
     this.el.append(card);
-    railScroll(card.querySelector<HTMLElement>('.body')!, card);
+    railScroll(card.querySelector<HTMLElement>('.body')!);
     document.getElementById('app')!.append(this.el);
     this.el.addEventListener('click', (e) => {
       if (e.target === this.el) this.hide(true);
@@ -169,6 +169,9 @@ export class Menu {
       body.append(panel);
     });
     nav.append(...this.tabs);
+    const scroller = document.createElement('div'); // the body beside its scroll rail
+    scroller.className = 'scroller';
+    scroller.append(body);
     // The window of the body and the map, with the way to the commands under it.
     const top = document.createElement('div');
     top.className = 'top';
@@ -179,7 +182,7 @@ export class Menu {
       : 'hint: press <kbd translate="no">C</kbd> to see available commands';
     top.append(this.preview.el, hint);
     this.panels[0].prepend(top);
-    card.append(head, nav, body);
+    card.append(head, nav, scroller);
     // With a keyboard the footer teaches the key; on touch the corner button says it all.
     if (!IS_TOUCH) {
       const footer = document.createElement('div');

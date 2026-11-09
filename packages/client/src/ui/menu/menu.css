@@ -42,8 +42,6 @@
   cursor: pointer; /* a click beside the card goes back to the world */
 }
 #menu .card {
-  position: relative; /* the scroll rail stands in its right padding (styles.css) */
-  padding-right: 30px;
   max-width: 480px;
   max-height: 90vh;
   display: flex;
@@ -228,7 +226,6 @@
 /* Every tab's panel in one cell, the hidden ones unseen, so the card keeps one height (Menu.select). */
 #menu .body {
   overflow: auto;
-  min-height: 0;
   display: grid;
 }
 #menu .panel {
@@ -468,7 +465,7 @@
     min-height: 40px;
   }
   #menu .card {
-    padding: 14px 22px 14px 14px;
+    padding: 14px;
     max-width: 92vw;
   }
   #menu .head {

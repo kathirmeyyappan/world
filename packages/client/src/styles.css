@@ -42,11 +42,12 @@ body {
   display: none !important;
 }
 
-/* Anything that scrolls (the menu's and the commands' bodies, the cube card) has the rail of
-   ui/scrollRail.ts in place of the browser's own bar: a thick track in the card's colours standing
-   inside the frame's edge, in the room the card's right padding keeps for it, clear of the text and
-   buttons, with the arrows at its ends lit while there's more that way, the bottom one blinking.
-   On a phone it's slimmer, as the padding is. */
+/* Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its bar)
+   stands in a .scroller beside the rail of ui/scrollRail.ts, which takes the place of the browser's
+   own bar: a column of its own at the right, set first, with the rest drawn in the room that's left
+   and a clear gap between. The rail is always there, a thick track in the card's colours, dim with
+   its thumb filling the track while everything fits, its arrows lit while there's more that way and
+   the bottom one blinking. On a phone it's slimmer, as the cards are. */
 #menu .body,
 #commands .body,
 #info-card .card-scroll {
@@ -57,22 +58,21 @@ body {
 #info-card .card-scroll::-webkit-scrollbar {
   display: none;
 }
-#commands .card {
-  position: relative;
-  padding-right: 30px;
+.scroller {
+  display: flex;
+  gap: 16px;
+  min-height: 0;
+}
+.scroller > :first-child {
+  flex: 1;
+  min-width: 0;
 }
 .scroll-rail {
-  position: absolute;
-  right: 3px;
-  display: none;
+  flex: none;
+  display: flex;
   flex-direction: column;
   width: 18px;
-  z-index: 1;
-  pointer-events: auto;
   cursor: default;
-}
-.scroll-rail.on {
-  display: flex;
 }
 .scroll-rail .arrow {
   flex: none;
@@ -118,12 +118,19 @@ body {
 .scroll-rail .thumb:active {
   cursor: grabbing;
 }
+.scroll-rail.idle .arrow,
+.scroll-rail.idle .track {
+  border-color: rgba(100, 181, 246, 0.35);
+}
+.scroll-rail.idle .thumb {
+  background: rgba(100, 181, 246, 0.2);
+  cursor: default;
+}
 @media (pointer: coarse) {
-  #commands .card {
-    padding-right: 22px;
+  .scroller {
+    gap: 10px;
   }
   .scroll-rail {
-    right: 2px;
     width: 12px;
   }
   .scroll-rail .arrow {
@@ -1311,11 +1318,14 @@ body {
   font: 10px var(--pixel);
   letter-spacing: 1px;
 }
-/* The bar stays put; the rest scrolls under it, with room at its right for the rail. */
+/* The bar stays put; the rest scrolls under it, beside its rail, which keeps off the border. */
+#info-card .scroller {
+  padding: 12px 16px 12px 0;
+}
 #info-card .card-scroll {
   overflow-y: auto;
   min-height: 0;
-  padding-right: 10px;
+  margin: -12px 0;
 }
 #info-card .card-body {
   display: flex;
@@ -1945,10 +1955,11 @@ body {
     font-size: 13px;
   }
 }
-/* On touch each command is a button (ui/CommandsMenu.ts touchHtml). */
+/* On touch each command is a button (ui/CommandsMenu.ts touchHtml), two to a row on a phone beside
+   the rail. */
 #commands .buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 8px;
 }
 #commands .cmd-button {
