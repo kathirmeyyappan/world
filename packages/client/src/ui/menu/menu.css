@@ -99,8 +99,9 @@
   box-shadow: 3px 3px 0 #000;
 }
 
-/* The window at the top of the PLAY tab (Preview.ts): your own body and the map, one filling it and
-   the other a square in its corner, a button that swaps them; and the hint under it. */
+/* The window at the top of the PLAY tab (Preview.ts): your own body and the map, one filling it,
+   named across its top, and the other a square in its corner, named under it, a button that swaps
+   them; and the hint under the window. */
 #menu .top {
   display: flex;
   flex-direction: column;
@@ -127,6 +128,7 @@
   height: 36%;
   aspect-ratio: 1;
   z-index: 1;
+  overflow: visible; /* its caption hangs under it */
   border: 2px solid rgba(100, 181, 246, 0.6);
   box-shadow: 3px 3px 0 #000;
 }
@@ -147,27 +149,52 @@
 #menu .preview .body canvas:active {
   cursor: grabbing;
 }
-/* The small view's button covers it, named along its bottom edge. */
+/* The big view's name across its top, on a dark tag so it reads over the map's lines too. */
+#menu .preview .view .title {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px 3px;
+  font: 9px var(--pixel);
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: rgba(5, 7, 12, 0.8);
+  white-space: nowrap;
+  pointer-events: none;
+}
+#menu .preview .view.small .title {
+  display: none;
+}
+/* The small view's button covers its square, with its name under the square. */
 #menu .preview .view .swap {
   display: none;
   position: absolute;
   inset: 0;
-  padding: 0 0 3px;
-  align-items: flex-end;
-  justify-content: center;
-  font: 8px var(--pixel);
-  letter-spacing: 1px;
-  color: var(--accent-soft);
-  text-shadow: 1px 1px 0 #000;
+  padding: 0;
   background: transparent;
   border: 0;
   box-shadow: none;
 }
 #menu .preview .view.small .swap {
-  display: flex;
+  display: block;
 }
 #menu .preview .view.small .swap:hover {
   background: rgba(100, 181, 246, 0.15);
+}
+#menu .preview .view .swap .caption {
+  position: absolute;
+  top: 100%;
+  left: -8px;
+  right: -8px;
+  margin-top: 7px;
+  font: 8px/1.5 var(--pixel);
+  letter-spacing: 1px;
+  color: var(--accent-soft);
+  text-shadow: 1px 1px 0 #000;
+  text-align: center;
+}
+#menu .preview .view.small .swap:hover .caption {
   color: #fff;
 }
 /* The map's NEAR/WORLD toggle and your x, y, z, as on the HUD's; only while it's big. */
