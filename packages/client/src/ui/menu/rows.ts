@@ -185,9 +185,15 @@ function field(row: Field): Drawn {
   const line = element('div', 'line');
   line.append(input, go);
   el.append(element('div', 'name', row.label), line, note);
+  // The box shows what the row is about, and follows it when that changes; between, it's the
+  // player's to type in, whatever has the focus (pressing the button takes it from the box).
+  let shown: string | undefined;
   const refresh = () => {
-    const shown = row.value?.();
-    if (shown !== undefined && document.activeElement !== input && input.value !== shown) input.value = shown;
+    const now = row.value?.();
+    if (now !== undefined && now !== shown) {
+      shown = now;
+      input.value = now;
+    }
     const n = row.note() ?? (row.hint ? { text: row.hint, tone: 'hint' } : null);
     if (note.textContent !== (n?.text ?? '')) note.textContent = n?.text ?? '';
     note.dataset.tone = n?.tone ?? '';
