@@ -410,10 +410,19 @@ A new look in a class is a row in `AVATARS` (with `item` for one that comes with
 life of its own), and for a dragon its shape there and a row in the client's `DRAGONS`
 (`render/avatars/dragons.ts`): the model it's drawn from, what it rises out of the ground through
 (the light dragon's portal of gold light, `render/Portal.ts`; Colgera's storm, `render/Storm.ts`,
-a wide white disc that mirrors the body coming up, with a hurricane turning round its edge), and
-the wave down its body; with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars, the cry it
-rises with and its theme; null for a silent one) and how far back it's watched from in
-`DRAGON_BOOMS` (`game/View.ts`). A new class is a spec
+a wide white pool lit blue at its rim and crawling with static, with a gale of grey and white "+"s
+and white fog whirling over it), and
+the wave down its body; with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars by action and
+the cry it rises with, each a `Call` with a take heard up close and, where the rip has one, a take
+recorded from afar that plays instead past `FAR` metres; and its theme, a loop with an intro) and
+how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`). The theme a player hears is the
+nearest living dragon's (`Game.ts`), kept until another is `THEME_HYSTERESIS` nearer, one crossing
+into the next over the sounds' `swell` and `fade`; a theme runs from the first dragon of its kind
+rising for as long as any is alive, so one taken up again is heard from where it has got to
+(`setLoops`' `elapsed`), not from the top. A looping track is cut on exact samples and encoded
+with LAME (ffmpeg's `libmp3lame`), whose header the browsers' decoders read to trim the padding,
+so the loop and the join from its intro are gapless; check a new one decodes to its exact sample
+count before trusting it. A new class is a spec
 and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES`; nothing else
 has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
 (`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model

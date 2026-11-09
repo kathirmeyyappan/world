@@ -3,7 +3,7 @@
 // needed or at startup), what it rises out of the ground through, and the slow wave that runs down
 // its body in the air, if any. A new skin is a row here and a row in AVATARS; the renderer
 // (Dragon.ts) is the same for all of them.
-import type { AbstractMesh, Vector3 } from '@babylonjs/core';
+import type { Vector3 } from '@babylonjs/core';
 import type { AvatarsOf } from '@world/shared';
 import type { Engine } from '../Engine';
 import { Portal } from '../Portal';
@@ -47,11 +47,9 @@ export interface DragonModel {
 }
 
 // What a dragon rises out of the ground through: `at` is over where the body comes out (its x and
-// z), `ground` the floor there, and `open` whether any of the body is still down in it. One that
-// shows the body (a mirror) is handed its meshes once they're built.
+// z), `ground` the floor there, and `open` whether any of the body is still down in it.
 export interface Rise {
   update(at: Vector3, ground: number, open: boolean, dt: number): void;
-  mirror?(meshes: AbstractMesh[]): void;
   dispose(): void;
 }
 

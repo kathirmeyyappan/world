@@ -1,192 +1,228 @@
-// The storm Colgera rises through: a great disc of white lying on the ground where it comes up,
-// glossy enough to mirror the body climbing out of it, with a hurricane turning round its edge
-// (two walls of streaked cloud turning against each other, and a ring of scudding puffs), open
-// while any of the body is still down in it and fading shut once the tail is out (dragons.ts
-// `rise`). The mirror draws the body again, into the disc, only while the storm is open.
+// The storm Colgera rises through: a great white pool lying on the ground where it comes up, lit
+// blue round its rim and crawling with static like a screen between channels, with a gale turning
+// over it, pixel "+"s of grey and white whirling round and up and white fog rolling round its
+// edge; open while any of the body is still down in it and fading shut once the tail is out
+// (dragons.ts `rise`). The ice it leaves on the floor is the sim's (room.ts).
 import {
   Color3,
   Color4,
   DynamicTexture,
   Mesh,
   MeshBuilder,
-  MirrorTexture,
   ParticleSystem,
-  Plane,
   StandardMaterial,
   Texture,
   Vector3,
-  type AbstractMesh,
 } from '@babylonjs/core';
 import type { Rise } from './avatars/dragons';
 import type { Engine } from './Engine';
+import { plusSprites } from './Poof';
 
 const ACROSS = 40; // metres: wider than the wings
-const WALL_HEIGHT = 16; // metres the cloud wall stands
 const FADE = 0.9; // seconds to open or shut
-const WALLS = [
-  { across: ACROSS, turn: 0.7 }, // radians a second, the outer wall one way
-  { across: ACROSS * 0.82, turn: -1.1 }, // and the inner the other
-];
-const PUFFS = 140; // in the air at once, scudding round the rim
-const PUFF_SECONDS = 1.6;
-const PUFF_SPEED = 9; // m/s round the rim
-const MIRROR_SIZE = 512; // pixels: the reflection's render target
-const MIRROR_LEVEL = 0.45; // how much of the reflection shows through the white
-const DISC_ALPHA = 0.94;
+const POOL = 256; // pixels across the pool's picture
+const GRAIN = 64; // pixels across a tile of static, laid over the pool a few times across
+const STATIC_STEP = 1 / 15; // seconds between the static's frames
+const STATIC_TILES = 4; // tiles of static to cycle through
+const STATIC_LEVEL = 0.4; // how much of the static shows through the white
+const PLUSSES = 360; // "+"s in the air at once
+const PLUS_SECONDS = 2.4;
+const PLUS_TURN = 1.5; // radians a second the gale turns round the pool
+const PLUS_RISE = 5; // m/s the "+"s climb
+const PLUS_DRAW = 1.5; // m/s they're drawn in toward the middle as they climb
+const FOG = 40; // puffs of fog at once
+const FOG_SECONDS = 3.2;
+const FOG_TURN = 0.45; // radians a second the fog rolls round
+const FOG_RISE = 0.6; // m/s
 
-let streaks: DynamicTexture | null = null;
+let base: HTMLCanvasElement | null = null; // the pool's white and blue, drawn once for every storm
+let grains: HTMLCanvasElement[] | null = null; // the tiles of static, likewise
 let puff: DynamicTexture | null = null;
 
 export class Storm implements Rise {
+  private readonly engine: Engine;
+  private readonly spin: Mesh; // the gale's frame, turning round the pool's axis
+  private readonly roll: Mesh; // the fog's, turning slower
   private readonly disc: Mesh;
-  private readonly discMaterial: StandardMaterial;
-  private readonly reflection: MirrorTexture;
-  private readonly walls: { mesh: Mesh; material: StandardMaterial; turn: number }[];
-  private readonly puffs: ParticleSystem;
+  private readonly material: StandardMaterial;
+  private readonly picture: DynamicTexture;
+  private readonly plusses: ParticleSystem;
+  private readonly fog: ParticleSystem;
   private open = 0; // 0 shut to 1 open
+  private staticAt = 0; // seconds since the static last stepped
 
   constructor(engine: Engine, name: string) {
+    this.engine = engine;
     const scene = engine.scene;
+    this.spin = new Mesh(`${name}-spin`, scene);
+    this.roll = new Mesh(`${name}-roll`, scene);
     this.disc = MeshBuilder.CreateDisc(name, { radius: ACROSS / 2, tessellation: 48 }, scene);
     this.disc.rotation.x = Math.PI / 2;
     this.disc.isPickable = false;
-    this.reflection = new MirrorTexture(`${name}-mirror`, MIRROR_SIZE, scene, true);
-    this.reflection.level = MIRROR_LEVEL;
-    this.reflection.renderList = [];
-    this.discMaterial = new StandardMaterial(name, scene);
-    this.discMaterial.diffuseColor = Color3.White();
-    this.discMaterial.emissiveColor = new Color3(0.9, 0.93, 1);
-    this.discMaterial.specularColor = Color3.Black();
-    this.discMaterial.reflectionTexture = this.reflection;
-    this.discMaterial.disableLighting = true;
-    this.discMaterial.backFaceCulling = false;
-    this.disc.material = this.discMaterial;
-    this.walls = WALLS.map(({ across, turn }, i) => {
-      const mesh = MeshBuilder.CreateCylinder(
-        `${name}-wall-${i}`,
-        { height: WALL_HEIGHT, diameter: across, tessellation: 48, cap: Mesh.NO_CAP },
-        scene,
-      );
-      mesh.isPickable = false;
-      const material = new StandardMaterial(`${name}-wall-${i}`, scene);
-      const texture = (streaks ??= streakTexture(engine));
-      material.diffuseTexture = texture;
-      material.opacityTexture = texture;
-      material.emissiveColor = new Color3(0.85, 0.9, 1);
-      material.diffuseColor = Color3.Black();
-      material.specularColor = Color3.Black();
-      material.disableLighting = true;
-      material.backFaceCulling = false;
-      mesh.material = material;
-      mesh.parent = this.disc;
-      mesh.rotation.x = -Math.PI / 2; // upright again under the disc's turn
-      mesh.position.z = -WALL_HEIGHT / 2; // the disc's -z is up once it lies flat
-      return { mesh, material, turn };
-    });
-    this.puffs = new ParticleSystem(`${name}-puffs`, PUFFS, scene);
-    this.puffs.particleTexture = puff ??= puffTexture(engine);
-    this.puffs.emitter = this.disc;
-    this.puffs.blendMode = ParticleSystem.BLENDMODE_STANDARD;
-    this.puffs.minSize = 3;
-    this.puffs.maxSize = 6;
-    this.puffs.minLifeTime = PUFF_SECONDS * 0.7;
-    this.puffs.maxLifeTime = PUFF_SECONDS;
-    this.puffs.emitRate = PUFFS / PUFF_SECONDS;
-    this.puffs.color1 = new Color4(1, 1, 1, 0.55);
-    this.puffs.color2 = new Color4(0.85, 0.9, 1, 0.4);
-    this.puffs.colorDead = new Color4(1, 1, 1, 0);
-    this.puffs.minAngularSpeed = -1;
-    this.puffs.maxAngularSpeed = 1;
-    // Born on the rim, in the disc's own frame (which lies flat: its -z is up), and sent round it.
-    this.puffs.startPositionFunction = (world, position) => {
+    this.disc.parent = this.spin;
+    this.picture = new DynamicTexture(`${name}-pool`, POOL, scene, false, Texture.BILINEAR_SAMPLINGMODE);
+    this.picture.hasAlpha = true;
+    this.material = new StandardMaterial(name, scene);
+    this.material.emissiveTexture = this.picture;
+    this.material.opacityTexture = this.picture;
+    this.material.emissiveColor = Color3.White();
+    this.material.diffuseColor = Color3.Black();
+    this.material.specularColor = Color3.Black();
+    this.material.disableLighting = true;
+    this.material.backFaceCulling = false;
+    this.disc.material = this.material;
+    engine.glowLayer.addIncludedOnlyMesh(this.disc);
+    this.paint();
+    // The gale: "+"s born over the pool, climbing and drawn in toward the middle, in the frame of a
+    // node that turns, so every one of them goes round with it (a solid whirl, faster out at the
+    // rim), spinning as they go.
+    const half = ACROSS / 2;
+    this.plusses = new ParticleSystem(`${name}-plusses`, PLUSSES, scene);
+    plusSprites(engine, this.plusses);
+    this.plusses.isLocal = true;
+    this.plusses.emitter = this.spin;
+    this.plusses.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+    this.plusses.minSize = 0.5;
+    this.plusses.maxSize = 1.3;
+    this.plusses.minLifeTime = PLUS_SECONDS * 0.6;
+    this.plusses.maxLifeTime = PLUS_SECONDS;
+    this.plusses.emitRate = PLUSSES / PLUS_SECONDS;
+    this.plusses.color1 = new Color4(1, 1, 1, 1);
+    this.plusses.color2 = new Color4(1, 1, 1, 1);
+    this.plusses.colorDead = new Color4(1, 1, 1, 1); // none fade: each blinks out
+    this.plusses.minAngularSpeed = -4;
+    this.plusses.maxAngularSpeed = 4;
+    this.plusses.startPositionFunction = (_world, position) => {
       const a = Math.random() * 2 * Math.PI;
-      const r = (ACROSS / 2) * (0.85 + Math.random() * 0.25);
-      Vector3.TransformCoordinatesFromFloatsToRef(
-        Math.cos(a) * r,
-        Math.sin(a) * r,
-        -Math.random() * 3,
-        world,
-        position,
+      const r = half * (0.3 + Math.random() * 0.75);
+      position.set(Math.cos(a) * r, Math.random() * 2.5, Math.sin(a) * r);
+    };
+    this.plusses.startDirectionFunction = (_world, direction, particle) => {
+      const r = Math.hypot(particle.position.x, particle.position.z) || 1;
+      direction.set(
+        (-particle.position.x / r) * PLUS_DRAW,
+        PLUS_RISE * (0.7 + Math.random() * 0.6),
+        (-particle.position.z / r) * PLUS_DRAW,
       );
     };
-    this.puffs.startDirectionFunction = (world, direction, particle) => {
-      const local = Vector3.TransformCoordinates(particle.position, world.clone().invert());
-      const r = Math.hypot(local.x, local.y) || 1;
-      Vector3.TransformNormalFromFloatsToRef(
-        (-local.y / r) * PUFF_SPEED,
-        (local.x / r) * PUFF_SPEED,
-        -(1 + Math.random() * 3),
-        world,
-        direction,
-      );
+    // The fog: soft white puffs born round the rim, rolling round it slowly and lifting a little.
+    this.fog = new ParticleSystem(`${name}-fog`, FOG, scene);
+    this.fog.particleTexture = puff ??= puffTexture(engine);
+    this.fog.isLocal = true;
+    this.fog.emitter = this.roll;
+    this.fog.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+    this.fog.minSize = 5;
+    this.fog.maxSize = 9;
+    this.fog.minLifeTime = FOG_SECONDS * 0.7;
+    this.fog.maxLifeTime = FOG_SECONDS;
+    this.fog.emitRate = FOG / FOG_SECONDS;
+    this.fog.color1 = new Color4(1, 1, 1, 0.5);
+    this.fog.color2 = new Color4(0.9, 0.95, 1, 0.35);
+    this.fog.colorDead = new Color4(1, 1, 1, 0);
+    this.fog.minAngularSpeed = -0.3;
+    this.fog.maxAngularSpeed = 0.3;
+    this.fog.startPositionFunction = (_world, position) => {
+      const a = Math.random() * 2 * Math.PI;
+      const r = half * (0.7 + Math.random() * 0.45);
+      position.set(Math.cos(a) * r, Math.random() * 3, Math.sin(a) * r);
     };
-    this.disc.setEnabled(false);
-  }
-
-  // The meshes the disc mirrors: the body coming up out of it.
-  mirror(meshes: AbstractMesh[]): void {
-    this.reflection.renderList = meshes;
+    this.fog.startDirectionFunction = (_world, direction) => {
+      direction.set(0, FOG_RISE * (0.5 + Math.random()), 0);
+    };
+    this.spin.setEnabled(false);
   }
 
   update(at: Vector3, ground: number, open: boolean, dt: number): void {
     this.open = Math.max(0, Math.min(1, this.open + ((open ? 1 : -1) * dt) / FADE));
     if (open) {
-      this.disc.position.set(at.x, ground + 0.05, at.z);
-      this.reflection.mirrorPlane = new Plane(0, -1, 0, ground + 0.05);
+      this.spin.position.set(at.x, ground + 0.05, at.z);
+      this.roll.position.copyFrom(this.spin.position);
     }
-    const shown = this.open > 0;
-    this.disc.setEnabled(shown);
-    this.reflection.refreshRate = shown ? 1 : 0;
-    this.discMaterial.alpha = DISC_ALPHA * this.open;
+    this.spin.setEnabled(this.open > 0);
+    this.spin.rotation.y += dt * PLUS_TURN;
+    this.roll.rotation.y -= dt * FOG_TURN;
+    this.material.alpha = this.open;
     this.disc.scaling.setAll(0.7 + 0.3 * this.open);
-    for (const wall of this.walls) {
-      wall.mesh.rotation.y += dt * wall.turn;
-      wall.material.alpha = 0.5 * this.open;
+    this.staticAt += dt;
+    if (this.open > 0 && this.staticAt >= STATIC_STEP) {
+      this.staticAt = 0;
+      this.paint();
     }
-    if (open && !this.puffs.isStarted()) this.puffs.start();
-    if (!open && this.puffs.isStarted()) this.puffs.stop();
+    if (open && !this.plusses.isStarted()) {
+      this.plusses.start();
+      this.fog.start();
+    }
+    if (!open && this.plusses.isStarted()) {
+      this.plusses.stop();
+      this.fog.stop();
+    }
+  }
+
+  // The pool's picture: its white and blue, with a fresh frame of static laid over it.
+  private paint(): void {
+    const ctx = this.picture.getContext() as CanvasRenderingContext2D;
+    const tiles = (grains ??= Array.from({ length: STATIC_TILES }, grainTile));
+    ctx.clearRect(0, 0, POOL, POOL);
+    ctx.drawImage((base ??= poolPicture()), 0, 0);
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop'; // static only where the pool is, its soft edge kept
+    ctx.globalAlpha = STATIC_LEVEL;
+    const pattern = ctx.createPattern(tiles[Math.floor(Math.random() * tiles.length)], 'repeat');
+    if (pattern) {
+      ctx.translate(Math.random() * GRAIN, Math.random() * GRAIN);
+      ctx.fillStyle = pattern;
+      ctx.fillRect(-GRAIN, -GRAIN, POOL + GRAIN, POOL + GRAIN);
+    }
+    ctx.restore();
+    this.picture.update();
   }
 
   dispose(): void {
-    this.puffs.dispose(false); // not the puff: every storm's
-    for (const wall of this.walls) {
-      wall.mesh.dispose();
-      wall.material.dispose(); // not the streaks: every storm's
-    }
-    this.reflection.dispose();
+    this.plusses.dispose(); // its own sheet of "+"s with it
+    this.fog.dispose(false); // not the puff: every storm's
+    this.engine.glowLayer.removeIncludedOnlyMesh(this.disc);
     this.disc.dispose();
-    this.discMaterial.dispose();
+    this.material.dispose();
+    this.picture.dispose();
+    this.spin.dispose();
+    this.roll.dispose();
   }
 }
 
-// Diagonal streaks of cloud, dense at the foot of the wall and gone at its top; wraps round.
-function streakTexture(engine: Engine): DynamicTexture {
-  const size = 256;
-  const texture = new DynamicTexture('storm-streaks', size, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
-  texture.hasAlpha = true;
-  texture.wrapU = Texture.WRAP_ADDRESSMODE;
-  const ctx = texture.getContext() as CanvasRenderingContext2D;
-  ctx.clearRect(0, 0, size, size);
-  ctx.lineCap = 'round';
-  for (let i = 0; i < 160; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const length = 30 + Math.random() * 70;
-    const fade = 1 - y / size; // y runs down the image: the wall's foot is at the bottom
-    ctx.strokeStyle = `rgba(255,255,255,${(0.25 + Math.random() * 0.45) * (1 - fade * 0.9)})`;
-    ctx.lineWidth = 2 + Math.random() * 5;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + length, y - length * 0.35);
-    ctx.moveTo(x - size, y);
-    ctx.lineTo(x - size + length, y - length * 0.35);
-    ctx.stroke();
-  }
-  texture.update();
-  return texture;
+// The pool: white in the middle, through pale to deep blue at the rim, and gone just past it.
+function poolPicture(): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = POOL;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
+  g.addColorStop(0, 'rgba(255,255,255,0.96)');
+  g.addColorStop(0.55, 'rgba(236,246,255,0.96)');
+  g.addColorStop(0.8, 'rgba(150,205,255,0.92)');
+  g.addColorStop(0.93, 'rgba(70,150,255,0.7)');
+  g.addColorStop(1, 'rgba(50,130,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, POOL, POOL);
+  return canvas;
 }
 
-// A soft puff of cloud.
+// A tile of static: every pixel a random grey with a touch of blue.
+function grainTile(): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = GRAIN;
+  const ctx = canvas.getContext('2d')!;
+  const image = ctx.createImageData(GRAIN, GRAIN);
+  for (let i = 0; i < image.data.length; i += 4) {
+    const v = Math.random() * 255;
+    image.data[i] = v * 0.75;
+    image.data[i + 1] = v * 0.88;
+    image.data[i + 2] = v;
+    image.data[i + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+// A soft puff of fog.
 function puffTexture(engine: Engine): DynamicTexture {
   const size = 64;
   const texture = new DynamicTexture('storm-puff', size, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
