@@ -56,7 +56,7 @@ function thisRoom(hooks: MenuHooks): Section {
         name: hooks.roomId,
         link: roomLink(hooks.roomId),
         // Anyone who opens the room host's address without its cookie is turned away before the page.
-        note: SERVED_BY_ROOM_HOST ? 'send this link: the address bar only works for you' : undefined,
+        note: SERVED_BY_ROOM_HOST ? 'send this link — the address bar only works for you' : undefined,
       },
     ],
   };
