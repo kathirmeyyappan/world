@@ -54,7 +54,7 @@ const FLAP_SPREAD = 0.4;
 // said so, over a tick the sim ran without the rider's frame.
 const BREATH = { density: 3, size: 1.6, core: 2.5 };
 const BREATH_HOLD = 0.2;
-const ICE_ALPHA = 0.78; // how solid the ice over a hollow looks: the crystal under it shows through
+const ICE_ALPHA = 0.25; // how solid the ice over a hollow looks: a glaze, the lattice and the glowing core under it plain
 
 export class DragonAvatar implements Avatar {
   private readonly root: TransformNode;
