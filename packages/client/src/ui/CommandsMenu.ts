@@ -21,6 +21,7 @@ import {
   botArguments,
 } from '@world/shared';
 import { IS_TOUCH, onTap } from '../input/touch';
+import { railScroll } from './scrollRail';
 
 interface Row {
   label: string; // the command and its shortcuts, as shown
@@ -59,6 +60,7 @@ export class CommandsMenu {
     // The body scrolls; the top (the title and the chat's mirror) and the footer (guide note + close
     // hint) stay put either side of it.
     this.el.innerHTML = IS_TOUCH ? touchHtml(groups) : keyboardHtml(groups);
+    railScroll(this.el.querySelector<HTMLElement>('.body')!);
     this.mirrorEl = this.el.querySelector('.chat-mirror');
     // A press on the mirror leaves the chat's own box focused; a click brings the chat up when it's
     // down, or takes the completion clicked.
@@ -256,8 +258,10 @@ function keyboardHtml(groups: Group[]): string {
           <ul class="completions"></ul>
         </div>
       </div>
-      <div class="body">
-        <div class="groups">${sections.join('')}</div>
+      <div class="scroller">
+        <div class="body">
+          <div class="groups">${sections.join('')}</div>
+        </div>
       </div>
       <div class="footer">
         <div class="guide">MORE IN THE GUIDE: PRESS X FOR THE MENU</div>
@@ -278,10 +282,12 @@ function touchHtml(groups: Group[]): string {
   });
   return `
     <div class="card touch">
-      <div class="body">
-        <h1>COMMANDS</h1>
-        <p class="how">tap to use<span class="or">or type any of these in chat, options and all</span></p>
-        <div class="groups">${sections.join('')}</div>
+      <div class="scroller">
+        <div class="body">
+          <h1>COMMANDS</h1>
+          <p class="how">tap to use<span class="or">or type any of these in chat, options and all</span></p>
+          <div class="groups">${sections.join('')}</div>
+        </div>
       </div>
       <div class="footer">
         <div class="guide">MORE IN THE GUIDE, IN THE MENU</div>

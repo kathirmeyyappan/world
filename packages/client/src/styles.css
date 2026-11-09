@@ -42,6 +42,112 @@ body {
   display: none !important;
 }
 
+/* Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its bar)
+   stands in a .scroller beside the rail of ui/scrollRail.ts, which takes the place of the browser's
+   own bar: a column of its own at the right, set first, with the rest drawn in the room that's left
+   and a clear gap between. The rail is always there, a thick track in the card's colours, dim with
+   its thumb filling the track while everything fits, its arrows lit while there's more that way and
+   the bottom one blinking. On a phone it's slimmer, as the cards are. */
+#menu .body,
+#commands .body,
+#info-card .card-scroll {
+  scrollbar-width: none;
+}
+#menu .body::-webkit-scrollbar,
+#commands .body::-webkit-scrollbar,
+#info-card .card-scroll::-webkit-scrollbar {
+  display: none;
+}
+.scroller {
+  display: flex;
+  gap: 16px;
+  min-height: 0;
+}
+.scroller > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.scroll-rail {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 18px;
+  cursor: default;
+}
+.scroll-rail .arrow {
+  flex: none;
+  height: 22px;
+  padding: 0;
+  font: 9px/18px var(--pixel);
+  text-align: center;
+  color: rgba(100, 181, 246, 0.3);
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  box-shadow: 2px 2px 0 #000;
+  cursor: pointer;
+}
+.scroll-rail .arrow.more {
+  color: var(--accent);
+}
+.scroll-rail .arrow.more:hover {
+  background: rgba(100, 181, 246, 0.25);
+}
+.scroll-rail .down.more {
+  animation: rail-blink 1s steps(1) infinite;
+}
+@keyframes rail-blink {
+  50% {
+    color: transparent;
+  }
+}
+.scroll-rail .track {
+  flex: 1;
+  position: relative;
+  margin: -2px 0; /* under the arrows' borders, so track and arrows share one edge */
+  background: #05070c;
+  border: 2px solid var(--accent);
+  box-shadow: 2px 0 0 #000;
+}
+.scroll-rail .thumb {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  background: var(--accent);
+  cursor: grab;
+}
+.scroll-rail .thumb:active {
+  cursor: grabbing;
+}
+.scroll-rail.idle .arrow,
+.scroll-rail.idle .track {
+  border-color: rgba(100, 181, 246, 0.35);
+}
+.scroll-rail.idle .thumb {
+  background: rgba(100, 181, 246, 0.2);
+  cursor: default;
+}
+@media (pointer: coarse) {
+  .scroller {
+    gap: 10px;
+  }
+  .scroll-rail {
+    width: 12px;
+  }
+  .scroll-rail .arrow {
+    height: 16px;
+    font-size: 6px;
+    line-height: 12px;
+    box-shadow: 1px 1px 0 #000;
+  }
+  .scroll-rail .track {
+    box-shadow: 1px 0 0 #000;
+  }
+  .scroll-rail .thumb {
+    left: 1px;
+    right: 1px;
+  }
+}
+
 /* Shared retro card look */
 .card {
   background: var(--panel);
@@ -1181,9 +1287,11 @@ body {
 }
 #info-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(680px, 94vw);
   max-height: 84vh;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--panel);
   border: 3px solid var(--accent);
   box-shadow:
@@ -1209,6 +1317,15 @@ body {
   color: #05070c;
   font: 10px var(--pixel);
   letter-spacing: 1px;
+}
+/* The bar stays put; the rest scrolls under it, beside its rail, which keeps off the border. */
+#info-card .scroller {
+  padding: 12px 16px 12px 0;
+}
+#info-card .card-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  margin: -12px 0;
 }
 #info-card .card-body {
   display: flex;
@@ -1838,10 +1955,11 @@ body {
     font-size: 13px;
   }
 }
-/* On touch each command is a button (ui/CommandsMenu.ts touchHtml). */
+/* On touch each command is a button (ui/CommandsMenu.ts touchHtml), two to a row on a phone beside
+   the rail. */
 #commands .buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 8px;
 }
 #commands .cmd-button {

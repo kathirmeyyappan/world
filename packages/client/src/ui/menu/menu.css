@@ -59,8 +59,9 @@
   font-size: 14px;
   margin: 0;
 }
-/* Every button on the card is set in the terminal face, at the size of the rows' names. */
-#menu button,
+/* Every button on the card is set in the terminal face, at the size of the rows' names; the scroll
+   rail's arrows keep their own (styles.css). */
+#menu button:not(.scroll-rail *),
 #menu a.button {
   font: 20px/1 var(--mono);
   letter-spacing: 1px;
@@ -253,7 +254,6 @@
 /* Every tab's panel in one cell, the hidden ones unseen, so the card keeps one height (Menu.select). */
 #menu .body {
   overflow: auto;
-  min-height: 0;
   display: grid;
 }
 #menu .panel {
@@ -505,12 +505,12 @@
   #menu nav {
     margin-bottom: 12px;
   }
-  #menu button,
+  #menu button:not(.scroll-rail *),
   #menu a.button,
   #menu .steps .reading {
     font-size: 18px;
   }
-  #menu button,
+  #menu button:not(.scroll-rail *),
   #menu a.button {
     padding: 4px 8px;
   }
