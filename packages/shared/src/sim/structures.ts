@@ -288,14 +288,18 @@ export function roundWall(opts: {
   const pieces: Box[] = [];
   for (let i = 0; i < segments; i++) {
     const mid = i * step;
-    // A hair wider than the chord so neighbouring pieces meet at the outer face.
-    const a = onCircle(x, z, r, mid - step * 0.52);
-    const b = onCircle(x, z, r, mid + step * 0.52);
+    // The piece runs along the chord, long enough that its outer face reaches the corner it shares
+    // with its neighbour (and a hair past): a thick wall's joints are wedges open on the outside
+    // otherwise.
+    const chord = r * Math.cos(step / 2);
+    const length = 2 * (chord + thickness / 2) * Math.tan(step / 2) + 0.02;
+    const foot = onCircle(x, z, chord, mid);
+    const across = { x: -Math.sin(mid), z: Math.cos(mid) };
+    const at = (d: number) => ({ x: foot.x + across.x * d, z: foot.z + across.z * d });
+    const a = at(-length / 2);
+    const b = at(length / 2);
     // The point on this piece's chord at `offset` radians from its middle.
-    const along = (offset: number) => {
-      const t = offset / (step * 1.04) + 0.5;
-      return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
-    };
+    const along = (offset: number) => at(chord * Math.tan(offset));
     // Each gap's reach over this piece, as offsets from its middle, and up it, within its height.
     const cuts = gaps
       .map((g) => {
