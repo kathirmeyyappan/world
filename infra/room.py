@@ -52,6 +52,7 @@ def lobby_url() -> str:
     scaledown_window=ROOM_SCALEDOWN_WINDOW,
     startup_timeout=120,
     exit_grace_period=30,
+    nonpreemptible=True,  # a preemption would drop every live session in the container
     experimental_options={"queue_timeout": SESSION_QUEUE_TIMEOUT},  # session starts wait for a cold boot
 )
 @modal.sessioned()
