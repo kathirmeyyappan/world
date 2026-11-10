@@ -2,9 +2,10 @@
 // the browser blows the frame up to) and how many frames a second it's drawn, each a setting the
 // menu shows and the device keeps. The pixel size is auto unless one is chosen: it starts fine on a
 // mouse device and coarse on a touch one, steps coarser whenever the machine falls behind the frame
-// rate, and tries a step finer again once it has kept up for a while, and straight on to the next
-// while each holds, so a weak machine settles where it keeps up and a strong one climbs to the
-// detail in seconds. The tries never stop: one that fails costs
+// rate, and tries a step finer as soon as the first frames judged keep up, and straight on to the
+// next while each holds, so a weak machine settles where it keeps up and a strong one climbs to the
+// detail in seconds; a size held with little to spare is tried past again once it has kept up for
+// a while. The tries never stop: one that fails costs
 // the player a few seconds of dropped frames before auto backs off, and the next waits twice as
 // long, from a minute up to eight, then every eight minutes for the rest of the session. That is
 // the price of finding the finest size the machine can hold, and it is paid only by a machine
@@ -37,7 +38,7 @@ const WINDOW = 120; // frames judged at a time: two seconds at 60
 const PAUSE_MS = 500; // an interval this long is the tab asleep, not a slow frame
 const BACK_OFF = 0.2; // the share of late frames in the window that steps coarser
 const KEPT_UP = 0.02; // at most this share late (a GC pause or two) counts as keeping up
-const PROBE_AFTER_MS = 20000; // kept up this long, auto tries a step finer
+const PROBE_AFTER_MS = 20000; // a size held with little to spare is tried past again after keeping up this long
 const RETRY_MS = 60000; // after a step finer fails, how long before trying again; doubles each time
 const RETRY_MAX_MS = 8 * 60000; // and never longer: a machine that can't go finer is tried this often for good
 const PIXELS_KEY = 'world.pixels';
@@ -84,7 +85,7 @@ export class Picture {
     this.settled = this.start;
     this.current = this.pixels === 'auto' ? this.start : this.pixels;
     this.holdUntil = now + STARTUP_MS;
-    this.probeAt = now + STARTUP_MS + PROBE_AFTER_MS;
+    this.probeAt = now + STARTUP_MS; // the first window judged that keeps up earns a try at finer
     window.addEventListener('pagehide', () => drop(TRIAL_KEY)); // a clean leaving, not a death
   }
 
@@ -116,13 +117,14 @@ export class Picture {
     return beside(PIXEL_SIZES, this.current, by) !== undefined;
   }
 
-  // Auto takes up again where it had got to.
+  // Auto takes up again where it had got to, free to try finer as soon as it keeps up.
   setPixels(pixels: PixelSize | 'auto'): void {
     this.pixels = pixels;
     this.current = pixels === 'auto' ? this.settled : pixels;
     this.late = [];
     this.probing = false;
     this.retryMs = RETRY_MS;
+    this.probeAt = 0;
     this.holdUntil = Infinity; // auto picks up again from the next frame (frame() sets it)
     keep(PIXELS_KEY, String(pixels));
   }
