@@ -519,12 +519,13 @@ its native bar hidden.
 
 The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
 pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows
-it up with nearest sampling, the retro grid) and its frame rate (15 to 90 by 15, `FRAME_RATES`).
+it up with nearest sampling, the retro grid) and its frame rate (15 to 90 by 15, `FRAME_RATES`;
+60 unless chosen, 45 on a touch device).
 `Engine.run` draws a frame only when one is due, each due the rate's interval on from the last, so
 30 is every other tick of a 60 Hz display, 45 alternates one tick and two and comes out right over
 time, and a rate past the display's is the display's. The pixel size is auto
-unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a phone goes at most a
-step finer than the grid it has always had, to 2), steps coarser when a fifth of the last two seconds' frames came late (held
+unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a touch device that
+reports under 4 GB of memory, where the browser says, goes no finer than 2), steps coarser when a fifth of the last two seconds' frames came late (held
 past the tick they were due on, as `Engine.run` judges it against the display's tick, the
 median of the last second's gaps between its runs), and tries a step finer once it has kept up for
 twenty seconds. A step that keeps up through two seconds of frames after settling is kept and the
@@ -534,7 +535,12 @@ next try (a change of frame rate starts the judging afresh, trying finer as soon
 tries never stop, and one that fails costs the player a few seconds of dropped frames (three
 seconds settling after the resize, then a second of frames to judge) before auto backs off: the
 price of finding the finest size the machine holds, paid only by a machine that can't go finer.
-The world's first seconds and the hitch of a resize don't count, nor does a sleeping tab. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
+The world's first seconds and the hitch of a resize don't count, nor does a sleeping tab. A size
+the page dies at (the GPU dropping the context, which reloads the page as a death does; or the
+tab killed in the trial of a step finer, which a marker written before the step and cleared on a
+clean unload tells the next load) is pinned off for the device in localStorage, a step coarser
+than it being the finest auto tries from then on, since memory gives out at the resize, before
+any frame is timed. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
 row that the game might crash, and auto taken up again starts from there. Fill is what this game
 spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of the pixel size, so
 2 is a quarter of the cost of 1.

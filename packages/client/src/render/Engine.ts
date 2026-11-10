@@ -73,6 +73,12 @@ export class Engine {
     pipeline.imageProcessing.vignetteColor = new Color4(0, 0, 0.02, 0);
 
     window.addEventListener('resize', () => this.engine.resize());
+    // The GPU dropping the context leaves nothing to draw with: the size drawn is pinned off for
+    // this device (Picture.lost) and the page starts over, as it does after a death.
+    this.engine.onContextLostObservable.add(() => {
+      this.picture.lost();
+      location.reload();
+    });
   }
 
   // Every tick of the display, a frame when one is due: each is due the frame rate's interval on
