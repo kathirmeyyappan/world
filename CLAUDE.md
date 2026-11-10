@@ -534,7 +534,12 @@ next try (a change of frame rate starts the judging afresh, trying finer as soon
 tries never stop, and one that fails costs the player a few seconds of dropped frames (three
 seconds settling after the resize, then a second of frames to judge) before auto backs off: the
 price of finding the finest size the machine holds, paid only by a machine that can't go finer.
-The world's first seconds and the hitch of a resize don't count, nor does a sleeping tab. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
+The world's first seconds and the hitch of a resize don't count, nor does a sleeping tab. A size
+the page dies at (the GPU dropping the context, which reloads the page as a death does; or the
+tab killed in the trial of a step finer, which a marker written before the step and cleared on a
+clean unload tells the next load) is pinned off for the device in localStorage, a step coarser
+than it being the finest auto tries from then on, since memory gives out at the resize, before
+any frame is timed. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
 row that the game might crash, and auto taken up again starts from there. Fill is what this game
 spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of the pixel size, so
 2 is a quarter of the cost of 1.

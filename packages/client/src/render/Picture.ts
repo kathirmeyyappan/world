@@ -8,7 +8,11 @@
 // the player a few seconds of dropped frames before auto backs off, and the next waits twice as
 // long, from a minute up to eight, then every eight minutes for the rest of the session. That is
 // the price of finding the finest size the machine can hold, and it is paid only by a machine
-// that can't go finer.
+// that can't go finer. A size the page dies at (the GPU dropping the context, or the tab killed
+// in the trial of a step finer: a marker written before the step and cleared on a clean unload
+// says so on the next load) is pinned off for good on that device, a step coarser than it being
+// the finest auto tries from then on, since memory gives out at the resize, before any frame is
+// timed.
 
 export const PIXEL_SIZES = [1, 1.5, 2, 2.5, 3] as const; // the choices, and the steps auto moves along
 export type PixelSize = (typeof PIXEL_SIZES)[number];
@@ -34,11 +38,14 @@ const RETRY_MS = 60000; // after a step finer fails, how long before trying agai
 const RETRY_MAX_MS = 8 * 60000; // and never longer: a machine that can't go finer is tried this often for good
 const PIXELS_KEY = 'world.pixels';
 const FRAME_RATE_KEY = 'world.fps';
+const CEILING_KEY = 'world.pixels-ceiling'; // the finest size this device survives at
+const TRIAL_KEY = 'world.pixels-trial'; // the step finer under trial, while the page lives
 
 export class Picture {
   pixels: PixelSize | 'auto' = 'auto';
   frameRate: FrameRate;
   private readonly start: PixelSize;
+  private ceiling: PixelSize = FINEST; // the finest auto tries on this device
   private current: PixelSize; // what's drawn now: the choice, or where auto has got to
   private settled: PixelSize; // where auto has got to on this machine, kept through a choice
   private late: boolean[] = [];
@@ -48,20 +55,33 @@ export class Picture {
   private retryMs = RETRY_MS;
 
   constructor(touch: boolean, now: number) {
-    this.start = touch ? TOUCH_START : AUTO_START;
     this.frameRate = touch ? TOUCH_FRAME_RATE : FRAME_RATE;
     try {
       const pixels = Number(localStorage.getItem(PIXELS_KEY));
       if (isPixelSize(pixels)) this.pixels = pixels;
       const rate = Number(localStorage.getItem(FRAME_RATE_KEY));
       if (isFrameRate(rate)) this.frameRate = rate;
+      const ceiling = Number(localStorage.getItem(CEILING_KEY));
+      if (isPixelSize(ceiling)) this.ceiling = ceiling;
+      // A trial still marked is one the page died in: that size is beyond this device.
+      const trial = Number(localStorage.getItem(TRIAL_KEY));
+      if (isPixelSize(trial)) this.pin(trial);
     } catch {
       // no storage: the defaults
     }
+    this.start = coarsest(touch ? TOUCH_START : AUTO_START, this.ceiling);
     this.settled = this.start;
     this.current = this.pixels === 'auto' ? this.start : this.pixels;
     this.holdUntil = now + STARTUP_MS;
     this.probeAt = now + STARTUP_MS + PROBE_AFTER_MS;
+    window.addEventListener('pagehide', () => drop(TRIAL_KEY)); // a clean leaving, not a death
+  }
+
+  // The GPU has dropped the context: the size drawn is beyond this device, so it's pinned off,
+  // and a choice that fine is brought back to what's known to hold, before the page reloads.
+  lost(): void {
+    this.pin(this.current);
+    if (this.pixels !== 'auto' && this.pixels < this.ceiling) this.setPixels(this.ceiling);
   }
 
   // CSS pixels per rendered pixel, as drawn now.
@@ -135,7 +155,7 @@ export class Picture {
       this.step(at + 1, now);
     } else if (this.late.length < WINDOW) {
       return; // a whole window before a step finer is judged to hold
-    } else if (share <= KEPT_UP && (this.probing || now >= this.probeAt) && this.current > FINEST) {
+    } else if (share <= KEPT_UP && (this.probing || now >= this.probeAt) && this.current > this.ceiling) {
       if (this.probing) this.retryMs = RETRY_MS;
       this.probing = true;
       this.probeAt = Infinity;
@@ -145,6 +165,7 @@ export class Picture {
       this.probing = false;
       this.retryMs = RETRY_MS;
       this.probeAt = now + PROBE_AFTER_MS;
+      drop(TRIAL_KEY);
     }
   }
 
@@ -152,7 +173,23 @@ export class Picture {
     this.current = this.settled = PIXEL_SIZES[to];
     this.late = [];
     this.holdUntil = now + SETTLE_MS;
+    if (this.probing) keep(TRIAL_KEY, String(this.current));
+    else drop(TRIAL_KEY);
   }
+
+  // `size` is beyond this device: a step coarser is the finest auto tries from now on.
+  private pin(size: PixelSize): void {
+    drop(TRIAL_KEY);
+    const coarser = beside(PIXEL_SIZES, size, 1);
+    if (coarser === undefined) return; // nothing coarser to fall back to
+    this.ceiling = coarsest(this.ceiling, coarser);
+    keep(CEILING_KEY, String(this.ceiling));
+  }
+}
+
+// The coarser of two sizes.
+function coarsest(a: PixelSize, b: PixelSize): PixelSize {
+  return a > b ? a : b;
 }
 
 // The entry `by` places on from `at` in `list`, if there is one.
@@ -173,5 +210,13 @@ function keep(key: string, value: string): void {
     localStorage.setItem(key, value);
   } catch {
     // not kept
+  }
+}
+
+function drop(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // never kept
   }
 }
