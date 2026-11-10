@@ -24,13 +24,14 @@ import { rippleAt } from './Portal';
 
 const ACROSS = 40; // metres: wider than the wings
 const FADE = 0.9; // seconds to open or shut
-const POOL = 256; // pixels across the pool's picture
+const POOL = 512; // pixels across the pool's picture: fine enough for a ripple's band to be a band
 const GRAIN = 64; // pixels across a tile of static, laid over the pool a few times across
+const GRAIN_SCALE = 2; // picture pixels to a pixel of static: coarse grain
 const REPAINT = 1 / 30; // seconds between paintings of the pool: a fresh frame of static, the ripples moved on
 const STATIC_TILES = 4; // tiles of static to cycle through
-const STATIC_LEVEL = 0.4; // how much of the static shows through the white
+const STATIC_LEVEL = 0.35; // how much of the static shows through the white
 const STOPS = 128; // samples across the radius the ripples are painted from
-const RIPPLE = 0.6; // how solid a ripple's band is, near the middle: well over the pool between the bands
+const RIPPLE = 0.7; // how solid a ripple's band is, near the middle: well over the pool between the bands
 const POOL_ALPHA = 0.5; // how solid the pool is: the floor and the ice on it show through
 const PLUSSES = 360; // "+"s in the air at once
 const PLUS_SECONDS = 2.4;
@@ -176,9 +177,10 @@ export class Storm implements Rise {
     ctx.globalAlpha = STATIC_LEVEL;
     const pattern = ctx.createPattern(tiles[Math.floor(Math.random() * tiles.length)], 'repeat');
     if (pattern) {
+      ctx.scale(GRAIN_SCALE, GRAIN_SCALE);
       ctx.translate(Math.random() * GRAIN, Math.random() * GRAIN);
       ctx.fillStyle = pattern;
-      ctx.fillRect(-GRAIN, -GRAIN, POOL + GRAIN, POOL + GRAIN);
+      ctx.fillRect(-GRAIN, -GRAIN, POOL / GRAIN_SCALE + GRAIN, POOL / GRAIN_SCALE + GRAIN);
     }
     ctx.restore();
     const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
