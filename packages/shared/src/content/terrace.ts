@@ -1,13 +1,14 @@
 // The terrace: a ring of deck floating over the middle of the main disc, level with Tung Tung
 // Tower's top floor, open in the middle, with a parapet round both edges. The outer one opens where
 // a way up arrives: the tower's sky bridge from the east (content/tower.ts), and a staircase from
-// each keep's roof (content/buildings.ts) that climbs over the building's path, railed both sides.
-import { roundFloor, roundWall, stairs, type Structure } from '../sim/structures';
+// each keep's roof (content/buildings.ts) that climbs over the building's path, railed both sides,
+// and ladders up from the ground.
+import { LADDER_GIRTH, ringLadder, roundFloor, roundWall, stairs, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { Bridge } from '../sim/world';
 import { KEEP_GROUNDS } from './buildings';
-import { OUTER, RAIL, SILL, STOREY } from './keep';
+import { OUTER, RAIL, SILL, STOREY, deg } from './keep';
 
 // The deck's own outline, its top at y.
 export const TERRACE_RING = { x: 0, z: 0, r: 40, inner: 16, y: 3 * STOREY };
@@ -29,6 +30,17 @@ const STAIRCASES = KEEP_GROUNDS.map(({ x, z }) => {
 
 // Where the outer parapet opens: toward the tower and each keep.
 const ARRIVALS = [ANNEX, ...KEEP_GROUNDS].map(({ x, z }) => Math.atan2(z - Z, x - X));
+
+// Steel ladders from the ground up the deck's edges to the top of their parapets, which a climber
+// steps over onto: two up the inner edge from the open middle and three up the outer edge, between
+// the ways up arriving there.
+const OFF = LADDER_GIRTH / 2 + 0.1; // metres from a deck's edge to a ladder's rails
+const LADDERS = [
+  ...[120, 300].map((a) =>
+    ringLadder({ x: X, z: Z }, INNER - OFF, deg(a), 0, Y + RAIL, { outward: true, material: 'steel' }),
+  ),
+  ...[45, 180, 315].map((a) => ringLadder({ x: X, z: Z }, R + OFF, deg(a), 0, Y + RAIL, { material: 'steel' })),
+];
 
 export const TERRACE: Structure[] = [
   ...roundFloor({ ...TERRACE_RING, thickness: DECK, material: 'flagstone' }),
@@ -52,6 +64,7 @@ export const TERRACE: Structure[] = [
   ...STAIRCASES.flatMap(({ bottom, top, y, h }) =>
     stairs(bottom, top, h, WALKWAY, { y, thickness: 0.3, rail: RAIL, material: 'wood' }),
   ),
+  ...LADDERS,
 ];
 
 // The deck between its parapets, for placing things (content/regions.ts).
