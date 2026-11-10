@@ -16,10 +16,13 @@ export const FRAME_RATES = [15, 30, 45, 60, 75, 90] as const; // the choices, fi
 export type FrameRate = (typeof FRAME_RATES)[number];
 
 // Where auto starts: a phone on the coarse grid it has always had, a mouse device a step finer;
-// either climbs to the finest size for as long as it keeps up.
+// either climbs to the finest size for as long as it keeps up. The frame rate is the device's
+// unless one is chosen, a phone's a notch under a mouse device's.
 const AUTO_START: PixelSize = 1.5;
 const TOUCH_START: PixelSize = 2.5;
 const FINEST: PixelSize = 1;
+const FRAME_RATE: FrameRate = 60;
+const TOUCH_FRAME_RATE: FrameRate = 45;
 const STARTUP_MS = 6000; // the world is still streaming in: its hitches say nothing about the machine
 const SETTLE_MS = 3000; // after a step, before its frames count (the resize itself hitches)
 const WINDOW = 120; // frames judged at a time: two seconds at 60
@@ -34,7 +37,7 @@ const FRAME_RATE_KEY = 'world.fps';
 
 export class Picture {
   pixels: PixelSize | 'auto' = 'auto';
-  frameRate: FrameRate = 60;
+  frameRate: FrameRate;
   private readonly start: PixelSize;
   private current: PixelSize; // what's drawn now: the choice, or where auto has got to
   private settled: PixelSize; // where auto has got to on this machine, kept through a choice
@@ -46,6 +49,7 @@ export class Picture {
 
   constructor(touch: boolean, now: number) {
     this.start = touch ? TOUCH_START : AUTO_START;
+    this.frameRate = touch ? TOUCH_FRAME_RATE : FRAME_RATE;
     try {
       const pixels = Number(localStorage.getItem(PIXELS_KEY));
       if (isPixelSize(pixels)) this.pixels = pixels;
