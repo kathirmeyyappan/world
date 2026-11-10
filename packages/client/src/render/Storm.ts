@@ -206,16 +206,16 @@ export class Storm implements Rise {
 }
 
 // The pool between the ripples: pale in the middle, through blue to deep blue at the rim, and gone
-// just past it, thin enough that a ripple's band stands out over it.
+// just past it.
 function poolPicture(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = POOL;
   const ctx = canvas.getContext('2d')!;
   const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
-  g.addColorStop(0, 'rgba(226,238,255,0.4)');
-  g.addColorStop(0.55, 'rgba(206,228,255,0.4)');
-  g.addColorStop(0.8, 'rgba(140,195,255,0.4)');
-  g.addColorStop(0.93, 'rgba(70,150,255,0.35)');
+  g.addColorStop(0, 'rgba(226,238,255,0.8)');
+  g.addColorStop(0.55, 'rgba(206,228,255,0.8)');
+  g.addColorStop(0.8, 'rgba(140,195,255,0.78)');
+  g.addColorStop(0.93, 'rgba(70,150,255,0.6)');
   g.addColorStop(1, 'rgba(50,130,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, POOL, POOL);
