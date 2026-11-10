@@ -71,7 +71,11 @@ the live one cached in a Dict) and sends the browser to the Room host with the s
 URL. Modal's proxy swaps that for a host-bound cookie, the Room's Node process serves the page, and
 the game's WebSocket is then same-origin so the cookie covers it. The page therefore runs on the
 Room host while playing. The served page carries the lobby's URL in a meta tag, so a pasted Room
-host URL still joins through the lobby.
+host URL still joins through the lobby. Once its session is gone, the proxy turns away a load of the
+page itself (a 401 or a 502) before any of it runs. A browser that has played there has the page's
+service worker (`packages/client/public/rejoin-sw.js`), which sends that load back through the lobby
+to the room it was in, or home once the player has left; a first visit with no session still gets
+the proxy's error.
 
 GitHub Pages (`.github/workflows/deploy.yml`) keeps serving a copy of the client at
 world.kathirm.com as a launcher: set the `LOBBY_URL` repository variable to the lobby's URL and

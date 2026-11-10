@@ -7,6 +7,7 @@
 //   launcher anywhere else (GitHub Pages): navigate to the lobby, which starts a session and
 //            redirects the browser to the room host with the token. See docs/join-flow.png.
 import { WsConnection, type Connection } from './Connection';
+import { rejoinTo } from './rejoin';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
 // The home screen scrubs the query string after joining, so what it carried is kept in
@@ -20,9 +21,12 @@ const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
 
+// The room this tab is in, for a reload to rejoin. A load the room host turns away once the room's
+// session is gone goes back in through the lobby, which starts or finds one (net/rejoin.ts).
 export function rememberRoom(roomId: string, name: string): void {
   sessionStorage.setItem('world.room', roomId);
   sessionStorage.setItem('world.name', name);
+  void rejoinTo(roomLink(roomId, name));
 }
 
 export function rememberedRoom(): { roomId: string; name: string } | null {
@@ -42,7 +46,8 @@ export function rememberName(name: string): void {
   } catch {
     // Storage blocked: the home screen won't offer it next time.
   }
-  if (sessionStorage.getItem('world.room')) sessionStorage.setItem('world.name', name);
+  const room = rememberedRoom();
+  if (room) rememberRoom(room.roomId, name);
 }
 
 // The launcher the player came from, or this host's own menu when that isn't known.
@@ -50,9 +55,11 @@ export function homeUrl(): string {
   return sessionStorage.getItem('world.home') || location.pathname;
 }
 
-// Out of the room for good: the tab forgets it, so the home page doesn't rejoin it, and goes home.
-export function leaveRoom(): void {
+// Out of the room for good: the tab forgets it, so the home page doesn't rejoin it, and goes home. On
+// the room host a load turned away goes home from then on too, kept before the page leaves.
+export async function leaveRoom(): Promise<void> {
   forgetRoom();
+  if (SERVED_BY_ROOM_HOST) await rejoinTo(sessionStorage.getItem('world.home'));
   location.href = homeUrl();
 }
 
