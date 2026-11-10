@@ -93,8 +93,9 @@ export class Portal implements Rise {
 }
 
 // How much of a ripple's band lies at `r` of the radius, `time` seconds into the rippling: the
-// bands move outward, each growing in over BORN from the middle and fading as it nears the rim.
-export function rippleAt(r: number, time: number): number {
+// bands move outward, each growing in over BORN from the middle and fading as it nears the rim,
+// as thin as `sharpness` makes them.
+export function rippleAt(r: number, time: number, sharpness = RIPPLE_SHARPNESS): number {
   const crest = Math.max(0, Math.cos(2 * Math.PI * (r * RINGS - time / RIPPLE_SECONDS)));
-  return Math.pow(crest, RIPPLE_SHARPNESS) * Math.pow(1 - r, 1.5) * Math.min(1, r / BORN);
+  return Math.pow(crest, sharpness) * Math.pow(1 - r, 1.5) * Math.min(1, r / BORN);
 }

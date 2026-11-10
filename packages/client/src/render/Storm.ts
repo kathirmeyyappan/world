@@ -29,9 +29,10 @@ const GRAIN = 64; // pixels across a tile of static, laid over the pool a few ti
 const GRAIN_SCALE = 2; // picture pixels to a pixel of static: coarse grain
 const REPAINT = 1 / 30; // seconds between paintings of the pool: a fresh frame of static, the ripples moved on
 const STATIC_TILES = 4; // tiles of static to cycle through
-const STATIC_LEVEL = 0.35; // how much of the static shows through the white
+const STATIC_LEVEL = 0.3; // how much of the static shows through the white
 const STOPS = 128; // samples across the radius the ripples are painted from
-const RIPPLE = 0.7; // how solid a ripple's band is, near the middle: well over the pool between the bands
+const RIPPLE = 0.8; // how solid a ripple's band is, near the middle: well over the pool between the bands
+const RIPPLE_SHARPNESS = 2; // broader bands than the portal's: seen through the static, and from the floor's level
 const POOL_ALPHA = 0.5; // how solid the pool is: the floor and the ice on it show through
 const PLUSSES = 360; // "+"s in the air at once
 const PLUS_SECONDS = 2.4;
@@ -186,7 +187,7 @@ export class Storm implements Rise {
     const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
     for (let i = 0; i <= STOPS; i++) {
       const r = i / STOPS;
-      g.addColorStop(r, `rgba(255,255,255,${(RIPPLE * rippleAt(r, this.time)).toFixed(3)})`);
+      g.addColorStop(r, `rgba(255,255,255,${(RIPPLE * rippleAt(r, this.time, RIPPLE_SHARPNESS)).toFixed(3)})`);
     }
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, POOL, POOL);
@@ -211,10 +212,10 @@ function poolPicture(): HTMLCanvasElement {
   canvas.width = canvas.height = POOL;
   const ctx = canvas.getContext('2d')!;
   const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
-  g.addColorStop(0, 'rgba(226,238,255,0.5)');
-  g.addColorStop(0.55, 'rgba(206,228,255,0.5)');
-  g.addColorStop(0.8, 'rgba(140,195,255,0.5)');
-  g.addColorStop(0.93, 'rgba(70,150,255,0.42)');
+  g.addColorStop(0, 'rgba(226,238,255,0.4)');
+  g.addColorStop(0.55, 'rgba(206,228,255,0.4)');
+  g.addColorStop(0.8, 'rgba(140,195,255,0.4)');
+  g.addColorStop(0.93, 'rgba(70,150,255,0.35)');
   g.addColorStop(1, 'rgba(50,130,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, POOL, POOL);
