@@ -361,7 +361,7 @@ export class Room {
     for (const hit of resolveFire(spec, me, targets, this.structures)) {
       const victim = hit.target.player;
       const cost = damageFor(spec, hit.headshot);
-      const hearts = classOf(victim.avatar).hurt?.(victim, hit.part, cost) ?? cost;
+      const hearts = classOf(victim.avatar).hurt?.(victim, hit.part, cost, spec) ?? cost;
       if (hearts === 0) continue; // off a dragon's shell: nothing
       if (spec.element === 'ice') victim.chilled = CHILL_SECONDS;
       else if (spec.element === 'fire') victim.chilled = 0;

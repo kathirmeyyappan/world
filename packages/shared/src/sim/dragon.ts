@@ -20,6 +20,7 @@ import type { Body, Structures } from './collision';
 import type { Shooter, Target } from './combat';
 import { EYE_HEIGHT, TICK_RATE } from './constants';
 import { lookDirection } from './look';
+import type { ItemSpec } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { worldReach, type WorldPart } from './world';
 
@@ -39,7 +40,7 @@ const UP: Vec3 = { x: 0, y: 1, z: 0 };
 
 // A crystal on the underside of a ring segment: on the `link`, `below` metres under its middle,
 // `r` metres round. A dragon with any is hurt through them alone, a whole heart a crystal: the
-// first shot to reach one from below shatters it, and the ring stays open.
+// first bullet to reach one from below shatters it, and the ring stays open.
 export interface WeakPoint {
   link: number;
   below: number;
@@ -442,13 +443,13 @@ function pointOf(head: Vec3, spine: readonly number[], i: number): Vec3 | null {
   return { x: spine[i * 3], y: spine[i * 3 + 1], z: spine[i * 3 + 2] };
 }
 
-// A dragon with weak points is hurt through them alone, a whole heart a crystal: the shot that
-// reaches one shatters it. Anywhere else, or one already shattered, costs nothing. One without
-// them takes the damage as it comes.
-function hurt(p: PlayerState, part: HitPart, damage: number): number {
+// A dragon with weak points is hurt through them alone, a whole heart a crystal: a bullet that
+// reaches one shatters it, while a spray only washes over it. Anywhere else, or one already
+// shattered, costs nothing. One without them takes the damage as it comes.
+function hurt(p: PlayerState, part: HitPart, damage: number, item: ItemSpec): number {
   const shape = dragonShape(p.avatar);
   if (shape.weak.length === 0) return damage;
-  if (typeof part !== 'number' || !p.dragon || p.dragon.shattered.includes(part)) return 0;
+  if (typeof part !== 'number' || !item.shatters || !p.dragon || p.dragon.shattered.includes(part)) return 0;
   p.dragon.shattered.push(part);
   return 1;
 }

@@ -928,7 +928,7 @@ test('a bot corpse lingers for 5 s while a browser gets the full death screen', 
   assert.ok(humanClosed, "the browser's fallback cleanup eventually closed it");
 });
 
-test('/colgera: a crystal heart a ring, shattered by a shot up into its underside and by nothing else, the third shot killing it; it rises in a storm that ices the floor and throws the bystanders', () => {
+test('/colgera: a crystal heart a ring, shattered by a bullet up into its underside and by nothing else (a spray washes over it), the third shot killing it; it rises in a storm that ices the floor and throws the bystanders', () => {
   const room = new Room('colgera', { seed: 5, structures: new Structures([]), spawnBot: async () => {} });
   const a = link();
   const ida = room.join('alice', a, { room: 'colgera' })!;
@@ -964,10 +964,12 @@ test('/colgera: a crystal heart a ring, shattered by a shot up into its undersid
   const reload = () => {
     for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) room.step();
   };
+  const lean = ((up - 0.2 - EYE_HEIGHT) * Math.cos(MAX_PITCH)) / Math.sin(MAX_PITCH);
+  const stand = (link: number) => {
+    bob.pos = { x: -(behind[link - 1] + behind[link]) / 2, y: EYE_HEIGHT, z: -lean };
+  };
   const under = (link: number) => {
-    const x = -(behind[link - 1] + behind[link]) / 2;
-    const lean = ((up - 0.2 - EYE_HEIGHT) * Math.cos(MAX_PITCH)) / Math.sin(MAX_PITCH);
-    bob.pos = { x, y: EYE_HEIGHT, z: -lean };
+    stand(link);
     reload();
     press(room, idb, -MAX_PITCH);
   };
@@ -986,6 +988,18 @@ test('/colgera: a crystal heart a ring, shattered by a shot up into its undersid
   press(room, idb, 0, false, Math.PI);
   assert.equal(alice.hearts, 2, 'the shell takes nothing');
   assert.equal(b.inbox.filter((m) => m.t === 'hit' && m.victim === ida).length, 1);
+  // A flame sprayed up into the next ring's crystal washes over it: only a bullet shatters one.
+  room.receive(idb, { t: 'chat', text: '/flamethrower' });
+  stand(6);
+  for (let i = 0; i < ITEMS.flamethrower.cooldownTicks * 2; i++) {
+    room.receive(idb, { t: 'input', f: frame(-MAX_PITCH, ['shoot']) });
+    room.step();
+  }
+  room.receive(idb, { t: 'input', f: frame(-MAX_PITCH, []) }); // let go, so the next press is one
+  room.step();
+  assert.equal(alice.hearts, 2, 'a spray shatters nothing');
+  assert.deepEqual(alice.dragon!.shattered, [0]);
+  room.receive(idb, { t: 'chat', text: '/gun' });
   under(6);
   under(16);
   assert.equal(alice.hearts, 0);
