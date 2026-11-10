@@ -179,9 +179,11 @@ the camera swinging after it; every avatar on foot squares up to the rungs, step
 whatever legs it has and reaches up with its free hand, points its weapon arm where the look goes,
 and swings half a turn round the ladder on a swap (`render/avatars/Walker.ts`). Bots' map treats a
 ladder as a wall.
-The one ladder stands upright in the library (`content/pineapple.ts`), from the floor to the
-hatch's platform, since the slide is no way up. A ladder a model draws (the bedroom's, say) is a
-`hidden` one stood on the model's rails with their lean.
+Two ladders stand in the house (`content/pineapple.ts`): the library's, upright from the floor to
+the hatch's platform, since the slide is no way up, and the bedroom's, up the end of SpongeBob's
+bunk to the top bunk. A ladder a model draws, like the bunk's, is a `hidden` one stood on the
+model's rails with their lean, and the rooms' boxes cut from its rails and rungs are left out
+where a climber's body goes (up its face and over its top), since they were cut a cell round them.
 
 ### Surfaces and frost
 

@@ -27,6 +27,7 @@
 // one and the back door outward, the rooms' into the room each closes; each outside door hangs in
 // a flat upright face carved into the shell. The path's flagstones lie on the sand, to step on.
 import {
+  LADDER_GIRTH,
   LADDER_WIDTH,
   ladder,
   ramp,
@@ -236,8 +237,75 @@ const shell: Structure[] = edges.slice(1).flatMap((y1, i): Structure[] => {
   ];
 });
 
+// SpongeBob's bunk, in the bedroom: the model's ladder up its end, upright, its rails rising past
+// the top bunk and hooking over its edge. A hidden ladder stands on them, measured off the model in
+// the house's frame (metres: the middle of its rungs, the way they run, the rails' width outside and
+// their top; its foot on the bedroom's floor as the rooms' boxes have it), so the bunk's edge there
+// is the ladder to take hold of, not a drop. The boxes were cut a cell round every surface
+// (scripts/house_interior.py), the rails and rungs too, so the cells a climber's body goes through
+// are left out of the rooms: across the rails and a cell past them, from a cell in front of the
+// frame back to it, and over the top bunk back to where the rails hook over it.
+const VOXEL = 0.25; // metres: the grid the rooms' boxes are cut on
+const BUNK_LADDER = { x: 3.23, z: -11.24, yaw: 0.3, width: 1.1, base: 7.75, top: 12.8 };
+const BUNK_TOP = 12.25; // metres over the house's floor the rooms' boxes top the top bunk out at
+const BUNK_HOOKS = 1.25; // metres over the bunk from the ladder's middle the rails' hooks reach
+const bunkLadder = ladder(
+  placed(BUNK_LADDER.x, BUNK_LADDER.z),
+  DUNE_HEIGHT + BUNK_LADDER.base,
+  DUNE_HEIGHT + BUNK_LADDER.top,
+  YAW + BUNK_LADDER.yaw,
+  { width: BUNK_LADDER.width, hidden: true },
+);
+
+// Whether the bunk's ladder clears a cell of the rooms, by the cell's middle in the house's frame.
+function bunkLadderClears(x: number, y: number, z: number): boolean {
+  const { yaw, width, base, top } = BUNK_LADDER;
+  const dx = x - BUNK_LADDER.x;
+  const dz = z - BUNK_LADDER.z;
+  const across = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+  const out = dx * Math.sin(yaw) + dz * Math.cos(yaw); // toward the bunk
+  if (y < base || y > top + VOXEL || Math.abs(across) > width / 2 + VOXEL || out < -(LADDER_GIRTH / 2 + VOXEL))
+    return false;
+  return out <= (y < BUNK_TOP ? LADDER_GIRTH / 2 : BUNK_HOOKS);
+}
+
+type RoomBox = (typeof PINEAPPLE_BOXES)[number];
+// The rooms' boxes less the cells the bunk's ladder clears: a box losing none stays whole, and one
+// losing some is broken into the runs of cells it keeps up each column.
+function clearBunkLadder(boxes: readonly RoomBox[]): RoomBox[] {
+  const reach = Math.hypot(BUNK_LADDER.width / 2 + VOXEL, BUNK_HOOKS); // all it clears is this near its middle
+  return boxes.flatMap((box) => {
+    const [x, z, y, w, d, h] = box;
+    const far =
+      Math.abs(x - BUNK_LADDER.x) > w / 2 + reach ||
+      Math.abs(z - BUNK_LADDER.z) > d / 2 + reach ||
+      y >= BUNK_LADDER.top + VOXEL ||
+      y + h <= BUNK_LADDER.base;
+    if (far) return [box];
+    const kept: RoomBox[] = [];
+    let cleared = false;
+    const cells = Math.round(h / VOXEL);
+    for (let i = 0; i < Math.round(w / VOXEL); i++)
+      for (let k = 0; k < Math.round(d / VOXEL); k++) {
+        const cx = x - w / 2 + (i + 0.5) * VOXEL;
+        const cz = z - d / 2 + (k + 0.5) * VOXEL;
+        let run = 0;
+        for (let j = 0; j <= cells; j++) {
+          const gone = j < cells && bunkLadderClears(cx, y + (j + 0.5) * VOXEL, cz);
+          cleared ||= gone;
+          if (j < cells && !gone) run++;
+          else if (run) {
+            kept.push([cx, cz, y + (j - run) * VOXEL, VOXEL, VOXEL, run * VOXEL]);
+            run = 0;
+          }
+        }
+      }
+    return cleared ? kept : [box];
+  });
+}
+
 // The rooms and everything in them.
-const rooms: Box[] = PINEAPPLE_BOXES.map(([x, z, y, w, d, h]) => ({
+const rooms: Box[] = clearBunkLadder(PINEAPPLE_BOXES).map(([x, z, y, w, d, h]) => ({
   kind: 'box',
   ...placed(x, z),
   yaw: YAW,
@@ -549,6 +617,7 @@ const chimney = (): Structure[] => {
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
   hatchLadder,
+  bunkLadder,
   ...stones,
   ...shell,
   ...face,
