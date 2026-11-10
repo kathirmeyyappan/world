@@ -6,7 +6,7 @@ import { AVATARS, type AvatarId, type Hitbox } from './avatars';
 import type { Structures } from './collision';
 import type { Shooter, Target } from './combat';
 import { DRAGON } from './dragon';
-import type { ActionSpec, ItemAction } from './items';
+import type { ActionSpec, ItemAction, ItemSpec } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WALKER } from './walker';
 import type { WorldPart } from './world';
@@ -67,9 +67,9 @@ export interface ClassSpec {
   // The way a shot from `p` goes: a walker's look; a dragon's breath leaves the way its head points.
   aim(p: Shooter): Vec3;
   hitShape(p: Target): HitShape;
-  // The hearts a hit of `damage` landing on `part` costs `p`, the class keeping whatever else it
-  // means (a crystal shattered); without one, a hit costs its damage wherever it lands.
-  hurt?(p: PlayerState, part: HitPart, damage: number): number;
+  // The hearts a hit of `damage` from `item` landing on `part` costs `p`, the class keeping whatever
+  // else it means (a crystal shattered); without one, a hit costs its damage wherever it lands.
+  hurt?(p: PlayerState, part: HitPart, damage: number, item: ItemSpec): number;
   // The floor points a dead one's body lies over, one per heart it leaves behind (CORPSE_DROP).
   lies(p: PlayerState, structures: Structures): Vec3[];
 }

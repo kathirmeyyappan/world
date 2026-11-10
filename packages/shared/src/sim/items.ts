@@ -42,6 +42,7 @@ export interface ItemSpec {
   actions: Partial<Record<ItemAction, ActionSpec>>;
   fire: FireShape;
   element: Element | null; // what it sprays; null for bullets
+  shatters: boolean; // whether a hit of it shatters a dragon's crystal (dragon.ts hurt): a bullet does, a spray washes over one
   fireNeedsScope: boolean; // can only shoot while scoped
   fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at FUEL_REFILL_RATE
   nameTag: string | null; // a name containing this spawns holding the item, locked in hand
@@ -59,6 +60,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     actions: { shoot: { key: 'KeyK', mode: 'tap' } },
     fire: { kind: 'hitscan' },
     element: null,
+    shatters: true,
     fireNeedsScope: false,
     fuelSeconds: null,
     nameTag: 'GUN',
@@ -74,6 +76,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } },
     fire: { kind: 'hitscan' },
     element: null,
+    shatters: true,
     fireNeedsScope: true,
     fuelSeconds: null,
     nameTag: 'SNIPER',
@@ -89,6 +92,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
     element: 'fire',
+    shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
     nameTag: 'FLAMETHROWER',
@@ -106,6 +110,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
     element: 'ice',
+    shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
     nameTag: 'ICEBLOWER',
@@ -122,6 +127,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 5 },
     element: 'fire',
+    shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
     nameTag: null,
@@ -138,6 +144,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     actions: { shoot: { key: 'KeyK', mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 5 },
     element: 'ice',
+    shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
     nameTag: null,

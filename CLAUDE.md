@@ -406,8 +406,9 @@ hitboxes). A weak point (`WeakPoint`: the link it's under, how far `below` the l
 radius) is a sphere hung under a link, there only while the link lies flat enough to have an
 underside (`weakPointAt`), and a shot reaches it only from below (`combat.ts` keeps it out of a
 shot coming down); a look with any is hurt through them alone (`hurt`: a whole heart a crystal,
-the shot that reaches one shattering it, `DragonState.shattered` over the wire, and nothing for a
-hit anywhere else or on one already gone), so Colgera's three rings are three crystal hearts.
+the bullet that reaches one shattering it, a spray washing over it (`ItemSpec.shatters`),
+`DragonState.shattered` over the wire, and nothing for a hit anywhere else or on one already
+gone), so Colgera's three rings are three crystal hearts.
 With `rising` the look comes up in a storm (`Room.storm`): a disc of ice on the floor under it
 (`frost.ts` `frostDisc`) and a blast that throws every walker within reach away and up for its
 damage (`throwWalker`). A life is a `LifeSpec` (hearts, the HUD's row and the sprite it's drawn
