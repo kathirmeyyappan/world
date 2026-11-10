@@ -1,9 +1,13 @@
-// Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events.
+// Room code, player roster, ping, and chat. Pure DOM; the Game feeds it events. A slash typed in
+// the chat offers the commands it could be the start of (commands.ts), listed above the box with
+// the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
+// the pick in the box, where Enter sends it as anything else.
 import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type PlayerClass } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
+import { commandGroups, completionsOf, type Row } from './commands';
 
 const CHAT_LINES = 8;
 const CHAT_FADE_MS = 12_000;
@@ -25,6 +29,10 @@ export class Hud {
   private itemHintText = '';
   private itemHintItem = ''; // the item the hint is for, whose drawing starts its life over on touch
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
+  private readonly completionsEl = document.getElementById('chat-completions')!;
+  private readonly rows = commandGroups().flatMap((g) => g.rows);
+  private completions: Row[] = []; // as listed, top down: the best match last, nearest the box
+  private picked = -1; // the completion the arrows are on, or none
   private readonly sent = loadHistory();
   private recalled = 0; // the line of `sent` in the box; sent.length is the one being typed
   private draft = ''; // what was being typed before stepping back
@@ -33,7 +41,6 @@ export class Hud {
   private myId = '';
   onChat: ((text: string) => void) | null = null;
   onChatOpenChange: ((open: boolean) => void) | null = null;
-  onChatKey: ((e: KeyboardEvent) => boolean) | null = null; // a key typed in the chat, before the chat acts on it: true when taken
 
   constructor(roomId: string) {
     this.roomCode.textContent = roomId;
@@ -55,8 +62,11 @@ export class Hud {
     });
     this.chatInput.addEventListener('keydown', (e) => {
       e.stopPropagation();
-      if (this.onChatKey?.(e)) return e.preventDefault();
-      if (e.code === 'Enter') {
+      const n = this.completions.length;
+      if ((e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Tab') && this.picked >= 0) {
+        e.preventDefault();
+        this.fill(this.completions[this.picked]);
+      } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         const text = this.chatInput.value.trim().slice(0, MAX_CHAT_LENGTH);
         if (text) {
           this.remember(text);
@@ -67,10 +77,29 @@ export class Hud {
         this.closeChat();
       } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
         e.preventDefault();
-        this.recall(e.code === 'ArrowUp' ? -1 : 1);
+        const up = e.code === 'ArrowUp';
+        // The completions first, from the bottom; off their bottom, or with none, the arrows step
+        // through what was sent.
+        if (n > 0 && (up || this.picked >= 0)) {
+          this.picked = up
+            ? this.picked < 0
+              ? n - 1
+              : Math.max(0, this.picked - 1)
+            : this.picked + 1 < n
+              ? this.picked + 1
+              : -1;
+          this.completionsEl.querySelectorAll('li').forEach((li, i) => li.classList.toggle('on', i === this.picked));
+        } else this.recall(up ? -1 : 1);
       }
     });
+    this.chatInput.addEventListener('input', () => this.complete());
     this.chatInput.addEventListener('blur', () => this.closeChat());
+    // A press on the list leaves the box focused; a click takes the completion.
+    this.completionsEl.addEventListener('pointerdown', (e) => e.preventDefault());
+    this.completionsEl.addEventListener('click', (e) => {
+      const li = e.target instanceof Element ? e.target.closest('li') : null;
+      if (li) this.fill(this.completions[Number(li.dataset.n)]);
+    });
   }
 
   private setPanelCollapsed(collapsed: boolean): void {
@@ -83,18 +112,39 @@ export class Hud {
     return !this.chatInput.classList.contains('hidden');
   }
 
-  // What's typed in the chat so far, or null while it's closed.
-  chatText(): string | null {
-    return this.isChatOpen() ? this.chatInput.value : null;
-  }
-
   openChat(text = ''): void {
     if (document.pointerLockElement) document.exitPointerLock();
     this.chatInput.classList.remove('hidden');
     this.chatInput.value = text;
     this.recalled = this.sent.length;
     this.chatInput.focus();
+    this.complete();
     this.onChatOpenChange?.(true);
+  }
+
+  // The completions of what's in the box, listed above it with the best nearest, none picked.
+  private complete(): void {
+    this.completions = completionsOf(this.rows, this.chatInput.value).reverse();
+    this.picked = -1;
+    this.completionsEl.replaceChildren(
+      ...this.completions.map((row, n) => {
+        const li = document.createElement('li');
+        li.dataset.n = String(n);
+        li.append(
+          Object.assign(document.createElement('span'), { className: 'cmd', textContent: row.label }),
+          Object.assign(document.createElement('span'), { className: 'note', textContent: row.note }),
+        );
+        return li;
+      }),
+    );
+  }
+
+  // The command in the box, with a space after one that takes arguments, to go on typing.
+  private fill(row: Row | undefined): void {
+    if (!row) return;
+    this.chatInput.value = row.tap;
+    this.recalled = this.sent.length;
+    this.complete();
   }
 
   // Puts the line `step` back (-1) or on (1) from the one shown in the box, keeping what was being
@@ -121,6 +171,9 @@ export class Hud {
     if (!this.isChatOpen()) return;
     this.chatInput.classList.add('hidden');
     this.chatInput.blur();
+    this.completions = [];
+    this.picked = -1;
+    this.completionsEl.replaceChildren();
     this.onChatOpenChange?.(false);
   }
 

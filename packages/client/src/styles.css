@@ -523,7 +523,53 @@ body {
     2px 2px 0 #000,
     0 0 8px rgba(255, 59, 78, 0.5);
 }
+/* The commands what's typed could be the start of (ui/Hud.ts), a panel standing on the box's top
+   over the log, the best nearest the box. The box is positioned too, so it paints over the panel's
+   shadow, which runs on into its own. */
+#chat-box {
+  position: relative;
+}
+#chat-completions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  list-style: none;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-bottom: 0;
+  box-shadow: 3px 3px 0 #000;
+}
+#chat-completions:empty {
+  display: none;
+}
+#chat-completions li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 11px;
+  cursor: pointer;
+}
+#chat-completions li.on,
+#chat-completions li:hover {
+  background: rgba(100, 181, 246, 0.25);
+}
+#chat-completions .cmd {
+  font: 20px var(--mono);
+  color: #fff;
+  white-space: nowrap;
+}
+#chat-completions .note {
+  font: 14px var(--mono);
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 #chat-input {
+  position: relative;
   pointer-events: auto;
   width: 100%;
   padding: 7px 11px;
@@ -1644,6 +1690,12 @@ body {
   #chat-log li {
     font-size: 18px;
   }
+  #chat-completions .cmd {
+    font-size: 16px;
+  }
+  #chat-completions .note {
+    font-size: 12px;
+  }
   /* At the top, under the HUD's buttons and clear of the pad and FIRE. From the item being drawn
      (Hud.setItemHint) it lives 10 s: steady for 5, then ticking dim and back every half second, then
      gone. */
@@ -1761,7 +1813,8 @@ body {
   }
 }
 
-/* Commands menu: every chat command, grouped. */
+/* Commands card: every chat command, grouped, each a button (ui/CommandsMenu.ts). It has the mouse
+   while it's up, so a click beside the card closes it. */
 #commands {
   position: fixed;
   inset: 0;
@@ -1770,7 +1823,6 @@ body {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
-  pointer-events: none;
 }
 #commands.hidden {
   display: none;
@@ -1780,88 +1832,10 @@ body {
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  pointer-events: auto;
 }
 #commands .body {
   overflow: auto;
   min-height: 0;
-}
-/* The title with the chat's mirror beside it (ui/CommandsMenu.ts), drawn like the chat's own box. */
-#commands .top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-}
-#commands .chat-mirror {
-  position: relative;
-  flex: 0 1 300px;
-  min-width: 200px;
-}
-#commands .chat-mirror .label {
-  font: 9px var(--pixel);
-  letter-spacing: 1px;
-  color: var(--accent-soft);
-  margin-bottom: 8px;
-}
-#commands .chat-mirror .box {
-  min-height: 42px;
-  padding: 7px 11px;
-  font: 22px var(--mono);
-  line-height: 24px;
-  color: #fff;
-  background: var(--panel);
-  border: 2px solid rgba(100, 181, 246, 0.5);
-  overflow-wrap: anywhere;
-  cursor: text;
-}
-#commands .chat-mirror .box.live {
-  border-color: var(--accent);
-  box-shadow: 3px 3px 0 #000;
-}
-#commands .chat-mirror .dim {
-  color: rgba(255, 255, 255, 0.4);
-}
-/* The completions drop down over the list in one column (wider than the box, out to the left),
-   the picked one lit. */
-#commands .completions {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 1;
-  display: block;
-  width: min(460px, 70vw);
-  list-style: none;
-  background: var(--panel);
-  border: 2px solid var(--accent);
-  border-top: 0;
-  box-shadow: 3px 3px 0 #000;
-}
-#commands .completions:empty {
-  display: none;
-}
-#commands .completions li {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0;
-  padding: 4px 11px;
-  cursor: pointer;
-}
-#commands .completions li.on,
-#commands .completions li:hover {
-  background: rgba(100, 181, 246, 0.25);
-}
-#commands .completions .cmd {
-  font-size: 18px;
-}
-#commands .completions .note {
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 #commands .footer {
   display: flex;
@@ -1894,23 +1868,13 @@ body {
   letter-spacing: 1px;
   margin-bottom: 8px;
 }
-#commands ul {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 24px;
-}
-#commands li {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 8px;
-}
 #commands .cmd {
   font: 20px var(--mono);
   color: #fff;
 }
 #commands .args {
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.3;
   color: #81c784;
   overflow-wrap: anywhere; /* inside a flag only when a column is narrower than one */
 }
@@ -1922,44 +1886,10 @@ body {
   font: 15px var(--mono);
   color: rgba(255, 255, 255, 0.45);
 }
-#commands .close-hint {
-  padding: 0;
-}
-@media (pointer: coarse) {
-  #commands {
-    pointer-events: auto;
-  } /* a tap anywhere, backdrop included, closes it */
-  #commands .card {
-    padding: 14px;
-    max-width: 92vw;
-  }
-  #commands .groups {
-    gap: 10px;
-  }
-  #commands ul {
-    gap: 4px 16px;
-  }
-  #commands .cmd {
-    font-size: 16px;
-  }
-  #commands .note,
-  #commands .empty {
-    font-size: 12px;
-  }
-  #commands .how {
-    font-size: 14px;
-    margin-bottom: 8px;
-  }
-  #commands .close-hint,
-  #commands .guide {
-    font-size: 13px;
-  }
-}
-/* On touch each command is a button (ui/CommandsMenu.ts touchHtml), two to a row on a phone beside
-   the rail. */
+/* The buttons, as many to a row as fit: three across the card, two on a phone beside the rail. */
 #commands .buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 8px;
 }
 #commands .cmd-button {
@@ -1971,6 +1901,9 @@ body {
   font: inherit;
   box-shadow: 2px 2px 0 #000;
 }
+#commands .cmd-button:hover {
+  background: rgba(100, 181, 246, 0.3);
+}
 #commands .cmd-button:active {
   background: rgba(100, 181, 246, 0.45);
   transform: translate(2px, 2px);
@@ -1978,10 +1911,6 @@ body {
 }
 #commands .cmd-button .note {
   line-height: 1.2;
-}
-#commands .cmd-button .args {
-  font-size: 12px;
-  line-height: 1.3;
 }
 #commands .how .or {
   display: block;
@@ -1999,9 +1928,45 @@ body {
 #commands .cmd-button.needs-args .args {
   color: rgba(129, 199, 132, 0.55);
 }
+#commands .cmd-button.needs-args:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
 #commands .cmd-button.needs-args:active {
   transform: none;
   box-shadow: 2px 2px 0 #000;
+}
+#commands .close-hint {
+  padding: 0;
+}
+@media (pointer: coarse) {
+  #commands .card {
+    padding: 14px;
+    max-width: 92vw;
+  }
+  #commands .groups {
+    gap: 10px;
+  }
+  #commands .buttons {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+  #commands .cmd {
+    font-size: 16px;
+  }
+  #commands .args {
+    font-size: 12px;
+  }
+  #commands .note,
+  #commands .empty {
+    font-size: 12px;
+  }
+  #commands .how {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  #commands .close-hint,
+  #commands .guide {
+    font-size: 13px;
+  }
 }
 /* A greyed button's notice, at the top of the screen for a moment over the chat it opened. */
 #command-notice {
