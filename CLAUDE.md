@@ -500,14 +500,16 @@ where the HUD has no minimap, it's the only map. A texture a renderer draws once
 shadow, a portal's light, a storm's fog) is made per scene (`render/perScene.ts`), since a second
 scene can't use the first's.
 
-The commands menu (C, `ui/CommandsMenu.ts`) is a reference card on a keyboard, with a mirror of
-the chat in its top corner (the chat's own box is down in the corner of the screen, under the
-card's shade): Enter opens the chat as anywhere, and the mirror shows the cursor and what's typed
-(`Hud.chatText`, read once a frame) until Enter sends it, which closes the card so what the
-command did is in view; a click on the mirror opens the chat too. Under the mirror the commands
-the text could be the start of drop down (the card's rows, by name then by shortcut), the arrows
-pick one and Enter or Tab puts it in the box (`Hud.onChatKey` gives the card the key first);
-nothing else completes anything. On touch it's buttons.
+The commands card (C, or the CMDS button, `ui/CommandsMenu.ts`) is every command as a button, on
+every device, grouped as `ui/commands.ts` lists them. Opening it frees the mouse, as the menu does,
+and closing it (Q, C, a click beside the card, or on touch any tap) takes the mouse back; a click
+on a button sends its command and closes the card, so what the command did is in view, and a
+button whose command takes options (the bots') is greyed and opens the chat with it typed, to
+finish there. The chat completes what's typed itself: the commands the text could be the start
+of (`completionsOf`, by name then by shortcut) stand up from the box's top over the log, the best
+nearest the box, Up picks from the bottom, Down goes back toward the text, Enter or Tab fills the
+box with the pick; with no completions the arrows recall what was sent, as ever. Nothing else
+completes anything.
 
 Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its
 bar) stands in a `.scroller` beside the rail of `ui/scrollRail.ts`, in place of the browser's

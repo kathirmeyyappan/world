@@ -243,11 +243,8 @@ export class Game {
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
-    this.commandsMenu.onChat = () => this.hud.openChat();
-    this.hud.onChatKey = (e) => this.commandsMenu.key(e);
     // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
-    // The commands come up with the mouse captured or free (over the menu, after a chat); either
-    // way the world has it back when they go.
+    // The commands free the mouse for their buttons; the world has it back when they go.
     this.commandsMenu.onOpenChange = (open) => {
       if (open) this.commandHint.retire();
       else if (!IS_TOUCH && !document.pointerLockElement && !this.isBlocked()) canvas.requestPointerLock?.();
@@ -301,8 +298,7 @@ export class Game {
     window.addEventListener(
       'wheel',
       (e) => {
-        if (this.commandsMenu.isOpen) this.commandsMenu.scroll(e.deltaY);
-        else this.hoveredFrame?.scroll?.(e.deltaY); // a long widget, under the crosshair
+        if (!this.commandsMenu.isOpen) this.hoveredFrame?.scroll?.(e.deltaY); // a long widget, under the crosshair
       },
       { passive: true },
     );
@@ -795,7 +791,6 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.commandHint.update(this.isBlocked());
-    this.commandsMenu.mirror(this.hud.chatText());
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,
