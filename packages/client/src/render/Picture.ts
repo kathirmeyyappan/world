@@ -15,12 +15,11 @@ export type PixelSize = (typeof PIXEL_SIZES)[number];
 export const FRAME_RATES = [15, 30, 45, 60, 75, 90] as const; // the choices, fifteen apart
 export type FrameRate = (typeof FRAME_RATES)[number];
 
-// Where auto starts and the finest it will try: a phone starts on the coarse grid it has always
-// had and goes at most a step finer, its tab's memory being the limit its frames never show.
+// Where auto starts: a phone on the coarse grid it has always had, a mouse device a step finer;
+// either climbs to the finest size for as long as it keeps up.
 const AUTO_START: PixelSize = 1.5;
-const AUTO_FINEST: PixelSize = 1;
 const TOUCH_START: PixelSize = 2.5;
-const TOUCH_FINEST: PixelSize = 2;
+const FINEST: PixelSize = 1;
 const STARTUP_MS = 6000; // the world is still streaming in: its hitches say nothing about the machine
 const SETTLE_MS = 3000; // after a step, before its frames count (the resize itself hitches)
 const WINDOW = 120; // frames judged at a time: two seconds at 60
@@ -37,7 +36,6 @@ export class Picture {
   pixels: PixelSize | 'auto' = 'auto';
   frameRate: FrameRate = 60;
   private readonly start: PixelSize;
-  private readonly finest: PixelSize;
   private current: PixelSize; // what's drawn now: the choice, or where auto has got to
   private settled: PixelSize; // where auto has got to on this machine, kept through a choice
   private late: boolean[] = [];
@@ -48,7 +46,6 @@ export class Picture {
 
   constructor(touch: boolean, now: number) {
     this.start = touch ? TOUCH_START : AUTO_START;
-    this.finest = touch ? TOUCH_FINEST : AUTO_FINEST;
     try {
       const pixels = Number(localStorage.getItem(PIXELS_KEY));
       if (isPixelSize(pixels)) this.pixels = pixels;
@@ -134,7 +131,7 @@ export class Picture {
       this.step(at + 1, now);
     } else if (this.late.length < WINDOW) {
       return; // a whole window before a step finer is judged to hold
-    } else if (share <= KEPT_UP && (this.probing || now >= this.probeAt) && this.current > this.finest) {
+    } else if (share <= KEPT_UP && (this.probing || now >= this.probeAt) && this.current > FINEST) {
       if (this.probing) this.retryMs = RETRY_MS;
       this.probing = true;
       this.probeAt = Infinity;
