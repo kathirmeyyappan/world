@@ -3,8 +3,9 @@
 // over it, pixel "+"s of grey and white whirling round and up and white fog rolling round its
 // edge, and a dense column of white "+"s spiralling up out of the middle round the body, with fog
 // at its foot, so the body is hidden where it comes through the floor; open while any of the body
-// is still down in it and fading shut once the tail is out (dragons.ts `rise`). The ice it leaves
-// on the floor is the sim's (room.ts).
+// is still down in it, and once the tail is out the pool fades shut and the gale stops blowing,
+// its last "+"s and puffs dying off one by one as they would (dragons.ts `rise`). The ice it
+// leaves on the floor is the sim's (room.ts).
 import {
   Color3,
   Color4,
@@ -64,6 +65,7 @@ export class Storm implements Rise {
   private readonly column: ParticleSystem;
   private readonly shroud: ParticleSystem;
   private open = 0; // 0 shut to 1 open
+  private blowing = false; // the gale's systems started and not yet stopped
   private staticAt = 0; // seconds since the static last stepped
 
   constructor(engine: Engine, name: string) {
@@ -195,7 +197,7 @@ export class Storm implements Rise {
     this.shroud.startDirectionFunction = (_world, direction) => {
       direction.set(0, 1 + Math.random() * 1.5, 0);
     };
-    this.spin.setEnabled(false);
+    this.disc.setEnabled(false);
   }
 
   update(at: Vector3, ground: number, open: boolean, dt: number): void {
@@ -204,7 +206,9 @@ export class Storm implements Rise {
       this.spin.position.set(at.x, ground + 0.05, at.z);
       this.roll.position.copyFrom(this.spin.position);
     }
-    this.spin.setEnabled(this.open > 0);
+    // The frames the gale blows in stay enabled: the scene draws a particle system only while its
+    // emitter is, and a stopped one still has its last particles to live out.
+    this.disc.setEnabled(this.open > 0);
     this.spin.rotation.y += dt * PLUS_TURN;
     this.roll.rotation.y -= dt * FOG_TURN;
     this.material.alpha = POOL_ALPHA * this.open;
@@ -214,17 +218,12 @@ export class Storm implements Rise {
       this.staticAt = 0;
       this.paint();
     }
-    if (open && !this.plusses.isStarted()) {
-      this.plusses.start();
-      this.fog.start();
-      this.column.start();
-      this.shroud.start();
-    }
-    if (!open && this.plusses.isStarted()) {
-      this.plusses.stop();
-      this.fog.stop();
-      this.column.stop();
-      this.shroud.stop();
+    if (open !== this.blowing) {
+      this.blowing = open;
+      for (const system of [this.plusses, this.fog, this.column, this.shroud]) {
+        if (open) system.start();
+        else system.stop();
+      }
     }
   }
 
