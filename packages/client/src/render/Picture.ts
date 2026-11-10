@@ -42,14 +42,15 @@ const RETRY_MS = 60000; // after a step finer fails, how long before trying agai
 const RETRY_MAX_MS = 8 * 60000; // and never longer: a machine that can't go finer is tried this often for good
 const PIXELS_KEY = 'world.pixels';
 const FRAME_RATE_KEY = 'world.fps';
-const CEILING_KEY = 'world.pixels-ceiling'; // the finest size this device survives at
+const CEILING_KEY = 'world.pixels-ceiling'; // a step coarser than the finest size the page has died at here
 const TRIAL_KEY = 'world.pixels-trial'; // the step finer under trial, while the page lives
 
 export class Picture {
   pixels: PixelSize | 'auto' = 'auto';
   frameRate: FrameRate;
   private readonly start: PixelSize;
-  private ceiling: PixelSize = FINEST; // the finest auto tries on this device
+  private pinned: PixelSize = FINEST; // a step coarser than the finest size the page has died at here
+  private memory: PixelSize = FINEST; // the finest a device reporting little memory is trusted with
   private current: PixelSize; // what's drawn now: the choice, or where auto has got to
   private settled: PixelSize; // where auto has got to on this machine, kept through a choice
   private late: boolean[] = [];
@@ -66,14 +67,14 @@ export class Picture {
       typeof navigator.deviceMemory === 'number' &&
       navigator.deviceMemory < LOW_MEMORY_GB
     )
-      this.ceiling = LOW_MEMORY_FINEST;
+      this.memory = LOW_MEMORY_FINEST;
     try {
       const pixels = Number(localStorage.getItem(PIXELS_KEY));
       if (isPixelSize(pixels)) this.pixels = pixels;
       const rate = Number(localStorage.getItem(FRAME_RATE_KEY));
       if (isFrameRate(rate)) this.frameRate = rate;
-      const ceiling = Number(localStorage.getItem(CEILING_KEY));
-      if (isPixelSize(ceiling)) this.ceiling = ceiling;
+      const pinned = Number(localStorage.getItem(CEILING_KEY));
+      if (isPixelSize(pinned)) this.pinned = pinned;
       // A trial still marked is one the page died in: that size is beyond this device.
       const trial = Number(localStorage.getItem(TRIAL_KEY));
       if (isPixelSize(trial)) this.pin(trial);
@@ -98,6 +99,19 @@ export class Picture {
   // CSS pixels per rendered pixel, as drawn now.
   get level(): PixelSize {
     return this.current;
+  }
+
+  // The finest size this device is trusted with, and why no finer: the page has died at the step
+  // finer here, or the device reports too little memory. Null while nothing is held against the
+  // finest there is.
+  get limit(): { size: PixelSize; reason: 'crashed' | 'memory' } | null {
+    if (this.ceiling === FINEST) return null;
+    return { size: this.ceiling, reason: this.pinned >= this.memory ? 'crashed' : 'memory' };
+  }
+
+  // The finest auto tries on this device.
+  private get ceiling(): PixelSize {
+    return coarsest(this.pinned, this.memory);
   }
 
   // The size auto has settled on for this machine (its start until it has judged anything): a
@@ -193,8 +207,8 @@ export class Picture {
     drop(TRIAL_KEY);
     const coarser = beside(PIXEL_SIZES, size, 1);
     if (coarser === undefined) return; // nothing coarser to fall back to
-    this.ceiling = coarsest(this.ceiling, coarser);
-    keep(CEILING_KEY, String(this.ceiling));
+    this.pinned = coarsest(this.pinned, coarser);
+    keep(CEILING_KEY, String(this.pinned));
   }
 }
 
