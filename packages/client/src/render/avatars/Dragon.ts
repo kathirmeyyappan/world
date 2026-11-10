@@ -46,9 +46,11 @@ const JAW_OPEN = 0.8;
 const JAW_EASE = 0.15;
 // The wings: radians each swings up and down about the body from its shoulder, seconds a beat
 // takes, and how much of a beat the last pair is behind the first (the pairs between evenly so).
-const FLAP_LIFT = 0.3;
-const FLAP_SECONDS = 2.8;
-const FLAP_SPREAD = 0.4;
+// The lift is as far as the tips go without touching the floor under a body hovering at
+// MIN_ALTITUDE: a wing reaches 7.7 m from a shoulder 0.64 m under the spine, at size 1.
+const FLAP_LIFT = 0.45;
+const FLAP_SECONDS = 1.6;
+const FLAP_SPREAD = 0.7;
 // The breath: how many times a hand weapon's particles, how many times their size, how much a
 // flame's keep to the middle of the cone, and seconds it keeps pouring after the last tick that
 // said so, over a tick the sim ran without the rider's frame.
