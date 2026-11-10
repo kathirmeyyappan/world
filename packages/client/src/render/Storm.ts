@@ -1,11 +1,10 @@
 // The storm Colgera rises through: a great white pool lying on the ground where it comes up, lit
-// blue round its rim and crawling with static like a screen between channels, with a gale turning
-// over it, pixel "+"s of grey and white whirling round and up and white fog rolling round its
-// edge, and a dense column of white "+"s spiralling up out of the middle round the body, with fog
-// at its foot, so the body is hidden where it comes through the floor; open while any of the body
-// is still down in it, and once the tail is out the pool fades shut and the gale stops blowing,
-// its last "+"s and puffs dying off one by one as they would (dragons.ts `rise`). The ice it
-// leaves on the floor is the sim's (room.ts).
+// blue round its rim and crawling with static like a screen between channels, with ripples
+// spreading out across it from the middle as over water (the portal's, in white) and a gale
+// turning over it, pixel "+"s of grey and white whirling round and up and white fog rolling round
+// its edge; open while any of the body is still down in it, and once the tail is out the pool
+// fades shut and the gale stops blowing, its last "+"s and puffs dying off one by one as they
+// would (dragons.ts `rise`). The ice it leaves on the floor is the sim's (room.ts).
 import {
   Color3,
   Color4,
@@ -21,14 +20,17 @@ import type { Rise } from './avatars/dragons';
 import type { Engine } from './Engine';
 import { perScene } from './perScene';
 import { plusSprites } from './Poof';
+import { rippleAt } from './Portal';
 
 const ACROSS = 40; // metres: wider than the wings
 const FADE = 0.9; // seconds to open or shut
 const POOL = 256; // pixels across the pool's picture
 const GRAIN = 64; // pixels across a tile of static, laid over the pool a few times across
-const STATIC_STEP = 1 / 15; // seconds between the static's frames
+const REPAINT = 1 / 30; // seconds between paintings of the pool: a fresh frame of static, the ripples moved on
 const STATIC_TILES = 4; // tiles of static to cycle through
 const STATIC_LEVEL = 0.4; // how much of the static shows through the white
+const STOPS = 128; // samples across the radius the ripples are painted from
+const RIPPLE = 0.6; // how solid a ripple's band is, near the middle: well over the pool between the bands
 const POOL_ALPHA = 0.5; // how solid the pool is: the floor and the ice on it show through
 const PLUSSES = 360; // "+"s in the air at once
 const PLUS_SECONDS = 2.4;
@@ -39,17 +41,6 @@ const FOG = 40; // puffs of fog at once
 const FOG_SECONDS = 3.2;
 const FOG_TURN = 0.45; // radians a second the fog rolls round
 const FOG_RISE = 0.6; // m/s
-// The column round the body: "+"s born close round the axis, climbing fast and drifting out as
-// they turn with the gale, a spiral widening to the rings' width (7.5 m across) and standing as
-// tall as the body's first stretch out of the floor.
-const COLUMN = 600; // "+"s in it at once
-const COLUMN_SECONDS = 1.5;
-const COLUMN_BORN = { inner: 1.2, outer: 3.2 }; // metres from the axis a "+" is born
-const COLUMN_RISE = 9; // m/s
-const COLUMN_SPREAD = 2.2; // m/s outward
-const SHROUD = 60; // puffs of fog round the foot of the column
-const SHROUD_SECONDS = 2;
-const SHROUD_RADIUS = 5.5; // metres from the axis the puffs are born within
 
 let base: HTMLCanvasElement | null = null; // the pool's white and blue, drawn once for every storm
 let grains: HTMLCanvasElement[] | null = null; // the tiles of static, likewise
@@ -62,11 +53,10 @@ export class Storm implements Rise {
   private readonly picture: DynamicTexture;
   private readonly plusses: ParticleSystem;
   private readonly fog: ParticleSystem;
-  private readonly column: ParticleSystem;
-  private readonly shroud: ParticleSystem;
   private open = 0; // 0 shut to 1 open
   private blowing = false; // the gale's systems started and not yet stopped
-  private staticAt = 0; // seconds since the static last stepped
+  private time = 0; // seconds the pool has been open, the ripples' clock
+  private painted = -Infinity; // the time the pool was last painted at
 
   constructor(engine: Engine, name: string) {
     const scene = engine.scene;
@@ -144,59 +134,6 @@ export class Storm implements Rise {
     this.fog.startDirectionFunction = (_world, direction) => {
       direction.set(0, FOG_RISE * (0.5 + Math.random()), 0);
     };
-    // The column: in the gale's turning frame too, so it spirals, white and light grey only.
-    this.column = new ParticleSystem(`${name}-column`, COLUMN, scene);
-    plusSprites(engine, this.column, 2);
-    this.column.isLocal = true;
-    this.column.emitter = this.spin;
-    this.column.blendMode = ParticleSystem.BLENDMODE_STANDARD;
-    this.column.minSize = 0.8;
-    this.column.maxSize = 1.8;
-    this.column.minLifeTime = COLUMN_SECONDS * 0.7;
-    this.column.maxLifeTime = COLUMN_SECONDS;
-    this.column.emitRate = COLUMN / COLUMN_SECONDS;
-    this.column.color1 = new Color4(1, 1, 1, 1);
-    this.column.color2 = new Color4(1, 1, 1, 1);
-    this.column.colorDead = new Color4(1, 1, 1, 1);
-    this.column.minAngularSpeed = -5;
-    this.column.maxAngularSpeed = 5;
-    this.column.startPositionFunction = (_world, position) => {
-      const a = Math.random() * 2 * Math.PI;
-      const r = COLUMN_BORN.inner + Math.random() * (COLUMN_BORN.outer - COLUMN_BORN.inner);
-      position.set(Math.cos(a) * r, Math.random() * 1.5, Math.sin(a) * r);
-    };
-    this.column.startDirectionFunction = (_world, direction, particle) => {
-      const r = Math.hypot(particle.position.x, particle.position.z) || 1;
-      direction.set(
-        (particle.position.x / r) * COLUMN_SPREAD,
-        COLUMN_RISE * (0.75 + Math.random() * 0.5),
-        (particle.position.z / r) * COLUMN_SPREAD,
-      );
-    };
-    // The shroud: fog round the column's foot, where the body comes through the floor.
-    this.shroud = new ParticleSystem(`${name}-shroud`, SHROUD, scene);
-    this.shroud.particleTexture = puffTexture(engine.scene);
-    this.shroud.isLocal = true;
-    this.shroud.emitter = this.roll;
-    this.shroud.blendMode = ParticleSystem.BLENDMODE_STANDARD;
-    this.shroud.minSize = 4;
-    this.shroud.maxSize = 7;
-    this.shroud.minLifeTime = SHROUD_SECONDS * 0.7;
-    this.shroud.maxLifeTime = SHROUD_SECONDS;
-    this.shroud.emitRate = SHROUD / SHROUD_SECONDS;
-    this.shroud.color1 = new Color4(1, 1, 1, 0.6);
-    this.shroud.color2 = new Color4(0.92, 0.96, 1, 0.45);
-    this.shroud.colorDead = new Color4(1, 1, 1, 0);
-    this.shroud.minAngularSpeed = -0.4;
-    this.shroud.maxAngularSpeed = 0.4;
-    this.shroud.startPositionFunction = (_world, position) => {
-      const a = Math.random() * 2 * Math.PI;
-      const r = SHROUD_RADIUS * Math.sqrt(Math.random());
-      position.set(Math.cos(a) * r, Math.random() * 2, Math.sin(a) * r);
-    };
-    this.shroud.startDirectionFunction = (_world, direction) => {
-      direction.set(0, 1 + Math.random() * 1.5, 0);
-    };
     this.disc.setEnabled(false);
   }
 
@@ -213,22 +150,23 @@ export class Storm implements Rise {
     this.roll.rotation.y -= dt * FOG_TURN;
     this.material.alpha = POOL_ALPHA * this.open;
     this.disc.scaling.setAll(0.7 + 0.3 * this.open);
-    this.staticAt += dt;
-    if (this.open > 0 && this.staticAt >= STATIC_STEP) {
-      this.staticAt = 0;
-      this.paint();
+    if (this.open > 0) {
+      this.time += dt;
+      if (this.time - this.painted >= REPAINT) this.paint();
     }
     if (open !== this.blowing) {
       this.blowing = open;
-      for (const system of [this.plusses, this.fog, this.column, this.shroud]) {
+      for (const system of [this.plusses, this.fog]) {
         if (open) system.start();
         else system.stop();
       }
     }
   }
 
-  // The pool's picture: its white and blue, with a fresh frame of static laid over it.
+  // The pool's picture at this moment: its white and blue, a fresh frame of static laid over it,
+  // and the ripples over that, each a thin band of white moving outward and fading as it goes.
   private paint(): void {
+    this.painted = this.time;
     const ctx = this.picture.getContext() as CanvasRenderingContext2D;
     const tiles = (grains ??= Array.from({ length: STATIC_TILES }, grainTile));
     ctx.clearRect(0, 0, POOL, POOL);
@@ -243,14 +181,19 @@ export class Storm implements Rise {
       ctx.fillRect(-GRAIN, -GRAIN, POOL + GRAIN, POOL + GRAIN);
     }
     ctx.restore();
+    const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
+    for (let i = 0; i <= STOPS; i++) {
+      const r = i / STOPS;
+      g.addColorStop(r, `rgba(255,255,255,${(RIPPLE * rippleAt(r, this.time)).toFixed(3)})`);
+    }
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, POOL, POOL);
     this.picture.update();
   }
 
   dispose(): void {
     this.plusses.dispose(); // its own sheet of "+"s with it
     this.fog.dispose(false); // not the puff: every storm's
-    this.column.dispose(); // its own sheet of "+"s with it
-    this.shroud.dispose(false);
     this.disc.dispose();
     this.material.dispose();
     this.picture.dispose();
@@ -259,16 +202,17 @@ export class Storm implements Rise {
   }
 }
 
-// The pool: pale in the middle, through blue to deep blue at the rim, and gone just past it.
+// The pool between the ripples: pale in the middle, through blue to deep blue at the rim, and gone
+// just past it, thin enough that a ripple's band stands out over it.
 function poolPicture(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = POOL;
   const ctx = canvas.getContext('2d')!;
   const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
-  g.addColorStop(0, 'rgba(226,238,255,0.9)');
-  g.addColorStop(0.55, 'rgba(206,228,255,0.9)');
-  g.addColorStop(0.8, 'rgba(140,195,255,0.88)');
-  g.addColorStop(0.93, 'rgba(70,150,255,0.7)');
+  g.addColorStop(0, 'rgba(226,238,255,0.5)');
+  g.addColorStop(0.55, 'rgba(206,228,255,0.5)');
+  g.addColorStop(0.8, 'rgba(140,195,255,0.5)');
+  g.addColorStop(0.93, 'rgba(70,150,255,0.42)');
   g.addColorStop(1, 'rgba(50,130,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, POOL, POOL);

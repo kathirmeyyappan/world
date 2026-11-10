@@ -418,9 +418,8 @@ A new look in a class is a row in `AVATARS` (with `item` for one that comes with
 life of its own), and for a dragon its shape there and a row in the client's `DRAGONS`
 (`render/avatars/dragons.ts`): the model it's drawn from, what it rises out of the ground through
 (the light dragon's portal of gold light, `render/Portal.ts`; Colgera's storm, `render/Storm.ts`,
-a wide white pool lit blue at its rim and crawling with static, with a gale of grey and white "+"s
-and white fog whirling over it, and a dense column of white "+"s spiralling up round the body
-with fog at its foot, hiding the body where it comes through the floor), and
+a wide white pool lit blue at its rim, crawling with static and rippling outward like the portal,
+with a gale of grey and white "+"s and white fog whirling over it), and
 the wave down its body (`Wave`, in metres of body: the spine's points ride it, so a body of rigid
 pieces tilts along it joint by joint and a skinned one bends); with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars by action and
 the cry it rises with, each a `Call` with a take heard up close and, where the rip has one, a take

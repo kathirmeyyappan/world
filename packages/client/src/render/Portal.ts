@@ -67,13 +67,11 @@ export class Portal implements Rise {
     this.painted = this.time;
     const ctx = this.picture.getContext() as CanvasRenderingContext2D;
     const g = ctx.createRadialGradient(PIXELS / 2, PIXELS / 2, 0, PIXELS / 2, PIXELS / 2, PIXELS / 2);
-    const phase = this.time / RIPPLE_SECONDS;
     for (let i = 0; i <= STOPS; i++) {
       const r = i / STOPS;
       const toRim = 1 - r;
       const glow = GLOW * Math.pow(toRim, 1.4);
-      const crest = Math.max(0, Math.cos(2 * Math.PI * (r * RINGS - phase)));
-      const ripple = RIPPLE * Math.pow(crest, RIPPLE_SHARPNESS) * Math.pow(toRim, 1.5) * Math.min(1, r / BORN);
+      const ripple = RIPPLE * rippleAt(r, this.time);
       const light = Math.min(1, glow + ripple);
       g.addColorStop(
         r,
@@ -92,4 +90,11 @@ export class Portal implements Rise {
     this.material.dispose();
     this.picture.dispose();
   }
+}
+
+// How much of a ripple's band lies at `r` of the radius, `time` seconds into the rippling: the
+// bands move outward, each growing in over BORN from the middle and fading as it nears the rim.
+export function rippleAt(r: number, time: number): number {
+  const crest = Math.max(0, Math.cos(2 * Math.PI * (r * RINGS - time / RIPPLE_SECONDS)));
+  return Math.pow(crest, RIPPLE_SHARPNESS) * Math.pow(1 - r, 1.5) * Math.min(1, r / BORN);
 }
