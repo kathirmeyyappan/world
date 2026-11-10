@@ -25,6 +25,10 @@ export type FrameRate = (typeof FRAME_RATES)[number];
 const AUTO_START: PixelSize = 1.5;
 const TOUCH_START: PixelSize = 2.5;
 const FINEST: PixelSize = 1;
+// A phone that says it has little memory keeps to the coarse sizes; one that says nothing (Safari
+// never does) is tried like any other.
+const LOW_MEMORY_GB = 4;
+const LOW_MEMORY_FINEST: PixelSize = 2;
 const FRAME_RATE: FrameRate = 60;
 const TOUCH_FRAME_RATE: FrameRate = 45;
 const STARTUP_MS = 6000; // the world is still streaming in: its hitches say nothing about the machine
@@ -56,6 +60,13 @@ export class Picture {
 
   constructor(touch: boolean, now: number) {
     this.frameRate = touch ? TOUCH_FRAME_RATE : FRAME_RATE;
+    if (
+      touch &&
+      'deviceMemory' in navigator &&
+      typeof navigator.deviceMemory === 'number' &&
+      navigator.deviceMemory < LOW_MEMORY_GB
+    )
+      this.ceiling = LOW_MEMORY_FINEST;
     try {
       const pixels = Number(localStorage.getItem(PIXELS_KEY));
       if (isPixelSize(pixels)) this.pixels = pixels;
