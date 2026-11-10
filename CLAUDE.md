@@ -544,7 +544,9 @@ tab killed in the trial of a step finer, which a marker written before the step 
 clean unload tells the next load) is pinned off for the device in localStorage, a step coarser
 than it being the finest auto tries from then on, since memory gives out at the resize, before
 any frame is timed. A size chosen finer than where auto has got to (`Picture.autoLevel`) gets a warning under the
-row that the game might crash, and auto taken up again starts from there. Fill is what this game
+row that the game might crash, one finer than the device is trusted with (`Picture.limit`) that it
+has crashed there or that the device's memory is too little, and auto taken up again starts from
+where it had got to. Fill is what this game
 spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of the pixel size, so
 2 is a quarter of the cost of 1.
 

@@ -209,8 +209,16 @@ function picture(picture: Picture): Section {
           on: auto,
           press: () => picture.setPixels('auto'),
         },
-        // Finer than auto has seen this machine keep up with: the fill may be more than its tab survives.
-        hint: () => (picture.level < picture.autoLevel ? 'AT THIS SIZE THE GAME MIGHT CRASH' : null),
+        // Finer than the device is trusted with (it has died there, or says its memory is too little),
+        // or than auto has seen this machine keep up with: the fill may be more than its tab survives.
+        hint: () => {
+          const limit = picture.limit;
+          if (limit && picture.level < limit.size)
+            return limit.reason === 'crashed'
+              ? 'THE GAME HAS CRASHED AT THIS SIZE ON THIS DEVICE'
+              : 'THIS DEVICE HAS TOO LITTLE MEMORY FOR THIS SIZE';
+          return picture.level < picture.autoLevel ? 'AT THIS SIZE THE GAME MIGHT CRASH' : null;
+        },
       },
       {
         kind: 'stepper',
