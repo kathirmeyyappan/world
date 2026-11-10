@@ -438,7 +438,7 @@ has to know it exists, except the client's `createAvatar` for how it's drawn and
 (`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model
 puts a bone at the eyes, one wherever it needs on the spine (`along` metres behind the eyes) and
 one hung on another for a part that moves on its own (the jaw; a wing, hung at its shoulder and
-listed in `wings`, which the renderer beats slowly, each pair behind the one before), and the
+listed in `wings`, which the renderer beats, each pair behind the one before), and the
 renderer carries each along the spine the sim moves; the pieces that go with a weak point (`DragonModel.weak`, a ring's
 crown of spikes, the crystal plate in its hollow and the ice sealing the hollow over and under it,
 drawn translucent so the crystal glows through) are hidden once the sim says it's shattered,
