@@ -1859,6 +1859,15 @@ body {
   #area-title {
     top: 176px;
   }
+  /* Too narrow for the fuel bar to clear FIRE where it hangs: it lies along the bottom instead,
+     between the pad and the buttons (a step right of the middle, the pad's side being the wider). */
+  #fuel {
+    bottom: 26px;
+    left: calc(50% + 14px);
+    width: calc(100vw - 268px);
+    max-width: 160px;
+    height: 10px;
+  }
   /* Small enough for each of the nudge's lines to stay on one row. */
   #command-hint .text {
     font-size: 13px;
