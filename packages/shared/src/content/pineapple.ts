@@ -614,6 +614,72 @@ const chimney = (): Structure[] => {
   return pieces;
 };
 
+// The portholes in the shell (the model's, in the trim): rings standing out of the skin on a
+// level axis out from the house's, each with its glass sunk in the hole, measured off the trim mesh
+// in the house's frame: [x, y, z of the hole's middle (metres, y over the house's floor), the
+// hole's radius, the ring's outer radius, how far its face stands out along the axis from that
+// middle, and how far its glass]. Each is hidden slabs PORTHOLE_SLAB tall across it, level as the
+// axis is: the ring either side of the hole, solid across the hole only behind the glass, so the
+// hole's bottom is a sill to stand in and the ring's top a perch. Each piece runs back from the
+// face to the skin at its outer corner, PORTHOLE_PIECE across at most so it never reaches past the
+// seal behind the skin.
+const PORTHOLES: readonly (readonly [number, number, number, number, number, number, number])[] = [
+  [17.6, 37.55, -6.34, 2.55, 4.72, 1.9, -0.23],
+  [11.48, 26.98, 17.51, 2.63, 4.77, 1.25, -0.52],
+  [-13.41, 11.83, 15.84, 2.72, 4.72, 1.13, -0.56],
+];
+const PORTHOLE_SLAB = 0.25;
+const PORTHOLE_PIECE = 1;
+const porthole = ([cx, cy, cz, hole, outer, face, glass]: (typeof PORTHOLES)[number]): Box[] => {
+  const out = Math.hypot(cx, cz); // metres from the house's axis to the hole's middle
+  const ax = cx / out;
+  const az = cz / out;
+  const yaw = YAW + Math.atan2(ax, az);
+  const slabs = Math.ceil((2 * outer) / PORTHOLE_SLAB);
+  const tall = (2 * outer) / slabs;
+  const pieces: Box[] = [];
+  for (let k = 0; k < slabs; k++) {
+    const bottom = -outer + k * tall;
+    const middle = bottom + tall / 2;
+    const ring = Math.sqrt(Math.max(outer * outer - middle * middle, 0));
+    const gap = Math.abs(middle) < hole ? Math.sqrt(hole * hole - middle * middle) : 0;
+    // The slab's spans across the axis (metres to the right as seen from outside) and how far out
+    // each comes: the ring to its face, the hole to its glass.
+    const spans: [number, number, number][] =
+      gap > 0
+        ? [
+            [-ring, -gap, face],
+            [-gap, gap, glass],
+            [gap, ring, face],
+          ]
+        : [[-ring, ring, face]];
+    const skinHere = Math.min(skin(cy + bottom), skin(cy + bottom + tall));
+    for (const [from, to, front] of spans) {
+      const count = Math.ceil((to - from) / PORTHOLE_PIECE);
+      for (let i = 0; i < count; i++) {
+        const a = from + ((to - from) * i) / count;
+        const b = from + ((to - from) * (i + 1)) / count;
+        const far = Math.max(Math.abs(a), Math.abs(b));
+        const back = Math.sqrt(Math.max(skinHere * skinHere - far * far, 0)) - out;
+        if (back >= front) continue;
+        const across = (a + b) / 2;
+        const along = (back + front) / 2;
+        pieces.push({
+          kind: 'box',
+          ...placed(cx + ax * along - az * across, cz + az * along + ax * across),
+          y: DUNE_HEIGHT + cy + bottom,
+          yaw,
+          w: b - a + 0.02,
+          d: front - back,
+          h: tall,
+          hidden: true,
+        });
+      }
+    }
+  }
+  return pieces;
+};
+
 export const PINEAPPLE_HOUSE: Structure[] = [
   dune,
   hatchLadder,
@@ -626,4 +692,5 @@ export const PINEAPPLE_HOUSE: Structure[] = [
   ...PINEAPPLE_DOORS.flatMap((d) => doorPieces(d)),
   ...flights,
   ...chimney(),
+  ...PORTHOLES.flatMap(porthole),
 ];
