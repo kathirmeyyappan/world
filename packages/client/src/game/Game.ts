@@ -358,7 +358,8 @@ export class Game {
     if (held) {
       const spec = ITEMS[held.id];
       const shoot = spec.actions.shoot;
-      const key = !!shoot && (this.input.isDown(shoot.key) || this.input.wasPressed(shoot.key));
+      const code = shoot?.key ?? null;
+      const key = code !== null && (this.input.isDown(code) || this.input.wasPressed(code));
       if (shoot && (key || this.mouseFiring)) actions.push('shoot');
       if (spec.actions.scope && this.scoped) actions.push('scope');
     }
@@ -368,10 +369,11 @@ export class Game {
     const self = this.prediction?.state;
     if (self?.gear)
       for (const [action, spec] of Object.entries(GEAR[self.gear.id].actions))
-        if (this.input.isDown(spec.key)) actions.push(action as ItemAction);
+        if (spec.key !== null && this.input.isDown(spec.key)) actions.push(action as ItemAction);
     if (self)
       for (const [action, spec] of Object.entries(classOf(self.avatar).actions))
-        if (this.input.isDown(spec.key) || this.input.wasPressed(spec.key)) actions.push(action as ItemAction);
+        if (spec.key !== null && (this.input.isDown(spec.key) || this.input.wasPressed(spec.key)))
+          actions.push(action as ItemAction);
     // On a ladder A and D go round to its other face, by its left and by its right; the touch SWAP
     // button goes by its left.
     if (self?.climb) {
@@ -780,7 +782,7 @@ export class Game {
     const showHint = held && !this.dead;
     this.hud.setItemHint(
       showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
-      held ? itemStats(held.id) : '',
+      held && !ITEMS[held.id].own ? itemStats(held.id) : '',
       showHint ? held.id : '',
       held ? ITEMS[held.id].element : null,
     );
@@ -1064,12 +1066,13 @@ export class Game {
   }
 }
 
-// The hint bar's text. A scope-only weapon leads with the step that's missing; a class with
-// actions of its own (a dragon's roars) has them after the item's.
+// The hint bar's text. A look's own weapon (a dragon's breath) is its name alone: a click fires it
+// as anywhere, and the look's keys are in the legend. A scope-only weapon leads with the step
+// that's missing; a class with actions of its own has them after the item's.
 function itemHint(id: ItemId, withKeys: boolean, scoped: boolean, cls: ClassSpec): string {
   const parts = [ITEMS[id].name.toUpperCase()];
-  if (ITEMS[id].fireNeedsScope && !scoped)
-    parts.push(withKeys ? 'F to scope, then K or click to shoot' : 'scope to shoot');
+  if (ITEMS[id].own) return parts[0];
+  if (ITEMS[id].fireNeedsScope && !scoped) parts.push(withKeys ? 'F to scope, then click to shoot' : 'scope to shoot');
   else if (withKeys) parts.push(itemHelp(id, ' · '));
   const own = withKeys ? actionHelp(cls.actions) : '';
   if (own) parts.push(own);

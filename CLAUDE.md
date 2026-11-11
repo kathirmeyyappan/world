@@ -462,7 +462,8 @@ The helpers the model scripts share (reading a GLB, decimating, packing an atlas
 ## Weapons
 
 A weapon is a row in `ITEMS` (`packages/shared/src/sim/items.ts`: range, damage, cooldown, its
-actions and their keys, the shape of its fire, its `element` and its tank), a shape in the client's
+actions and their keys (a shot has none: it's a click, or the touch FIRE button), the shape of its
+fire, its `element` and its tank), a shape in the client's
 `render/Weapons.ts`, and a sound in `audio/Sfx.ts` (`ITEM_SOUNDS`). A hold weapon with an element
 gets its tank on the back and its jet at the nozzle from that alone, on every avatar and in the
 viewmodel (`render/Jet.ts`: blocks of fire, or for ice the "+" crystals of a corpse's poof, drawn as
