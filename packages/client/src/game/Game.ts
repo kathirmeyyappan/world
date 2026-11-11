@@ -78,11 +78,18 @@ import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 import { Menu, toggleFullscreen } from '../ui/menu/Menu';
+import { rideGround } from './ride';
 import { VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
 
 const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
-const STEP_EASE_HALF_LIFE = 0.05; // seconds for the camera to catch up with a step up or down
+// Seconds for the camera to catch up when it goes from riding the ground (ride.ts) to following the
+// body through the air, or back.
+const STEP_EASE_HALF_LIFE = 0.05;
+// The nearest the camera draws, in metres: NEAR, or for eyes so low that its corners would reach
+// past the floor under them, NEAR_SHARE of their height (Plankton's).
+const NEAR = 0.1;
+const NEAR_SHARE = 0.2;
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
@@ -182,7 +189,10 @@ export class Game {
   private mouseWasHeld = false;
   private localCooldownUntil = 0; // when the viewmodel may kick again; mirrors the server's cooldown
   private kick = 0; // camera recoil, radians of upward pitch that decays back
-  private stepEase = 0; // metres the camera trails the predicted eye height after a step
+  private stepEase = 0; // metres the camera trails the predicted eye height after leaving the ground or landing
+  private riding: number | null = null; // metres the camera's ground is over the sim's feet while it rides the ground
+  private walkDir = { x: 0, z: 1 }; // the way the body last moved across the floor, for the ride
+  private lastPos: { x: number; z: number } | null = null;
   private hoveredSky: SkyObject | null = null;
   private hoveredFrame: HungFrame | null = null;
   private readonly sfx = new Sfx();
@@ -213,7 +223,7 @@ export class Game {
     preloadAvatars(this.engine);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
-    this.camera.minZ = 0.1;
+    this.camera.minZ = NEAR;
     this.camera.fov = VIEWS.walker.fov;
     this.engine.scene.activeCamera = this.camera;
     this.viewmodel = new Viewmodel(this.engine, this.camera);
@@ -721,7 +731,7 @@ export class Game {
       frame.pitch = this.aim.pitch;
       frame.use = this.useDoor;
       this.useDoor = null;
-      this.stepEase -= this.prediction.apply(frame);
+      this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
 
@@ -730,7 +740,7 @@ export class Game {
     this.stepEase *= Math.pow(0.5, dt / STEP_EASE_HALF_LIFE);
     const self = this.prediction.state;
     const p = self.pos;
-    const eye = new Vector3(p.x + this.correction.x, p.y + this.correction.y + this.stepEase, p.z + this.correction.z);
+    const eye = new Vector3(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
     // The camera sits at the avatar's own eyes with its own width of view, easing there when the
     // look changes, and never up through a lintel or ceiling the body fits under.
     const worn = statureOf(self.avatar);
@@ -752,6 +762,22 @@ export class Game {
       this.setScoped(false);
     }
     const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
+    this.camera.minZ = Math.min(NEAR, this.stature * EYE_HEIGHT * NEAR_SHARE);
+    // On its feet, the camera rides the ground (ride.ts) rather than the sim's feet; a change
+    // between the two is eased like a step.
+    if (this.lastPos) {
+      const dx = p.x - this.lastPos.x;
+      const dz = p.z - this.lastPos.z;
+      const moved = Math.hypot(dx, dz);
+      if (moved > 1e-4 && moved < SNAP_DISTANCE) this.walkDir = { x: dx / moved, z: dz / moved };
+    }
+    this.lastPos = { x: p.x, z: p.z };
+    const feet = p.y - EYE_HEIGHT;
+    const rides = cls === 'walker' && !this.dead && !self.climb && isGrounded(self);
+    const riding = rides ? rideGround(WORLD_STRUCTURES, p.x, p.z, this.walkDir, feet) - feet : null;
+    if ((this.riding === null) !== (riding === null)) this.stepEase += (this.riding ?? 0) - (riding ?? 0);
+    this.riding = riding;
+    const above = lift + (riding ?? 0) + this.stepEase; // metres the camera's eyes are over the body's eye point
     if (!this.scoped) this.camera.fov = this.wornFov();
     // The bob follows the feet's own walk, so it fades out against a wall and stops in the air,
     // down the scope and in death; its dip is deepest as each step lands.
@@ -759,8 +785,8 @@ export class Game {
     this.bobbing += (walking - this.bobbing) * Math.min(1, dt / BOB_EASE);
     const dip =
       ((BOB * this.stature * this.bobbing) / 2) * (1 + Math.cos(2 * Math.PI * this.footsteps.phase(this.myId)));
-    const room = lift > 0 ? Math.max(eye.y, WORLD_STRUCTURES.ceilingAt(eye.x, eye.z, eye.y) - CEILING_GAP) : Infinity;
-    const eyes = new Vector3(eye.x, Math.min(eye.y + lift, room), eye.z);
+    const room = above > 0 ? Math.max(eye.y, WORLD_STRUCTURES.ceilingAt(eye.x, eye.z, eye.y) - CEILING_GAP) : Infinity;
+    const eyes = new Vector3(eye.x, Math.min(eye.y + above, room), eye.z);
     this.view.place(
       this.camera,
       eyes,
