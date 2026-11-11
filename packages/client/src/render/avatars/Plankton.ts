@@ -15,5 +15,5 @@ export const PLANKTON: BodySpec = {
   bob: 0.006,
   follow: 0.3,
   // The guns and packs were made for a person, a dozen times his height.
-  itemScale: { weapons: 0.12, packs: 0.1 },
+  itemScale: { weapons: 0.12, packs: 0.06 },
 };
