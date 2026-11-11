@@ -95,6 +95,9 @@ const FOV_SHRINK = 0.15;
 // in proportion to its stature, and in step with the footstep sounds. Small, so the view never
 // swims and the crosshair stays where it was.
 const BOB = 0.02;
+// The furthest the third-person shoulder sits out to the side, as a share of the boom's length
+// behind the eyes: any further and a tiny body, its camera close behind it, is off the screen.
+const SHOULDER_REACH = 0.6;
 const BOB_EASE = 0.15; // seconds the bob takes to come and go with the walk
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const FRAME_RANGE = 40; // metres from a frame you can read its line: the tower's width, wall to wall
@@ -462,8 +465,11 @@ export class Game {
     const avatar = this.prediction!.state.avatar;
     const boom = boomOf(avatar);
     const scale = classOf(avatar).id === 'walker' ? (this.stature ?? 1) : 1;
-    // A small body is no narrower across the shoulders than its gun arm reaches.
-    const scaled = { back: boom.back * scale, right: boom.right * Math.max(1, scale), up: boom.up * scale };
+    // A small body is no narrower across the shoulders than its gun arm reaches, and a tiny one's
+    // shoulder no further out than SHOULDER_REACH of the boom, so the body stays on screen.
+    const back = boom.back * scale;
+    const right = Math.min(boom.right * Math.max(1, scale), back * SHOULDER_REACH);
+    const scaled = { back, right, up: boom.up * scale };
     return screenBoom(scaled, this.wornFov(), this.aspect());
   }
 

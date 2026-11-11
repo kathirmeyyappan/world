@@ -21,6 +21,7 @@ export type AvatarId =
   | 'krabs'
   | 'squidward'
   | 'gary'
+  | 'plankton'
   | 'light-dragon'
   | 'colgera';
 
@@ -168,6 +169,17 @@ const LOOKS = {
     command: 'gary',
     eye: 0.5, // his eyes, on stalks at the front of his body
     hitbox: { top: 0.65, radius: 0.4, head: 0.2 }, // a 0.63 m snail, 0.75 m from shell to eyes, with the eyes as the head
+  },
+  plankton: {
+    id: 'plankton',
+    class: 'walker',
+    item: null,
+    regen: false,
+    nameTag: 'PLANKTON',
+    blurb: 'become plankton',
+    command: 'plankton',
+    eye: 0.135, // his one eye, in the middle of his face
+    hitbox: { top: 0.28, radius: 0.06, head: 0.19 }, // 0.28 m to his antennae's tips, 0.07 m across: the head is everything from the mouth up
   },
   'light-dragon': {
     id: 'light-dragon',

@@ -41,6 +41,10 @@ const HORIZON_FADE = 0.12;
 const WALKER_STAGE = 2.6;
 const WALKER_HEADROOM = 1.3; // the stage this many times the body's height across
 const WALKER_VIEW = 1.7;
+// A body under SMALL_BODY metres (Plankton) would be a speck on the smallest stage, so it gets
+// a stage SMALL_HEADROOM times its height across, a fraction of one of the floor's metre squares.
+const SMALL_BODY = 0.5;
+const SMALL_HEADROOM = 1.5;
 // A dragon's, in its head's radius: it hovers HOVER radii up over a stage STAGE radii across.
 const DRAGON_HOVER = 2.2;
 const DRAGON_STAGE = 6;
@@ -257,7 +261,8 @@ function stageOf(kind: AvatarId): Stage {
     return { size, centre: new Vector3(0, r * DRAGON_HOVER, 0), radius: size * DRAGON_VIEW };
   }
   const { top } = AVATARS[kind].hitbox;
-  const size = Math.ceil(Math.max(WALKER_STAGE, top * WALKER_HEADROOM) / CELL) * CELL;
+  const size =
+    top < SMALL_BODY ? top * SMALL_HEADROOM : Math.ceil(Math.max(WALKER_STAGE, top * WALKER_HEADROOM) / CELL) * CELL;
   return { size, centre: new Vector3(0, top / 2, 0), radius: size * WALKER_VIEW };
 }
 

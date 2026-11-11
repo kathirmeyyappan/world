@@ -114,6 +114,14 @@ def pack_atlas(
     for m, mat in enumerate(doc["materials"]):
         texture = mat.get("pbrMetallicRoughness", {}).get("baseColorTexture", {}).get("index")
         if texture is None:
+            # An older export's colour is its specular-glossiness diffuse instead.
+            texture = (
+                mat.get("extensions", {})
+                .get("KHR_materials_pbrSpecularGlossiness", {})
+                .get("diffuseTexture", {})
+                .get("index")
+            )
+        if texture is None:
             vertices = np.flatnonzero(material == m)
             if len(vertices) == 0:
                 continue
