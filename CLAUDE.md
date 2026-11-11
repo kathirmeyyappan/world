@@ -164,8 +164,8 @@ away from is climbed. A walker holding forward (W) within
 `LADDER_REACH` of a face, between the rails, facing it, takes hold (`walker.ts` `takeHold`,
 `PlayerState.climb`: the piece and the face, ±1) and climbs at `CLIMB_SPEED` on W and S, nothing
 pulling it down; one holding back (S) beside a ladder's top (its feet up to `OVER_TOP` under it, so
-from the floor beyond a rail it tops out at), looking away, backs onto it by its far face to climb
-down: holding up at the top steps it over onto whatever is beyond the ladder there (so
+from the floor beyond a rail it tops out at), looking away, backs onto it by its far face a body's
+height down it (so the first steps up don't step it straight back over), to climb down: holding up at the top steps it over onto whatever is beyond the ladder there (so
 the library's ladder, against the hatch platform's rail, tops out at the rail's top and lands you
 on the rail), holding down at the foot, or onto anything under the feet, steps it off, a jump is
 straight up and off (hold forward on the way down to take hold again), and A or D (the `swap-left`

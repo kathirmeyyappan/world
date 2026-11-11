@@ -78,7 +78,7 @@ export function stepWalker(
   if (input && input.my !== 0 && !p.dead && p.vy <= 0) {
     const backing = input.my < 0;
     const hold = structures.ladderAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT, p.yaw, backing);
-    if (hold && takeHold(p, backing ? { ...hold, side: flipped(hold.side) } : hold, structures, !backing))
+    if (hold && takeHold(p, backing ? { ...hold, side: flipped(hold.side) } : hold, structures, backing))
       return climb(p, input, dt, structures);
   }
   if (input?.jump && grounded && !p.dead && !p.scoped) {
@@ -172,19 +172,24 @@ export function stepWalker(
 
 // Takes hold of a ladder by the face a walker faces, or by the other face through it where there's
 // no room for a body on that one (a rail at a ladder's top): the body comes to stand off the face,
-// between the rails, still. False with no room on either, or on that face alone without `eitherFace`.
+// between the rails, still. Backing onto it over its top takes that face alone, a body's height down
+// it (no lower than its foot), so the first rungs up don't step straight back over the top. False
+// with no room.
 function takeHold(
   p: PlayerState,
   hold: { piece: number; side: 1 | -1 },
   structures: Structures,
-  eitherFace = true,
+  backing = false,
 ): boolean {
-  const feet = p.pos.y - EYE_HEIGHT;
-  for (const side of eitherFace ? [hold.side, flipped(hold.side)] : [hold.side]) {
+  const height = EYE_HEIGHT + CAPSULE_TOP;
+  const { base, top } = structures.ladderSpan(hold.piece);
+  const feet = backing ? Math.max(base, top - height) : p.pos.y - EYE_HEIGHT;
+  for (const side of backing ? [hold.side] : [hold.side, flipped(hold.side)]) {
     const spot = structures.ladderSpot(hold.piece, side, feet);
-    if (!structures.fits(spot.x, spot.z, feet, EYE_HEIGHT + CAPSULE_TOP, PLAYER_RADIUS)) continue;
+    if (!structures.fits(spot.x, spot.z, feet, height, PLAYER_RADIUS)) continue;
     p.climb = { piece: hold.piece, side, way: 1 };
     p.pos.x = spot.x;
+    p.pos.y = feet + EYE_HEIGHT;
     p.pos.z = spot.z;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
