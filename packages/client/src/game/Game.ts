@@ -89,7 +89,7 @@ const STEP_EASE_HALF_LIFE = 0.05;
 // The nearest the camera draws, in metres: NEAR, or for eyes so low that its corners would reach
 // past the floor under them, NEAR_SHARE of their height (Plankton's).
 const NEAR = 0.1;
-const NEAR_SHARE = 0.3;
+const NEAR_SHARE = 0.2;
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
