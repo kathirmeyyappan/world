@@ -367,8 +367,10 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
     !face(p) && p.pos.z > 1 && Math.abs(p.pos.y - 4 - EYE_HEIGHT) < 1e-6,
     `over the top onto the block at z ${p.pos.z}`,
   );
-  // Backing onto it from the block, holding back while looking away, takes hold of its far face
-  // and climbs down it to the ground.
+  // Backing onto it from the block, holding back while looking away, takes hold of its far face a
+  // body's height under its top, and climbs down it to the ground.
+  for (let i = 0; i < 30 && !face(p); i++) stepPlayer(p, frame(p.lastSeq + 1, { my: -1 }), TICK_DT, WORLD_SHAPE, world);
+  assert.ok(face(p) === -1 && p.pos.y < 4 + EYE_HEIGHT - 1.9, `backed onto it at ${p.pos.y}`);
   for (let i = 0; i < 90; i++) stepPlayer(p, frame(p.lastSeq + 1, { my: -1 }), TICK_DT, WORLD_SHAPE, world);
   assert.ok(!face(p) && p.pos.z < 0 && Math.abs(p.pos.y - EYE_HEIGHT) < 1e-6, `backed down it to z ${p.pos.z}`);
   // A jump is straight up and off it; falling back past it holding forward takes hold again.
