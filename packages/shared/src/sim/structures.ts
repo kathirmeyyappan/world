@@ -174,19 +174,17 @@ export function ladder(
 }
 
 // A ladder at bearing `angle` round (x, z), its rails' middle `r` out, stood with its back (local +z)
-// toward the middle: up the outside of a round wall or the outer edge of a ring. With `outward`
-// its back is away from the middle instead, as up the inner edge of a ring.
+// toward the middle: up the outside of a round wall or the outer edge of a ring.
 export function ringLadder(
   centre: { x: number; z: number },
   r: number,
   angle: number,
   y: number,
   top: number,
-  { outward = false, ...opts }: LadderOptions & { outward?: boolean } = {},
+  opts: LadderOptions = {},
 ): Ladder {
-  const back = outward ? 1 : -1;
   const foot = { x: centre.x + r * Math.cos(angle), z: centre.z + r * Math.sin(angle) };
-  return ladder(foot, y, top, Math.atan2(back * Math.cos(angle), back * Math.sin(angle)), opts);
+  return ladder(foot, y, top, Math.atan2(-Math.cos(angle), -Math.sin(angle)), opts);
 }
 
 // Metres a ladder's top is over from its foot, along its local +z: none upright.

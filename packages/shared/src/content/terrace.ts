@@ -31,16 +31,12 @@ const STAIRCASES = KEEP_GROUNDS.map(({ x, z }) => {
 // Where the outer parapet opens: toward the tower and each keep.
 const ARRIVALS = [ANNEX, ...KEEP_GROUNDS].map(({ x, z }) => Math.atan2(z - Z, x - X));
 
-// Steel ladders from the ground up the deck's edges to the top of their parapets, which a climber
-// steps over onto: two up the inner edge from the open middle and three up the outer edge, between
-// the ways up arriving there.
-const OFF = LADDER_GIRTH / 2 + 0.1; // metres from a deck's edge to a ladder's rails
-const LADDERS = [
-  ...[120, 300].map((a) =>
-    ringLadder({ x: X, z: Z }, INNER - OFF, deg(a), 0, Y + RAIL, { outward: true, material: 'steel' }),
-  ),
-  ...[45, 180, 315].map((a) => ringLadder({ x: X, z: Z }, R + OFF, deg(a), 0, Y + RAIL, { material: 'steel' })),
-];
+// Steel ladders from the ground up the deck's outer edge to the top of its parapet, which a climber
+// steps over onto, between the ways up arriving there.
+const LADDER_R = R + LADDER_GIRTH / 2 + 0.1; // metres from the middle to a ladder's rails
+const LADDERS = [45, 180, 315].map((a) =>
+  ringLadder({ x: X, z: Z }, LADDER_R, deg(a), 0, Y + RAIL, { material: 'steel' }),
+);
 
 export const TERRACE: Structure[] = [
   ...roundFloor({ ...TERRACE_RING, thickness: DECK, material: 'flagstone' }),
