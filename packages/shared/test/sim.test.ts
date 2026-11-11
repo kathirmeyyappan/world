@@ -559,6 +559,11 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   assert.equal(p.dragon, null);
   assert.equal(p.item, null);
   assert.deepEqual(p.pos, eyes);
+  // Another skin on foot is the same life: no heal.
+  p.hearts = 4;
+  becomeAvatar(p, 'sulley');
+  assert.equal(p.hearts, 4);
+  becomeAvatar(p, 'standard');
   fly(p, 60, {});
   assert.equal(p.pos.y, EYE_HEIGHT, 'fell to the floor');
 
