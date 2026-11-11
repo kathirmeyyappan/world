@@ -38,18 +38,23 @@ const balconies: Structure[] = [STOREY, 2 * STOREY, TOP].flatMap((level) => [
   }),
 ]);
 
-// Wooden ladders up the outside, one a storey, each a quarter turn on from the one below so no two
-// make one climb: from the ground and from each balcony up the balconies' outer edge to the top of
-// the next one's parapet (a climber steps over onto it, and on a balcony takes hold over its
-// parapet), and from the top balcony up the wall to the roof, in a gap between merlons clear of
-// the top floor's doors. Each at the middle of a segment of the parapets and the wall.
+// Wooden ladders up the outside, two a storey: a column on the front, either side of the main door,
+// and one on the back, each zigzagging a segment and a half either side of its middle from storey
+// to storey so no two make one climb. From the ground and from each balcony they run up the
+// balconies' outer edge to the top of the next one's parapet (a climber steps over onto it, and
+// on a balcony takes hold over its parapet); from the top balcony up the wall to the roof, in a
+// gap between merlons clear of the top floor's doors and the sky bridge. Each stands at the middle
+// of a segment of the parapets and the wall.
 const EDGE_LADDER_R = OUTER + BALCONY + LADDER_GIRTH / 2 + 0.1;
-const ladders: Structure[] = [
-  ...[52.5, 142.5, 232.5].map((angle, i) =>
-    ringLadder({ x: X, z: Z }, EDGE_LADDER_R, deg(angle), i * STOREY, (i + 1) * STOREY + PARAPET),
-  ),
-  ringLadder({ x: X, z: Z }, WALL_LADDER_R, deg(322.5), TOP, 4 * STOREY + ROOF_WALL),
-];
+const ZIGZAG = 22.5; // degrees either side of a column's middle
+const ladders: Structure[] = [180, 0].flatMap((middle) =>
+  [0, 1, 2, 3].map((i) => {
+    const angle = deg(middle + (i % 2 ? ZIGZAG : -ZIGZAG));
+    return i < 3
+      ? ringLadder({ x: X, z: Z }, EDGE_LADDER_R, angle, i * STOREY, (i + 1) * STOREY + PARAPET)
+      : ringLadder({ x: X, z: Z }, WALL_LADDER_R, angle, TOP, 4 * STOREY + ROOF_WALL);
+  }),
+);
 
 // A low wall along a deck edge, standing on the deck's top at y, from a to b.
 const rail = (a: { x: number; z: number }, b: { x: number; z: number }, y = TOP): Box => ({

@@ -73,10 +73,13 @@ export function stepWalker(
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
   if (p.climb) return climb(p, input, dt, structures);
-  // Holding forward at a ladder's face, on the ground or coming down past it, takes hold of it.
-  if (input && input.my > 0 && !p.dead && p.vy <= 0) {
-    const hold = structures.ladderAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT, p.yaw);
-    if (hold && takeHold(p, hold, structures)) return climb(p, input, dt, structures);
+  // Holding forward at a ladder's face, on the ground or coming down past it, takes hold of it; and
+  // backing onto one from beside its top, holding back, takes hold of its far face, to climb down.
+  if (input && input.my !== 0 && !p.dead && p.vy <= 0) {
+    const backing = input.my < 0;
+    const hold = structures.ladderAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT, p.yaw, backing);
+    if (hold && takeHold(p, backing ? { ...hold, side: flipped(hold.side) } : hold, structures, backing))
+      return climb(p, input, dt, structures);
   }
   if (input?.jump && grounded && !p.dead && !p.scoped) {
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
@@ -169,14 +172,24 @@ export function stepWalker(
 
 // Takes hold of a ladder by the face a walker faces, or by the other face through it where there's
 // no room for a body on that one (a rail at a ladder's top): the body comes to stand off the face,
-// between the rails, still. False with no room on either.
-function takeHold(p: PlayerState, hold: { piece: number; side: 1 | -1 }, structures: Structures): boolean {
-  const feet = p.pos.y - EYE_HEIGHT;
-  for (const side of [hold.side, flipped(hold.side)]) {
+// between the rails, still. Backing onto it over its top takes that face alone, a body's height down
+// it (no lower than its foot), so the first rungs up don't step straight back over the top. False
+// with no room.
+function takeHold(
+  p: PlayerState,
+  hold: { piece: number; side: 1 | -1 },
+  structures: Structures,
+  backing = false,
+): boolean {
+  const height = EYE_HEIGHT + CAPSULE_TOP;
+  const { base, top } = structures.ladderSpan(hold.piece);
+  const feet = backing ? Math.max(base, top - height) : p.pos.y - EYE_HEIGHT;
+  for (const side of backing ? [hold.side] : [hold.side, flipped(hold.side)]) {
     const spot = structures.ladderSpot(hold.piece, side, feet);
-    if (!structures.fits(spot.x, spot.z, feet, EYE_HEIGHT + CAPSULE_TOP, PLAYER_RADIUS)) continue;
+    if (!structures.fits(spot.x, spot.z, feet, height, PLAYER_RADIUS)) continue;
     p.climb = { piece: hold.piece, side, way: 1 };
     p.pos.x = spot.x;
+    p.pos.y = feet + EYE_HEIGHT;
     p.pos.z = spot.z;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;

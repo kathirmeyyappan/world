@@ -25,6 +25,9 @@ const PROBES = [
   [0, -1],
 ];
 const HANDS = 1; // metres above a walker's feet its hands take hold of a ladder's rungs
+// Metres below a ladder's top a walker's feet can be and still back onto it over the top: a ladder
+// topping out at a rail or a parapet stands that much over the floor beyond it.
+const OVER_TOP = 1.2;
 // Metres of a ray tried at a time: the pieces in the grid cells that stretch's box crosses, so a
 // ray through empty cells costs next to nothing and a spray's rays try only what's in front of it.
 const RAY_STRETCH = 4 * CELL;
@@ -238,8 +241,9 @@ export class Structures {
   // one it stands within LADDER_REACH of a face of (where the face is at its feet's height, on a
   // leaning one), between the rails, no higher than its top and with its hands no lower than its
   // foot, looking toward it (within a quarter turn), and the face: the side (±1 along the
-  // ladder's local z) the body is on.
-  ladderAt(x: number, z: number, feet: number, yaw: number): { piece: number; side: 1 | -1 } | null {
+  // ladder's local z) the body is on. `backing` is a walker backing onto a ladder over its top: its
+  // feet within OVER_TOP below the top, looking away from it.
+  ladderAt(x: number, z: number, feet: number, yaw: number, backing = false): { piece: number; side: 1 | -1 } | null {
     for (const i of this.ladders) {
       const p = this.placed[i];
       const s = this.ladder(i);
@@ -248,9 +252,11 @@ export class Structures {
       const side: 1 | -1 = lz >= line ? 1 : -1;
       const off = side * (lz - line) - s.d / 2;
       if (Math.abs(lx) > p.hw || off < 0 || off > LADDER_REACH) continue;
-      if (feet > p.base + p.height || feet + HANDS < p.base) continue;
+      if (feet > p.base + p.height + 1e-6 || feet + HANDS < p.base) continue;
+      if (backing && feet < p.base + p.height - OVER_TOP) continue;
       // The way out of that face, in the world: a look along it is a look away from the ladder.
-      if (Math.sin(yaw) * p.sin * side + Math.cos(yaw) * p.cos * side > 0) continue;
+      const away = Math.sin(yaw) * p.sin * side + Math.cos(yaw) * p.cos * side > 0;
+      if (away !== backing) continue;
       return { piece: i, side };
     }
     return null;
