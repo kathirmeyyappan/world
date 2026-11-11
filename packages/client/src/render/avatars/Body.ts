@@ -17,7 +17,10 @@ const PARENTS: Record<BodyBone, BodyBone | null> = {
 };
 
 // What tells one such avatar from another.
-export interface BodySpec extends Pick<Figure, 'shadow' | 'legSwing' | 'armSwing' | 'armsDown' | 'bob' | 'sway'> {
+export interface BodySpec extends Pick<
+  Figure,
+  'shadow' | 'legSwing' | 'armSwing' | 'armsDown' | 'bob' | 'sway' | 'itemScale'
+> {
   kind: AvatarId;
   model: SkinnedModel<BodyBone>;
   follow: number; // how much of the look's pitch the body tips by

@@ -8,6 +8,7 @@
     python packages/client/scripts/avatar-model.py patrick path/to/patrick_star_fortnite.glb
     python packages/client/scripts/avatar-model.py squidward path/to/squidward_tentacles.glb
     python packages/client/scripts/avatar-model.py gary path/to/gary_spongebob.glb
+    python packages/client/scripts/avatar-model.py plankton path/to/bfbbr_-_plankton.glb
 
 Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, or rigid parts on a tree of
 nodes, with no animation. This poses it
@@ -99,6 +100,9 @@ class Model:
     # A bone that is a shell on the back: the tank hangs on the back of it, halfway up, not below the
     # shoulders.
     shell: str | None = None
+    # Metres below the shoulders the tank hangs: a person's back is a hand's width down, a tiny
+    # body's a fraction of that.
+    back_drop: float = 0.2
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -225,6 +229,24 @@ MODELS = {
         shell="shell",
         texture_size=256,
     ),
+    # Battle for Bikini Bottom Rehydrated's rig: a hip the legs hang from, a spine up to the head with
+    # its eye, mouth and two antennae, and an arm a side from the shoulder out.
+    "plankton": Model(
+        "BFBBR - Plankton",
+        "Cheryl Hill",
+        0.28,  # to the tips of his antennae
+        (
+            ("body", "jt_hip"),
+            ("armL", "jt_shoulder_L"),
+            ("armR", "jt_shoulder_R"),
+            ("legL", "jt_leg_L"),
+            ("legR", "jt_leg_R"),
+        ),
+        ("body",),
+        ("jt_hand_R", "jt_handend_R"),
+        texture_size=256,
+        back_drop=0.02,
+    ),
 }
 
 
@@ -328,7 +350,7 @@ def main(name: str, glb: str) -> None:
                     "nij,nj->ni", np.linalg.inv(m[:, :3, :3]).transpose(0, 2, 1), n
                 )
                 np.add.at(folded, (np.arange(len(p)), joint_bone[j[:, k]]), w[:, k])
-            limbs = pieces_of(joint_index[index])
+            limbs = pieces_of(joint_index.get(index, -1))
             for vertices in components({"positions": posed, "triangles": triangles}) if limbs else []:
                 # The rig's left is +x, the avatar's right (see below).
                 x, _, z = hip - posed[vertices].mean(axis=0)
@@ -435,9 +457,11 @@ def main(name: str, glb: str) -> None:
         back = np.array([0, middle, own[abs(own[:, 1] - middle) < 0.05][:, 2].min() - 0.03])
     else:
         # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
-        shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - 0.2
+        shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - model.back_drop
         trunk = np.isin(order[:, 0], [bone_names.index(b) for b in model.torso])
-        back_z = posed[trunk & (abs(posed[:, 1] - shoulder_y) < 0.3)][:, 2].min() - 0.05
+        back_z = (
+            posed[trunk & (abs(posed[:, 1] - shoulder_y) < 1.5 * model.back_drop)][:, 2].min() - model.back_drop / 4
+        )
         back = np.array([0, shoulder_y, back_z])
     # Fallen on its back, the body lies this far up: as far as anything (the back of a big head) is
     # behind the root bone's pivot.
