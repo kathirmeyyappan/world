@@ -8,7 +8,16 @@
 // floor's doors are and where its flight starts. A keep stacks consecutive floors of it from the
 // ground (the tower all four, each building just its own), turned so its main door faces the way
 // in, so a floor is the same room, frames and all, wherever it stands.
-import { roundFloor, roundWall, spiralStairs, wall, type Box, type Structure } from '../sim/structures';
+import {
+  LADDER_GIRTH,
+  ringLadder,
+  roundFloor,
+  roundWall,
+  spiralStairs,
+  wall,
+  type Box,
+  type Structure,
+} from '../sim/structures';
 import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Disc } from '../sim/world';
@@ -24,7 +33,7 @@ const FLOOR_R = INNER + WALL / 2; // floors run into the wall, so there's no gap
 export const STOREY = 20;
 const GROUND_FLOOR = 0.05; // the ground floor's tiles sit this far above the ground
 const SLAB = 0.4; // thickness of the upper floors and the roof
-const ROOF_WALL = 1; // the wall stands this far above the roof all the way round (cover to shoot over)
+export const ROOF_WALL = 1; // the wall stands this far above the roof all the way round (cover to shoot over)
 const MERLON = 1.5; // and every other segment stands this far above that
 export const OPENING = 8; // the roof is open within this radius
 export const RAIL = 1.1; // height of the parapet round the opening
@@ -49,6 +58,14 @@ const DOORS = [
   [0, 75, 127.5, 180, 255, 307.5],
   [0, 75, 127.5, 180, 255, 307.5],
 ].map((floor) => floor.map(deg));
+// Wooden ladders up the outside of a building's wall from the ground to its top over the roof, each
+// in the middle of a segment between two merlons (an odd one, the merlons standing on the even
+// ones) so its top steps over onto the wall there, and clear of every floor's doors and the roof's
+// exit over the main door.
+const LADDERS = [127.5, 232.5, 337.5].map(deg);
+// Metres from a keep's middle to the rails of a ladder stood against the outside of its wall at the
+// middle of a segment: the wall's outer face there, the ladder's half girth and a hair.
+export const WALL_LADDER_R = (OUTER - WALL / 2) * Math.cos(Math.PI / SEGMENTS) + WALL / 2 + LADDER_GIRTH / 2 + 0.05;
 // Floors whose main door is twice the others' width and height: the ground floor's way in and the top
 // floor's, onto the tower's sky bridge. The rest are ordinary doors.
 const WIDE_MAIN = [0, 3];
@@ -64,19 +81,22 @@ export interface Keep {
 
 // A keep centred on (x, z) holding `floors` of the layout (consecutive, lowest first), its main door
 // at bearing `entrance`. With `roofExit`, the parapet round the roof opens over the main door, where
-// something leaves the roof (a building's staircase up to the terrace).
+// something leaves the roof (a building's staircase up to the terrace). With `ladders`, the outside
+// of the wall has ladders up it from the ground to the roof.
 export function keep({
   x,
   z,
   entrance,
   floors,
   roofExit = false,
+  ladders = false,
 }: {
   x: number;
   z: number;
   entrance: number;
   floors: number[];
   roofExit?: boolean;
+  ladders?: boolean;
 }): Keep {
   const turn = entrance - MAIN; // added to every bearing in the layout
   const roof = floors.length * STOREY;
@@ -150,6 +170,7 @@ export function keep({
         const along = 0.045; // half the merlon's arc, in radians
         return { ...wall(onWall(a - along), onWall(a + along), MERLON, WALL, roof + ROOF_WALL), material: 'brick' };
       }),
+    ...(ladders ? LADDERS.map((a) => ringLadder({ x, z }, WALL_LADDER_R, a + turn, 0, roof + ROOF_WALL)) : []),
   ];
 
   // Frames centre halfway up each storey, and a frame's angle 0 is the main door's bearing on every

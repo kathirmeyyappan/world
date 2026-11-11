@@ -4,13 +4,13 @@
 // perch), and the top balcony's west side opens onto a sky bridge. The bridge runs back over the
 // floor bridge (inside the outline's corridor, so players can't be clamped off it) to the terrace
 // floating over the middle of the main disc (content/terrace.ts).
-import { roundFloor, roundWall, wall, type Box, type Structure } from '../sim/structures';
+import { LADDER_GIRTH, ringLadder, roundFloor, roundWall, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Vec3 } from '../sim/types';
 import type { Bridge, Disc } from '../sim/world';
-import { OUTER, RAIL, SILL, STOREY, deg, keep } from './keep';
+import { OUTER, RAIL, ROOF_WALL, SILL, STOREY, WALL_LADDER_R, deg, keep } from './keep';
 import { DECK, TERRACE_RING, WALKWAY } from './terrace';
 
 const X = ANNEX.x;
@@ -38,6 +38,19 @@ const balconies: Structure[] = [STOREY, 2 * STOREY, TOP].flatMap((level) => [
   }),
 ]);
 
+// Wooden ladders up the outside, one a storey, each a quarter turn on from the one below so no two
+// make one climb: from the ground and from each balcony up the balconies' outer edge to the top of
+// the next one's parapet (a climber steps over onto it, and on a balcony takes hold over its
+// parapet), and from the top balcony up the wall to the roof, in a gap between merlons clear of
+// the top floor's doors. Each at the middle of a segment of the parapets and the wall.
+const EDGE_LADDER_R = OUTER + BALCONY + LADDER_GIRTH / 2 + 0.1;
+const ladders: Structure[] = [
+  ...[52.5, 142.5, 232.5].map((angle, i) =>
+    ringLadder({ x: X, z: Z }, EDGE_LADDER_R, deg(angle), i * STOREY, (i + 1) * STOREY + PARAPET),
+  ),
+  ringLadder({ x: X, z: Z }, WALL_LADDER_R, deg(322.5), TOP, 4 * STOREY + ROOF_WALL),
+];
+
 // A low wall along a deck edge, standing on the deck's top at y, from a to b.
 const rail = (a: { x: number; z: number }, b: { x: number; z: number }, y = TOP): Box => ({
   ...wall(a, b, RAIL, 0.2, y),
@@ -64,7 +77,7 @@ const skyway: Structure[] = [
   rail({ x: railEnd, z: Z + halfW }, { x: bridgeStart, z: Z + halfW }, BRIDGE_TOP),
 ];
 
-export const TUNG_TUNG_TOWER: Structure[] = [...TOWER.structures, ...balconies, ...skyway];
+export const TUNG_TUNG_TOWER: Structure[] = [...TOWER.structures, ...balconies, ...ladders, ...skyway];
 
 export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = TOWER.footprint;
 

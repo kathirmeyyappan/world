@@ -2,7 +2,8 @@
 // its door facing back down the path in. Building 1 is SpongeBob's house (content/pineapple.ts).
 // The rest are one-storey keeps (content/keep.ts): one of Tung Tung Tower's floors standing on its
 // own, doors, stair and frames alike (content/towerFrames.ts hangs each floor's frames in both), or
-// a bare keep holding the grounds for something of its own to come; a keep's stair goes on up to a
+// a bare keep holding the grounds for something of its own to come, with ladders up its outside to
+// the roof too; a keep's stair goes on up to a
 // roof like the tower's, whose parapet opens over the door onto a staircase up to the terrace
 // (content/terrace.ts).
 import type { Structure } from '../sim/structures';
@@ -20,7 +21,9 @@ export const BUILDING_PLAN: ('house' | number | null)[] = ['house', 0, 1, null];
 
 const KEEPS = BUILDING_GROUNDS.map(({ x, z }, n) => {
   const plan = BUILDING_PLAN[n];
-  return plan === 'house' ? null : keep({ x, z, entrance: Math.atan2(-z, -x), floors: [plan ?? 0], roofExit: true });
+  return plan === 'house'
+    ? null
+    : keep({ x, z, entrance: Math.atan2(-z, -x), floors: [plan ?? 0], roofExit: true, ladders: true });
 });
 
 export const BUILDINGS: Structure[] = KEEPS.flatMap((k) => k?.structures ?? PINEAPPLE_HOUSE);
