@@ -3,7 +3,7 @@
 // must stay pure: no Babylon, no DOM, no time reads.
 import { MAX_PITCH } from './constants';
 import { AVATARS, avatarFor, type AvatarId } from './avatars';
-import { classOf, heartsOf } from './classes';
+import { classOf, heartsOf, lifeOf } from './classes';
 import type { Structures } from './collision';
 import { ITEMS, createItem, nextFuel, lockedItemFor, type ItemState } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
@@ -62,17 +62,19 @@ export function clonePlayer(p: PlayerState): PlayerState {
   };
 }
 
-// Puts `p` in `avatar`. A new look is a new body with a full life, its class's state made over (a
-// dragon of another shape); a new class also drops the old class's state and the kit where the
-// class has none, at the same eye point. The look's own item is held for good; leaving one brings
-// back whatever the name gives.
+// Puts `p` in `avatar`. A new look is a new body, its class's state made over (a dragon of another
+// shape); a new class also drops the old class's state and the kit where the class has none, at
+// the same eye point. A look with another life (another class's, or one of its own) starts it
+// full; one with the same life keeps the hearts it had, so a change of skin is no heal. The look's
+// own item is held for good; leaving one brings back whatever the name gives.
 export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   const from = classOf(p.avatar);
   const to = classOf(avatar);
   const hadOwn = AVATARS[p.avatar].item !== null;
   const changed = avatar !== p.avatar;
+  const newLife = lifeOf(avatar) !== lifeOf(p.avatar);
   p.avatar = avatar;
-  if (changed && !p.dead) p.hearts = heartsOf(avatar);
+  if (newLife && !p.dead) p.hearts = heartsOf(avatar);
   if (to !== from) from.exit(p);
   if (changed) to.enter(p);
   if (to !== from) {
