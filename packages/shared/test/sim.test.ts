@@ -497,6 +497,8 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   fly(p, 120, { my: 1, yaw: Math.PI / 2 });
   assert.ok(p.pos.x > 15 && Math.abs(p.pos.z) < 1e-9, `came round to +x: ${p.pos.x.toFixed(1)}`);
   assert.ok(Math.abs(p.dragon!.speed - LIGHT.cruise) < 0.2, 'at cruise');
+  fly(p, 120, { my: 0.5, yaw: Math.PI / 2 });
+  assert.ok(Math.abs(p.dragon!.speed - LIGHT.cruise / 2) < 0.2, 'half the forward input is half cruise');
   const spine = p.dragon!.spine;
   for (let i = 0; i < spine.length; i += 3) {
     const [lx, ly, lz] = i === 0 ? [p.pos.x, p.pos.y, p.pos.z] : spine.slice(i - 3, i);

@@ -203,7 +203,7 @@ function emerge(p: PlayerState, d: DragonState, body: DragonShape, dt: number, s
     head.y = Math.min(ground + MIN_ALTITUDE, head.y + RISE_SPEED * dt);
     d.speed = 0;
   } else {
-    ease(d, body, true, dt);
+    ease(d, body, 1, dt);
     head.y = Math.min(structures.ceilingAt(head.x, head.z, head.y) - body.headRadius, head.y + d.speed * dt);
   }
   follow(d.spine, head, body.links);
@@ -223,7 +223,7 @@ function fly(
   const look = lookDirection(p.yaw, p.pitch);
   // The head comes round toward the look, as far as the neck lets it, moving or not.
   d.head = turnToward(d.head, headTarget(neckOf(d, head), look), HEAD_TURN_RATE * dt);
-  ease(d, body, input.my > 0, dt);
+  ease(d, body, input.my, dt);
   if (d.speed === 0) return;
   const dir = (d.dir = turnToward(d.dir, look, (d.speed / body.turnRadius) * dt));
   const step = d.speed * dt;
@@ -272,9 +272,9 @@ function clampToSky(head: Vec3, shape: WorldPart[], r: number): void {
   }
 }
 
-// Toward cruise while `forward` is held, else to a stop.
-function ease(d: DragonState, body: DragonShape, forward: boolean, dt: number): void {
-  const want = forward ? body.cruise : 0;
+// Toward `throttle` (the forward input, 0 to 1: W, or the touch throttle) of cruise, or to a stop.
+function ease(d: DragonState, body: DragonShape, throttle: number, dt: number): void {
+  const want = body.cruise * Math.max(0, Math.min(1, throttle));
   d.speed += (want - d.speed) * Math.min(1, dt / SPEED_EASE);
   if (d.speed < 0.2) d.speed = 0;
 }

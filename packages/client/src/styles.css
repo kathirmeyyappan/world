@@ -1500,6 +1500,7 @@ body {
 /* Mobile */
 #pad,
 #jump-button,
+#throttle,
 .touch-button {
   display: none;
 }
@@ -1564,6 +1565,66 @@ body {
   border-color: var(--accent);
 }
 #pad.active #pad-thumb {
+  transition: none;
+}
+/* The throttle, a dragon's, in the pad's place: its thumb slid up for the speed and left where it's
+   put. The thumb rests 20px up from the bottom edge and slides 100px (MobileControls.ts). */
+#throttle {
+  position: fixed;
+  left: 22px;
+  bottom: 26px;
+  width: 56px;
+  height: 150px;
+  z-index: 100;
+  border: 2px solid rgba(100, 181, 246, 0.55);
+  background: rgba(10, 10, 15, 0.45);
+  box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.6),
+    inset 0 0 12px rgba(100, 181, 246, 0.12);
+}
+#throttle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  bottom: 10px;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(100, 181, 246, 0.35);
+}
+#throttle::after {
+  content: '▲';
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: rgba(100, 181, 246, 0.55);
+  font: 11px var(--pixel);
+  pointer-events: none;
+}
+#throttle-thumb {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  width: 36px;
+  height: 16px;
+  margin-left: -18px;
+  background: var(--accent);
+  box-shadow:
+    0 0 10px var(--accent),
+    0 0 0 2px rgba(0, 0, 0, 0.7);
+  transition: transform 0.05s linear;
+  pointer-events: none;
+}
+#throttle.active {
+  border-color: var(--accent);
+}
+#throttle.active #throttle-thumb {
   transition: none;
 }
 #jump-button {
@@ -1671,9 +1732,13 @@ body {
   #jump-button {
     display: flex;
   }
+  #throttle,
   .touch-button {
     display: block;
   }
+  #pad.hidden,
+  #jump-button.hidden,
+  #throttle.hidden,
   .touch-button.hidden {
     display: none;
   }

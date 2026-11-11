@@ -21,7 +21,7 @@ export type ItemAction = 'shoot' | 'scope' | 'thrust' | 'roar-1' | 'roar-2' | 'r
 export type ActionMode = 'tap' | 'hold' | 'toggle';
 
 export interface ActionSpec {
-  key: string; // KeyboardEvent code
+  key: string | null; // KeyboardEvent code; null for a shot, which is a click (the touch FIRE button)
   mode: ActionMode;
 }
 
@@ -57,7 +57,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     range: 20,
     damage: 2,
     cooldownTicks: 7,
-    actions: { shoot: { key: 'KeyK', mode: 'tap' } },
+    actions: { shoot: { key: null, mode: 'tap' } },
     fire: { kind: 'hitscan' },
     element: null,
     shatters: true,
@@ -73,7 +73,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     range: 500,
     damage: 4,
     cooldownTicks: 30,
-    actions: { shoot: { key: 'KeyK', mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } },
+    actions: { shoot: { key: null, mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } },
     fire: { kind: 'hitscan' },
     element: null,
     shatters: true,
@@ -89,7 +89,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     range: 20,
     damage: 0.5,
     cooldownTicks: 5,
-    actions: { shoot: { key: 'KeyK', mode: 'hold' } },
+    actions: { shoot: { key: null, mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
     element: 'fire',
     shatters: false,
@@ -107,7 +107,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     range: 20,
     damage: 0.25,
     cooldownTicks: 5,
-    actions: { shoot: { key: 'KeyK', mode: 'hold' } },
+    actions: { shoot: { key: null, mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 8 },
     element: 'ice',
     shatters: false,
@@ -124,7 +124,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     range: 30,
     damage: 0.5,
     cooldownTicks: 5,
-    actions: { shoot: { key: 'KeyK', mode: 'hold' } },
+    actions: { shoot: { key: null, mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 5 },
     element: 'fire',
     shatters: false,
@@ -141,7 +141,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     range: 30,
     damage: 0.5,
     cooldownTicks: 5,
-    actions: { shoot: { key: 'KeyK', mode: 'hold' } },
+    actions: { shoot: { key: null, mode: 'hold' } },
     fire: { kind: 'cone', halfAngle: Math.PI / 5 },
     element: 'ice',
     shatters: false,
@@ -201,8 +201,8 @@ export function lockedItemFor(name: string): ItemId | null {
   return matches[0]?.id ?? null;
 }
 
-// "K or click to shoot, F to scope", for hints and chat notices. Shooting also works with a
-// click, so say so; hold items say hold.
+// "click to shoot, F to scope", for hints and chat notices: a shot is a click, the rest name their
+// keys, and a key that's held says hold.
 export function itemHelp(id: ItemId, sep = ', '): string {
   return actionHelp(ITEMS[id].actions, sep);
 }
@@ -216,22 +216,22 @@ export function actionHelp(
 ): string {
   const keys = new Map<string, string[]>();
   for (const [action, spec] of Object.entries(actions)) {
-    const phrase = `${spec.mode === 'hold' ? 'hold ' : ''}%${ACTION_HELP[action as ItemAction](spec)}`;
-    keys.set(phrase, [...(keys.get(phrase) ?? []), keyName(spec.key)]);
+    const phrase = `${spec.key !== null && spec.mode === 'hold' ? 'hold ' : ''}${ACTION_HELP[action as ItemAction](spec)}`;
+    keys.set(phrase, [...(keys.get(phrase) ?? []), ...(spec.key === null ? [] : [keyName(spec.key)])]);
   }
   return [...keys].map(([phrase, named]) => phrase.replace('%', named.join(', '))).join(sep);
 }
 
-// What follows the key in actionHelp.
+// Each action's help, with `%` where its keys go; a shot has none.
 const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
-  shoot: (spec) => ` or click to ${spec.mode === 'hold' ? 'spray' : 'shoot'}`,
-  scope: () => ' to scope',
-  thrust: () => ' to fly',
-  'roar-1': () => ' to roar',
-  'swap-left': () => ' to go round the ladder',
-  'swap-right': () => ' to go round the ladder',
-  'roar-2': () => ' to roar',
-  'roar-3': () => ' to roar',
+  shoot: (spec) => (spec.mode === 'hold' ? 'click and hold to spray' : 'click to shoot'),
+  scope: () => '% to scope',
+  thrust: () => '% to fly',
+  'roar-1': () => '% to roar',
+  'swap-left': () => '% to go round the ladder',
+  'swap-right': () => '% to go round the ladder',
+  'roar-2': () => '% to roar',
+  'roar-3': () => '% to roar',
 };
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1, chills 5s": the numbers that

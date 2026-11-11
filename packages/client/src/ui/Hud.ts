@@ -254,14 +254,14 @@ export class Hud {
   }
 
   // What you're holding and how to use it, or nothing.
-  // The key legend along the bottom: the walker's is the page's own; a dragon flies and roars.
+  // The key legend along the bottom: the walker's is the page's own; a dragon flies forward and roars.
   setKeys(cls: PlayerClass): void {
     const el = document.getElementById('instructions')!;
     this.walkerKeys ??= el.innerHTML;
     el.innerHTML =
       cls === 'walker'
         ? this.walkerKeys
-        : `<kbd translate="no">W</kbd> fly &nbsp;|&nbsp; <kbd translate="no">A</kbd><kbd translate="no">S</kbd><kbd translate="no">D</kbd> roar &nbsp;|&nbsp;
+        : `<kbd translate="no">W</kbd> fly forward &nbsp;|&nbsp; <kbd translate="no">A</kbd><kbd translate="no">S</kbd><kbd translate="no">D</kbd> roar &nbsp;|&nbsp;
            Click select &nbsp;|&nbsp; <kbd translate="no">Z</kbd> toggle perspective &nbsp;|&nbsp; <kbd translate="no">O</kbd> fullscreen &nbsp;|&nbsp; <kbd translate="no">Esc</kbd> mouse`;
   }
   private walkerKeys: string | null = null;
