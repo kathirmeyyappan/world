@@ -733,6 +733,7 @@ export class Game {
     if (cls !== this.classId) {
       if (cls === 'asian-dragon') this.view.set('third');
       this.hud.setKeys(cls);
+      this.mobile.setClass(cls);
       this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }

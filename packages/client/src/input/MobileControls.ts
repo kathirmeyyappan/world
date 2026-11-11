@@ -1,5 +1,7 @@
 // Touch controls: a square pad on the left that acts as a joystick, and a jump button on the
-// right. Both are plain DOM styled like the rest of the HUD. Only mounted on touch devices.
+// right; a dragon, which only flies forward, has a FLY button to hold in the pad's place and no
+// jump. All plain DOM styled like the rest of the HUD. Only mounted on touch devices.
+import type { PlayerClass } from '@world/shared';
 import type { InputManager } from './InputManager';
 import { IS_TOUCH } from './touch';
 
@@ -8,6 +10,8 @@ const RADIUS = 34;
 export class MobileControls {
   private readonly pad = document.getElementById('pad');
   private readonly thumb = document.getElementById('pad-thumb');
+  private readonly jump = document.getElementById('jump-button');
+  private readonly fly = document.getElementById('fly-button');
   private touchId: number | null = null;
   private originX = 0;
   private originY = 0;
@@ -46,7 +50,7 @@ export class MobileControls {
       pad.addEventListener('touchend', end);
       pad.addEventListener('touchcancel', end);
     }
-    const jump = document.getElementById('jump-button');
+    const jump = this.jump;
     jump?.addEventListener(
       'touchstart',
       (e) => {
@@ -63,6 +67,30 @@ export class MobileControls {
     };
     jump?.addEventListener('touchend', release);
     jump?.addEventListener('touchcancel', release);
+    const fly = this.fly;
+    fly?.addEventListener(
+      'touchstart',
+      (e) => {
+        e.preventDefault();
+        fly.classList.add('active');
+        input.joystick = { x: 0, y: 1 };
+      },
+      { passive: false },
+    );
+    const land = () => this.land();
+    fly?.addEventListener('touchend', land);
+    fly?.addEventListener('touchcancel', land);
+  }
+
+  // A walker has the pad and JUMP; a dragon FLY in the pad's place, and nothing to jump with.
+  setClass(cls: PlayerClass): void {
+    if (!IS_TOUCH) return;
+    const flies = cls === 'asian-dragon';
+    this.release();
+    this.land();
+    this.pad?.classList.toggle('hidden', flies);
+    this.jump?.classList.toggle('hidden', flies);
+    this.fly?.classList.toggle('hidden', !flies);
   }
 
   private move(x: number, y: number): void {
@@ -84,7 +112,13 @@ export class MobileControls {
     this.input.joystick = { x: 0, y: 0 };
   }
 
+  private land(): void {
+    this.fly?.classList.remove('active');
+    this.input.joystick = { x: 0, y: 0 };
+  }
+
   dispose(): void {
     this.release();
+    this.land();
   }
 }

@@ -1500,6 +1500,7 @@ body {
 /* Mobile */
 #pad,
 #jump-button,
+#fly-button,
 .touch-button {
   display: none;
 }
@@ -1566,7 +1567,9 @@ body {
 #pad.active #pad-thumb {
   transition: none;
 }
-#jump-button {
+/* JUMP on the right; FLY, a dragon's, in the pad's place on the left, held to fly forward. */
+#jump-button,
+#fly-button {
   position: fixed;
   right: 22px;
   bottom: 26px;
@@ -1590,11 +1593,17 @@ body {
     0 0 0 2px rgba(0, 0, 0, 0.6),
     inset 0 0 12px rgba(100, 181, 246, 0.12);
 }
-#jump-button .glyph {
+#fly-button {
+  right: auto;
+  left: 22px;
+}
+#jump-button .glyph,
+#fly-button .glyph {
   font-size: 20px;
   line-height: 20px;
 }
-#jump-button.active {
+#jump-button.active,
+#fly-button.active {
   background: rgba(100, 181, 246, 0.3);
   border-color: var(--accent);
   box-shadow: 0 0 14px var(--accent);
@@ -1668,12 +1677,16 @@ body {
     line-height: 24px;
     letter-spacing: 3px;
   }
-  #jump-button {
+  #jump-button,
+  #fly-button {
     display: flex;
   }
   .touch-button {
     display: block;
   }
+  #pad.hidden,
+  #jump-button.hidden,
+  #fly-button.hidden,
   .touch-button.hidden {
     display: none;
   }
