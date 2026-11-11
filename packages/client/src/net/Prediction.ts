@@ -28,14 +28,10 @@ export class Prediction {
     return ++this.seq;
   }
 
-  // Applies a local frame. Returns how far it moved the player up or down while they stayed on
-  // the ground (a step or a slope), which the camera eases over rather than snapping.
-  apply(frame: InputFrame): number {
-    const before = this.state.pos.y;
-    const standing = this.state.vy === 0;
+  // Applies a local frame.
+  apply(frame: InputFrame): void {
     stepPlayer(this.state, frame, TICK_DT, this.shape, this.structures);
     this.pending.push(frame);
-    return standing && this.state.vy === 0 && !this.state.climb ? this.state.pos.y - before : 0;
   }
 
   // Returns how far the corrected position moved, so the caller can smooth the pop.
