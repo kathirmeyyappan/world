@@ -388,11 +388,11 @@ capsule or spheres, `combat.ts`; a hit lands on a `HitPart`, the head, the body 
 shape's weak points by number), `hurt` for what a hit on a part costs when it isn't the damage as
 it comes, and where a dead one `lies` for the hearts it leaves. The walker
 (`walker.ts`) is everyone on foot; the asian dragon (`asian-dragon`, `dragon.ts`) is a head sphere flying where its rider
-looks with a spine of points following it, kept 5 m up and too big for a door, its head turned
+looks, at the forward input's share of cruise, with a spine of points following it, kept 5 m up and too big for a door, its head turned
 toward the look only as far as the neck lets it, breathing a wide cone where the head points
 (the look's own hold item: the light dragon's `firebreath`, Colgera's `frostbreath`) and roaring on
-A, S and D (on touch, a FLY button held in the pad's place, since forward is the only way it
-moves, and no JUMP); a new one climbs straight out of the ground, head up, until its whole spine is out. Its
+A, S and D (on touch, a throttle in the pad's place, slid up for the speed and left where it's
+put, since forward is the only way it moves, and no JUMP); a new one climbs straight out of the ground, head up, until its whole spine is out. Its
 rules are in that file; its body is its look's (`DragonShape`, the `dragon` on the look's row in
 `AVATARS`): the spine's links (metres from the eyes to the first point and between the points after
 it, so a skin with a long rigid stretch of body has one long link there), the head's and body's
