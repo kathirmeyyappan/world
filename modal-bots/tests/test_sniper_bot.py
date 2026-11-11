@@ -66,6 +66,7 @@ def test_sniper_fires_only_on_a_target_in_range_or_once_hit() -> None:
     near = Sniper(world, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
     state, controls = scene(20)
     assert shoots(state, controls, near), "20 m off: shot"
+    assert near.cover is None, "in the open it holds its spot after the shot"
 
     hit = Sniper(world, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
     state, controls = scene(35)

@@ -24,8 +24,10 @@ aiming at.
    is how to dodge. It aims at a random spot on their hitbox (the
    map's, for their avatar): the chest 35% of the time, the head 15%, and 50% just past their side
    (AIM_ZONES). After a hit it can't fire for HIT_COOLDOWN_SECONDS, after a miss only
-   MISS_COOLDOWN_SECONDS. After every shot it steps to the nearest spot within HIDE_RADIUS that
-   its target can't see, if there is one, and comes back out to its spot when it can fire again.
+   MISS_COOLDOWN_SECONDS. Indoors, after every shot it steps to the nearest spot within
+   HIDE_RADIUS that its target can't see, if there is one, and comes back out to its spot when it
+   can fire again; in the open it holds its spot and shoots again from there (a stair head or a
+   deck's edge is no cover worth bobbing in and out of).
 
 5. Moving. Whatever ``spawn`` it's given, it starts on a floor indoors (``world.insides``: the
    tower's and the keeps'), and from there it always has one spot it's walking to or standing
@@ -377,15 +379,17 @@ class Sniper:
         self.fire_at = self.ready_at + self.rng.randint(*GRACE_TICKS)
 
     def _take_cover(self, me: Player, target: Player, tick: int) -> None:
-        """Step to the nearest spot within HIDE_RADIUS that the target can't see, if there is one,
-        and wait there until it can fire again."""
+        """Indoors, step to the nearest spot within HIDE_RADIUS that the target can't see, if there
+        is one, and wait there until it can fire again."""
+        start = self.world.node_at(_feet(me))
+        if start is None or start not in self.world.indoors:
+            return
         hidden = [
             i
             for i in self.world.nodes_near(_feet(me), HIDE_RADIUS)
             if not self.world.clear(_eye(self.world.nodes[i]), chest(target))
         ]
-        start = self.world.node_at(_feet(me))
-        if not hidden or start is None:
+        if not hidden:
             return
         cover = min(hidden, key=lambda i: _distance(me.pos, _eye(self.world.nodes[i])))
         path = self.world.path(start, cover)
