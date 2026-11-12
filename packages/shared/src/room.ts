@@ -88,7 +88,7 @@ export interface JoinOptions extends BotPlacement {
   bot?: boolean; // the client says it's a bot (the browser never does; the bot framework always does)
   room?: string; // the public room code the client asked for; bots called from here join it
   // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
-  // spawns at random, in the avatar if it's one they could switch to by command and fits there.
+  // spawns at random, in the avatar if it's one on foot they could switch to by command.
   color?: string; // one of NAMED_COLORS' names, for the standard body; else the room picks one
 }
 
@@ -202,8 +202,8 @@ export class Room {
       becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
     }
-    const chosen = !opts.bot && opts.avatar && AVATARS[opts.avatar].command !== null ? opts.avatar : null;
-    if (chosen && !this.cantBecome(state, chosen, false)) becomeAvatar(state, chosen);
+    const look = !opts.bot && opts.avatar ? AVATARS[opts.avatar] : null;
+    if (look && look.class === 'walker' && look.command !== null) becomeAvatar(state, look.id);
     if (opts.room && !this.publicName) this.publicName = opts.room;
     this.seats.set(id, {
       state,
@@ -228,7 +228,6 @@ export class Room {
     });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
-    this.storm(this.seats.get(id)!);
     if (!state.bot && this.humanCount === 1) this.addDefaultBots();
     return id;
   }

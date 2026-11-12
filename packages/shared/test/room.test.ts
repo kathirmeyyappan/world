@@ -688,6 +688,8 @@ test('a bot stands where it asks, looking how it asks; a person only chooses a l
   const idr = room.join('bob', link(), { color: 'red' })!;
   const red = room.players.find((p) => p.id === idr)!;
   assert.equal(red.color, NAMED_COLORS.red, 'or the standard body in a named color');
+  const idd = room.join('carol', link(), { avatar: 'light-dragon' })!;
+  assert.equal(room.players.find((p) => p.id === idd)!.avatar, 'standard', 'but never a dragon');
 
   const onFloor = room.join('stalker-bot', link(), { bot: true, spawn: { x: 112, y: 20, z: 0 }, avatar: 'elizabeth' })!;
   const stalker = room.players.find((p) => p.id === onFloor)!;

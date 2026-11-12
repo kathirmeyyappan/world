@@ -171,12 +171,12 @@ export function showHome(): Promise<HomeResult> {
   });
 }
 
-// Every look a person can switch to by command, by the guide's name for it, the standard body first
+// Every look on foot a person can switch to by command, by the guide's name for it, the standard body first
 // as a random color; then, always last, the standard body in each named color.
 function fillSkins(select: HTMLSelectElement): void {
   const option = (value: string, text: string) => select.append(new Option(text, value));
   for (const id of AVATAR_IDS) {
-    if (AVATARS[id].command === null) continue;
+    if (AVATARS[id].command === null || AVATARS[id].class !== 'walker') continue;
     option(id === 'standard' ? RANDOM : id, id === 'standard' ? 'Random color' : CHARACTERS[id].title);
   }
   for (const name of Object.keys(NAMED_COLORS)) option(COLOR + name, `${name[0].toUpperCase()}${name.slice(1)}`);
