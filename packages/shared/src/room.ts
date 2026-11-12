@@ -87,7 +87,9 @@ interface Seat {
 export interface JoinOptions extends BotPlacement {
   bot?: boolean; // the client says it's a bot (the browser never does; the bot framework always does)
   room?: string; // the public room code the client asked for; bots called from here join it
-  // BotPlacement's spawn and avatar are honoured for bots only; a person always spawns at random.
+  // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
+  // spawns at random, in the avatar if it's one on foot they could switch to by command.
+  color?: string; // one of NAMED_COLORS' names, for the standard body; else the room picks one
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -194,11 +196,14 @@ export class Room {
     }
     const id = `p${this.nextPlayerId++}`;
     const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint();
-    const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), at, !!opts.bot);
+    const color = opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? NAMED_COLORS[opts.color] : this.pickColor();
+    const state = createPlayer(id, sanitizeName(rawName), color, at, !!opts.bot);
     if (opts.bot && opts.avatar) {
       becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
     }
+    const look = !opts.bot && opts.avatar ? AVATARS[opts.avatar] : null;
+    if (look && look.class === 'walker' && look.command !== null) becomeAvatar(state, look.id);
     if (opts.room && !this.publicName) this.publicName = opts.room;
     this.seats.set(id, {
       state,
@@ -567,7 +572,7 @@ export class Room {
     }
   }
 
-  // A name-given look can't be changed, the dead stay what they died as, and a new class needs room
+  // A bot's look can't be changed, the dead stay what they died as, and a new class needs room
   // for its body.
   private cantBecome(me: PlayerState, avatar: AvatarId, again: boolean): string | null {
     if (me.avatarLocked) return `you're ${me.avatar} for good`;

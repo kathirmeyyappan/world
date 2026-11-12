@@ -131,40 +131,51 @@
       </div>
 
       <div id="home" class="hidden">
-        <div class="card">
-          <h1>KATHIR WORLD</h1>
-          <p class="tagline">
-            a small 3D playground. bring friends. read guide
-            <a href="/guide/" target="_blank" rel="noopener">here</a>. see repo
-            <a href="https://github.com/kathirmeyyappan/world" target="_blank" rel="noopener">here</a>.
-          </p>
-          <label>
-            <span>NAME</span>
-            <input
-              id="home-name"
-              type="text"
-              maxlength="16"
-              placeholder="who are you"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </label>
-          <button id="home-global" class="wide">JOIN GLOBAL</button>
-          <div class="divider"><span>OR</span></div>
-          <label>
-            <span>ROOM CODE</span>
-            <input
-              id="home-room"
-              type="text"
-              maxlength="24"
-              placeholder="e.g. late-night"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </label>
-          <button id="home-join" class="wide">JOIN / CREATE ROOM</button>
-          <button id="home-offline" class="wide subtle hidden">PLAY OFFLINE</button>
-          <div id="home-status"></div>
+        <div class="card home-card">
+          <div class="home-head">
+            <h1>KATHIR WORLD</h1>
+            <p class="tagline">
+              a small 3D playground. bring friends. read guide
+              <a href="/guide/" target="_blank" rel="noopener">here</a>. see repo
+              <a href="https://github.com/kathirmeyyappan/world" target="_blank" rel="noopener">here</a>.
+            </p>
+          </div>
+          <div class="home-join">
+            <button id="home-global" class="wide">JOIN GLOBAL</button>
+            <div class="divider"><span>OR</span></div>
+            <label>
+              <span>ROOM CODE</span>
+              <input
+                id="home-room"
+                type="text"
+                maxlength="24"
+                placeholder="e.g. late-night"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <button id="home-join" class="wide">JOIN / CREATE ROOM</button>
+            <button id="home-offline" class="wide subtle hidden">PLAY OFFLINE</button>
+            <div id="home-status"></div>
+          </div>
+          <div class="home-player">
+            <div id="home-view"><span class="hint">drag to turn</span></div>
+            <label>
+              <span>NAME</span>
+              <input
+                id="home-name"
+                type="text"
+                maxlength="16"
+                placeholder="who are you"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <label>
+              <span>SKIN</span>
+              <select id="home-skin"></select>
+            </label>
+          </div>
         </div>
       </div>
 

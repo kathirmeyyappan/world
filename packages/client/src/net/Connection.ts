@@ -1,6 +1,6 @@
 // A Connection is the client's one channel to a room host. Two implementations:
 // WsConnection for a real server, LocalConnection for the offline mode that hosts a Room in-page.
-import { Room, type ClientMessage, type ServerMessage } from '@world/shared';
+import { Room, type AvatarId, type ClientMessage, type ServerMessage } from '@world/shared';
 
 export interface Connection {
   readonly kind: 'ws' | 'local';
@@ -83,10 +83,14 @@ export class LocalConnection implements Connection {
   private messageCb: ((msg: ServerMessage) => void) | null = null;
   private backlog: ServerMessage[] = [];
 
-  constructor(name: string) {
+  constructor(name: string, avatar: AvatarId | null = null, color: string | null = null) {
     this.room = new Room('offline');
     this.room.start();
-    this.id = this.room.join(name, { send: (m) => this.deliver(m) })!;
+    this.id = this.room.join(
+      name,
+      { send: (m) => this.deliver(m) },
+      { avatar: avatar ?? undefined, color: color ?? undefined },
+    )!;
   }
 
   private deliver(msg: ServerMessage): void {

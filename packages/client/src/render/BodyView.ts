@@ -179,6 +179,13 @@ export class BodyView {
     this.engine?.engine.resize();
   }
 
+  // Gone for good: its GL context and canvas with it.
+  dispose(): void {
+    this.engine?.dispose();
+    this.engine = null;
+    this.canvas.remove();
+  }
+
   private drop(): void {
     if (!this.dragging) return;
     this.dragging = false;

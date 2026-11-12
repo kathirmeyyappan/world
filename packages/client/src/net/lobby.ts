@@ -6,6 +6,7 @@
 //            same-origin, so the proxy's session cookie applies and no token is needed.
 //   launcher anywhere else (GitHub Pages): navigate to the lobby, which starts a session and
 //            redirects the browser to the room host with the token. See docs/join-flow.png.
+import { NAMED_COLORS, isAvatarId, type AvatarId } from '@world/shared';
 import { WsConnection, type Connection } from './Connection';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
@@ -20,19 +21,35 @@ const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
 
-export function rememberRoom(roomId: string, name: string): void {
+export function rememberRoom(roomId: string, you: Joiner): void {
   sessionStorage.setItem('world.room', roomId);
-  sessionStorage.setItem('world.name', name);
+  sessionStorage.setItem('world.name', you.name);
+  for (const [key, value] of [
+    ['world.avatar', you.avatar],
+    ['world.color', you.color],
+  ] as const) {
+    if (value) sessionStorage.setItem(key, value);
+    else sessionStorage.removeItem(key);
+  }
 }
 
-export function rememberedRoom(): { roomId: string; name: string } | null {
+export function rememberedRoom(): ({ roomId: string } & Joiner) | null {
   const roomId = sessionStorage.getItem('world.room');
-  return roomId ? { roomId, name: sessionStorage.getItem('world.name') ?? '' } : null;
+  if (!roomId) return null;
+  const avatar = sessionStorage.getItem('world.avatar');
+  return {
+    roomId,
+    name: sessionStorage.getItem('world.name') ?? '',
+    avatar: isAvatarId(avatar) ? avatar : null,
+    color: sessionStorage.getItem('world.color'),
+  };
 }
 
 export function forgetRoom(): void {
   sessionStorage.removeItem('world.room');
   sessionStorage.removeItem('world.name');
+  sessionStorage.removeItem('world.avatar');
+  sessionStorage.removeItem('world.color');
 }
 
 // A new name, kept where the home screen looks for its default and where this tab's reload does.
@@ -56,25 +73,46 @@ export function leaveRoom(): void {
   location.href = homeUrl();
 }
 
-// The link into a room: a friend's invite, or with `name`, this player's own way to another room. On
-// Pages or in dev the page itself takes ?room=; the room host's page only works with its session's
-// cookie, so from there the link goes through the lobby, which starts or finds the room's session.
-export function roomLink(roomId: string, name?: string): string {
+// The link into a room: a friend's invite, or with `you`, this player's own way to another room
+// under their name and in their skin. On Pages or in dev the page itself takes ?room=; the room
+// host's page only works with its session's cookie, so from there the link goes through the lobby,
+// which starts or finds the room's session.
+export function roomLink(roomId: string, you?: Joiner): string {
   const lobby = lobbyUrl();
   if (lobby && SERVED_BY_ROOM_HOST) {
-    const query = name ? `?${new URLSearchParams({ name })}` : '';
+    const query = you ? `?${joinQuery(you)}` : '';
     return `${lobby}/join/${encodeURIComponent(roomId)}${query}`;
   }
   const url = new URL(location.href);
   url.search = '';
   url.searchParams.set('room', roomId);
-  if (name) url.searchParams.set('name', name);
+  for (const [key, value] of you ? joinQuery(you) : []) url.searchParams.set(key, value);
   return url.toString();
 }
 
-// To another room under `name`: the page goes where that room's link goes, and joins it there.
-export function switchRoom(roomId: string, name: string): void {
-  location.href = roomLink(roomId, name);
+// To another room as `you`: the page goes where that room's link goes, and joins it there.
+export function switchRoom(roomId: string, you: Joiner): void {
+  location.href = roomLink(roomId, you);
+}
+
+// Who's joining: their name, their skin (null for the standard body), and for the standard body
+// its color by name (one of NAMED_COLORS; null for one the room picks).
+export interface Joiner {
+  name: string;
+  avatar: AvatarId | null;
+  color: string | null;
+}
+
+// The name of a color a player wears, if it's one of NAMED_COLORS.
+export function colorName(hex: string): string | null {
+  return Object.keys(NAMED_COLORS).find((name) => NAMED_COLORS[name] === hex) ?? null;
+}
+
+function joinQuery({ name, avatar, color }: Joiner): URLSearchParams {
+  const query = new URLSearchParams({ name });
+  if (avatar && avatar !== 'standard') query.set('avatar', avatar);
+  else if (color) query.set('color', color);
+  return query;
 }
 
 export class LobbyUnavailableError extends Error {}
@@ -95,21 +133,25 @@ export function warmLobby(): void {
   if (lobby) fetch(`${lobby}/healthz`, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
 }
 
-export async function joinRoom(roomId: string, name: string): Promise<Connection> {
-  const q = (params: Record<string, string>) => new URLSearchParams(params).toString();
+export async function joinRoom(roomId: string, you: Joiner): Promise<Connection> {
+  const ws = () => {
+    const query = joinQuery(you);
+    query.set('room', roomId);
+    return query;
+  };
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
 
   if (DIRECT_WS_URL) {
     const base = DIRECT_WS_URL.startsWith('/') ? `${wsScheme}://${location.host}${DIRECT_WS_URL}` : DIRECT_WS_URL;
-    return WsConnection.connect(`${base}?${q({ room: roomId, name })}`);
+    return WsConnection.connect(`${base}?${ws()}`);
   }
 
   if (SERVED_BY_ROOM_HOST) {
-    return WsConnection.connect(`${wsScheme}://${location.host}/ws?${q({ room: roomId, name })}`);
+    return WsConnection.connect(`${wsScheme}://${location.host}/ws?${ws()}`);
   }
 
   const lobby = lobbyUrl();
   if (!lobby) throw new LobbyUnavailableError('no lobby configured');
-  location.href = `${lobby}/join/${encodeURIComponent(roomId)}?${q({ name })}`;
+  location.href = `${lobby}/join/${encodeURIComponent(roomId)}?${joinQuery(you)}`;
   return new Promise(() => {});
 }

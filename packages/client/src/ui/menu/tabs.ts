@@ -15,7 +15,7 @@ import {
 } from '@world/shared';
 import type { Channel, Sfx } from '../../audio/Sfx';
 import type { View } from '../../game/View';
-import { SERVED_BY_ROOM_HOST, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
+import { SERVED_BY_ROOM_HOST, colorName, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
 import type { Picture } from '../../render/Picture';
 import type { Minimap } from '../Minimap';
 import type { Field, Note, Row, Section, Tab } from './rows';
@@ -156,7 +156,7 @@ function roomField(hooks: MenuHooks, me: Me): Field {
 // The page leaves for the other room behind the loading screen, as a join from the home screen does.
 function go(code: string, me: Me): void {
   document.getElementById('loading')?.classList.remove('hidden');
-  switchRoom(code, me.name);
+  switchRoom(code, { name: me.name, avatar: me.avatar, color: colorName(me.color) });
 }
 
 function sound(sfx: Sfx): Section {

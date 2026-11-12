@@ -433,28 +433,6 @@ test('commands swap items freely, items stay, and the gun only reaches 20 m', ()
   assert.ok(bob.dead, 'scoped, the sniper reaches 25 m');
 });
 
-test('a name containing GUN or SNIPER is armed for good and can never swap', () => {
-  const room = new Room('perm', { seed: 2 });
-  const a = link();
-  const ida = room.join('bigGUNner', a)!;
-  const me = room.players.find((p) => p.id === ida)!;
-  assert.deepEqual(me.item, { id: 'gun', locked: true, fuel: null });
-  for (let i = 0; i < 30 * 60; i++) room.step();
-  assert.equal(me.item?.id, 'gun', 'still armed a minute later');
-  room.receive(ida, { t: 'chat', text: '/gun' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'bigGUNner already has a gun' });
-  room.receive(ida, { t: 'chat', text: '/sniper' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you can't put down your gun" });
-  assert.equal(me.item?.id, 'gun');
-
-  const s = link();
-  const ids = room.join('SNIPERGUN', s)!;
-  assert.equal(room.players.find((p) => p.id === ids)!.item?.id, 'sniper', 'longer tag wins');
-  const b = link();
-  const idb = room.join('gunner', b)!;
-  assert.equal(room.players.find((p) => p.id === idb)!.item, null, 'lowercase does not count');
-});
-
 test('a corpse that never rejoins is removed and its link closed', () => {
   const room = new Room('corpse', { seed: 5 });
   const a = link();
@@ -487,18 +465,16 @@ test('a corpse that never rejoins is removed and its link closed', () => {
   );
 });
 
-test('looks: /elizabeth is for good, ELIZABETH in the name locks it, and /red recolours', () => {
+test('looks: /elizabeth is for good, and /red recolours', () => {
   const room = new Room('av', { seed: 1 });
   const a = link();
   const b = link();
-  const ida = room.join('ELIZABETHann', a)!;
+  const ida = room.join('ann', a, { avatar: 'elizabeth' })!;
   const idb = room.join('bob', b)!;
   const ann = room.players.find((p) => p.id === ida)!;
   const bob = room.players.find((p) => p.id === idb)!;
   assert.equal(ann.avatar, 'elizabeth');
-  assert.ok(ann.avatarLocked);
   assert.equal(bob.avatar, 'standard');
-  assert.ok(!bob.avatarLocked);
 
   room.receive(idb, { t: 'chat', text: '/elizabeth' });
   assert.equal(bob.avatar, 'elizabeth');
@@ -515,17 +491,13 @@ test('looks: /elizabeth is for good, ELIZABETH in the name locks it, and /red re
   assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /sahur' }, 'a look goes by its command');
   room.receive(idb, { t: 'chat', text: '/tung' });
   assert.equal(bob.avatar, 'sahur');
-  room.receive(ida, { t: 'chat', text: '/standard' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
-  assert.equal(ann.avatar, 'elizabeth');
 
   room.receive(idb, { t: 'chat', text: '/RED' });
   assert.equal(bob.color, NAMED_COLORS.red, 'a colour by name, any case');
   assert.equal(bob.avatar, 'standard', "a colour is the standard body's: back to it");
   assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'bob is now red'));
   room.receive(ida, { t: 'chat', text: '/red' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're elizabeth for good" });
-  assert.equal(ann.avatar, 'elizabeth');
+  assert.equal(ann.avatar, 'standard', 'a look chosen on joining is changed like any other');
   room.receive(idb, { t: 'chat', text: '/constructor' });
   assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /constructor' });
 });
@@ -533,9 +505,11 @@ test('looks: /elizabeth is for good, ELIZABETH in the name locks it, and /red re
 test('headshots do 2.5x: a gun takes 5 hearts, a scoped sniper to the head is a one-shot kill', () => {
   const room = new Room('head', { seed: 5 });
   const a = link();
-  const ida = room.join('GUNalice', a)!;
+  const ida = room.join('alice', a)!;
+  room.receive(ida, { t: 'chat', text: '/gun' });
   const idb = room.join('bob', link())!;
-  const idc = room.join('SNIPERcarol', link())!;
+  const idc = room.join('carol', link())!;
+  room.receive(idc, { t: 'chat', text: '/sniper' });
   const [alice, bob, carol] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 8 };
   carol.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 30 };
@@ -588,7 +562,8 @@ test('ice blower: every touch costs a quarter heart and chills from the last one
   const room = new Room('ice', { seed: 9 });
   const a = link();
   const ida = room.join('alice', a)!;
-  const idb = room.join('GUNbob', link())!;
+  const idb = room.join('bob', link())!;
+  room.receive(idb, { t: 'chat', text: '/gun' });
   const [alice, bob] = [ida, idb].map((id) => room.players.find((p) => p.id === id)!);
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 6 };
 
@@ -703,12 +678,18 @@ test('bots are flagged at join, never keep a room open, and are dropped when it 
   assert.equal(room.playerCount, 0);
 });
 
-test("a bot stands where it asks, looking how it asks; a person can't choose", () => {
+test('a bot stands where it asks, looking how it asks; a person only chooses a look', () => {
   const room = new Room('placed', { seed: 4 });
   const human = room.join('alice', link(), { spawn: { x: 5, y: 0, z: 5 }, avatar: 'elizabeth' })!;
   const alice = room.players.find((p) => p.id === human)!;
   assert.notDeepEqual([alice.pos.x, alice.pos.z], [5, 5]);
-  assert.equal(alice.avatar, 'standard');
+  assert.equal(alice.avatar, 'elizabeth');
+  assert.ok(!alice.avatarLocked);
+  const idr = room.join('bob', link(), { color: 'red' })!;
+  const red = room.players.find((p) => p.id === idr)!;
+  assert.equal(red.color, NAMED_COLORS.red, 'or the standard body in a named color');
+  const idd = room.join('carol', link(), { avatar: 'light-dragon' })!;
+  assert.equal(room.players.find((p) => p.id === idd)!.avatar, 'standard', 'but never a dragon');
 
   const onFloor = room.join('stalker-bot', link(), { bot: true, spawn: { x: 112, y: 20, z: 0 }, avatar: 'elizabeth' })!;
   const stalker = room.players.find((p) => p.id === onFloor)!;
@@ -887,7 +868,8 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
 
 test('a bot corpse lingers for 5 s while a browser gets the full death screen', () => {
   const room = new Room('corpses', { seed: 5 });
-  const ida = room.join('SNIPERalice', link())!;
+  const ida = room.join('alice', link())!;
+  room.receive(ida, { t: 'chat', text: '/sniper' });
   let botClosed = false;
   const idb = room.join(
     'circle-bot',
@@ -1034,7 +1016,8 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
 
   // Nothing can hit it while it's rising: a sniper's shots at its head pass through until it's risen.
   const b = link();
-  const idb = room.join('SNIPERbob', b)!;
+  const idb = room.join('bob', b)!;
+  room.receive(idb, { t: 'chat', text: '/sniper' });
   const bob = room.players.find((p) => p.id === idb)!;
   const shootAlice = () => {
     bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 6 };

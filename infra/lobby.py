@@ -96,7 +96,9 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
     api = FastAPI()
 
     @api.get("/join/{room_id}")
-    async def join(request: Request, room_id: str, name: str = "", bot: str = "") -> RedirectResponse:
+    async def join(
+        request: Request, room_id: str, name: str = "", bot: str = "", avatar: str = "", color: str = ""
+    ) -> RedirectResponse:
         """Join a room, creating one if necessary. A bot (`bot=1`, what the bot framework sends)
         only joins a room that is already running: bots don't keep rooms open, so one must never
         start a room either."""
@@ -123,6 +125,10 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
             "name": name,
             "lobby": lobby_url,
         }
+        if avatar:
+            params["avatar"] = avatar
+        if color:
+            params["color"] = color
         if home.scheme and home.netloc:
             params["home"] = f"{home.scheme}://{home.netloc}"
         query = urlencode(params)

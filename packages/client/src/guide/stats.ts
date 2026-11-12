@@ -60,17 +60,16 @@ export function commandsFor(word: string, target: string = word): string[] {
   return [`/${word}`, ...shortcuts.map(([s]) => `/${s}`)];
 }
 
-function equip(commands: string[], nameTag: string | null): string {
-  return commands.join(', ') + (nameTag ? `, or a name with ${nameTag} in it (for good)` : '');
-}
-
 export function characterStats(id: AvatarId): Stat[] {
   const look = AVATARS[id];
   const cls = classOf(id);
   const life = lifeOf(id);
   const hearts = `${life.hearts}${life.sprite === 'crystal' ? ' crystals' : ''}`;
   const rows: Stat[] = [];
-  if (look.command) rows.push({ label: 'Equip', value: equip(commandsFor(look.command, id), look.nameTag) });
+  if (look.command) {
+    const home = look.class === 'walker' ? ['or pick it on the home screen'] : [];
+    rows.push({ label: 'Equip', value: [...commandsFor(look.command, id), ...home].join(', ') });
+  }
   rows.push({ label: 'Hearts', value: look.regen ? `${hearts}, back at ${num(REGEN_RATE)} a second` : hearts });
   if (look.class === 'walker') {
     const walk = walkSpeedOf(id);
@@ -120,7 +119,7 @@ export function itemStats(id: ItemId): Stat[] {
         .map((a) => AVATARS[a].command ?? a)
         .join(', '),
     });
-  else rows.push({ label: 'Equip', value: equip(commandsFor(id), spec.nameTag) });
+  else rows.push({ label: 'Equip', value: commandsFor(id).join(', ') });
   const hold = spec.actions.shoot?.mode === 'hold';
   rows.push({ label: 'Fire', value: hold ? 'hold click' : 'click' });
   if (spec.actions.scope?.key)
@@ -172,7 +171,7 @@ export function gearStats(id: GearId): Stat[] {
   const spec = GEAR[id];
   const thrust = spec.actions.thrust?.key;
   return [
-    { label: 'Equip', value: equip(commandsFor(id), null) },
+    { label: 'Equip', value: commandsFor(id).join(', ') },
     ...(thrust ? [{ label: 'Use', value: `hold ${keyName(thrust)}` }] : []),
     { label: 'Lasts', value: `${num(spec.seconds)} s` },
     { label: 'Fuel', value: `${num(spec.fuelSeconds)} s of thrust; refills on the ground` },

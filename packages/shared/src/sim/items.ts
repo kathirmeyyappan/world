@@ -1,8 +1,6 @@
-// Weapons: the items a player holds. One at a time; chat commands swap freely unless the player's
-// name carries a weapon's tag, in which case they spawn holding it for good and can never swap. A
-// look may come with one of its own instead (AvatarSpec.item: a dragon's breath), held for good
-// while it's worn. Gear (sim/gear.ts) is the other kind of item, worn in its own slot beside the
-// weapon. Adding a weapon means adding a row here, a shape in the client's Weapons.ts (a hold weapon
+// Weapons: the items a player holds. One at a time; chat commands swap freely, except that a look
+// may come with one of its own (AvatarSpec.item: a dragon's breath), held for good while it's worn.
+// Gear (sim/gear.ts) is the other kind of item, worn in its own slot beside the weapon. Adding a weapon means adding a row here, a shape in the client's Weapons.ts (a hold weapon
 // with an element gets a tank and a jet in that element's colours too), a sound in the client's
 // ITEM_SOUNDS, and nothing on the wire: every item action travels inside the input frame.
 import { CHILL_SECONDS, TICK_RATE } from './constants';
@@ -45,7 +43,6 @@ export interface ItemSpec {
   shatters: boolean; // whether a hit of it shatters a dragon's crystal (dragon.ts hurt): a bullet does, a spray washes over one
   fireNeedsScope: boolean; // can only shoot while scoped
   fuelSeconds: number | null; // hold items: seconds of continuous fire from full; refills at FUEL_REFILL_RATE
-  nameTag: string | null; // a name containing this spawns holding the item, locked in hand
   own: boolean; // a look's own (a dragon's breath): never drawn by command, tagged, listed or shown in a hand
   blurb: string; // one plain line for the commands menu
 }
@@ -63,7 +60,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     shatters: true,
     fireNeedsScope: false,
     fuelSeconds: null,
-    nameTag: 'GUN',
     own: false,
     blurb: 'equip a handgun',
   },
@@ -79,7 +75,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     shatters: true,
     fireNeedsScope: true,
     fuelSeconds: null,
-    nameTag: 'SNIPER',
     own: false,
     blurb: 'equip a sniper rifle',
   },
@@ -95,7 +90,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
-    nameTag: 'FLAMETHROWER',
     own: false,
     blurb: 'equip a flamethrower',
   },
@@ -113,7 +107,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
-    nameTag: 'ICEBLOWER',
     own: false,
     blurb: 'equip an ice blower',
   },
@@ -130,7 +123,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
-    nameTag: null,
     own: true,
     blurb: 'breathe fire',
   },
@@ -147,7 +139,6 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
     shatters: false,
     fireNeedsScope: false,
     fuelSeconds: 7.5,
-    nameTag: null,
     own: true,
     blurb: 'breathe frost',
   },
@@ -156,7 +147,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 export const FUEL_REFILL_RATE = 7.5 / 25; // of the burn rate: a 7.5 s tank takes 25 s to refill
 
-// What a player is holding, until they draw another or die. `locked` (a name tag's item) can't be
+// What a player is holding, until they draw another or die. `locked` (a look's own item) can't be
 // put down; `fuel` is seconds of fire left for hold items, null otherwise.
 export interface ItemState {
   id: ItemId;
@@ -190,15 +181,6 @@ export function isItemAction(v: unknown): v is ItemAction {
 export function nextFuel(fuel: number, full: number, burning: boolean, refilling: boolean, dt: number): number {
   const next = burning ? fuel - dt : refilling ? Math.min(full, fuel + dt * FUEL_REFILL_RATE) : fuel;
   return next < 1e-9 ? 0 : next;
-}
-
-// The item a name entitles its owner to for the whole session, if any. Longer tags win so a
-// name like "SNIPERGUN" is a sniper, not a gun.
-export function lockedItemFor(name: string): ItemId | null {
-  const tags = ITEM_IDS.flatMap((id) => (ITEMS[id].nameTag === null ? [] : [{ id, tag: ITEMS[id].nameTag }]));
-  const matches = tags.filter(({ tag }) => name.includes(tag));
-  matches.sort((a, b) => b.tag.length - a.tag.length);
-  return matches[0]?.id ?? null;
 }
 
 // "click to shoot, F to scope", for hints and chat notices: a shot is a click, the rest name their

@@ -67,7 +67,7 @@ export const RENAME_SECONDS = 5;
 export const MAX_CHAT_LENGTH = 140;
 export const MAX_ROOM_ID_LENGTH = 24;
 
-// The colours anyone can switch to with "/<name>" (commands.ts). Black is a dark grey, so a name tag
+// The colours anyone can switch to with "/<name>" (commands.ts). Black is a dark grey, so a name label
 // in it still reads against the night sky.
 export const NAMED_COLORS: Readonly<Record<string, string>> = {
   yellow: '#fff176',

@@ -347,7 +347,7 @@ terrace, the sky bridge and the staircases. List a landmark's there when it's wo
 
 ## Avatars
 
-An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: name tag, command, eye
+An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: command, eye
 height, hitbox, and on foot its `walk` in m/s and its `jump` power, 1 rising `JUMP_RISE`, 1.6 m;
 `walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim) and a builder in `packages/client/src/render/avatars/` (`WALKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
@@ -563,9 +563,16 @@ spends on (fog, frost, jets, ice, MSAA, bloom), and it goes with the square of t
 
 A rename is the `rename` message: the Room cleans the name as it does a joining player's, refuses
 another within `RENAME_SECONDS`, and tells the room. Names ride in every snapshot, so the roster, the
-labels over heads and the bots follow; what a name gives (an avatar's or an item's `nameTag` in it) is
-read only when a player joins. Switching rooms is a page load through `roomLink` (`net/lobby.ts`), the
-link an invite is, with the player's name on it.
+labels over heads and the bots follow; a name is only a name, giving its player nothing. Switching rooms
+is a page load through `roomLink` (`net/lobby.ts`), the link an invite is, with the player's name and
+skin on it.
+
+The home screen (`app/home.ts`) is the room on the left (JOIN GLOBAL, or a code to join or create)
+and the player on the right: a `BodyView` of the chosen skin, the name, and a dropdown of every look
+on foot (no dragons) a person can switch to by command (the first, a random color, shown white; last,
+the standard body in each named color, riding as `?color=`), both kept in localStorage. The skin
+rides the join as `?avatar=` (through the lobby on the launcher), and the Room puts a person in it if
+it's one on foot they could switch to.
 
 ## Guide
 
@@ -857,7 +864,7 @@ So `/sniper-bot -t 120 -n hunter -s tung --target kat bob`. A bare word, an unkn
 flag, or a missing or bad value gets the usage line instead. The flags are one table, `BOT_FLAGS` in
 `packages/shared/src/sim/bots.ts`: `commands.ts` parses it and the usage lines and commands menu are
 written from it, so a new flag is a row there and a case in the parser. Names are taken as given,
-tags and all: a bot named `GUNNER` holds a gun for good, like a person would.
+and a name is only a name: nothing about a player comes from what it spells.
 
 `/kill-bots` drops every living bot in the room dead where it stands, with no kill event; each
 corpse is removed like any bot's, which closes its connection and ends its run.

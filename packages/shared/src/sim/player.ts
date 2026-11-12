@@ -2,15 +2,14 @@
 // (classes.ts). Runs identically on the server (authoritative) and the client (prediction), so it
 // must stay pure: no Babylon, no DOM, no time reads.
 import { MAX_PITCH } from './constants';
-import { AVATARS, avatarFor, type AvatarId } from './avatars';
+import { AVATARS, type AvatarId } from './avatars';
 import { classOf, heartsOf, lifeOf } from './classes';
 import type { Structures } from './collision';
-import { ITEMS, createItem, nextFuel, lockedItemFor, type ItemState } from './items';
+import { ITEMS, createItem, nextFuel, type ItemState } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WORLD_SHAPE, WORLD_STRUCTURES, type WorldPart } from './world';
 
 export function createPlayer(id: string, name: string, color: string, spawn: Vec3, bot = false): PlayerState {
-  const avatar = avatarFor(name);
   const p: PlayerState = {
     id,
     name,
@@ -29,19 +28,19 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     reading: null,
     boost: 0,
     chilled: 0,
-    item: ownItem(avatar, name),
+    item: null,
     gear: null,
     scoped: false,
     firing: false,
     thrusting: false,
-    avatar,
+    avatar: 'standard',
     dragon: null,
-    avatarLocked: avatar !== 'standard',
-    hearts: heartsOf(avatar),
+    avatarLocked: false,
+    hearts: heartsOf('standard'),
     kills: 0,
     dead: false,
   };
-  classOf(avatar).enter(p);
+  classOf('standard').enter(p);
   return p;
 }
 
@@ -66,7 +65,7 @@ export function clonePlayer(p: PlayerState): PlayerState {
 // shape); a new class also drops the old class's state and the kit where the class has none, at
 // the same eye point. A look with another life (another class's, or one of its own) starts it
 // full; one with the same life keeps the hearts it had, so a change of skin is no heal. The look's
-// own item is held for good; leaving one brings back whatever the name gives.
+// own item is held for good, and put down when the look is left.
 export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   const from = classOf(p.avatar);
   const to = classOf(avatar);
@@ -85,12 +84,12 @@ export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
       p.boost = 0;
     }
   }
-  if (AVATARS[avatar].item || hadOwn) p.item = ownItem(avatar, p.name);
+  if (AVATARS[avatar].item || hadOwn) p.item = ownItem(avatar);
 }
 
-// The look's own item, locked, else the name's, else nothing.
-function ownItem(avatar: AvatarId, name: string): ItemState | null {
-  const id = AVATARS[avatar].item ?? lockedItemFor(name);
+// The look's own item, locked, else nothing.
+function ownItem(avatar: AvatarId): ItemState | null {
+  const id = AVATARS[avatar].item;
   return id ? createItem(id, true) : null;
 }
 

@@ -242,6 +242,104 @@ body {
   color: var(--accent-soft);
 }
 
+/* Home: the room on the left, the player on the right; stacked on a phone, the player between. */
+.card.home-card {
+  max-width: 880px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    'head player'
+    'join player';
+  grid-template-rows: auto 1fr;
+  column-gap: 28px;
+}
+.home-head {
+  grid-area: head;
+}
+.home-join {
+  grid-area: join;
+}
+.home-player {
+  grid-area: player;
+  border-left: 2px solid rgba(100, 181, 246, 0.3);
+  padding-left: 28px;
+}
+.home-player label:last-child {
+  margin-bottom: 0;
+}
+#home-view {
+  position: relative;
+  height: 260px;
+  margin-bottom: 16px;
+  border: 2px solid rgba(100, 181, 246, 0.5);
+  background: var(--panel);
+}
+#home-view canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+  cursor: grab;
+}
+#home-view canvas:active {
+  cursor: grabbing;
+}
+#home-view .hint {
+  position: absolute;
+  right: 8px;
+  bottom: 4px;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+.card select {
+  width: 100%;
+  padding: 8px 36px 8px 12px;
+  font: 22px var(--mono);
+  color: #fff;
+  background: #05070c;
+  border: 2px solid rgba(100, 181, 246, 0.5);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+    linear-gradient(-45deg, transparent 50%, var(--accent) 50%);
+  background-position:
+    right 18px center,
+    right 12px center;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+.card select:focus {
+  border-color: var(--accent);
+  box-shadow: 3px 3px 0 #000;
+}
+.card select option {
+  background: #05070c;
+}
+@media (max-width: 720px) {
+  .card.home-card {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'head' 'player' 'join';
+    grid-template-rows: none;
+    max-height: calc(100% - 24px);
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+  .home-player {
+    border-left: none;
+    padding-left: 0;
+    padding-bottom: 18px;
+    margin-bottom: 8px;
+    border-bottom: 2px solid rgba(100, 181, 246, 0.3);
+  }
+  #home-view {
+    height: 200px;
+  }
+}
+
 #home-status {
   min-height: 18px;
   margin-top: 14px;
