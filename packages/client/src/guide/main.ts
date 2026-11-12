@@ -244,19 +244,19 @@ function placeStats(place: Place): Stat[] {
     case 'main':
       return [
         { label: 'Size', value: MAIN_AREA.kind === 'disc' ? `${num(2 * MAIN_AREA.r)} m across` : '' },
-        { label: 'Hearts', value: `${heartsIn([MAIN_AREA])} floating about` },
+        { label: 'Hearts', value: `${heartsIn([MAIN_AREA])}` },
       ].filter((s) => s.value);
     case 'pineapple':
       return [
         { label: 'Floors', value: `${PINEAPPLE_LEVELS.length}` },
-        { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}, one on each floor` },
+        { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}` },
       ];
     case 'welcome':
     case 'sanctuary':
     case 'building4': {
       const ground = BUILDING_GROUNDS[place.building ?? 0];
       const levels = BUILDING_LEVELS.filter((r) => Math.hypot(r.x - ground.x, r.z - ground.z) < 1);
-      return [{ label: 'Hearts', value: `${heartsIn(levels)}: inside and on the roof` }];
+      return [{ label: 'Hearts', value: `${heartsIn(levels)}` }];
     }
     case 'tower':
       return [
