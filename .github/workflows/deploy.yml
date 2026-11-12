@@ -86,7 +86,10 @@ jobs:
       # Run once the job is through its queue, so one that waited behind a newer merge sees it.
       - name: Check this is main's tip
         id: latest
-        run: echo "tip=$([ "$(gh api repos/${{ github.repository }}/commits/main --jq .sha)" = "${{ github.sha }}" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        # The assignment on its own line, so a failed lookup fails the job rather than reading as stale.
+        run: |
+          main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          echo "tip=$([ "$main" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -110,7 +113,10 @@ jobs:
       # Run once the job is through its queue, so one that waited behind a newer merge sees it.
       - name: Check this is main's tip
         id: latest
-        run: echo "tip=$([ "$(gh api repos/${{ github.repository }}/commits/main --jq .sha)" = "${{ github.sha }}" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        # The assignment on its own line, so a failed lookup fails the job rather than reading as stale.
+        run: |
+          main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          echo "tip=$([ "$main" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
 
