@@ -64,8 +64,8 @@ export const ITEM_TEXT: Record<ItemId, Entry> = {
   sniper: plain('Sniper rifle', 'A sniper rifle.'),
   flamethrower: plain('Flamethrower', 'A flamethrower.'),
   'ice-blower': plain('Ice blower', 'An ice blower.'),
-  firebreath: plain('Fire breath', 'The Light Dragon’s fire breath.'),
-  frostbreath: plain('Frost breath', 'Colgera’s frost breath.'),
+  firebreath: plain('Fire breath', ''),
+  frostbreath: plain('Frost breath', ''),
 };
 
 export const GEAR_TEXT: Record<GearId, Entry> = {
