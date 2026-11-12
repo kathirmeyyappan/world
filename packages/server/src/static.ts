@@ -35,13 +35,19 @@ export function createStaticHandler(dir: string, lobbyUrl = '') {
       res.end(index);
       return;
     }
-    const file = join(dir, path);
+    // A page in a folder of its own (the guide) is its folder's index.html.
+    const file = join(dir, path.endsWith('/') ? `${path}index.html` : path);
     if (!file.startsWith(dir)) {
       res.writeHead(403).end();
       return;
     }
     try {
-      const { size, mtime } = statSync(file);
+      const stat = statSync(file);
+      if (stat.isDirectory()) {
+        res.writeHead(301, { location: `${path}/` }).end();
+        return;
+      }
+      const { size, mtime } = stat;
       const modified = Math.floor(mtime.getTime() / 1000); // HTTP dates have whole seconds
       if (modified <= Math.floor(Date.parse(req.headers['if-modified-since'] ?? '') / 1000)) {
         res.writeHead(304).end();

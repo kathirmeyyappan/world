@@ -315,8 +315,8 @@ the canvas can't become the frame's texture from afar.
   `dropPickup` leaves one at a spot, in no area, where it stays until taken and never comes back. A
   dead player's body leaves `CORPSE_DROP` (a big heart, twice the size, back to full health) on
   whatever it was lying on when its seat is dropped.
-- A new kind is a row in `PICKUPS` (float height, reach, and `use(player)`, which applies its effect
-  and returns false when it's no use to them, so it stays) plus a shape in `render/Pickups.ts`; the
+- A new kind is a row in `PICKUPS` (float height, reach, and `heals`, the hearts it gives back, a
+  full life at `Infinity`; one at full health leaves it where it is) plus a shape in `render/Pickups.ts`; the
   `Record<PickupKind, …>` there makes the compiler ask. The Room, the wire and the Python mirror
   already carry every kind.
 - Pickups pass through structures like cubes, so keep a region clear of stairs and walls at the
@@ -565,6 +565,16 @@ another within `RENAME_SECONDS`, and tells the room. Names ride in every snapsho
 labels over heads and the bots follow; what a name gives (an avatar's or an item's `nameTag` in it) is
 read only when a player joins. Switching rooms is a page load through `roomLink` (`net/lobby.ts`), the
 link an invite is, with the player's name on it.
+
+## Guide
+
+The guide (`world.kathirm.com/guide/`, `packages/client/guide/index.html` and `src/guide/`) is a
+second Vite page: every character, item, place, bot and command in tabs, a character or item shown
+in a `BodyView` (`render/BodyView.ts`, the menu's player view, an item held or worn by the standard
+body in a close view). Its numbers are worked out in `guide/stats.ts` from the registries the game
+runs on, never typed in, and its words are `guide/content.ts`, keyed by the registries' ids, so a
+new skin, item, gear, pickup or bot doesn't build until it has an entry there: a title, a line or
+two, and fun facts (no numbers in the words; anything the game decides belongs in `stats.ts`).
 
 ## Adding a Modal bot
 
