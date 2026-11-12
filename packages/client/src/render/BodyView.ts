@@ -83,12 +83,9 @@ const THING_VIEW = 1.6;
 const THING_STAGE = 4;
 const BODY_ARC = 25; // metres: the radius of the curve a dragon's body is laid on behind its head
 
-// The floor's look: the square's fill and the rules along its edges (CSS colours).
-export interface FloorLook {
-  fill: string;
-  rule: string;
-}
-const MENU_FLOOR: FloorLook = { fill: '#0b0d14', rule: 'rgba(100, 181, 246, 0.45)' };
+// The floor's square and the rules along its edges (CSS colours): night blue, ruled in blue.
+const FLOOR_FILL = '#0b0d14';
+const FLOOR_RULE = 'rgba(100, 181, 246, 0.45)';
 
 interface Stage {
   size: number; // metres across
@@ -109,7 +106,7 @@ export class BodyView {
   private seen = false; // drawn since it was last hidden: the first frame shown sizes the canvas
   private lastNow = performance.now();
 
-  constructor(private readonly look: FloorLook = MENU_FLOOR) {
+  constructor() {
     this.canvas.addEventListener('pointerdown', () => (this.dragging = true));
     window.addEventListener('pointerup', () => this.drop());
     window.addEventListener('pointercancel', () => this.drop());
@@ -232,7 +229,7 @@ export class BodyView {
     const camera = this.camera!;
     if (this.stage?.size !== stage.size) {
       this.stage?.floor.dispose(false, true);
-      this.stage = { ...stage, floor: buildFloor(engine, stage.size, this.look) };
+      this.stage = { ...stage, floor: buildFloor(engine, stage.size) };
     } else {
       this.stage = { ...this.stage, ...stage };
     }
@@ -311,16 +308,16 @@ function stageOf(kind: AvatarId): Stage {
   return { size, centre: new Vector3(0, top / 2, 0), radius: size * WALKER_VIEW };
 }
 
-// The floor: a plain ruled in its look's colours, a CELL to a square, solid over the stage in the middle
+// The floor: a plain ruled in blue, a CELL to a square, solid over the stage in the middle
 // and fading out to nothing by its edge, so it reads as going on for ever.
-function buildFloor(engine: Engine, size: number, look: FloorLook): Mesh {
+function buildFloor(engine: Engine, size: number): Mesh {
   const scene = engine.scene;
   const width = size * REACH;
   const floor = MeshBuilder.CreateGround('preview-floor', { width, height: width }, scene);
   floor.isPickable = false;
   floor.alphaIndex = 0; // drawn before the shadow and anything else translucent laid over it
   const ruled = new StandardMaterial('preview-floor', scene);
-  const tile = gridTexture(engine, look);
+  const tile = gridTexture(engine);
   tile.uScale = tile.vScale = width / CELL;
   ruled.emissiveTexture = tile;
   ruled.opacityTexture = fadeTexture(engine);
@@ -333,14 +330,14 @@ function buildFloor(engine: Engine, size: number, look: FloorLook): Mesh {
 
 // One square of the floor: dark, ruled along its edges with half a line's width either side of each
 // seam, so every edge rules alike as the tile repeats.
-function gridTexture(engine: Engine, look: FloorLook): DynamicTexture {
+function gridTexture(engine: Engine): DynamicTexture {
   const size = 64;
   const texture = new DynamicTexture('preview-grid', size, engine.scene, true); // mipmapped: the far rules blend rather than sparkle
   texture.wrapU = texture.wrapV = Texture.WRAP_ADDRESSMODE; // tiled across the floor
   const ctx = texture.getContext() as CanvasRenderingContext2D;
-  ctx.fillStyle = look.fill;
+  ctx.fillStyle = FLOOR_FILL;
   ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = look.rule;
+  ctx.strokeStyle = FLOOR_RULE;
   ctx.lineWidth = 3;
   ctx.beginPath();
   for (const at of [0, size]) {

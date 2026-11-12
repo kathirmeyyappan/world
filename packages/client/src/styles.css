@@ -6,11 +6,21 @@
 
 :root {
   --accent: #64b5f6;
+  --accent-rgb: 100, 181, 246;
   --accent-soft: #90caf9;
   --bg-card: rgba(20, 20, 30, 0.85);
   --mono: 'VT323', 'Courier New', monospace;
   --pixel: 'Press Start 2P', 'VT323', monospace;
   --panel: #0b0d14;
+}
+
+/* The home page in the guide's colours: amber on a warm panel, with mint labels. */
+#home {
+  --accent: #ffc857;
+  --accent-rgb: 255, 200, 87;
+  --accent-soft: #ffdc8f;
+  --panel: #111014;
+  --label: #7fd1ae;
 }
 
 html,
@@ -180,7 +190,7 @@ body {
   display: block;
   font: 9px var(--pixel);
   letter-spacing: 1px;
-  color: var(--accent-soft);
+  color: var(--label, var(--accent-soft));
   margin-bottom: 8px;
 }
 .card input {
@@ -189,7 +199,7 @@ body {
   font: 22px var(--mono);
   color: #fff;
   background: #05070c;
-  border: 2px solid rgba(100, 181, 246, 0.5);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
   outline: none;
 }
 .card input:focus {
@@ -200,14 +210,14 @@ body {
   font: 10px var(--pixel);
   color: #fff;
   cursor: pointer;
-  background: rgba(100, 181, 246, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
   border: 2px solid var(--accent);
   padding: 12px;
   transition: background 0.1s;
   box-shadow: 3px 3px 0 #000;
 }
 .card button:hover {
-  background: rgba(100, 181, 246, 0.35);
+  background: rgba(var(--accent-rgb), 0.35);
 }
 .card button:disabled {
   opacity: 0.5;
@@ -233,7 +243,7 @@ body {
 .card .divider::after {
   content: '';
   flex: 1;
-  border-top: 2px solid rgba(100, 181, 246, 0.3);
+  border-top: 2px solid rgba(var(--accent-rgb), 0.3);
 }
 .card .tagline a {
   color: var(--accent);
@@ -261,7 +271,7 @@ body {
 }
 .home-player {
   grid-area: player;
-  border-left: 2px solid rgba(100, 181, 246, 0.3);
+  border-left: 2px solid rgba(var(--accent-rgb), 0.3);
   padding-left: 28px;
 }
 .home-player label:last-child {
@@ -271,7 +281,7 @@ body {
   position: relative;
   height: 260px;
   margin-bottom: 16px;
-  border: 2px solid rgba(100, 181, 246, 0.5);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
   background: var(--panel);
 }
 #home-view canvas {
@@ -299,7 +309,7 @@ body {
   font: 22px var(--mono);
   color: #fff;
   background: #05070c;
-  border: 2px solid rgba(100, 181, 246, 0.5);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
   outline: none;
   cursor: pointer;
   appearance: none;
