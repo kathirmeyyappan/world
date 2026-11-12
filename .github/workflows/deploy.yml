@@ -12,10 +12,11 @@ permissions:
   pages: write
   id-token: write
 
-# One run per PR or branch: a newer push cancels that ref's stale PR run, and runs for different
-# refs never cancel each other. Pushes to main finish, so every merge gets its deploy.
+# A PR's runs share a group, so a newer push cancels its stale run. Every push to main gets a group
+# of its own, so its CI starts at once and never waits on an earlier merge's deploys; the deploy
+# jobs queue among themselves, and each skips itself once a newer merge is main's tip.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -82,8 +83,19 @@ jobs:
       group: pages
       cancel-in-progress: false
     steps:
+      # Run once the job is through its queue, so one that waited behind a newer merge sees it.
+      - name: Check this is main's tip
+        id: latest
+        # The assignment on its own line, so a failed lookup fails the job rather than reading as stale.
+        run: |
+          main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          echo "tip=$([ "$main" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: CI and deploy
         id: deployment
+        if: steps.latest.outputs.tip == 'true'
         uses: actions/deploy-pages@v4
 
   # Deploys the lobby, Room and bots apps to Modal once CI passes on main, as ./deploy.sh does by
@@ -98,6 +110,16 @@ jobs:
       group: modal-deploy
       cancel-in-progress: false
     steps:
+      # Run once the job is through its queue, so one that waited behind a newer merge sees it.
+      - name: Check this is main's tip
+        id: latest
+        # The assignment on its own line, so a failed lookup fails the job rather than reading as stale.
+        run: |
+          main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          echo "tip=$([ "$main" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -122,6 +144,7 @@ jobs:
         run: python -m pip install -r infra/requirements.txt
 
       - name: Deploy to Modal
+        if: steps.latest.outputs.tip == 'true'
         run: ./deploy.sh
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
