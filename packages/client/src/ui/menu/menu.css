@@ -14,7 +14,7 @@
   text-align: left;
 }
 #menu-button:hover {
-  background: rgba(var(--line-rgb), 0.2);
+  background: rgba(var(--accent-rgb), 0.2);
   border-color: var(--accent);
 }
 #menu-button .gear {
@@ -27,7 +27,7 @@
   padding: 0 6px;
   font: 20px/22px var(--mono);
   color: rgba(255, 255, 255, 0.8);
-  background: rgba(var(--line-rgb), 0.2);
+  background: rgba(var(--accent-rgb), 0.2);
   border: 1px solid rgba(var(--accent-rgb), 0.5);
 }
 
@@ -85,15 +85,15 @@
   padding: 7px 8px;
   color: rgba(255, 255, 255, 0.6);
   background: transparent;
-  border-color: rgba(var(--line-rgb), 0.35);
+  border-color: rgba(var(--accent-rgb), 0.35);
   box-shadow: none;
 }
 #menu nav button:hover {
   color: #fff;
-  background: rgba(var(--line-rgb), 0.12);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 #menu nav button.on {
-  color: var(--deep);
+  color: #05070c;
   background: var(--accent);
   border-color: var(--accent);
   box-shadow: 3px 3px 0 #000;
@@ -111,13 +111,13 @@
   position: relative;
   aspect-ratio: 2 / 1;
   overflow: hidden;
-  background: var(--deep);
+  background: #05070c;
   border: 2px solid rgba(var(--accent-rgb), 0.6);
 }
 #menu .preview .view {
   position: absolute;
   overflow: hidden;
-  background: var(--deep);
+  background: #05070c;
 }
 #menu .preview .view.big {
   inset: 0;
@@ -159,7 +159,7 @@
   font: 9px var(--pixel);
   letter-spacing: 2px;
   color: var(--accent);
-  background: rgba(var(--deep-rgb), 0.8);
+  background: rgba(5, 7, 12, 0.8);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -180,7 +180,7 @@
   display: block;
 }
 #menu .preview .view.small .swap:hover {
-  background: rgba(var(--line-rgb), 0.15);
+  background: rgba(var(--accent-rgb), 0.15);
 }
 #menu .preview .view .swap .caption {
   position: absolute;
@@ -211,12 +211,12 @@
   font: 9px var(--pixel);
   letter-spacing: 1px;
   color: rgba(255, 255, 255, 0.45);
-  background: rgba(var(--deep-rgb), 0.75);
-  border: 2px solid rgba(var(--line-rgb), 0.3);
+  background: rgba(5, 7, 12, 0.75);
+  border: 2px solid rgba(var(--accent-rgb), 0.3);
   box-shadow: none;
 }
 #menu .preview .map .toggle button.on {
-  color: var(--deep);
+  color: #05070c;
   background: var(--accent-soft);
   border-color: var(--accent-soft);
 }
@@ -227,7 +227,7 @@
   padding: 1px 5px;
   font: 14px var(--mono);
   color: rgba(255, 255, 255, 0.85);
-  background: rgba(var(--deep-rgb), 0.7);
+  background: rgba(5, 7, 12, 0.7);
   white-space: nowrap;
 }
 #menu .preview .map.small .toggle,
@@ -247,7 +247,7 @@
   font-family: inherit;
   font-size: 16px;
   color: rgba(255, 255, 255, 0.8);
-  background: rgba(var(--line-rgb), 0.2);
+  background: rgba(var(--accent-rgb), 0.2);
   border: 1px solid rgba(var(--accent-rgb), 0.5);
 }
 
@@ -267,7 +267,7 @@
 }
 #menu h2 {
   font: 10px var(--pixel);
-  color: var(--second);
+  color: var(--accent);
   letter-spacing: 1px;
   margin-bottom: 10px;
 }
@@ -295,7 +295,7 @@
   padding: 0 5px;
   font-family: inherit;
   font-size: 16px;
-  background: rgba(var(--line-rgb), 0.2);
+  background: rgba(var(--accent-rgb), 0.2);
   border: 1px solid rgba(var(--accent-rgb), 0.5);
 }
 #menu .row .value {
@@ -330,14 +330,14 @@
   min-width: 128px;
 }
 #menu .stepper .auto.on {
-  color: var(--deep);
+  color: #05070c;
   background: var(--accent);
   box-shadow: 3px 3px 0 #000;
 }
 #menu .steps {
   display: flex;
   flex: 1 1 auto;
-  background: rgba(var(--line-rgb), 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
   border: 2px solid var(--accent);
   box-shadow: 3px 3px 0 #000;
 }
@@ -424,12 +424,12 @@
   text-align: center;
   text-decoration: none;
   color: #fff;
-  background: rgba(var(--line-rgb), 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
   border: 2px solid var(--accent);
   box-shadow: 3px 3px 0 #000;
 }
 #menu a.button:hover {
-  background: rgba(var(--line-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.35);
 }
 #menu .buttons .danger {
   background: rgba(255, 59, 78, 0.18);
@@ -461,7 +461,7 @@
 
 #menu .footer {
   margin-top: 14px;
-  border-top: 2px solid rgba(var(--line-rgb), 0.35);
+  border-top: 2px solid rgba(var(--accent-rgb), 0.35);
   padding-top: 10px;
   font: 18px var(--mono);
   color: rgba(255, 255, 255, 0.8);
@@ -475,7 +475,7 @@
   margin: 0 6px;
   padding: 2px 6px 0;
   background: var(--accent);
-  color: var(--deep);
+  color: #05070c;
   font: 13px/16px var(--pixel);
   border: 0;
   border-bottom: 3px solid var(--accent-deep);
