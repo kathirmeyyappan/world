@@ -52,7 +52,6 @@ import { cubeThing, gearThing, itemThing, pickupThing } from './things';
 import { botFlagRows, characterStats, gearStats, itemStats, num, pickupStats, speedyStats, type Stat } from './stats';
 
 const COLOR = '#ff7043'; // the standard body's paint in the views
-const FLOOR = { fill: '#111014', rule: 'rgba(255, 200, 87, 0.4)' }; // the views' floor, in the page's amber
 
 // One thing a catalog lists: its words, its numbers, and what its view shows: a body, a thing on
 // its own, or nothing.
@@ -192,7 +191,7 @@ function subTabs(tabs: { title: string; body: HTMLElement }[], first = 0): HTMLE
 // A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across picks.
 class Catalog {
   readonly el = el('div', 'catalog');
-  private readonly view = new BodyView(FLOOR);
+  private readonly view = new BodyView();
   private readonly viewBox = el('div', 'view');
   private readonly text = el('div', 'text');
   private readonly list = el('nav', 'picker');
