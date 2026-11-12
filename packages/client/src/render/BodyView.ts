@@ -13,6 +13,7 @@ import {
   MeshBuilder,
   StandardMaterial,
   Texture,
+  TransformNode,
   Vector3,
   type Mesh,
 } from '@babylonjs/core';
@@ -40,9 +41,14 @@ export interface Shown {
   gear: GearId | null;
   chilled: boolean;
   shattered: number[];
-  firing?: boolean;
-  thrusting?: boolean;
-  close?: boolean; // framed on what a walker holds and wears: its hands and back, not its whole height
+}
+
+// A thing on its own over the floor (an item, a heart, a cube), built under the view's node the
+// first time it's shown: `move` places it each frame, `t` seconds after it was built. The view
+// looks at its middle from as far as its size needs, measured where it first stands.
+export interface Thing {
+  key: string; // which thing it is: another key builds afresh
+  build(engine: Engine, parent: TransformNode): (t: number) => void;
 }
 
 const PIXELS = 1.5; // CSS pixels per rendered one: the world's grid on a mouse device, whatever the picture is set to
@@ -71,9 +77,10 @@ const DRAGON_STAGE = 6;
 const DRAGON_VIEW = 0.95; // in stages
 // A hovering head's weave: metres either way and seconds a swing takes, across and up.
 const WEAVE = { x: 0.6, y: 0.45, xSeconds: 7, ySeconds: 4.3 };
-// A close view of a walker: CLOSE of its stage's distance off, looking at HANDS of its eye height.
-const CLOSE = 0.45;
-const HANDS = 0.75;
+// A thing's view stands THING_VIEW of its size (corner to corner) off, over a stage THING_STAGE of
+// its size across.
+const THING_VIEW = 1.6;
+const THING_STAGE = 4;
 const BODY_ARC = 25; // metres: the radius of the curve a dragon's body is laid on behind its head
 
 interface Stage {
@@ -87,7 +94,7 @@ export class BodyView {
   private engine: Engine | null = null;
   private camera: ArcRotateCamera | null = null;
   private avatar: Avatar | null = null;
-  private close = false; // whether the stage is set for a close view
+  private thing: { key: string; node: TransformNode; move: (t: number) => void; born: number } | null = null;
   private stage: (Stage & { floor: Mesh }) | null = null;
   private spine: number[] = []; // a dragon's, trailing its head (sim/dragon.ts DragonState)
   private dragging = false;
@@ -103,6 +110,39 @@ export class BodyView {
 
   // Once a frame: drawn while `visible`, as `shown` is.
   sync(shown: Shown, visible: boolean): void {
+    this.frame(visible, (engine, now) => {
+      this.dropThing();
+      const avatar = this.body3d(engine, shown);
+      avatar.update(this.state(shown, this.stage!, now), 0);
+    });
+  }
+
+  // Once a frame: drawn while `visible`, `thing` on its own.
+  syncThing(thing: Thing, visible: boolean): void {
+    this.frame(visible, (engine, now) => {
+      this.avatar?.dispose();
+      this.avatar = null;
+      if (this.thing?.key !== thing.key) {
+        this.dropThing();
+        const node = new TransformNode(`thing-${thing.key}`, engine.scene);
+        this.thing = { key: thing.key, node, move: thing.build(engine, node), born: now };
+        this.thing.move(0);
+        const { min, max } = node.getHierarchyBoundingVectors();
+        const across = Vector3.Distance(min, max);
+        const size = Math.max(CELL, Math.ceil((across * THING_STAGE) / CELL) * CELL);
+        const centre = new Vector3(0, (min.y + max.y) / 2, 0);
+        this.setStage(engine, { size, centre, radius: across * THING_VIEW });
+      }
+      this.thing.move((now - this.thing.born) / 1000);
+    });
+  }
+
+  private dropThing(): void {
+    this.thing?.node.dispose(false, true);
+    this.thing = null;
+  }
+
+  private frame(visible: boolean, draw: (engine: Engine, now: number) => void): void {
     if (!visible) {
       this.seen = false;
       return;
@@ -116,9 +156,8 @@ export class BodyView {
     }
     const dt = Math.min(0.1, (now - this.lastNow) / 1000);
     this.lastNow = now;
-    const avatar = this.body3d(engine, shown);
+    draw(engine, now);
     const stage = this.stage!;
-    avatar.update(this.state(shown, stage, now), 0);
     const camera = this.camera!;
     if (!this.dragging && now - this.draggedAt > SPIN_PAUSE_MS) camera.alpha += dt * SPIN;
     // The floor goes as the view comes down to its level, and is gone from below it.
@@ -161,26 +200,21 @@ export class BodyView {
   }
 
   // The avatar as `shown` is, made afresh when the look or the colour changes, with the stage to
-  // suit it and the view's framing.
+  // suit it.
   private body3d(engine: Engine, shown: Shown): Avatar {
     const old = this.avatar;
     if (old && (old.kind !== shown.avatar || (old.color !== undefined && old.color !== shown.color))) {
       old.dispose();
       this.avatar = null;
     }
-    const close = !!shown.close && AVATARS[shown.avatar].class === 'walker';
-    if (this.avatar && close === this.close) return this.avatar;
-    this.avatar ??= createAvatar(engine, { id: 'preview', color: shown.color, avatar: shown.avatar });
-    this.close = close;
-    this.setStage(engine, shown.avatar, close);
+    if (this.avatar) return this.avatar;
+    this.avatar = createAvatar(engine, { id: 'preview', color: shown.color, avatar: shown.avatar });
+    this.setStage(engine, stageOf(shown.avatar));
+    if (AVATARS[shown.avatar].class === 'asian-dragon') this.spine = restingSpine(shown.avatar, this.stage!.centre);
     return this.avatar;
   }
 
-  private setStage(engine: Engine, kind: AvatarId, close: boolean): void {
-    const whole = stageOf(kind);
-    const stage = close
-      ? { ...whole, centre: new Vector3(0, AVATARS[kind].eye * HANDS, 0), radius: whole.radius * CLOSE }
-      : whole;
+  private setStage(engine: Engine, stage: Stage): void {
     const camera = this.camera!;
     if (this.stage?.size !== stage.size) {
       this.stage?.floor.dispose(false, true);
@@ -192,7 +226,6 @@ export class BodyView {
     camera.radius = stage.radius;
     camera.lowerRadiusLimit = stage.radius * 0.6;
     camera.upperRadiusLimit = stage.radius * 1.6;
-    if (AVATARS[kind].class === 'asian-dragon') this.spine = restingSpine(kind, stage.centre);
   }
 
   // The player as the avatar is posed from: standing still at the middle of the stage, facing
@@ -237,9 +270,9 @@ export class BodyView {
       pitch: 0,
       reading: null,
       item: shown.item,
-      firing: shown.firing ?? false,
+      firing: false,
       gear: shown.gear,
-      thrusting: shown.thrusting ?? false,
+      thrusting: false,
       walk: 0,
       climb: null,
       chilled: shown.chilled,

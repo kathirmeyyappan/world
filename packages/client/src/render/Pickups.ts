@@ -47,7 +47,7 @@ export class Pickups {
 }
 
 // The pixel heart as voxels, centred on its middle, colours baked into the vertices.
-function buildHeart(engine: Engine): Mesh {
+export function buildHeart(engine: Engine): Mesh {
   const scene = engine.scene;
   const rows = HEART.length;
   const cols = HEART[0].length;
