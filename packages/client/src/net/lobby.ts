@@ -6,7 +6,7 @@
 //            same-origin, so the proxy's session cookie applies and no token is needed.
 //   launcher anywhere else (GitHub Pages): navigate to the lobby, which starts a session and
 //            redirects the browser to the room host with the token. See docs/join-flow.png.
-import { isAvatarId, type AvatarId } from '@world/shared';
+import { NAMED_COLORS, isAvatarId, type AvatarId } from '@world/shared';
 import { WsConnection, type Connection } from './Connection';
 
 const DIRECT_WS_URL = import.meta.env.VITE_ROOM_WS_URL as string | undefined;
@@ -21,24 +21,35 @@ const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
 
-export function rememberRoom(roomId: string, name: string, avatar: AvatarId | null): void {
+export function rememberRoom(roomId: string, you: Joiner): void {
   sessionStorage.setItem('world.room', roomId);
-  sessionStorage.setItem('world.name', name);
-  if (avatar) sessionStorage.setItem('world.avatar', avatar);
-  else sessionStorage.removeItem('world.avatar');
+  sessionStorage.setItem('world.name', you.name);
+  for (const [key, value] of [
+    ['world.avatar', you.avatar],
+    ['world.color', you.color],
+  ] as const) {
+    if (value) sessionStorage.setItem(key, value);
+    else sessionStorage.removeItem(key);
+  }
 }
 
 export function rememberedRoom(): ({ roomId: string } & Joiner) | null {
   const roomId = sessionStorage.getItem('world.room');
   if (!roomId) return null;
   const avatar = sessionStorage.getItem('world.avatar');
-  return { roomId, name: sessionStorage.getItem('world.name') ?? '', avatar: isAvatarId(avatar) ? avatar : null };
+  return {
+    roomId,
+    name: sessionStorage.getItem('world.name') ?? '',
+    avatar: isAvatarId(avatar) ? avatar : null,
+    color: sessionStorage.getItem('world.color'),
+  };
 }
 
 export function forgetRoom(): void {
   sessionStorage.removeItem('world.room');
   sessionStorage.removeItem('world.name');
   sessionStorage.removeItem('world.avatar');
+  sessionStorage.removeItem('world.color');
 }
 
 // A new name, kept where the home screen looks for its default and where this tab's reload does.
@@ -84,15 +95,23 @@ export function switchRoom(roomId: string, you: Joiner): void {
   location.href = roomLink(roomId, you);
 }
 
-// Who's joining: their name, and their skin (null for the standard body in a random color).
+// Who's joining: their name, their skin (null for the standard body), and for the standard body
+// its color by name (one of NAMED_COLORS; null for one the room picks).
 export interface Joiner {
   name: string;
   avatar: AvatarId | null;
+  color: string | null;
 }
 
-function joinQuery({ name, avatar }: Joiner): URLSearchParams {
+// The name of a color a player wears, if it's one of NAMED_COLORS.
+export function colorName(hex: string): string | null {
+  return Object.keys(NAMED_COLORS).find((name) => NAMED_COLORS[name] === hex) ?? null;
+}
+
+function joinQuery({ name, avatar, color }: Joiner): URLSearchParams {
   const query = new URLSearchParams({ name });
   if (avatar && avatar !== 'standard') query.set('avatar', avatar);
+  else if (color) query.set('color', color);
   return query;
 }
 

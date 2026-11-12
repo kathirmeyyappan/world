@@ -83,10 +83,14 @@ export class LocalConnection implements Connection {
   private messageCb: ((msg: ServerMessage) => void) | null = null;
   private backlog: ServerMessage[] = [];
 
-  constructor(name: string, avatar: AvatarId | null = null) {
+  constructor(name: string, avatar: AvatarId | null = null, color: string | null = null) {
     this.room = new Room('offline');
     this.room.start();
-    this.id = this.room.join(name, { send: (m) => this.deliver(m) }, avatar ? { avatar } : {})!;
+    this.id = this.room.join(
+      name,
+      { send: (m) => this.deliver(m) },
+      { avatar: avatar ?? undefined, color: color ?? undefined },
+    )!;
   }
 
   private deliver(msg: ServerMessage): void {

@@ -1,8 +1,16 @@
 // Home screen: the room on the left (drop into the global room, or join one by code: a code nobody
 // is using yet becomes a new room), the player on the right (their name, and a skin from a dropdown
 // shown on a turning stage, as the guide and the menu show bodies).
-// Resolves with a live Connection. Also honours ?room=&name=&avatar= for invite links and tests.
-import { AVATARS, AVATAR_IDS, isAvatarId, isValidRoomId, sanitizeName, type AvatarId } from '@world/shared';
+// Resolves with a live Connection. Also honours ?room=&name=&avatar=&color= for invite links and tests.
+import {
+  AVATARS,
+  AVATAR_IDS,
+  NAMED_COLORS,
+  isAvatarId,
+  isValidRoomId,
+  sanitizeName,
+  type AvatarId,
+} from '@world/shared';
 import { CHARACTERS } from '../guide/content';
 import { LocalConnection, type Connection } from '../net/Connection';
 import {
@@ -29,6 +37,7 @@ const SKIN_KEY = 'world.skin';
 // choosing, so the stage shows it white.
 const RANDOM = '';
 const UNPAINTED = '#ffffff';
+const COLOR = 'color:'; // before a NAMED_COLORS name, a choice of the standard body in that color
 
 export function showHome(): Promise<HomeResult> {
   const root = document.getElementById('home')!;
@@ -46,17 +55,17 @@ export function showHome(): Promise<HomeResult> {
   nameInput.value = params.get('name') ?? stored(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? '';
   fillSkins(skinSelect);
-  const asked = params.get('avatar');
-  skinSelect.value = isAvatarId(asked) ? asked : (skinOf(stored(SKIN_KEY)) ?? RANDOM);
+  const asked = params.has('avatar') || params.has('color');
+  choose(skinSelect, asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? RANDOM));
   const stage = new Stage(document.getElementById('home-view')!, skinSelect);
 
   const joiner = (): Joiner => ({
     name: sanitizeName(nameInput.value),
-    avatar: skinOf(skinSelect.value),
+    ...lookOf(skinSelect.value),
   });
   const keep = (you: Joiner) => {
     store(NAME_KEY, you.name);
-    store(SKIN_KEY, you.avatar ?? RANDOM);
+    store(SKIN_KEY, choiceOf(you.avatar, you.color));
   };
 
   // The page loads showing the loading screen. Only reveal the home screen when there is
@@ -109,7 +118,7 @@ export function showHome(): Promise<HomeResult> {
       try {
         const connection = await joinRoom(roomId, you);
         if (SERVED_BY_ROOM_HOST) {
-          rememberRoom(roomId, you.name, you.avatar);
+          rememberRoom(roomId, you);
           history.replaceState(null, '', location.pathname);
         }
         resolve({ connection, roomId, name: you.name });
@@ -144,14 +153,14 @@ export function showHome(): Promise<HomeResult> {
       const you = joiner();
       keep(you);
       hideForm();
-      resolve({ connection: new LocalConnection(you.name, you.avatar), roomId: 'offline', name: you.name });
+      resolve({ connection: new LocalConnection(you.name, you.avatar, you.color), roomId: 'offline', name: you.name });
     });
 
     const remembered = SERVED_BY_ROOM_HOST ? rememberedRoom() : null;
     if (params.get('room')) attempt(params.get('room')!);
     else if (remembered) {
       nameInput.value = remembered.name || nameInput.value;
-      skinSelect.value = remembered.avatar ?? RANDOM;
+      choose(skinSelect, choiceOf(remembered.avatar, remembered.color));
       attempt(remembered.roomId);
     } else if (params.get('offline') !== null) offlineBtn.click();
     else {
@@ -162,21 +171,33 @@ export function showHome(): Promise<HomeResult> {
   });
 }
 
-// Every look a person can switch to by command, by the guide's name for it; the standard body
-// first, as a random color.
+// Every look a person can switch to by command, by the guide's name for it, the standard body first
+// as a random color; then, always last, the standard body in each named color.
 function fillSkins(select: HTMLSelectElement): void {
+  const option = (value: string, text: string) => select.append(new Option(text, value));
   for (const id of AVATAR_IDS) {
     if (AVATARS[id].command === null) continue;
-    const option = document.createElement('option');
-    option.value = id === 'standard' ? RANDOM : id;
-    option.textContent = id === 'standard' ? 'Random color' : CHARACTERS[id].title;
-    select.append(option);
+    option(id === 'standard' ? RANDOM : id, id === 'standard' ? 'Random color' : CHARACTERS[id].title);
   }
+  for (const name of Object.keys(NAMED_COLORS)) option(COLOR + name, `${name[0].toUpperCase()}${name.slice(1)}`);
 }
 
-// The skin a dropdown value or a stored one names, null for a random color.
-function skinOf(value: string | null): AvatarId | null {
-  return isAvatarId(value) && value !== 'standard' ? value : null;
+// Picks `value` in the dropdown, or the first choice where there's no such option.
+function choose(select: HTMLSelectElement, value: string): void {
+  select.value = value;
+  if (select.selectedIndex < 0) select.selectedIndex = 0;
+}
+
+// What a dropdown choice joins as.
+function lookOf(value: string): { avatar: AvatarId | null; color: string | null } {
+  if (value.startsWith(COLOR)) return { avatar: null, color: value.slice(COLOR.length) };
+  return { avatar: isAvatarId(value) && value !== 'standard' ? value : null, color: null };
+}
+
+// The dropdown choice for a skin, or the standard body in a named color.
+function choiceOf(avatar: string | null, color: string | null): string {
+  if (isAvatarId(avatar) && avatar !== 'standard') return avatar;
+  return color ? COLOR + color : RANDOM;
 }
 
 function stored(key: string): string | null {
@@ -232,8 +253,17 @@ class Stage {
   }
 
   private shown(): Shown {
-    const avatar = skinOf(this.skin.value) ?? 'standard';
-    return { name: '', avatar, color: UNPAINTED, item: null, gear: null, chilled: false, shattered: [] };
+    const { avatar, color } = lookOf(this.skin.value);
+    const paint = color && Object.hasOwn(NAMED_COLORS, color) ? NAMED_COLORS[color] : UNPAINTED;
+    return {
+      name: '',
+      avatar: avatar ?? 'standard',
+      color: paint,
+      item: null,
+      gear: null,
+      chilled: false,
+      shattered: [],
+    };
   }
 
   // Off for good: the game gets the GPU to itself.

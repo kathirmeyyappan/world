@@ -685,6 +685,9 @@ test('a bot stands where it asks, looking how it asks; a person only chooses a l
   assert.notDeepEqual([alice.pos.x, alice.pos.z], [5, 5]);
   assert.equal(alice.avatar, 'elizabeth');
   assert.ok(!alice.avatarLocked);
+  const idr = room.join('bob', link(), { color: 'red' })!;
+  const red = room.players.find((p) => p.id === idr)!;
+  assert.equal(red.color, NAMED_COLORS.red, 'or the standard body in a named color');
 
   const onFloor = room.join('stalker-bot', link(), { bot: true, spawn: { x: 112, y: 20, z: 0 }, avatar: 'elizabeth' })!;
   const stalker = room.players.find((p) => p.id === onFloor)!;

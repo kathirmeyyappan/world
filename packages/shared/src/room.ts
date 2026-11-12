@@ -89,6 +89,7 @@ export interface JoinOptions extends BotPlacement {
   room?: string; // the public room code the client asked for; bots called from here join it
   // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
   // spawns at random, in the avatar if it's one they could switch to by command and fits there.
+  color?: string; // one of NAMED_COLORS' names, for the standard body; else the room picks one
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -195,7 +196,8 @@ export class Room {
     }
     const id = `p${this.nextPlayerId++}`;
     const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint();
-    const state = createPlayer(id, sanitizeName(rawName), this.pickColor(), at, !!opts.bot);
+    const color = opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? NAMED_COLORS[opts.color] : this.pickColor();
+    const state = createPlayer(id, sanitizeName(rawName), color, at, !!opts.bot);
     if (opts.bot && opts.avatar) {
       becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
