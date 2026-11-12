@@ -83,9 +83,10 @@ const THING_VIEW = 1.6;
 const THING_STAGE = 4;
 const BODY_ARC = 25; // metres: the radius of the curve a dragon's body is laid on behind its head
 
-// The floor's square and the rules along its edges (CSS colours): night blue, ruled in blue.
+// The floor's square and the rules along its edges (CSS colours): night blue, ruled in the map's
+// mint (ui/MapCanvas.ts).
 const FLOOR_FILL = '#0b0d14';
-const FLOOR_RULE = 'rgba(100, 181, 246, 0.45)';
+const FLOOR_RULE = 'rgba(127, 209, 174, 0.45)';
 
 interface Stage {
   size: number; // metres across
@@ -308,7 +309,7 @@ function stageOf(kind: AvatarId): Stage {
   return { size, centre: new Vector3(0, top / 2, 0), radius: size * WALKER_VIEW };
 }
 
-// The floor: a plain ruled in blue, a CELL to a square, solid over the stage in the middle
+// The floor: a plain ruled in mint, a CELL to a square, solid over the stage in the middle
 // and fading out to nothing by its edge, so it reads as going on for ever.
 function buildFloor(engine: Engine, size: number): Mesh {
   const scene = engine.scene;
