@@ -7,14 +7,14 @@
   gap: 10px;
   padding: 7px 10px;
   background: rgba(10, 10, 15, 0.65);
-  border: 2px solid rgba(255, 200, 87, 0.6);
+  border: 2px solid rgba(var(--accent-rgb), 0.6);
   color: var(--accent);
   font: 11px/1 var(--pixel);
   letter-spacing: 2px;
   text-align: left;
 }
 #menu-button:hover {
-  background: rgba(255, 236, 200, 0.2);
+  background: rgba(var(--line-rgb), 0.2);
   border-color: var(--accent);
 }
 #menu-button .gear {
@@ -27,8 +27,8 @@
   padding: 0 6px;
   font: 20px/22px var(--mono);
   color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 236, 200, 0.2);
-  border: 1px solid rgba(255, 200, 87, 0.5);
+  background: rgba(var(--line-rgb), 0.2);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
 }
 
 #menu {
@@ -85,15 +85,15 @@
   padding: 7px 8px;
   color: rgba(255, 255, 255, 0.6);
   background: transparent;
-  border-color: rgba(255, 236, 200, 0.35);
+  border-color: rgba(var(--line-rgb), 0.35);
   box-shadow: none;
 }
 #menu nav button:hover {
   color: #fff;
-  background: rgba(255, 236, 200, 0.12);
+  background: rgba(var(--line-rgb), 0.12);
 }
 #menu nav button.on {
-  color: #0d0c10;
+  color: var(--deep);
   background: var(--accent);
   border-color: var(--accent);
   box-shadow: 3px 3px 0 #000;
@@ -111,13 +111,13 @@
   position: relative;
   aspect-ratio: 2 / 1;
   overflow: hidden;
-  background: #0d0c10;
-  border: 2px solid rgba(255, 200, 87, 0.6);
+  background: var(--deep);
+  border: 2px solid rgba(var(--accent-rgb), 0.6);
 }
 #menu .preview .view {
   position: absolute;
   overflow: hidden;
-  background: #0d0c10;
+  background: var(--deep);
 }
 #menu .preview .view.big {
   inset: 0;
@@ -129,7 +129,7 @@
   aspect-ratio: 1;
   z-index: 1;
   overflow: visible; /* its caption hangs under it */
-  border: 2px solid rgba(255, 200, 87, 0.6);
+  border: 2px solid rgba(var(--accent-rgb), 0.6);
   box-shadow: 3px 3px 0 #000;
 }
 #menu .preview .view.small:hover {
@@ -159,7 +159,7 @@
   font: 9px var(--pixel);
   letter-spacing: 2px;
   color: var(--accent);
-  background: rgba(13, 12, 16, 0.8);
+  background: rgba(var(--deep-rgb), 0.8);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -180,7 +180,7 @@
   display: block;
 }
 #menu .preview .view.small .swap:hover {
-  background: rgba(255, 236, 200, 0.15);
+  background: rgba(var(--line-rgb), 0.15);
 }
 #menu .preview .view .swap .caption {
   position: absolute;
@@ -211,12 +211,12 @@
   font: 9px var(--pixel);
   letter-spacing: 1px;
   color: rgba(255, 255, 255, 0.45);
-  background: rgba(13, 12, 16, 0.75);
-  border: 2px solid rgba(255, 236, 200, 0.3);
+  background: rgba(var(--deep-rgb), 0.75);
+  border: 2px solid rgba(var(--line-rgb), 0.3);
   box-shadow: none;
 }
 #menu .preview .map .toggle button.on {
-  color: #0d0c10;
+  color: var(--deep);
   background: var(--accent-soft);
   border-color: var(--accent-soft);
 }
@@ -227,7 +227,7 @@
   padding: 1px 5px;
   font: 14px var(--mono);
   color: rgba(255, 255, 255, 0.85);
-  background: rgba(13, 12, 16, 0.7);
+  background: rgba(var(--deep-rgb), 0.7);
   white-space: nowrap;
 }
 #menu .preview .map.small .toggle,
@@ -247,8 +247,8 @@
   font-family: inherit;
   font-size: 16px;
   color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 236, 200, 0.2);
-  border: 1px solid rgba(255, 200, 87, 0.5);
+  background: rgba(var(--line-rgb), 0.2);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
 }
 
 /* Every tab's panel in one cell, the hidden ones unseen, so the card keeps one height (Menu.select). */
@@ -295,8 +295,8 @@
   padding: 0 5px;
   font-family: inherit;
   font-size: 16px;
-  background: rgba(255, 236, 200, 0.2);
-  border: 1px solid rgba(255, 200, 87, 0.5);
+  background: rgba(var(--line-rgb), 0.2);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
 }
 #menu .row .value {
   min-width: 150px;
@@ -330,14 +330,14 @@
   min-width: 128px;
 }
 #menu .stepper .auto.on {
-  color: #0d0c10;
+  color: var(--deep);
   background: var(--accent);
   box-shadow: 3px 3px 0 #000;
 }
 #menu .steps {
   display: flex;
   flex: 1 1 auto;
-  background: rgba(255, 236, 200, 0.18);
+  background: rgba(var(--line-rgb), 0.18);
   border: 2px solid var(--accent);
   box-shadow: 3px 3px 0 #000;
 }
@@ -358,8 +358,8 @@
   justify-content: center;
   min-width: 96px;
   padding: 0 8px;
-  border-left: 2px solid rgba(255, 200, 87, 0.4);
-  border-right: 2px solid rgba(255, 200, 87, 0.4);
+  border-left: 2px solid rgba(var(--accent-rgb), 0.4);
+  border-right: 2px solid rgba(var(--accent-rgb), 0.4);
   font-size: 20px;
   line-height: 1;
   letter-spacing: 1px;
@@ -424,12 +424,12 @@
   text-align: center;
   text-decoration: none;
   color: #fff;
-  background: rgba(255, 236, 200, 0.18);
+  background: rgba(var(--line-rgb), 0.18);
   border: 2px solid var(--accent);
   box-shadow: 3px 3px 0 #000;
 }
 #menu a.button:hover {
-  background: rgba(255, 236, 200, 0.35);
+  background: rgba(var(--line-rgb), 0.35);
 }
 #menu .buttons .danger {
   background: rgba(255, 59, 78, 0.18);
@@ -461,7 +461,7 @@
 
 #menu .footer {
   margin-top: 14px;
-  border-top: 2px solid rgba(255, 236, 200, 0.35);
+  border-top: 2px solid rgba(var(--line-rgb), 0.35);
   padding-top: 10px;
   font: 18px var(--mono);
   color: rgba(255, 255, 255, 0.8);
@@ -475,10 +475,10 @@
   margin: 0 6px;
   padding: 2px 6px 0;
   background: var(--accent);
-  color: #0d0c10;
+  color: var(--deep);
   font: 13px/16px var(--pixel);
   border: 0;
-  border-bottom: 3px solid #a8792a;
+  border-bottom: 3px solid var(--accent-deep);
   vertical-align: middle;
 }
 #menu .cursor {

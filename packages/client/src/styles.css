@@ -5,9 +5,18 @@
 }
 
 :root {
+  /* The UI's palette: amber for headings and what's picked, mint for section labels, on warm
+     near-black panels with neutral lines. A part can take another by redefining these (the
+     résumé card keeps the blue). */
   --accent: #ffc857;
+  --accent-rgb: 255, 200, 87;
   --accent-soft: #ffdc8f;
+  --accent-deep: #a8792a; /* the shadow under an accent button */
   --second: #7fd1ae;
+  --line-rgb: 255, 236, 200;
+  --panel-rgb: 17, 16, 20;
+  --deep: #0d0c10;
+  --deep-rgb: 13, 12, 16;
   --bg-card: rgba(20, 20, 30, 0.85);
   --mono: 'VT323', 'Courier New', monospace;
   --pixel: 'Press Start 2P', 'VT323', monospace;
@@ -81,7 +90,7 @@ body {
   padding: 0;
   font: 9px/18px var(--pixel);
   text-align: center;
-  color: rgba(255, 236, 200, 0.3);
+  color: rgba(var(--line-rgb), 0.3);
   background: var(--panel);
   border: 2px solid var(--accent);
   box-shadow: 2px 2px 0 #000;
@@ -91,7 +100,7 @@ body {
   color: var(--accent);
 }
 .scroll-rail .arrow.more:hover {
-  background: rgba(255, 236, 200, 0.25);
+  background: rgba(var(--line-rgb), 0.25);
 }
 .scroll-rail .down.more {
   animation: rail-blink 1s steps(1) infinite;
@@ -105,7 +114,7 @@ body {
   flex: 1;
   position: relative;
   margin: -2px 0; /* under the arrows' borders, so track and arrows share one edge */
-  background: #0d0c10;
+  background: var(--deep);
   border: 2px solid var(--accent);
   box-shadow: 2px 0 0 #000;
 }
@@ -121,10 +130,10 @@ body {
 }
 .scroll-rail.idle .arrow,
 .scroll-rail.idle .track {
-  border-color: rgba(255, 236, 200, 0.35);
+  border-color: rgba(var(--line-rgb), 0.35);
 }
 .scroll-rail.idle .thumb {
-  background: rgba(255, 236, 200, 0.2);
+  background: rgba(var(--line-rgb), 0.2);
   cursor: default;
 }
 @media (pointer: coarse) {
@@ -189,8 +198,8 @@ body {
   padding: 8px 12px;
   font: 22px var(--mono);
   color: #fff;
-  background: #0d0c10;
-  border: 2px solid rgba(255, 200, 87, 0.5);
+  background: var(--deep);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
   outline: none;
 }
 .card input:focus {
@@ -201,14 +210,14 @@ body {
   font: 10px var(--pixel);
   color: #fff;
   cursor: pointer;
-  background: rgba(255, 236, 200, 0.18);
+  background: rgba(var(--line-rgb), 0.18);
   border: 2px solid var(--accent);
   padding: 12px;
   transition: background 0.1s;
   box-shadow: 3px 3px 0 #000;
 }
 .card button:hover {
-  background: rgba(255, 236, 200, 0.35);
+  background: rgba(var(--line-rgb), 0.35);
 }
 .card button:disabled {
   opacity: 0.5;
@@ -234,7 +243,7 @@ body {
 .card .divider::after {
   content: '';
   flex: 1;
-  border-top: 2px solid rgba(255, 236, 200, 0.3);
+  border-top: 2px solid rgba(var(--line-rgb), 0.3);
 }
 .card .tagline a {
   color: var(--accent);
@@ -262,7 +271,7 @@ body {
 }
 .home-player {
   grid-area: player;
-  border-left: 2px solid rgba(255, 236, 200, 0.3);
+  border-left: 2px solid rgba(var(--line-rgb), 0.3);
   padding-left: 28px;
 }
 .home-player label:last-child {
@@ -272,7 +281,7 @@ body {
   position: relative;
   height: 260px;
   margin-bottom: 16px;
-  border: 2px solid rgba(255, 200, 87, 0.5);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
   background: var(--panel);
 }
 #home-view canvas {
@@ -299,8 +308,8 @@ body {
   padding: 8px 36px 8px 12px;
   font: 22px var(--mono);
   color: #fff;
-  background: #0d0c10;
-  border: 2px solid rgba(255, 200, 87, 0.5);
+  background: var(--deep);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
   outline: none;
   cursor: pointer;
   appearance: none;
@@ -318,7 +327,7 @@ body {
   box-shadow: 3px 3px 0 #000;
 }
 .card select option {
-  background: #0d0c10;
+  background: var(--deep);
 }
 @media (max-width: 720px) {
   .card.home-card {
@@ -334,7 +343,7 @@ body {
     padding-left: 0;
     padding-bottom: 18px;
     margin-bottom: 8px;
-    border-bottom: 2px solid rgba(255, 236, 200, 0.3);
+    border-bottom: 2px solid rgba(var(--line-rgb), 0.3);
   }
   #home-view {
     height: 200px;
@@ -425,7 +434,7 @@ body {
   min-width: 180px;
   padding: 10px 12px;
   background: rgba(10, 10, 15, 0.65);
-  border: 2px solid rgba(255, 200, 87, 0.6);
+  border: 2px solid rgba(var(--accent-rgb), 0.6);
   font-size: 12px;
 }
 #pins {
@@ -531,7 +540,7 @@ body {
   font: 14px var(--mono);
   color: var(--accent-soft);
   background: none;
-  border: 1px solid rgba(255, 200, 87, 0.4);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
 }
 #panel-body {
   margin-top: 8px;
@@ -653,7 +662,7 @@ body {
 }
 #chat-completions li.on,
 #chat-completions li:hover {
-  background: rgba(255, 236, 200, 0.25);
+  background: rgba(var(--line-rgb), 0.25);
 }
 #chat-completions .cmd {
   font: 20px var(--mono);
@@ -689,8 +698,8 @@ body {
 }
 #chat-hint kbd,
 #instructions kbd {
-  background: rgba(255, 236, 200, 0.2);
-  border: 1px solid rgba(255, 200, 87, 0.5);
+  background: rgba(var(--line-rgb), 0.2);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
   padding: 0 5px;
   font-family: inherit;
 }
@@ -946,7 +955,7 @@ body {
   letter-spacing: 1px;
   white-space: nowrap;
   pointer-events: none;
-  background: rgba(17, 16, 20, 0.8);
+  background: rgba(var(--panel-rgb), 0.8);
   border: 2px solid rgba(159, 212, 255, 0.85);
   box-shadow: 3px 3px 0 #000;
 }
@@ -1018,7 +1027,7 @@ body {
   color: #fff;
   text-shadow:
     3px 3px 0 #000,
-    0 0 12px rgba(255, 200, 87, 0.45);
+    0 0 12px rgba(var(--accent-rgb), 0.45);
   opacity: 0;
   transform: translateY(-6px);
   transition:
@@ -1039,7 +1048,7 @@ body {
   pointer-events: none;
   text-align: center;
   padding: 14px 24px;
-  background: rgba(17, 16, 20, 0.82);
+  background: rgba(var(--panel-rgb), 0.82);
   border-top: 2px solid var(--accent);
   border-bottom: 2px solid var(--accent);
   font: 20px var(--mono);
@@ -1084,7 +1093,7 @@ body {
   width: 220px;
   height: 12px;
   z-index: 50;
-  background: rgba(17, 16, 20, 0.8);
+  background: rgba(var(--panel-rgb), 0.8);
   border: 2px solid rgba(255, 140, 40, 0.7);
   box-shadow: 3px 3px 0 #000;
   pointer-events: none;
@@ -1119,8 +1128,8 @@ body {
   letter-spacing: 1px;
   white-space: nowrap;
   pointer-events: none;
-  background: rgba(17, 16, 20, 0.8);
-  border: 2px solid rgba(255, 200, 87, 0.6);
+  background: rgba(var(--panel-rgb), 0.8);
+  border: 2px solid rgba(var(--accent-rgb), 0.6);
   box-shadow: 3px 3px 0 #000;
 }
 #fuel:not(.hidden) ~ #gear {
@@ -1152,7 +1161,7 @@ body {
   color: rgba(255, 255, 255, 0.85);
   letter-spacing: 1px;
   pointer-events: none;
-  background: rgba(17, 16, 20, 0.8);
+  background: rgba(var(--panel-rgb), 0.8);
   border: 2px solid rgba(255, 59, 78, 0.6);
   box-shadow: 4px 4px 0 #000;
 }
@@ -1336,8 +1345,8 @@ body {
   pointer-events: none;
   padding: 6px;
   width: 236px;
-  background: rgba(17, 16, 20, 0.8);
-  border: 2px solid rgba(255, 200, 87, 0.4);
+  background: rgba(var(--panel-rgb), 0.8);
+  border: 2px solid rgba(var(--accent-rgb), 0.4);
   box-shadow: 4px 4px 0 #000;
 }
 #minimap-hint {
@@ -1354,9 +1363,9 @@ body {
   margin-right: 8px;
   padding: 2px 6px 0;
   background: var(--accent);
-  color: #0d0c10;
+  color: var(--deep);
   font: 11px/14px var(--pixel);
-  border-bottom: 3px solid #a8792a;
+  border-bottom: 3px solid var(--accent-deep);
   vertical-align: middle;
 }
 #minimap-toggle {
@@ -1373,7 +1382,7 @@ body {
   display: block;
   width: 224px;
   height: 224px;
-  background: rgba(13, 12, 16, 0.6);
+  background: rgba(var(--deep-rgb), 0.6);
 }
 #minimap-coords {
   position: absolute;
@@ -1382,7 +1391,7 @@ body {
   padding: 1px 5px;
   font: 12px var(--mono);
   color: rgba(255, 255, 255, 0.85);
-  background: rgba(13, 12, 16, 0.7);
+  background: rgba(var(--deep-rgb), 0.7);
   white-space: nowrap;
 }
 #minimap-toggle span {
@@ -1390,10 +1399,10 @@ body {
   text-align: center;
   padding: 4px 0 3px;
   color: rgba(255, 255, 255, 0.35);
-  border: 2px solid rgba(255, 236, 200, 0.25);
+  border: 2px solid rgba(var(--line-rgb), 0.25);
 }
 #minimap-toggle span.on {
-  color: #0d0c10;
+  color: var(--deep);
   background: var(--accent-soft);
   border-color: var(--accent-soft);
 }
@@ -1405,8 +1414,8 @@ body {
   padding: 8px 12px;
   font: 18px var(--mono);
   z-index: 50;
-  background: rgba(17, 16, 20, 0.8);
-  border: 2px solid rgba(255, 200, 87, 0.4);
+  background: rgba(var(--panel-rgb), 0.8);
+  border: 2px solid rgba(var(--accent-rgb), 0.4);
   color: rgba(255, 255, 255, 0.8);
   pointer-events: none;
   box-shadow: 4px 4px 0 #000;
@@ -1431,6 +1440,15 @@ body {
   display: flex;
 }
 #info-card {
+  --accent: #64b5f6;
+  --accent-rgb: 100, 181, 246;
+  --accent-soft: #90caf9;
+  --accent-deep: #2f6db3;
+  --line-rgb: 100, 181, 246;
+  --panel: #0b0d14;
+  --panel-rgb: 11, 13, 20;
+  --deep: #05070c;
+  --deep-rgb: 5, 7, 12;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1459,7 +1477,7 @@ body {
   align-items: center;
   padding: 8px 12px;
   background: var(--accent);
-  color: #0d0c10;
+  color: var(--deep);
   font: 10px var(--pixel);
   letter-spacing: 1px;
 }
@@ -1546,9 +1564,9 @@ body {
   margin: 0 6px;
   padding: 2px 6px 0;
   background: var(--accent);
-  color: #0d0c10;
+  color: var(--deep);
   font: 13px/16px var(--pixel);
-  border-bottom: 3px solid #a8792a;
+  border-bottom: 3px solid var(--accent-deep);
   vertical-align: middle;
 }
 /* The nudge's keys tap down into their shadow and back up, the second line's a beat after the first. */
@@ -1558,7 +1576,7 @@ body {
   margin: 0 10px;
   text-shadow: none;
   border-bottom: 0;
-  box-shadow: 0 3px 0 #a8792a;
+  box-shadow: 0 3px 0 var(--accent-deep);
   animation: key-tap 2s infinite;
 }
 #command-hint .line + .line kbd {
@@ -1574,12 +1592,12 @@ body {
   24%,
   100% {
     transform: none;
-    box-shadow: 0 3px 0 #a8792a;
+    box-shadow: 0 3px 0 var(--accent-deep);
   }
   6%,
   18% {
     transform: translateY(3px);
-    box-shadow: 0 0 0 #a8792a;
+    box-shadow: 0 0 0 var(--accent-deep);
     background: #3f8fd8;
   }
 }
@@ -1610,7 +1628,7 @@ body {
   width: 112px;
   height: 112px;
   z-index: 100;
-  border: 2px solid rgba(255, 200, 87, 0.55);
+  border: 2px solid rgba(var(--accent-rgb), 0.55);
   background: rgba(10, 10, 15, 0.45);
   box-sizing: border-box;
   touch-action: none;
@@ -1618,13 +1636,13 @@ body {
   -webkit-user-select: none;
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.6),
-    inset 0 0 12px rgba(255, 236, 200, 0.12);
+    inset 0 0 12px rgba(var(--line-rgb), 0.12);
 }
 #pad::before,
 #pad::after {
   content: '';
   position: absolute;
-  background: rgba(255, 236, 200, 0.35);
+  background: rgba(var(--line-rgb), 0.35);
 }
 #pad::before {
   left: 50%;
@@ -1643,7 +1661,7 @@ body {
 #pad .pad-cross {
   position: absolute;
   inset: 6px;
-  border: 1px dashed rgba(255, 236, 200, 0.25);
+  border: 1px dashed rgba(var(--line-rgb), 0.25);
   pointer-events: none;
 }
 #pad-thumb {
@@ -1675,7 +1693,7 @@ body {
   width: 56px;
   height: 150px;
   z-index: 100;
-  border: 2px solid rgba(255, 200, 87, 0.55);
+  border: 2px solid rgba(var(--accent-rgb), 0.55);
   background: rgba(10, 10, 15, 0.45);
   box-sizing: border-box;
   touch-action: none;
@@ -1683,7 +1701,7 @@ body {
   -webkit-user-select: none;
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.6),
-    inset 0 0 12px rgba(255, 236, 200, 0.12);
+    inset 0 0 12px rgba(var(--line-rgb), 0.12);
 }
 #throttle::before {
   content: '';
@@ -1693,7 +1711,7 @@ body {
   bottom: 10px;
   width: 2px;
   margin-left: -1px;
-  background: rgba(255, 236, 200, 0.35);
+  background: rgba(var(--line-rgb), 0.35);
 }
 #throttle::after {
   content: '▲';
@@ -1702,7 +1720,7 @@ body {
   left: 0;
   right: 0;
   text-align: center;
-  color: rgba(255, 200, 87, 0.55);
+  color: rgba(var(--accent-rgb), 0.55);
   font: 11px var(--pixel);
   pointer-events: none;
 }
@@ -1733,7 +1751,7 @@ body {
   width: 84px;
   height: 84px;
   z-index: 100;
-  border: 2px solid rgba(255, 200, 87, 0.55);
+  border: 2px solid rgba(var(--accent-rgb), 0.55);
   background: rgba(10, 10, 15, 0.45);
   color: var(--accent);
   font: 9px var(--pixel);
@@ -1748,14 +1766,14 @@ body {
   padding: 0;
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.6),
-    inset 0 0 12px rgba(255, 236, 200, 0.12);
+    inset 0 0 12px rgba(var(--line-rgb), 0.12);
 }
 #jump-button .glyph {
   font-size: 20px;
   line-height: 20px;
 }
 #jump-button.active {
-  background: rgba(255, 236, 200, 0.3);
+  background: rgba(var(--line-rgb), 0.3);
   border-color: var(--accent);
   box-shadow: 0 0 14px var(--accent);
 }
@@ -1766,7 +1784,7 @@ body {
   z-index: 100;
   padding: 0 14px;
   height: 44px;
-  border: 2px solid rgba(255, 200, 87, 0.55);
+  border: 2px solid rgba(var(--accent-rgb), 0.55);
   background: rgba(10, 10, 15, 0.45);
   color: var(--accent);
   font: 9px var(--pixel);
@@ -1777,11 +1795,11 @@ body {
   box-shadow: 3px 3px 0 #000;
 }
 .touch-button.active {
-  background: rgba(255, 236, 200, 0.3);
+  background: rgba(var(--line-rgb), 0.3);
   border-color: var(--accent);
 }
 .touch-button.on {
-  background: rgba(255, 236, 200, 0.3);
+  background: rgba(var(--line-rgb), 0.3);
   border-color: var(--accent);
   box-shadow: 0 0 12px var(--accent);
 }
@@ -2008,7 +2026,7 @@ body {
   gap: 16px;
   flex-wrap: wrap;
   margin-top: 12px;
-  border-top: 2px solid rgba(255, 236, 200, 0.35);
+  border-top: 2px solid rgba(var(--line-rgb), 0.35);
   padding-top: 10px;
 }
 #commands .guide {
@@ -2066,10 +2084,10 @@ body {
   box-shadow: 2px 2px 0 #000;
 }
 #commands .cmd-button:hover {
-  background: rgba(255, 236, 200, 0.3);
+  background: rgba(var(--line-rgb), 0.3);
 }
 #commands .cmd-button:active {
-  background: rgba(255, 200, 87, 0.45);
+  background: rgba(var(--accent-rgb), 0.45);
   transform: translate(2px, 2px);
   box-shadow: none;
 }
