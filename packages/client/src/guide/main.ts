@@ -8,7 +8,9 @@ import {
   AVATAR_IDS,
   BOTS,
   BOT_IDS,
+  BUILDING_GROUNDS,
   BUILDING_LEVELS,
+  BUILDING_NAMES,
   CUBES,
   GEAR_IDS,
   ITEMS,
@@ -33,6 +35,7 @@ import {
   INTRO,
   PICKUP_TEXT,
   PLACES,
+  RESUME_CUBE,
   SPEEDY,
   ITEM_TEXT,
   type Entry,
@@ -44,13 +47,12 @@ import { botFlagRows, characterStats, gearStats, itemStats, num, pickupStats, sp
 
 const COLOR = '#64b5f6'; // the standard body's paint in the views: the page's accent
 
-// One thing a catalog lists: its words, its numbers, any lines of its own (what a cube says), and
-// what its view shows: a body, a thing on its own, or nothing.
+// One thing a catalog lists: its words, its numbers, and what its view shows: a body, a thing on
+// its own, or nothing.
 interface Pick {
   id: string;
   entry: Entry;
   stats: () => Stat[];
-  lines?: string[];
   view: { body: Shown } | { thing: Thing } | null;
 }
 
@@ -89,13 +91,12 @@ function items(): Section[] {
     stats: () => itemStats(id),
     view: ITEMS[id].own ? null : { thing: itemThing(id) },
   });
-  const cubes = CUBES.map((c): Pick => ({
-    id: `cube-${c.id}`,
-    entry: { title: c.h1, summary: [c.h2, c.h3].filter(Boolean).join(', '), facts: [] },
-    stats: () => [],
-    lines: c.description,
-    view: { thing: cubeThing(c) },
-  }));
+  const cube: Pick = {
+    id: 'resume-cube',
+    entry: RESUME_CUBE,
+    stats: () => [{ label: 'How many', value: `${CUBES.length}` }],
+    view: { thing: cubeThing(CUBES[0]) },
+  };
   return [
     {
       title: 'Equip',
@@ -119,11 +120,16 @@ function items(): Section[] {
           stats: () => pickupStats(kind),
           view: { thing: pickupThing(kind) },
         })),
-        ...cubes,
+        cube,
       ],
     },
     { title: 'Other', picks: [{ id: 'speedy', entry: SPEEDY, stats: speedyStats, view: null }] },
   ];
+}
+
+// A name as the game shouts it ("DIRE SANCTUARY") in the guide's case ("Dire Sanctuary").
+function titleCase(name: string): string {
+  return name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // A registry's one-line blurb ("circles the nearest player") as a sentence.
@@ -214,7 +220,6 @@ class Catalog {
     this.text.replaceChildren(
       el('h2', '', entry.title),
       el('p', 'summary', entry.summary),
-      ...(pick.lines ? [list(pick.lines)] : []),
       statTable(pick.stats()),
       ...facts(entry.facts),
     );
@@ -246,9 +251,12 @@ function placeStats(place: Place): Stat[] {
         { label: 'Floors', value: `${PINEAPPLE_LEVELS.length}` },
         { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}, one on each floor` },
       ];
-    case 'buildings': {
-      const keeps = BUILDING_LEVELS.filter((r) => !PINEAPPLE_LEVELS.includes(r));
-      return [{ label: 'Hearts', value: `${heartsIn(keeps)}: one inside each, and one on each roof` }];
+    case 'welcome':
+    case 'sanctuary':
+    case 'building4': {
+      const ground = BUILDING_GROUNDS[place.building ?? 0];
+      const levels = BUILDING_LEVELS.filter((r) => Math.hypot(r.x - ground.x, r.z - ground.z) < 1);
+      return [{ label: 'Hearts', value: `${heartsIn(levels)}: inside and on the roof` }];
     }
     case 'tower':
       return [
@@ -343,7 +351,7 @@ function worldPanel(): HTMLElement {
   for (const place of PLACES) {
     const card = el('section', 'card');
     card.append(
-      el('h2', '', place.title),
+      el('h2', '', place.building === undefined ? place.title : titleCase(BUILDING_NAMES[place.building])),
       gallery(place.photos, lightbox),
       el('p', 'summary', place.summary),
       statTable(placeStats(place)),

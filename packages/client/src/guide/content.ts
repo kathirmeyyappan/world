@@ -36,7 +36,7 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
   spongebob: plain('SpongeBob SquarePants', 'SpongeBob SquarePants.'),
   patrick: plain('Patrick Star', 'Patrick Star from SpongeBob SquarePants.'),
-  krabs: plain('Mr. Krabs', 'Mr. Krabs from SpongeBob SquarePants.'),
+  krabs: plain('Eugene Krabs', 'Eugene Krabs from SpongeBob SquarePants.'),
   squidward: plain('Squidward Tentacles', 'Squidward Tentacles from SpongeBob SquarePants.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
   plankton: plain('Plankton', 'Plankton from SpongeBob SquarePants.'),
@@ -67,13 +67,19 @@ export const PICKUP_TEXT: Record<PickupKind, Entry> = {
 
 export const SPEEDY: Entry = plain('Speed boost', 'A speed boost.');
 
+export const RESUME_CUBE: Entry = plain(
+  'Resume cube',
+  'Clickable pieces of my resume. Fun fact: these used to be the only things in kathir world back in the day.',
+);
+
 export interface Photo {
   file: string;
   caption: string;
 }
 
 export interface Place extends Entry {
-  id: 'main' | 'pineapple' | 'buildings' | 'tower' | 'terrace';
+  id: 'main' | 'pineapple' | 'welcome' | 'sanctuary' | 'building4' | 'tower' | 'terrace';
+  building?: number; // a building's place, by its number less one: its title is the game's name for it (BUILDING_NAMES)
   photos: Photo[];
 }
 
@@ -106,25 +112,49 @@ export const PLACES: Place[] = [
     ],
   },
   {
-    id: 'buildings',
-    title: 'Buildings 2 to 4',
-    summary:
-      'Building 2 is a copy of the tower’s ground floor, and Building 3 of its first floor. Building 4 is empty.',
+    id: 'welcome',
+    building: 1,
+    title: '',
+    summary: 'Building 2. A copy of the tower’s ground floor.',
     facts: [],
     photos: [
-      { file: 'keep-outside', caption: 'Building 2' },
-      { file: 'keep-inside', caption: 'Inside Building 3' },
+      { file: 'welcome-room-outside', caption: 'Outside' },
+      { file: 'welcome-room-spotify', caption: 'The Spotify widget' },
+      { file: 'welcome-room-photos', caption: 'Inside' },
+    ],
+  },
+  {
+    id: 'sanctuary',
+    building: 2,
+    title: '',
+    summary: 'Building 3. A copy of the tower’s first floor.',
+    facts: [],
+    photos: [
+      { file: 'dire-sanctuary-outside', caption: 'Outside' },
+      { file: 'dire-sanctuary-anime', caption: 'The anime list' },
+      { file: 'dire-sanctuary-covers', caption: 'Inside' },
+    ],
+  },
+  {
+    id: 'building4',
+    building: 3,
+    title: '',
+    summary: 'Empty for now.',
+    facts: [],
+    photos: [
+      { file: 'building-4-outside', caption: 'Outside' },
+      { file: 'building-4-inside', caption: 'Inside' },
     ],
   },
   {
     id: 'tower',
     title: 'Tung Tung Tower',
     summary:
-      'A four-floor tower. Buildings 2 and 3 are copies of its ground and first floors. A bridge on top connects it to the terrace.',
+      'A four-floor tower. The Welcome Room and the Dire Sanctuary are copies of its ground and first floors. A bridge on top connects it to the terrace.',
     facts: [],
     photos: [
       { file: 'tower-outside', caption: 'Tung Tung Tower from the bridge' },
-      { file: 'tower-inside', caption: 'The ground floor, its stair winding up the wall' },
+      { file: 'tower-inside', caption: 'The ground floor' },
       { file: 'tower-bridge', caption: 'The sky bridge from the tower’s top to the terrace' },
     ],
   },
@@ -132,7 +162,7 @@ export const PLACES: Place[] = [
     id: 'terrace',
     title: 'Terrace',
     summary:
-      'A brick terrace above the main area, reached by staircases from the roofs of Buildings 2 to 4 and by the bridge from the tower.',
+      'A brick terrace above the main area, reached by staircases from the roofs of the Welcome Room, the Dire Sanctuary and Building 4, and by the bridge from the tower.',
     facts: [],
     photos: [
       { file: 'terrace-overview', caption: 'The terrace over the main area, with its staircases' },
