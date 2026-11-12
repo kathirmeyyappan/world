@@ -182,11 +182,13 @@ body {
   color: rgba(255, 255, 255, 0.6);
   margin-bottom: 20px;
 }
-.card label {
+.card label,
+.card .field {
   display: block;
   margin-bottom: 14px;
 }
-.card label span {
+.card label span,
+.card .field > span {
   display: block;
   font: 9px var(--pixel);
   letter-spacing: 1px;
@@ -303,16 +305,20 @@ body {
   color: rgba(255, 255, 255, 0.4);
   pointer-events: none;
 }
-.card select {
+.card .picker {
+  position: relative;
+}
+/* The skin picker's choice, drawn as the text fields are, with a chevron at its end. */
+.card .picker .picked {
   width: 100%;
   padding: 8px 36px 8px 12px;
   font: 22px var(--mono);
+  text-align: left;
   color: #fff;
-  background: #05070c;
+  background-color: #05070c;
   border: 2px solid rgba(var(--accent-rgb), 0.5);
+  box-shadow: none;
   outline: none;
-  cursor: pointer;
-  appearance: none;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--accent) 50%),
     linear-gradient(-45deg, transparent 50%, var(--accent) 50%);
@@ -322,12 +328,56 @@ body {
   background-size: 6px 6px;
   background-repeat: no-repeat;
 }
-.card select:focus {
+.card .picker .picked:focus,
+.card .picker .picked[aria-expanded='true'] {
   border-color: var(--accent);
   box-shadow: 3px 3px 0 #000;
 }
-.card select option {
-  background: #05070c;
+/* Its list, dropped under it as the chat's completions stand over the chat box. */
+.picker .options {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 264px;
+  padding: 6px 6px 6px 0;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-top: 0;
+  box-shadow: 3px 3px 0 #000;
+}
+.picker ul {
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.picker ul::-webkit-scrollbar {
+  display: none;
+}
+.picker li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 11px;
+  cursor: pointer;
+}
+.picker li.lit {
+  background: rgba(var(--accent-rgb), 0.25);
+}
+.picker li .label {
+  font: 20px var(--mono);
+  color: #fff;
+  white-space: nowrap;
+}
+.picker li[aria-selected='true'] .label {
+  color: var(--accent);
+}
+.picker li .note {
+  font: 14px var(--mono);
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
 }
 @media (max-width: 720px) {
   .card.home-card {
@@ -343,7 +393,7 @@ body {
     padding-left: 0;
     padding-bottom: 18px;
     margin-bottom: 8px;
-    border-bottom: 2px solid rgba(100, 181, 246, 0.3);
+    border-bottom: 2px solid rgba(var(--accent-rgb), 0.3);
   }
   #home-view {
     height: 200px;

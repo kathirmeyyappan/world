@@ -191,7 +191,7 @@ function subTabs(tabs: { title: string; body: HTMLElement }[], first = 0): HTMLE
 // A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across picks.
 class Catalog {
   readonly el = el('div', 'catalog');
-  private readonly view = new BodyView();
+  private readonly view = new BodyView(1 / devicePixelRatio);
   private readonly viewBox = el('div', 'view');
   private readonly text = el('div', 'text');
   private readonly list = el('nav', 'picker');

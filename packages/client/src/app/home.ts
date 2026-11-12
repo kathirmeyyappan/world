@@ -23,6 +23,7 @@ import {
   type Joiner,
 } from '../net/lobby';
 import type { BodyView, Shown } from '../render/BodyView';
+import { Picker, type Choice } from './Picker';
 
 export interface HomeResult {
   connection: Connection;
@@ -42,7 +43,6 @@ const COLOR = 'color:'; // before a NAMED_COLORS name, a choice of the standard 
 export function showHome(): Promise<HomeResult> {
   const root = document.getElementById('home')!;
   const nameInput = document.getElementById('home-name') as HTMLInputElement;
-  const skinSelect = document.getElementById('home-skin') as HTMLSelectElement;
   const roomInput = document.getElementById('home-room') as HTMLInputElement;
   const joinBtn = document.getElementById('home-join') as HTMLButtonElement;
   const globalBtn = document.getElementById('home-global') as HTMLButtonElement;
@@ -54,14 +54,14 @@ export function showHome(): Promise<HomeResult> {
   const params = new URLSearchParams(location.search);
   nameInput.value = params.get('name') ?? stored(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? '';
-  fillSkins(skinSelect);
+  const skin = new Picker(document.getElementById('home-skin')!, skinChoices());
   const asked = params.has('avatar') || params.has('color');
-  choose(skinSelect, asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? RANDOM));
-  const stage = new Stage(document.getElementById('home-view')!, skinSelect);
+  skin.choose(asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? RANDOM));
+  const stage = new Stage(document.getElementById('home-view')!, skin);
 
   const joiner = (): Joiner => ({
     name: sanitizeName(nameInput.value),
-    ...lookOf(skinSelect.value),
+    ...lookOf(skin.value),
   });
   const keep = (you: Joiner) => {
     store(NAME_KEY, you.name);
@@ -160,7 +160,7 @@ export function showHome(): Promise<HomeResult> {
     if (params.get('room')) attempt(params.get('room')!);
     else if (remembered) {
       nameInput.value = remembered.name || nameInput.value;
-      choose(skinSelect, choiceOf(remembered.avatar, remembered.color));
+      skin.choose(choiceOf(remembered.avatar, remembered.color));
       attempt(remembered.roomId);
     } else if (params.get('offline') !== null) offlineBtn.click();
     else {
@@ -171,21 +171,20 @@ export function showHome(): Promise<HomeResult> {
   });
 }
 
-// Every look on foot a person can switch to by command, by the guide's name for it, the standard body first
-// as a random color; then, always last, the standard body in each named color.
-function fillSkins(select: HTMLSelectElement): void {
-  const option = (value: string, text: string) => select.append(new Option(text, value));
+// Every look on foot a person can switch to by command, by the guide's name for it with the command
+// beside it, the standard body first as a random color; then, always last, the standard body in each
+// named color.
+function skinChoices(): Choice[] {
+  const choices: Choice[] = [];
   for (const id of AVATAR_IDS) {
-    if (AVATARS[id].command === null || AVATARS[id].class !== 'walker') continue;
-    option(id === 'standard' ? RANDOM : id, id === 'standard' ? 'Random color' : CHARACTERS[id].title);
+    const command = AVATARS[id].command;
+    if (command === null || AVATARS[id].class !== 'walker') continue;
+    if (id === 'standard') choices.push({ value: RANDOM, label: 'Random color', note: '' });
+    else choices.push({ value: id, label: CHARACTERS[id].title, note: `/${command}` });
   }
-  for (const name of Object.keys(NAMED_COLORS)) option(COLOR + name, `${name[0].toUpperCase()}${name.slice(1)}`);
-}
-
-// Picks `value` in the dropdown, or the first choice where there's no such option.
-function choose(select: HTMLSelectElement, value: string): void {
-  select.value = value;
-  if (select.selectedIndex < 0) select.selectedIndex = 0;
+  for (const name of Object.keys(NAMED_COLORS))
+    choices.push({ value: COLOR + name, label: `${name[0].toUpperCase()}${name.slice(1)}`, note: `/${name}` });
+  return choices;
 }
 
 // What a dropdown choice joins as.
@@ -226,7 +225,7 @@ class Stage {
 
   constructor(
     private readonly box: HTMLElement,
-    private readonly skin: HTMLSelectElement,
+    private readonly skin: Picker,
   ) {}
 
   start(): void {
@@ -235,7 +234,7 @@ class Stage {
       this.loading = true;
       void import('../render/BodyView').then(({ BodyView }) => {
         if (this.disposed) return;
-        this.view = new BodyView();
+        this.view = new BodyView(1 / devicePixelRatio); // the home screen draws nothing else
         this.box.prepend(this.view.canvas);
       });
     }
