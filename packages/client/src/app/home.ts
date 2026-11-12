@@ -1,7 +1,9 @@
-// Home screen: pick a name, then drop into the global room or join a room by code (a code nobody
-// is using yet becomes a new room).
-// Resolves with a live Connection. Also honours ?room=&name= for invite links and tests.
-import { isValidRoomId, sanitizeName } from '@world/shared';
+// Home screen: the room on the left (drop into the global room, or join one by code: a code nobody
+// is using yet becomes a new room), the player on the right (their name, and a skin from a dropdown
+// shown on a turning stage, as the guide and the menu show bodies).
+// Resolves with a live Connection. Also honours ?room=&name=&avatar= for invite links and tests.
+import { AVATARS, AVATAR_IDS, isAvatarId, isValidRoomId, sanitizeName, type AvatarId } from '@world/shared';
+import { CHARACTERS } from '../guide/content';
 import { LocalConnection, type Connection } from '../net/Connection';
 import {
   LobbyUnavailableError,
@@ -10,7 +12,9 @@ import {
   rememberRoom,
   rememberedRoom,
   warmLobby,
+  type Joiner,
 } from '../net/lobby';
+import type { BodyView, Shown } from '../render/BodyView';
 
 export interface HomeResult {
   connection: Connection;
@@ -20,10 +24,16 @@ export interface HomeResult {
 
 const GLOBAL_ROOM = 'global';
 const NAME_KEY = 'world.name';
+const SKIN_KEY = 'world.skin';
+// The dropdown's first choice: the standard body, which the room paints a colour of its own
+// choosing, so the stage shows it white.
+const RANDOM = '';
+const UNPAINTED = '#ffffff';
 
 export function showHome(): Promise<HomeResult> {
   const root = document.getElementById('home')!;
   const nameInput = document.getElementById('home-name') as HTMLInputElement;
+  const skinSelect = document.getElementById('home-skin') as HTMLSelectElement;
   const roomInput = document.getElementById('home-room') as HTMLInputElement;
   const joinBtn = document.getElementById('home-join') as HTMLButtonElement;
   const globalBtn = document.getElementById('home-global') as HTMLButtonElement;
@@ -33,8 +43,21 @@ export function showHome(): Promise<HomeResult> {
 
   const loading = document.getElementById('loading')!;
   const params = new URLSearchParams(location.search);
-  nameInput.value = params.get('name') ?? localStorage.getItem(NAME_KEY) ?? '';
+  nameInput.value = params.get('name') ?? stored(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? '';
+  fillSkins(skinSelect);
+  const asked = params.get('avatar');
+  skinSelect.value = isAvatarId(asked) ? asked : (skinOf(stored(SKIN_KEY)) ?? RANDOM);
+  const stage = new Stage(document.getElementById('home-view')!, skinSelect);
+
+  const joiner = (): Joiner => ({
+    name: sanitizeName(nameInput.value),
+    avatar: skinOf(skinSelect.value),
+  });
+  const keep = (you: Joiner) => {
+    store(NAME_KEY, you.name);
+    store(SKIN_KEY, you.avatar ?? RANDOM);
+  };
 
   // The page loads showing the loading screen. Only reveal the home screen when there is
   // nothing to auto-join (or an auto-join fails), so arriving via the lobby never flashes it.
@@ -44,6 +67,11 @@ export function showHome(): Promise<HomeResult> {
     buttons.forEach((b) => (b.disabled = false));
     loading.classList.add('hidden');
     root.classList.remove('hidden');
+    stage.start();
+  };
+  const hideForm = () => {
+    root.classList.add('hidden');
+    stage.stop();
   };
   // Back from the lobby restores this page from the back/forward cache as it was left: mid-join,
   // waiting on a navigation that has already happened. Hand the form back.
@@ -57,11 +85,12 @@ export function showHome(): Promise<HomeResult> {
   return new Promise((finish) => {
     const resolve = (result: HomeResult) => {
       window.removeEventListener('pageshow', restore);
+      stage.dispose();
       finish(result);
     };
     const attempt = async (roomId: string) => {
       if (busy) return;
-      const name = sanitizeName(nameInput.value);
+      const you = joiner();
       roomId = roomId.trim().toLowerCase();
       if (!isValidRoomId(roomId)) {
         showForm();
@@ -71,19 +100,19 @@ export function showHome(): Promise<HomeResult> {
       busy = true;
       buttons.forEach((b) => (b.disabled = true));
       status.textContent = `connecting to ${roomId}...`;
-      localStorage.setItem(NAME_KEY, name);
+      keep(you);
       // The wait is mostly the lobby round trip and the room's session start, and on the
       // launcher that is a page navigation this page stays visible through. Show the loading
       // screen for it, so the join looks like one continuous load; a failure brings the form back.
-      root.classList.add('hidden');
+      hideForm();
       loading.classList.remove('hidden');
       try {
-        const connection = await joinRoom(roomId, name);
+        const connection = await joinRoom(roomId, you);
         if (SERVED_BY_ROOM_HOST) {
-          rememberRoom(roomId, name);
+          rememberRoom(roomId, you.name, you.avatar);
           history.replaceState(null, '', location.pathname);
         }
-        resolve({ connection, roomId, name });
+        resolve({ connection, roomId, name: you.name });
       } catch (err) {
         showForm();
         if (err instanceof LobbyUnavailableError) {
@@ -112,16 +141,17 @@ export function showHome(): Promise<HomeResult> {
     });
     globalBtn.addEventListener('click', () => attempt(GLOBAL_ROOM));
     offlineBtn.addEventListener('click', () => {
-      const name = sanitizeName(nameInput.value);
-      localStorage.setItem(NAME_KEY, name);
-      root.classList.add('hidden');
-      resolve({ connection: new LocalConnection(name), roomId: 'offline', name });
+      const you = joiner();
+      keep(you);
+      hideForm();
+      resolve({ connection: new LocalConnection(you.name, you.avatar), roomId: 'offline', name: you.name });
     });
 
     const remembered = SERVED_BY_ROOM_HOST ? rememberedRoom() : null;
     if (params.get('room')) attempt(params.get('room')!);
     else if (remembered) {
       nameInput.value = remembered.name || nameInput.value;
+      skinSelect.value = remembered.avatar ?? RANDOM;
       attempt(remembered.roomId);
     } else if (params.get('offline') !== null) offlineBtn.click();
     else {
@@ -130,4 +160,87 @@ export function showHome(): Promise<HomeResult> {
       (nameInput.value ? roomInput : nameInput).focus();
     }
   });
+}
+
+// Every look a person can switch to by command, by the guide's name for it; the standard body
+// first, as a random colour.
+function fillSkins(select: HTMLSelectElement): void {
+  for (const id of AVATAR_IDS) {
+    if (AVATARS[id].command === null) continue;
+    const option = document.createElement('option');
+    option.value = id === 'standard' ? RANDOM : id;
+    option.textContent = id === 'standard' ? 'Random colour' : CHARACTERS[id].title;
+    select.append(option);
+  }
+}
+
+// The skin a dropdown value or a stored one names, null for a random colour.
+function skinOf(value: string | null): AvatarId | null {
+  return isAvatarId(value) && value !== 'standard' ? value : null;
+}
+
+function stored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function store(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Storage blocked: the home screen won't offer it next time.
+  }
+}
+
+// The chosen skin on its stage. Babylon comes in with the game's own chunk, so the view is fetched
+// the first time the form is shown (never on an auto-join) and drawn each frame while it's up.
+class Stage {
+  private view: BodyView | null = null;
+  private loading = false;
+  private disposed = false; // the chunk can arrive after a quick join has already left the form
+  private frame = 0;
+
+  constructor(
+    private readonly box: HTMLElement,
+    private readonly skin: HTMLSelectElement,
+  ) {}
+
+  start(): void {
+    if (this.frame) return;
+    if (!this.view && !this.loading) {
+      this.loading = true;
+      void import('../render/BodyView').then(({ BodyView }) => {
+        if (this.disposed) return;
+        this.view = new BodyView();
+        this.box.prepend(this.view.canvas);
+      });
+    }
+    const draw = () => {
+      this.view?.sync(this.shown(), true);
+      this.frame = requestAnimationFrame(draw);
+    };
+    this.frame = requestAnimationFrame(draw);
+  }
+
+  stop(): void {
+    cancelAnimationFrame(this.frame);
+    this.frame = 0;
+    this.view?.sync(this.shown(), false);
+  }
+
+  private shown(): Shown {
+    const avatar = skinOf(this.skin.value) ?? 'standard';
+    return { name: '', avatar, color: UNPAINTED, item: null, gear: null, chilled: false, shattered: [] };
+  }
+
+  // Off for good: the game gets the GPU to itself.
+  dispose(): void {
+    this.disposed = true;
+    this.stop();
+    this.view?.dispose();
+    this.view = null;
+  }
 }

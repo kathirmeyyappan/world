@@ -1,7 +1,7 @@
 // Avatar types: how a player looks, how big a target they make, and which class (classes.ts) moves
-// its wearer; the hit capsule and the eyes follow the body. Its chat command switches for good;
-// a name containing an avatar's tag spawns as it and can't switch at all. A bot can also ask for any
-// avatar whose class takes bots when it joins (BotPlacement), including one with no command. Adding
+// its wearer; the hit capsule and the eyes follow the body. Its chat command switches for good, and a
+// person can join in any look that has one. A bot can also ask for any avatar whose class takes bots
+// when it joins (BotPlacement), including one with no command. Adding
 // one means a row here, a builder in the client's render/avatars/, and `npm run bot-map` (bots aim
 // with these hitboxes).
 import type { LifeSpec } from './classes';
@@ -39,7 +39,6 @@ export interface Hitbox {
 
 interface Look {
   id: AvatarId;
-  nameTag: string | null; // a name containing this spawns with the avatar
   blurb: string; // one plain line for the commands menu
   command: string | null; // the chat command that switches a person to it (the menu lists it); null: bots only
   hidden?: boolean; // the menu leaves its command out: a look you have to know about
@@ -73,7 +72,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: null,
     blurb: 'back to your normal self',
     command: 'standard',
     eye: EYE_HEIGHT,
@@ -86,7 +84,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'ELIZABETH',
     blurb: 'become elizabeth from gintama',
     command: 'elizabeth',
     eye: 1.62,
@@ -99,7 +96,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: null,
     blurb: 'become tung tung tung sahur',
     command: 'tung',
     eye: 2.67,
@@ -112,7 +108,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'SULLEY',
     blurb: 'become sulley from monsters, inc.',
     command: 'sulley',
     eye: 2.35,
@@ -125,7 +120,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'MIKE',
     blurb: 'become mike wazowski from monsters, inc.',
     command: 'mike',
     eye: 1.08,
@@ -138,7 +132,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'SPONGEBOB',
     blurb: 'become spongebob squarepants',
     command: 'spongebob',
     eye: 1.48,
@@ -151,7 +144,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'PATRICK',
     blurb: 'become patrick star',
     command: 'patrick',
     eye: 2.0,
@@ -164,7 +156,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'KRABS',
     blurb: 'become mr. krabs',
     command: 'krabs',
     eye: 1.95, // the pupils, near the top of the eyestalks
@@ -177,7 +168,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'SQUIDWARD',
     blurb: 'become squidward tentacles',
     command: 'squidward',
     eye: 2.74,
@@ -190,7 +180,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'GARY',
     blurb: 'become gary the snail',
     command: 'gary',
     eye: 0.5, // his eyes, on stalks at the front of his body
@@ -203,7 +192,6 @@ const LOOKS = {
     class: 'walker',
     item: null,
     regen: false,
-    nameTag: 'PLANKTON',
     blurb: 'become plankton',
     command: 'plankton',
     eye: 0.135, // his one eye, in the middle of his face
@@ -216,7 +204,6 @@ const LOOKS = {
     class: 'asian-dragon',
     item: 'firebreath',
     regen: true,
-    nameTag: null,
     blurb: 'become the light dragon',
     command: 'light-dragon',
     eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
@@ -245,7 +232,6 @@ const LOOKS = {
     item: 'frostbreath',
     regen: false,
     life: { hearts: 3, row: 3, sprite: 'crystal' }, // a crystal heart per ring segment
-    nameTag: null,
     blurb: 'become colgera from tears of the kingdom',
     command: 'colgera',
     eye: EYE_HEIGHT, // the head is `pos` itself (sim/dragon.ts)
@@ -325,13 +311,4 @@ export function climbSpeedOf(avatar: AvatarId): number {
 // The avatar a chat command word ("tung") switches a person to, if any.
 export function avatarForCommand(word: string): AvatarId | null {
   return AVATAR_IDS.find((id) => AVATARS[id].command === word) ?? null;
-}
-
-// The avatar a name asks for, else the standard one.
-export function avatarFor(name: string): AvatarId {
-  for (const id of AVATAR_IDS) {
-    const tag = AVATARS[id].nameTag;
-    if (tag && name.includes(tag)) return id;
-  }
-  return 'standard';
 }

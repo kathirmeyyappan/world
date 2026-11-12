@@ -42,7 +42,7 @@ export interface PlayerState {
   thrusting: boolean; // their gear is lifting them this tick (a jetpack's jet)
   avatar: AvatarId; // how they look, and so their class (sim/classes.ts)
   dragon: DragonState | null; // a dragon's body (sim/dragon.ts); null on foot
-  avatarLocked: boolean; // the name chose the avatar; commands can't change it
+  avatarLocked: boolean; // a bot's look, fixed for its run; commands can't change it
   hearts: number; // a full life at spawn (classes.ts), down to 0 when shot enough
   kills: number; // players this one has finished off this life
   bot: boolean; // declared by the client at join; a headless player, shown as one, and never keeps a room open

@@ -98,7 +98,7 @@ http.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => {
     const room = roomFor(roomKey(req, url));
     // ?bot=1 is the bot framework declaring itself; the browser client never sends it. A bot may
-    // also say where it stands and how it looks (?x=&y=&z=&avatar=); the room ignores that for people.
+    // also say where it stands (?x=&y=&z=); anyone may say how they look (?avatar=).
     const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), {
       bot: url.searchParams.get('bot') === '1',
       room: url.searchParams.get('room') ?? undefined,

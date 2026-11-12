@@ -156,7 +156,7 @@ function roomField(hooks: MenuHooks, me: Me): Field {
 // The page leaves for the other room behind the loading screen, as a join from the home screen does.
 function go(code: string, me: Me): void {
   document.getElementById('loading')?.classList.remove('hidden');
-  switchRoom(code, me.name);
+  switchRoom(code, { name: me.name, avatar: me.avatar });
 }
 
 function sound(sfx: Sfx): Section {

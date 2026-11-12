@@ -280,7 +280,7 @@ So `/sniper-bot -t 120 -n hunter -s tung --target kat bob`. A bare word, an unkn
 flag, or a missing or bad value gets the usage line instead. The flags are one table, `BOT_FLAGS` in
 `packages/shared/src/sim/bots.ts`: `commands.ts` parses it and the usage lines and commands menu are
 written from it, so a new flag is a row there and a case in the parser. Names are taken as given,
-tags and all: a bot named `GUNNER` holds a gun for good, like a person would.
+and a name is only a name: nothing about a player comes from what it spells.
 
 `/kill-bots` drops every living bot in the room dead where it stands, with no kill event; each
 corpse is removed like any bot's, which closes its connection and ends its run.

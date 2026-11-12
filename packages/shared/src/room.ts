@@ -87,7 +87,8 @@ interface Seat {
 export interface JoinOptions extends BotPlacement {
   bot?: boolean; // the client says it's a bot (the browser never does; the bot framework always does)
   room?: string; // the public room code the client asked for; bots called from here join it
-  // BotPlacement's spawn and avatar are honoured for bots only; a person always spawns at random.
+  // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
+  // spawns at random, in the avatar if it's one they could switch to by command and fits there.
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -199,6 +200,8 @@ export class Room {
       becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
     }
+    const chosen = !opts.bot && opts.avatar && AVATARS[opts.avatar].command !== null ? opts.avatar : null;
+    if (chosen && !this.cantBecome(state, chosen, false)) becomeAvatar(state, chosen);
     if (opts.room && !this.publicName) this.publicName = opts.room;
     this.seats.set(id, {
       state,
@@ -223,6 +226,7 @@ export class Room {
     });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
+    this.storm(this.seats.get(id)!);
     if (!state.bot && this.humanCount === 1) this.addDefaultBots();
     return id;
   }
@@ -567,7 +571,7 @@ export class Room {
     }
   }
 
-  // A name-given look can't be changed, the dead stay what they died as, and a new class needs room
+  // A bot's look can't be changed, the dead stay what they died as, and a new class needs room
   // for its body.
   private cantBecome(me: PlayerState, avatar: AvatarId, again: boolean): string | null {
     if (me.avatarLocked) return `you're ${me.avatar} for good`;
