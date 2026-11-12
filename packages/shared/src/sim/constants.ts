@@ -81,18 +81,3 @@ export const NAMED_COLORS: Readonly<Record<string, string>> = {
   black: '#424242',
   white: '#f5f5f5',
 };
-
-export const PLAYER_COLORS = [
-  '#64b5f6',
-  '#f06292',
-  '#81c784',
-  '#ffb74d',
-  '#ba68c8',
-  '#4dd0e1',
-  '#fff176',
-  '#ff8a65',
-  '#a1887f',
-  '#90a4ae',
-  '#e57373',
-  '#aed581',
-];

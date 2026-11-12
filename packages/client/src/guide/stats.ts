@@ -1,7 +1,7 @@
 // The guide's numbers, read off the registries the game runs on (AVATARS, ITEMS, GEAR, PICKUPS and
 // the constants), so a change to the game is a change here with no one remembering to make it.
-// Everything is worked out the way the sim does it: a jump's rise from its takeoff and gravity, a
-// spray's damage a second from its damage a tick and how often it ticks.
+// Everything is worked out the way the sim does it: a spray's damage a second from its damage a tick
+// and how often it ticks.
 import {
   AVATARS,
   BOT_DEFAULT_SECONDS,
@@ -10,8 +10,6 @@ import {
   BOT_MAX_SECONDS,
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
-  COMMAND_SHORTCUTS,
-  CORPSE_DROP,
   FUEL_REFILL_RATE,
   GEAR,
   GRAVITY,
@@ -24,10 +22,8 @@ import {
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
   TICK_RATE,
-  classOf,
   climbSpeedOf,
   dragonShape,
-  jumpVelocityOf,
   lifeOf,
   walkSpeedOf,
   type AvatarId,
@@ -53,42 +49,23 @@ function keyName(code: string): string {
   return code.startsWith('Key') ? code.slice(3) : code;
 }
 
-// The chat commands that do `target` (an item, gear, 'speedy', or an avatar's command word): its own
-// and its shortcuts.
-export function commandsFor(word: string, target: string = word): string[] {
-  const shortcuts = Object.entries(COMMAND_SHORTCUTS).filter(([, t]) => t === target);
-  return [`/${word}`, ...shortcuts.map(([s]) => `/${s}`)];
-}
-
 export function characterStats(id: AvatarId): Stat[] {
   const look = AVATARS[id];
-  const cls = classOf(id);
   const life = lifeOf(id);
-  const hearts = `${life.hearts}${life.sprite === 'crystal' ? ' crystals' : ''}`;
   const rows: Stat[] = [];
-  if (look.command) rows.push({ label: 'Equip', value: commandsFor(look.command, id).join(', ') });
-  rows.push({ label: 'Hearts', value: look.regen ? `${hearts}, back at ${num(REGEN_RATE)} a second` : hearts });
+  if (look.command) rows.push({ label: 'Equip', value: `/${look.command}` });
+  rows.push({ label: life.sprite === 'crystal' ? 'Crystals' : 'Hearts', value: num(life.hearts) });
+  if (look.regen) rows.push({ label: 'Regen', value: `${num(REGEN_RATE)} hearts/s` });
   if (look.class === 'walker') {
-    const walk = walkSpeedOf(id);
-    const takeoff = jumpVelocityOf(id);
-    const rise = takeoff ** 2 / (2 * GRAVITY);
-    const air = (2 * takeoff) / GRAVITY;
     rows.push(
       { label: 'Height', value: `${num(look.hitbox.top)} m` },
       { label: 'Eye height', value: `${num(look.eye)} m` },
-      { label: 'Walk', value: `${num(walk)} m/s` },
-      { label: 'Jump', value: `${num(rise)} m high, ${num(air)} s in the air` },
-      { label: 'Running jump', value: `${num(walk * air)} m` },
+      { label: 'Walk', value: `${num(walkSpeedOf(id))} m/s` },
+      { label: 'Jump power', value: num(look.jump) },
       { label: 'Ladder climb', value: `${num(climbSpeedOf(id))} m/s` },
-      {
-        label: 'Target',
-        value: `${num(2 * look.hitbox.radius)} m wide; the top ${num(look.hitbox.head)} m is the head`,
-      },
+      { label: 'Hitbox width', value: `${num(2 * look.hitbox.radius)} m` },
+      { label: 'Head hitbox', value: `${num(look.hitbox.head)} m` },
     );
-    rows.push({
-      label: 'Items',
-      value: look.item ? `its own ${ITEMS[look.item].name} only` : cls.kit ? 'any' : 'none',
-    });
   } else {
     const shape = dragonShape(id);
     rows.push(
@@ -100,67 +77,42 @@ export function characterStats(id: AvatarId): Stat[] {
   return rows;
 }
 
-// The looks that come with an item of their own.
-function ownersOf(item: ItemId): AvatarId[] {
-  return (Object.keys(AVATARS) as AvatarId[]).filter((id) => AVATARS[id].item === item);
-}
-
 export function itemStats(id: ItemId): Stat[] {
   const spec = ITEMS[id];
   const perSecond = TICK_RATE / spec.cooldownTicks;
   const rows: Stat[] = [];
-  if (spec.own)
-    rows.push({
-      label: 'Comes with',
-      value: ownersOf(id)
-        .map((a) => AVATARS[a].command ?? a)
-        .join(', '),
-    });
-  else rows.push({ label: 'Equip', value: commandsFor(id).join(', ') });
-  const hold = spec.actions.shoot?.mode === 'hold';
-  rows.push({ label: 'Fire', value: hold ? 'hold click' : 'click' });
+  // A dragon's breath comes with its look, and that look's command is how to get it.
+  const owner = (Object.keys(AVATARS) as AvatarId[]).find((a) => AVATARS[a].item === id);
+  const command = spec.own && owner ? AVATARS[owner].command : id;
+  if (command) rows.push({ label: 'Equip', value: `/${command}` });
   if (spec.actions.scope?.key)
-    rows.push({
-      label: 'Scope',
-      value:
-        `${keyName(spec.actions.scope.key)} to scope` +
-        (spec.fireNeedsScope ? ', and it only fires scoped' : '') +
-        `; scoped, you walk at ${num(SCOPED_SPEED_MULTIPLIER * 100)}% and can't jump`,
-    });
-  if (hold) {
-    rows.push({ label: 'Damage', value: `${num(spec.damage * perSecond)} hearts a second` });
+    rows.push(
+      { label: 'Scope', value: keyName(spec.actions.scope.key) },
+      { label: 'Scoped walk', value: `${num(SCOPED_SPEED_MULTIPLIER * 100)}%` },
+    );
+  if (spec.actions.shoot?.mode === 'hold') {
+    rows.push({ label: 'Damage', value: `${num(spec.damage * perSecond)} hearts/s` });
   } else {
     rows.push(
-      { label: 'Damage', value: `${num(spec.damage)} hearts a shot` },
-      {
-        label: 'Headshot',
-        value: `${num(spec.damage * HEADSHOT_MULTIPLIER)} hearts (×${num(HEADSHOT_MULTIPLIER)})`,
-      },
-      {
-        label: 'Fire rate',
-        value: `${num(perSecond)} a second (${num(spec.cooldownTicks / TICK_RATE)} s between shots)`,
-      },
-      { label: 'Damage a second', value: `${num(spec.damage * perSecond)} hearts, held on the body` },
+      { label: 'Damage', value: `${num(spec.damage)} hearts` },
+      { label: 'Headshot', value: `${num(spec.damage * HEADSHOT_MULTIPLIER)} hearts` },
+      { label: 'Fire rate', value: `${num(perSecond)}/s` },
+      { label: 'DPS', value: `${num(spec.damage * perSecond)} hearts/s` },
     );
   }
   rows.push({ label: 'Range', value: `${num(spec.range)} m` });
   if (spec.fire.kind === 'cone')
-    rows.push({
-      label: 'Spray',
-      value: `a ${num((2 * spec.fire.halfAngle * 180) / Math.PI)}° cone; everyone in it is hit`,
-    });
+    rows.push({ label: 'Spray cone', value: `${num((2 * spec.fire.halfAngle * 180) / Math.PI)}°` });
   if (spec.fuelSeconds !== null)
-    rows.push({
-      label: 'Tank',
-      value: `${num(spec.fuelSeconds)} s of spray; empty to full in ${num(spec.fuelSeconds / FUEL_REFILL_RATE)} s`,
-    });
+    rows.push(
+      { label: 'Tank', value: `${num(spec.fuelSeconds)} s` },
+      { label: 'Refill', value: `${num(spec.fuelSeconds / FUEL_REFILL_RATE)} s` },
+    );
   if (spec.element === 'ice')
-    rows.push({
-      label: 'Effect',
-      value: `chills for ${num(CHILL_SECONDS)} s (walk at ${num(CHILLED_SPEED_MULTIPLIER * 100)}%), and frosts what it hits into ice`,
-    });
-  if (spec.element === 'fire') rows.push({ label: 'Effect', value: 'thaws a chill at once, and melts frost' });
-  rows.push({ label: "Colgera's crystals", value: spec.shatters ? 'a hit shatters one' : 'washes over them' });
+    rows.push(
+      { label: 'Chill', value: `${num(CHILL_SECONDS)} s` },
+      { label: 'Chilled walk', value: `${num(CHILLED_SPEED_MULTIPLIER * 100)}%` },
+    );
   return rows;
 }
 
@@ -168,34 +120,35 @@ export function gearStats(id: GearId): Stat[] {
   const spec = GEAR[id];
   const thrust = spec.actions.thrust?.key;
   return [
-    { label: 'Equip', value: commandsFor(id).join(', ') },
-    ...(thrust ? [{ label: 'Use', value: `hold ${keyName(thrust)}` }] : []),
+    { label: 'Equip', value: `/${id}` },
+    ...(thrust ? [{ label: 'Thrust', value: keyName(thrust) }] : []),
     { label: 'Lasts', value: `${num(spec.seconds)} s` },
-    { label: 'Fuel', value: `${num(spec.fuelSeconds)} s of thrust; refills on the ground` },
-    { label: 'Lift', value: `${num(spec.lift - GRAVITY)} m/s² upward, rising at most ${num(spec.maxRise)} m/s` },
-    { label: 'Brake', value: `${num(spec.brake - GRAVITY)} m/s² against a fall` },
+    { label: 'Fuel', value: `${num(spec.fuelSeconds)} s` },
+    { label: 'Lift', value: `${num(spec.lift - GRAVITY)} m/s²` },
+    { label: 'Max rise', value: `${num(spec.maxRise)} m/s` },
+    { label: 'Brake', value: `${num(spec.brake - GRAVITY)} m/s²` },
   ];
 }
 
 export function pickupStats(kind: PickupKind): Stat[] {
   const heals = PICKUPS[kind].heals;
-  const rows: Stat[] = [{ label: 'Heals', value: heals === Infinity ? 'every heart' : `${num(heals)} hearts` }];
+  // A full life's worth, on foot, where a pickup heals everything.
+  const hearts = heals === Infinity ? lifeOf('standard').hearts : heals;
+  const rows: Stat[] = [{ label: 'Heals', value: `${num(hearts)} hearts` }];
   const areas = PICKUP_AREAS.filter((a) => a.kind === kind);
-  if (areas.length > 0) {
-    const every = [...new Set(areas.map((a) => a.respawnSeconds))].map(num).join(' or ');
+  if (areas.length > 0)
     rows.push(
-      { label: 'Floating about', value: `${areas.reduce((n, a) => n + a.count, 0)} across the world` },
-      { label: 'Comes back', value: `${every} s after it's taken` },
+      { label: 'In the world', value: `${areas.reduce((n, a) => n + a.count, 0)}` },
+      { label: 'Respawn', value: `${num(Math.max(...areas.map((a) => a.respawnSeconds)))} s` },
     );
-  }
-  if (kind === CORPSE_DROP) rows.push({ label: 'Where', value: "left where a dead player's body lay" });
   return rows;
 }
 
 export function speedyStats(): Stat[] {
   return [
-    { label: 'Equip', value: commandsFor('speedy').join(', ') },
-    { label: 'Speed', value: `×${num(SPEEDY_MULTIPLIER)} for ${num(SPEEDY_SECONDS)} s` },
+    { label: 'Equip', value: '/speedy' },
+    { label: 'Speed', value: `×${num(SPEEDY_MULTIPLIER)}` },
+    { label: 'Lasts', value: `${num(SPEEDY_SECONDS)} s` },
   ];
 }
 

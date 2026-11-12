@@ -100,7 +100,7 @@ function items(): Section[] {
   const cube: Pick = {
     id: 'resume-cube',
     entry: RESUME_CUBE,
-    stats: () => [{ label: 'How many', value: `${CUBES.length}` }],
+    stats: () => [{ label: 'In the world', value: `${CUBES.length}` }],
     view: { thing: cubeThing(CUBES[0]) },
   };
   return [
@@ -272,7 +272,7 @@ function placeStats(place: Place): Stat[] {
   switch (place.id) {
     case 'main':
       return [
-        { label: 'Size', value: MAIN_AREA.kind === 'disc' ? `${num(2 * MAIN_AREA.r)} m across` : '' },
+        { label: 'Diameter', value: MAIN_AREA.kind === 'disc' ? `${num(2 * MAIN_AREA.r)} m` : '' },
         { label: 'Hearts', value: `${heartsIn([MAIN_AREA])}` },
       ].filter((s) => s.value);
     case 'pineapple':
@@ -292,7 +292,7 @@ function placeStats(place: Place): Stat[] {
     case 'tower':
       return [
         topOf(TOWER_LEVELS),
-        { label: 'Floors', value: `${TOWER_LEVELS.length - 1}, and the roof` },
+        { label: 'Floors', value: `${TOWER_LEVELS.length - 1}` },
         { label: 'Hearts', value: `${heartsIn(TOWER_LEVELS)}` },
       ];
     case 'terrace':
