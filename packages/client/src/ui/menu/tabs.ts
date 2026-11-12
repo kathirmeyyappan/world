@@ -20,7 +20,7 @@ import type { Picture } from '../../render/Picture';
 import type { Minimap } from '../Minimap';
 import type { Field, Note, Row, Section, Tab } from './rows';
 
-const GUIDE_URL = 'https://info.kathirm.com/kathir-world-guide?pvs=74';
+const GUIDE_URL = '/guide/';
 const REPO_URL = 'https://github.com/kathirmeyyappan/world';
 const GLOBAL_ROOM = 'global';
 // How long a rename may take to show in the room before the menu says it didn't: a snapshot comes

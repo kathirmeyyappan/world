@@ -4,7 +4,7 @@
 // spot, belonging to no area: it bobs and spins where it was left and never comes back once taken.
 // Simulated on the server only, like the cubes; clients draw the broadcast positions.
 //
-// A new kind is a row in PICKUPS (how high it floats, how close you must be, what taking it does)
+// A new kind is a row in PICKUPS (how high it floats, how close you must be, how much it heals)
 // and a shape in the client's render/Pickups.ts; where it appears is content/pickups.ts.
 import { heartsOf } from './classes';
 import { nextPointInRegion, randomPointInRegion, type Region } from './regions';
@@ -17,12 +17,12 @@ export interface PickupSpec {
   kind: PickupKind;
   height: number; // metres above its region's floor that it floats at
   reach: number; // metres across the floor from a player's eye line at which they take it
-  use: (p: PlayerState) => boolean; // what taking it does; false if it's no use to them, and it stays
+  heals: number; // hearts taking it gives back, up to a full life; Infinity is all of them
 }
 
 export const PICKUPS: Record<PickupKind, PickupSpec> = {
-  heart: { kind: 'heart', height: 1.4, reach: 1, use: heal(3) }, // just under eye level, half a cube's height
-  'big-heart': { kind: 'big-heart', height: 1.4, reach: 1.5, use: heal(Infinity) }, // drawn twice the size; back to full
+  heart: { kind: 'heart', height: 1.4, reach: 1, heals: 3 }, // just under eye level, half a cube's height
+  'big-heart': { kind: 'big-heart', height: 1.4, reach: 1.5, heals: Infinity }, // drawn twice the size; back to full
 };
 
 export interface PickupArea {
@@ -107,7 +107,7 @@ export function takePickups(field: PickupField, p: PlayerState, eyeHeight: numbe
   if (p.dead) return;
   const taken = new Set<PickupState>();
   for (const pickup of field.items)
-    if (touches(pickup, p.pos, eyeHeight) && PICKUPS[pickup.kind].use(p)) taken.add(pickup);
+    if (touches(pickup, p.pos, eyeHeight) && heal(p, PICKUPS[pickup.kind].heals)) taken.add(pickup);
   if (taken.size > 0) field.items = field.items.filter((pickup) => !taken.has(pickup));
 }
 
@@ -122,13 +122,13 @@ function touches(pickup: PickupState, eye: Vec3, eyeHeight: number): boolean {
 }
 
 // Gives back `hearts`, up to a full life; no use to someone already at full health.
-function heal(hearts: number): (p: PlayerState) => boolean {
-  return (p) => {
-    const full = heartsOf(p.avatar);
-    if (p.hearts >= full) return false;
-    p.hearts = Math.min(full, p.hearts + hearts);
-    return true;
-  };
+// Gives `p` back `hearts`, up to a full life; false when they're already at full, and the pickup
+// stays.
+function heal(p: PlayerState, hearts: number): boolean {
+  const full = heartsOf(p.avatar);
+  if (p.hearts >= full) return false;
+  p.hearts = Math.min(full, p.hearts + hearts);
+  return true;
 }
 
 // A pickup of `kind` left floating over `feet` (where a player died, say) until someone takes it.
