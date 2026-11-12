@@ -392,9 +392,9 @@ class Sniper:
         if not hidden:
             return
         cover = min(hidden, key=lambda i: _distance(me.pos, _eye(self.world.nodes[i])))
-        path = self.world.path(start, cover)
+        path = self.world.path(start, cover, me.avatar)
         if path is not None:
-            self.cover, self.route, self.arrived_at = cover, Route(self.world, path, tick), None
+            self.cover, self.route, self.arrived_at = cover, Route(self.world, path, tick, me.avatar), None
 
     def _plan(self, me: Player, quarry: list[Player], tick: int) -> None:
         """Pick a spot when it has none, or another floor's when it has waited there too long with
@@ -449,11 +449,11 @@ class Sniper:
         self.route = self.arrived_at = None
         self.replan_at = tick + TICK_RATE
         start = self.world.node_at(_feet(me))
-        path = self.world.path(start, self.spot) if start is not None and self.spot is not None else None
+        path = self.world.path(start, self.spot, me.avatar) if start is not None and self.spot is not None else None
         if path is None:
             self.spot = None
         else:
-            self.route = Route(self.world, path, tick)
+            self.route = Route(self.world, path, tick, me.avatar)
 
     def wants_speed(self, me: Player) -> bool:
         """Whether a /speedy would help: it isn't sped up, and it's outdoors on its way with

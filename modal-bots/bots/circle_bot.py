@@ -182,9 +182,9 @@ class Circler:
         if start is None:
             return False
         for goal in self.ring_goals(me, center):
-            path = self.world.path(start, goal)
+            path = self.world.path(start, goal, me.avatar)
             if path is not None:
-                self.route = Route(self.world, path, tick)
+                self.route = Route(self.world, path, tick, me.avatar)
                 self.detours += 1
                 return True
         return False
