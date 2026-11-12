@@ -38,7 +38,10 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
     title: 'Elizabeth',
     from: 'Gintama',
     summary: 'A big white egg of a body with a flat orange beak, two flippers and webbed feet.',
-    facts: ['She waddles, rocking side to side and lifting alternate feet.', 'A weapon goes in her right flipper.'],
+    facts: [
+      'She waddles, rocking side to side and lifting alternate feet.',
+      'Whatever she holds goes in her right flipper.',
+    ],
   },
   sahur: {
     title: 'Tung Tung Tung Sahur',
@@ -46,7 +49,7 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
     summary: 'A wooden log with a face and a bat, staring wall-eyed.',
     facts: [
       'Three of them stand guard on the tower’s lower floors in every room, as stalker bots.',
-      'Its head twitches now and then; a held weapon takes the bat’s place.',
+      'Its head twitches now and then; anything it holds takes the bat’s place.',
     ],
   },
   sulley: {
@@ -124,7 +127,7 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   },
 };
 
-export const WEAPONS: Record<ItemId, Entry> = {
+export const ITEM_TEXT: Record<ItemId, Entry> = {
   gun: {
     title: 'Handgun',
     summary: 'The all-rounder: point, click, repeat.',
@@ -187,8 +190,16 @@ export const SPEEDY: Entry = {
   facts: [],
 };
 
+// A photo of a place, from public/assets/guide/places/ (`<file>.jpg`, and `<file>-thumb.jpg` for
+// the gallery), taken in the game.
+export interface Photo {
+  file: string;
+  caption: string;
+}
+
 export interface Place extends Entry {
-  id: 'main' | 'buildings' | 'tower' | 'terrace';
+  id: 'main' | 'pineapple' | 'buildings' | 'tower' | 'terrace';
+  photos: Photo[];
 }
 
 export const PLACES: Place[] = [
@@ -197,13 +208,39 @@ export const PLACES: Place[] = [
     title: 'Main area',
     summary: 'Where everyone spawns. The floating cubes tell Kathir’s work history: click one to read it.',
     facts: ['The cubes were the whole of Kathir World before everything else arrived.'],
+    photos: [
+      { file: 'main-cubes', caption: 'The info cubes over the main area' },
+      { file: 'main-wide', caption: 'Across the main area toward the tower' },
+    ],
+  },
+  {
+    id: 'pineapple',
+    title: 'SpongeBob’s pineapple',
+    summary:
+      'Building 1, on a dune of sand. Click its door to go in: the rooms from Battle for Bikini Bottom, from the living room up to the bedroom and the library on top, and a deck on the crown.',
+    facts: ['The library has a slide down from a hatch high in the wall, and it’s icy.'],
+    photos: [
+      { file: 'pineapple-outside', caption: 'SpongeBob’s pineapple, on its dune' },
+      { file: 'pineapple-dune', caption: 'The pineapple from its dune' },
+      { file: 'pineapple-living-room', caption: 'The living room' },
+      { file: 'pineapple-living-room-2', caption: 'The living room from by the side door' },
+      { file: 'pineapple-living-room-3', caption: 'The living room from near the front door' },
+      { file: 'pineapple-library', caption: 'The library at the top, and its ladder' },
+      { file: 'pineapple-plan-ground-floor', caption: 'Floor plan: the ground floor' },
+      { file: 'pineapple-plan-first-floor', caption: 'Floor plan: the first floor, round the bedroom' },
+      { file: 'pineapple-plan-library', caption: 'Floor plan: the library' },
+    ],
   },
   {
     id: 'buildings',
-    title: 'Buildings 1 to 4',
+    title: 'Buildings 2 to 4',
     summary:
-      'Four buildings round the main area. Building 1 is SpongeBob’s pineapple, with the rooms of the game inside; Buildings 2 and 3 are the tower’s ground and first floors standing alone; Building 4 is a bare keep, for now.',
-    facts: ['The pineapple’s library has a slide down from a hatch high in the wall, and it’s icy.'],
+      'Round keeps on the other sides of the main area. Buildings 2 and 3 are the tower’s ground and first floors standing alone, murals and all; Building 4 is a bare keep, for now.',
+    facts: [],
+    photos: [
+      { file: 'keep-outside', caption: 'Building 2' },
+      { file: 'keep-inside', caption: 'Inside Building 3' },
+    ],
   },
   {
     id: 'tower',
@@ -211,6 +248,11 @@ export const PLACES: Place[] = [
     summary:
       'A round tower of four floors, each one a building’s floor, stair and murals alike. A bridge runs from its top to the terrace.',
     facts: ['A good sniper’s nest: the sniper bot starts out inside it.'],
+    photos: [
+      { file: 'tower-outside', caption: 'Tung Tung Tower from the bridge' },
+      { file: 'tower-inside', caption: 'The ground floor, its stair winding up the wall' },
+      { file: 'tower-bridge', caption: 'The sky bridge from the tower’s top to the terrace' },
+    ],
   },
   {
     id: 'terrace',
@@ -218,6 +260,10 @@ export const PLACES: Place[] = [
     summary:
       'A huge brick ring high over the main area, reached by a staircase from each building’s roof and the tower’s sky bridge.',
     facts: ['A jetpack gets you up there faster.'],
+    photos: [
+      { file: 'terrace-overview', caption: 'The terrace over the main area, with its staircases' },
+      { file: 'terrace-deck', caption: 'On the deck' },
+    ],
   },
 ];
 

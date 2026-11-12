@@ -101,7 +101,7 @@ export function characterStats(id: AvatarId): Stat[] {
       });
   }
   rows.push({
-    label: 'Weapons',
+    label: 'Items',
     value: look.item ? `its own ${ITEMS[look.item].name} only` : cls.kit ? 'any' : 'none',
   });
   rows.push({ label: 'Bots can wear it', value: cls.bots ? 'yes' : 'no' });

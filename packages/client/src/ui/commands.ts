@@ -36,7 +36,10 @@ export function commandGroups(): Group[] {
   );
   const items = ITEM_IDS.filter((id) => !ITEMS[id].own);
   return [
-    { title: 'equip item', rows: items.map((id) => command(id, ITEMS[id].blurb)) },
+    {
+      title: 'equip item',
+      rows: [...items.map((id) => command(id, ITEMS[id].blurb)), ...GEAR_IDS.map((id) => command(id, GEAR[id].blurb))],
+    },
     {
       title: 'bot commands',
       rows: [
@@ -59,7 +62,7 @@ export function commandGroups(): Group[] {
     },
     {
       title: 'other',
-      rows: [command('speedy', 'run faster for a bit'), ...GEAR_IDS.map((id) => command(id, GEAR[id].blurb))],
+      rows: [command('speedy', 'run faster for a bit')],
     },
   ];
 }

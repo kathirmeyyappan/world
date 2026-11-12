@@ -14,6 +14,7 @@ import {
   ITEM_IDS,
   MAIN_AREA,
   PICKUP_AREAS,
+  PINEAPPLE_LEVELS,
   TERRACE,
   TOWER_LEVELS,
   defaultBotsFor,
@@ -33,8 +34,9 @@ import {
   PICKUP_TEXT,
   PLACES,
   SPEEDY,
-  WEAPONS,
+  ITEM_TEXT,
   type Entry,
+  type Photo,
   type Place,
 } from './content';
 import { botFlagRows, characterStats, gearStats, itemStats, num, pickupStats, speedyStats, type Stat } from './stats';
@@ -73,44 +75,40 @@ function characters(): Section[] {
   ];
 }
 
-// Weapons held by the standard body (spraying, where it's a spray), a dragon's breath by its
-// dragon, gear worn on the standard body's back, and what floats about with no body to show it.
+// The items as the commands card groups them: what you equip (held by the standard body, spraying
+// where it's a spray; gear worn on its back), a dragon's breath by its dragon, and what floats
+// about or is just a command, with no body to show it.
 function items(): Section[] {
   const owner = (item: string) => AVATAR_IDS.find((a) => AVATARS[a].item === item) ?? 'standard';
-  const weapon = (id: (typeof ITEM_IDS)[number]): Pick => {
+  const held = (id: (typeof ITEM_IDS)[number]): Pick => {
     const spec = ITEMS[id];
     const firing = spec.actions.shoot?.mode === 'hold';
     return {
       id,
-      entry: WEAPONS[id],
+      entry: ITEM_TEXT[id],
       stats: () => itemStats(id),
       shown: spec.own ? shown(owner(id), { item: id, firing }) : shown('standard', { item: id, firing, close: true }),
     };
   };
+  const worn = GEAR_IDS.map((id): Pick => ({
+    id,
+    entry: GEAR_TEXT[id],
+    stats: () => gearStats(id),
+    shown: shown('standard', { gear: id, thrusting: true, close: true }),
+  }));
   return [
-    { title: 'Weapons', picks: ITEM_IDS.filter((id) => !ITEMS[id].own).map(weapon) },
-    { title: 'Dragon breath', picks: ITEM_IDS.filter((id) => ITEMS[id].own).map(weapon) },
+    { title: 'Equip', picks: [...ITEM_IDS.filter((id) => !ITEMS[id].own).map(held), ...worn] },
+    { title: 'Dragon breath', picks: ITEM_IDS.filter((id) => ITEMS[id].own).map(held) },
     {
-      title: 'Gear',
-      picks: GEAR_IDS.map((id) => ({
-        id,
-        entry: GEAR_TEXT[id],
-        stats: () => gearStats(id),
-        shown: shown('standard', { gear: id, thrusting: true, close: true }),
+      title: 'Pickups',
+      picks: (['heart', 'big-heart'] as const).map((kind) => ({
+        id: kind,
+        entry: PICKUP_TEXT[kind],
+        stats: () => pickupStats(kind),
+        shown: null,
       })),
     },
-    {
-      title: 'Pickups and boosts',
-      picks: [
-        ...(['heart', 'big-heart'] as const).map((kind) => ({
-          id: kind,
-          entry: PICKUP_TEXT[kind],
-          stats: () => pickupStats(kind),
-          shown: null,
-        })),
-        { id: 'speedy', entry: SPEEDY, stats: speedyStats, shown: null },
-      ],
-    },
+    { title: 'Other', picks: [{ id: 'speedy', entry: SPEEDY, stats: speedyStats, shown: null }] },
   ];
 }
 
@@ -220,8 +218,15 @@ function placeStats(place: Place): Stat[] {
         { label: 'Size', value: MAIN_AREA.kind === 'disc' ? `${num(2 * MAIN_AREA.r)} m across` : '' },
         { label: 'Hearts', value: `${heartsIn([MAIN_AREA])} floating about` },
       ].filter((s) => s.value);
-    case 'buildings':
-      return [{ label: 'Hearts', value: `${heartsIn(BUILDING_LEVELS)}: one inside each, and one on each roof` }];
+    case 'pineapple':
+      return [
+        { label: 'Floors', value: `${PINEAPPLE_LEVELS.length}` },
+        { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}, one on each floor` },
+      ];
+    case 'buildings': {
+      const keeps = BUILDING_LEVELS.filter((r) => !PINEAPPLE_LEVELS.includes(r));
+      return [{ label: 'Hearts', value: `${heartsIn(keeps)}: one inside each, and one on each roof` }];
+    }
     case 'tower':
       return [
         { label: 'Floors', value: `${TOWER_LEVELS.length - 1}, and the roof` },
@@ -237,12 +242,86 @@ function placeStats(place: Place): Stat[] {
   }
 }
 
+const PHOTOS = '/assets/guide/places';
+
+// One photo at a time over the page, big, with its caption: arrows (or the keys) step through the
+// gallery it came from, and Esc, the X or a click beside it closes it.
+class Lightbox {
+  private readonly el = el('div', 'lightbox hidden');
+  private readonly img = el('img');
+  private readonly caption = el('p', 'caption');
+  private photos: Photo[] = [];
+  private at = 0;
+
+  constructor() {
+    const close = el('button', 'close', '✕');
+    const prev = el('button', 'step prev', '‹');
+    const next = el('button', 'step next', '›');
+    close.addEventListener('click', () => this.close());
+    prev.addEventListener('click', () => this.step(-1));
+    next.addEventListener('click', () => this.step(1));
+    this.el.addEventListener('click', (e) => e.target === this.el && this.close());
+    const frame = el('figure');
+    frame.append(this.img, this.caption);
+    this.el.append(frame, prev, next, close);
+    document.body.append(this.el);
+    window.addEventListener('keydown', (e) => {
+      if (this.el.classList.contains('hidden')) return;
+      if (e.key === 'Escape') this.close();
+      else if (e.key === 'ArrowLeft') this.step(-1);
+      else if (e.key === 'ArrowRight') this.step(1);
+    });
+  }
+
+  open(photos: Photo[], at: number): void {
+    this.photos = photos;
+    this.at = at;
+    this.show();
+    this.el.classList.remove('hidden');
+  }
+
+  private step(by: number): void {
+    this.at = (this.at + by + this.photos.length) % this.photos.length;
+    this.show();
+  }
+
+  private show(): void {
+    const photo = this.photos[this.at];
+    this.img.src = `${PHOTOS}/${photo.file}.jpg`;
+    this.img.alt = photo.caption;
+    this.caption.textContent = `${photo.caption} (${this.at + 1} of ${this.photos.length})`;
+    this.el.classList.toggle('single', this.photos.length < 2);
+  }
+
+  private close(): void {
+    this.el.classList.add('hidden');
+  }
+}
+
+function gallery(photos: Photo[], lightbox: Lightbox): HTMLElement {
+  const row = el('div', 'gallery');
+  photos.forEach((photo, i) => {
+    const b = el('button');
+    const img = el('img');
+    img.src = `${PHOTOS}/${photo.file}-thumb.jpg`;
+    img.alt = photo.caption;
+    img.loading = 'lazy';
+    b.title = photo.caption;
+    b.append(img);
+    b.addEventListener('click', () => lightbox.open(photos, i));
+    row.append(b);
+  });
+  return row;
+}
+
 function worldPanel(): HTMLElement {
   const panel = el('div', 'cards');
+  const lightbox = new Lightbox();
   for (const place of PLACES) {
     const card = el('section', 'card');
     card.append(
       el('h2', '', place.title),
+      gallery(place.photos, lightbox),
       el('p', 'summary', place.summary),
       statTable(placeStats(place)),
       ...facts(place.facts),
