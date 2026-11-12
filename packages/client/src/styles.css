@@ -8,25 +8,17 @@
   --accent: #64b5f6;
   --accent-rgb: 100, 181, 246;
   --accent-soft: #90caf9;
-  --accent-deep: #2f6db3; /* the shadow under an accent button */
   --bg-card: rgba(20, 20, 30, 0.85);
   --mono: 'VT323', 'Courier New', monospace;
   --pixel: 'Press Start 2P', 'VT323', monospace;
   --panel: #0b0d14;
 }
 
-/* The guide's amber, for the home page and the game's buttons (a scroll rail's arrows keep the
-   blue of their rail). */
-#home,
-#app button:not(.arrow),
-#minimap-toggle span {
+/* The home page in the guide's colours: amber on a warm panel, with mint labels. */
+#home {
   --accent: #ffc857;
   --accent-rgb: 255, 200, 87;
   --accent-soft: #ffdc8f;
-  --accent-deep: #a8792a;
-}
-/* And its warm panel and mint labels, for the home page. */
-#home {
   --panel: #111014;
   --label: #7fd1ae;
 }
@@ -98,7 +90,7 @@ body {
   padding: 0;
   font: 9px/18px var(--pixel);
   text-align: center;
-  color: rgba(var(--accent-rgb), 0.3);
+  color: rgba(100, 181, 246, 0.3);
   background: var(--panel);
   border: 2px solid var(--accent);
   box-shadow: 2px 2px 0 #000;
@@ -108,7 +100,7 @@ body {
   color: var(--accent);
 }
 .scroll-rail .arrow.more:hover {
-  background: rgba(var(--accent-rgb), 0.25);
+  background: rgba(100, 181, 246, 0.25);
 }
 .scroll-rail .down.more {
   animation: rail-blink 1s steps(1) infinite;
@@ -138,10 +130,10 @@ body {
 }
 .scroll-rail.idle .arrow,
 .scroll-rail.idle .track {
-  border-color: rgba(var(--accent-rgb), 0.35);
+  border-color: rgba(100, 181, 246, 0.35);
 }
 .scroll-rail.idle .thumb {
-  background: rgba(var(--accent-rgb), 0.2);
+  background: rgba(100, 181, 246, 0.2);
   cursor: default;
 }
 @media (pointer: coarse) {
@@ -198,7 +190,7 @@ body {
   display: block;
   font: 9px var(--pixel);
   letter-spacing: 1px;
-  color: var(--label);
+  color: var(--label, var(--accent-soft));
   margin-bottom: 8px;
 }
 .card input {
@@ -351,7 +343,7 @@ body {
     padding-left: 0;
     padding-bottom: 18px;
     margin-bottom: 8px;
-    border-bottom: 2px solid rgba(var(--accent-rgb), 0.3);
+    border-bottom: 2px solid rgba(100, 181, 246, 0.3);
   }
   #home-view {
     height: 200px;
@@ -442,7 +434,7 @@ body {
   min-width: 180px;
   padding: 10px 12px;
   background: rgba(10, 10, 15, 0.65);
-  border: 2px solid rgba(var(--accent-rgb), 0.6);
+  border: 2px solid rgba(100, 181, 246, 0.6);
   font-size: 12px;
 }
 #pins {
@@ -548,7 +540,7 @@ body {
   font: 14px var(--mono);
   color: var(--accent-soft);
   background: none;
-  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border: 1px solid rgba(100, 181, 246, 0.4);
 }
 #panel-body {
   margin-top: 8px;
@@ -670,7 +662,7 @@ body {
 }
 #chat-completions li.on,
 #chat-completions li:hover {
-  background: rgba(var(--accent-rgb), 0.25);
+  background: rgba(100, 181, 246, 0.25);
 }
 #chat-completions .cmd {
   font: 20px var(--mono);
@@ -706,8 +698,8 @@ body {
 }
 #chat-hint kbd,
 #instructions kbd {
-  background: rgba(var(--accent-rgb), 0.2);
-  border: 1px solid rgba(var(--accent-rgb), 0.5);
+  background: rgba(100, 181, 246, 0.2);
+  border: 1px solid rgba(100, 181, 246, 0.5);
   padding: 0 5px;
   font-family: inherit;
 }
@@ -1035,7 +1027,7 @@ body {
   color: #fff;
   text-shadow:
     3px 3px 0 #000,
-    0 0 12px rgba(var(--accent-rgb), 0.45);
+    0 0 12px rgba(100, 181, 246, 0.45);
   opacity: 0;
   transform: translateY(-6px);
   transition:
@@ -1137,7 +1129,7 @@ body {
   white-space: nowrap;
   pointer-events: none;
   background: rgba(11, 13, 20, 0.8);
-  border: 2px solid rgba(var(--accent-rgb), 0.6);
+  border: 2px solid rgba(100, 181, 246, 0.6);
   box-shadow: 3px 3px 0 #000;
 }
 #fuel:not(.hidden) ~ #gear {
@@ -1354,7 +1346,7 @@ body {
   padding: 6px;
   width: 236px;
   background: rgba(11, 13, 20, 0.8);
-  border: 2px solid rgba(var(--accent-rgb), 0.4);
+  border: 2px solid rgba(100, 181, 246, 0.4);
   box-shadow: 4px 4px 0 #000;
 }
 #minimap-hint {
@@ -1373,7 +1365,7 @@ body {
   background: var(--accent);
   color: #05070c;
   font: 11px/14px var(--pixel);
-  border-bottom: 3px solid var(--accent-deep);
+  border-bottom: 3px solid #2f6db3;
   vertical-align: middle;
 }
 #minimap-toggle {
@@ -1407,7 +1399,7 @@ body {
   text-align: center;
   padding: 4px 0 3px;
   color: rgba(255, 255, 255, 0.35);
-  border: 2px solid rgba(var(--accent-rgb), 0.25);
+  border: 2px solid rgba(100, 181, 246, 0.25);
 }
 #minimap-toggle span.on {
   color: #05070c;
@@ -1423,7 +1415,7 @@ body {
   font: 18px var(--mono);
   z-index: 50;
   background: rgba(11, 13, 20, 0.8);
-  border: 2px solid rgba(var(--accent-rgb), 0.4);
+  border: 2px solid rgba(100, 181, 246, 0.4);
   color: rgba(255, 255, 255, 0.8);
   pointer-events: none;
   box-shadow: 4px 4px 0 #000;
@@ -1565,7 +1557,7 @@ body {
   background: var(--accent);
   color: #05070c;
   font: 13px/16px var(--pixel);
-  border-bottom: 3px solid var(--accent-deep);
+  border-bottom: 3px solid #2f6db3;
   vertical-align: middle;
 }
 /* The nudge's keys tap down into their shadow and back up, the second line's a beat after the first. */
@@ -1575,7 +1567,7 @@ body {
   margin: 0 10px;
   text-shadow: none;
   border-bottom: 0;
-  box-shadow: 0 3px 0 var(--accent-deep);
+  box-shadow: 0 3px 0 #2f6db3;
   animation: key-tap 2s infinite;
 }
 #command-hint .line + .line kbd {
@@ -1591,12 +1583,12 @@ body {
   24%,
   100% {
     transform: none;
-    box-shadow: 0 3px 0 var(--accent-deep);
+    box-shadow: 0 3px 0 #2f6db3;
   }
   6%,
   18% {
     transform: translateY(3px);
-    box-shadow: 0 0 0 var(--accent-deep);
+    box-shadow: 0 0 0 #2f6db3;
     background: #3f8fd8;
   }
 }
@@ -1627,7 +1619,7 @@ body {
   width: 112px;
   height: 112px;
   z-index: 100;
-  border: 2px solid rgba(var(--accent-rgb), 0.55);
+  border: 2px solid rgba(100, 181, 246, 0.55);
   background: rgba(10, 10, 15, 0.45);
   box-sizing: border-box;
   touch-action: none;
@@ -1635,13 +1627,13 @@ body {
   -webkit-user-select: none;
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.6),
-    inset 0 0 12px rgba(var(--accent-rgb), 0.12);
+    inset 0 0 12px rgba(100, 181, 246, 0.12);
 }
 #pad::before,
 #pad::after {
   content: '';
   position: absolute;
-  background: rgba(var(--accent-rgb), 0.35);
+  background: rgba(100, 181, 246, 0.35);
 }
 #pad::before {
   left: 50%;
@@ -1660,7 +1652,7 @@ body {
 #pad .pad-cross {
   position: absolute;
   inset: 6px;
-  border: 1px dashed rgba(var(--accent-rgb), 0.25);
+  border: 1px dashed rgba(100, 181, 246, 0.25);
   pointer-events: none;
 }
 #pad-thumb {
@@ -1692,7 +1684,7 @@ body {
   width: 56px;
   height: 150px;
   z-index: 100;
-  border: 2px solid rgba(var(--accent-rgb), 0.55);
+  border: 2px solid rgba(100, 181, 246, 0.55);
   background: rgba(10, 10, 15, 0.45);
   box-sizing: border-box;
   touch-action: none;
@@ -1700,7 +1692,7 @@ body {
   -webkit-user-select: none;
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.6),
-    inset 0 0 12px rgba(var(--accent-rgb), 0.12);
+    inset 0 0 12px rgba(100, 181, 246, 0.12);
 }
 #throttle::before {
   content: '';
@@ -1710,7 +1702,7 @@ body {
   bottom: 10px;
   width: 2px;
   margin-left: -1px;
-  background: rgba(var(--accent-rgb), 0.35);
+  background: rgba(100, 181, 246, 0.35);
 }
 #throttle::after {
   content: '▲';
@@ -1719,7 +1711,7 @@ body {
   left: 0;
   right: 0;
   text-align: center;
-  color: rgba(var(--accent-rgb), 0.55);
+  color: rgba(100, 181, 246, 0.55);
   font: 11px var(--pixel);
   pointer-events: none;
 }
@@ -1750,7 +1742,7 @@ body {
   width: 84px;
   height: 84px;
   z-index: 100;
-  border: 2px solid rgba(var(--accent-rgb), 0.55);
+  border: 2px solid rgba(100, 181, 246, 0.55);
   background: rgba(10, 10, 15, 0.45);
   color: var(--accent);
   font: 9px var(--pixel);
@@ -1765,14 +1757,14 @@ body {
   padding: 0;
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.6),
-    inset 0 0 12px rgba(var(--accent-rgb), 0.12);
+    inset 0 0 12px rgba(100, 181, 246, 0.12);
 }
 #jump-button .glyph {
   font-size: 20px;
   line-height: 20px;
 }
 #jump-button.active {
-  background: rgba(var(--accent-rgb), 0.3);
+  background: rgba(100, 181, 246, 0.3);
   border-color: var(--accent);
   box-shadow: 0 0 14px var(--accent);
 }
@@ -1783,7 +1775,7 @@ body {
   z-index: 100;
   padding: 0 14px;
   height: 44px;
-  border: 2px solid rgba(var(--accent-rgb), 0.55);
+  border: 2px solid rgba(100, 181, 246, 0.55);
   background: rgba(10, 10, 15, 0.45);
   color: var(--accent);
   font: 9px var(--pixel);
@@ -1794,11 +1786,11 @@ body {
   box-shadow: 3px 3px 0 #000;
 }
 .touch-button.active {
-  background: rgba(var(--accent-rgb), 0.3);
+  background: rgba(100, 181, 246, 0.3);
   border-color: var(--accent);
 }
 .touch-button.on {
-  background: rgba(var(--accent-rgb), 0.3);
+  background: rgba(100, 181, 246, 0.3);
   border-color: var(--accent);
   box-shadow: 0 0 12px var(--accent);
 }
@@ -2025,7 +2017,7 @@ body {
   gap: 16px;
   flex-wrap: wrap;
   margin-top: 12px;
-  border-top: 2px solid rgba(var(--accent-rgb), 0.35);
+  border-top: 2px solid rgba(100, 181, 246, 0.35);
   padding-top: 10px;
 }
 #commands .guide {
@@ -2083,10 +2075,10 @@ body {
   box-shadow: 2px 2px 0 #000;
 }
 #commands .cmd-button:hover {
-  background: rgba(var(--accent-rgb), 0.3);
+  background: rgba(100, 181, 246, 0.3);
 }
 #commands .cmd-button:active {
-  background: rgba(var(--accent-rgb), 0.45);
+  background: rgba(100, 181, 246, 0.45);
   transform: translate(2px, 2px);
   box-shadow: none;
 }
