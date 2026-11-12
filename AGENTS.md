@@ -410,8 +410,8 @@ wire: server and client both build the world from that file.
   and that bridge turned round the main disc to 90°, 150°, 210° and 270°), and an arc through all
   four grounds, twice a path's width. A part is a disc, a straight `bridge` or a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
-  their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
-  2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
+  their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
+  anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
 - Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area and its side facing
   the tower), each as likely, standing on the ground (or anything within a step

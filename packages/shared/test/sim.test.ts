@@ -6,7 +6,7 @@ import { botMapSource, type BotMap } from '../src/sim/botMap';
 import {
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
-  CLIMB_SPEED,
+  CLIMB_SHARE,
   EYE_HEIGHT,
   LADDER_GAP,
   LADDER_GIRTH,
@@ -360,7 +360,7 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
   ]);
   const face = (w: PlayerState) => w.climb?.side ?? null; // the face held, read afresh each time
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: -2 });
-  walk(p, 0, 30, world); // a second forward: up to the ladder, and up it
+  walk(p, 0, 20, world); // two thirds of a second forward: up to the ladder, and up it
   assert.ok(face(p) === -1 && p.pos.y > EYE_HEIGHT + 1 && p.vy === 0, `took hold and climbed to ${p.pos.y}`);
   walk(p, 0, 20, world);
   assert.ok(
@@ -375,7 +375,7 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
   assert.ok(!face(p) && p.pos.z < 0 && Math.abs(p.pos.y - EYE_HEIGHT) < 1e-6, `backed down it to z ${p.pos.z}`);
   // A jump is straight up and off it; falling back past it holding forward takes hold again.
   const q = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: -0.3 });
-  for (let i = 0; i < 15; i++) stepPlayer(q, frame(i + 1, { my: 1 }), TICK_DT, WORLD_SHAPE, world);
+  for (let i = 0; i < 8; i++) stepPlayer(q, frame(i + 1, { my: 1 }), TICK_DT, WORLD_SHAPE, world);
   assert.ok(face(q), 'took hold from right in front of it');
   const { x, z } = q.pos;
   stepPlayer(q, frame(q.lastSeq + 1, { jump: true }), TICK_DT, WORLD_SHAPE, world);
@@ -399,7 +399,7 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
   const stalled = r.pos.y - EYE_HEIGHT;
   assert.ok(face(r) === 1 && stalled > 0.85 && stalled < 1 + 1e-6, `stopped under the floor at ${stalled}`);
   stepPlayer(r, frame(r.lastSeq + 1, { actions: ['swap-left'] }), TICK_DT, WORLD_SHAPE, world);
-  walk(r, 0, 20, world);
+  walk(r, 0, 10, world);
   assert.ok(face(r) === -1 && r.pos.y - EYE_HEIGHT > 2.5, `round and on up the open face to ${r.pos.y}`);
   stepPlayer(r, frame(r.lastSeq + 1, { actions: ['swap-right'] }), TICK_DT, WORLD_SHAPE, world);
   assert.equal(face(r), -1, 'no swapping into the floor');
@@ -414,11 +414,11 @@ test('a ladder: forward at it takes hold and climbs, over its top onto what is b
   const lean = 0.3;
   const leaning = new Structures([ladder({ x: 0, z: 0 }, 0, 4, 0, { lean })]);
   const t = createPlayer('d', 'd', '#fff', { x: 0, y: EYE_HEIGHT, z: -0.5 });
-  walk(t, 0, 31, leaning);
+  walk(t, 0, 17, leaning);
   const up = t.pos.y - EYE_HEIGHT;
   const off = LADDER_GIRTH / 2 + PLAYER_RADIUS + LADDER_GAP;
   assert.ok(
-    face(t) === -1 && Math.abs(up - 31 * CLIMB_SPEED * Math.cos(lean) * TICK_DT) < 1e-6,
+    face(t) === -1 && Math.abs(up - 17 * MOVE_SPEED * CLIMB_SHARE * Math.cos(lean) * TICK_DT) < 1e-6,
     `up the rails to ${up}`,
   );
   assert.ok(Math.abs(t.pos.z - (up * Math.tan(lean) - off)) < 1e-6, `keeping to the rails: z ${t.pos.z}`);

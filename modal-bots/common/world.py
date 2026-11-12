@@ -112,6 +112,8 @@ class WorldMap:
             for avatar, h in data["hitboxes"].items()
         }
         self.eyes = {avatar: float(e) for avatar, e in data["eyes"].items()}
+        # How fast each avatar walks at full input, m/s.
+        self.walks = {avatar: float(w) for avatar, w in data["walks"].items()}
         # The floors indoors: the tower's four inside its wall, ground floor first, then each keep's.
         self.insides = tuple(
             Region(
@@ -140,6 +142,11 @@ class WorldMap:
     def hitbox(self, avatar: str) -> Hitbox:
         """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
         return self.hitboxes.get(avatar, self.hitboxes["standard"])
+
+    def walk_speed(self, avatar: str) -> float:
+        """How fast an avatar walks at full input, m/s; the standard one's for an avatar the map
+        doesn't know."""
+        return self.walks.get(avatar, self.walks["standard"])
 
     def eye_of(self, p: Player) -> Vec3:
         """Where a player's avatar has its eyes, and so where its shots leave: ``pos`` is the body's

@@ -8,7 +8,7 @@
 // of its own in one of them (a sidestep, a slither, tentacles wrapping the rungs) extends
 // WalkerAvatar and overrides that phase, keeping the rest. The dragon is its own class (Dragon.ts).
 import { Matrix, Mesh, Quaternion, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT, WORLD_STRUCTURES, type AvatarId } from '@world/shared';
+import { EYE_HEIGHT, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
@@ -145,7 +145,7 @@ export class WalkerAvatar implements Avatar {
     this.root.position.set(p.x, feetY, p.z);
     this.root.rotation.set(0, p.yaw, 0);
     const airborne = !p.grounded;
-    this.gait.update(p.walk, airborne, step);
+    this.gait.update(p.walk / walkSpeedOf(this.kind), airborne, step);
     const { phase, effort } = this.gait;
     // How far a limb is swung, as a share of its full swing: along the stride (a lower half `lag`
     // radians behind it), and in the air where the legs are held.

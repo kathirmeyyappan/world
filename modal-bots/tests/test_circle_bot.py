@@ -3,12 +3,14 @@ from __future__ import annotations
 import dataclasses
 import math
 
-from bots.circle_bot import BLOCKED_TICKS, MOVE_SPEED, ORBIT_RADIUS, SETTLE_TICKS, Circler, Stall
+from bots.circle_bot import BLOCKED_TICKS, ORBIT_RADIUS, SETTLE_TICKS, Circler, Stall
 from common import Controls, Vec3
 from common.controls import TICK_RATE
 from common.world import load_world_map
 
 from tests.test_controls import FakeConnection
+
+SPEED = 3.5  # m/s at full input: a slow walker's, under half the standard body's
 
 
 def test_stall_fires_once_per_settle_when_the_bot_stops_making_headway() -> None:
@@ -20,8 +22,8 @@ def test_stall_fires_once_per_settle_when_the_bot_stops_making_headway() -> None
     stalls: list[int] = []
     for tick in range(120):
         if tick < 60:
-            x += MOVE_SPEED / TICK_RATE  # walking freely, then pinned against the edge from tick 60
-        if stall.blocked(tick, Vec3(x, 1.7, 0), controls):
+            x += SPEED / TICK_RATE  # walking freely, then pinned against the edge from tick 60
+        if stall.blocked(tick, Vec3(x, 1.7, 0), controls, SPEED):
             stalls.append(tick)
 
     assert stalls[0] - 60 <= 2 * BLOCKED_TICKS

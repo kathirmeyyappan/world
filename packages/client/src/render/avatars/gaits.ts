@@ -25,8 +25,8 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   gary: { stride: 1.5, steps: { loop: 'slime' }, pitch: 1 }, // a snail: no footsteps, a faint slide
   plankton: { stride: 0.8, steps: 'thuds', pitch: 1.6 }, // a tiny, quick patter
   krabs: { stride: 0.52, steps: { loop: 'scuttle' }, pitch: 1 }, // the scuttle: tiny quick steps under one loop
-  // A side's two tentacles plop down together, a lighter higher plop then a heavier lower one, at
-  // the show's 2.3 a second at a full walk.
+  // A side's two tentacles plop down together, a lighter higher plop then a heavier lower one, 1.7
+  // times a second at his full 6 m/s walk: an unhurried amble.
   squidward: { stride: 3.5, steps: { bar: ['suction-1', 'suction-2', 'suction-3', 'suction-4'] }, pitch: 1 },
   'light-dragon': null,
   colgera: null,

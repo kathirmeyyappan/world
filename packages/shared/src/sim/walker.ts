@@ -2,15 +2,12 @@
 // slides on ice, and flies on a jetpack, all against the structures; a shot has to land in their
 // avatar's capsule. The sim half of the walker class (classes.ts); the look and the held item are
 // applied before it runs (player.ts).
-import { AVATARS } from './avatars';
+import { AVATARS, climbSpeedOf, jumpVelocityOf, walkSpeedOf } from './avatars';
 import type { ClassSpec } from './classes';
 import {
   CHILLED_SPEED_MULTIPLIER,
-  CLIMB_SPEED,
   EYE_HEIGHT,
   GRAVITY,
-  JUMP_VELOCITY,
-  MOVE_SPEED,
   PLAYER_PADDING,
   PLAYER_RADIUS,
   SCOPED_SPEED_MULTIPLIER,
@@ -67,7 +64,7 @@ export function stepWalker(
   // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; an
   // ice hit's chill slows it too.
   const speed =
-    MOVE_SPEED *
+    walkSpeedOf(p.avatar) *
     (p.boost > 0 ? SPEEDY_MULTIPLIER : 1) *
     (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
@@ -84,14 +81,15 @@ export function stepWalker(
   if (input?.jump && grounded && !p.dead && !p.scoped) {
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
-    if (grip === Infinity) p.vy = JUMP_VELOCITY;
+    const jump = jumpVelocityOf(p.avatar);
+    if (grip === Infinity) p.vy = jump;
     else {
       // Ice pushes back only square to itself, so the feet push off it along its normal: straight
       // up on the flat, and on a slope partly downhill, shedding whatever climb the walk had. That
       // is a throw, with the keys left the grip the ice gave them.
       const { x: sx, z: sz } = takeoff.slope;
       const len = Math.hypot(sx, 1, sz);
-      throwWalker(p, { x: (-JUMP_VELOCITY * sx) / len, y: JUMP_VELOCITY / len, z: (-JUMP_VELOCITY * sz) / len }, grip);
+      throwWalker(p, { x: (-jump * sx) / len, y: jump / len, z: (-jump * sz) / len }, grip);
     }
   }
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
@@ -202,7 +200,7 @@ function flipped(side: 1 | -1): 1 | -1 {
   return side === 1 ? -1 : 1;
 }
 
-// One tick on a ladder: up or down the rungs as the keys say, at CLIMB_SPEED along the rails
+// One tick on a ladder: up or down the rungs as the keys say, at the climber's speed along the rails
 // (keeping to them where they lean), as far as the body fits (a face under a floor is climbed only
 // up to its underside); over the top onto whatever is beyond the ladder there, holding up; off its
 // foot, or onto whatever is under the feet, holding down; straight up and off it on a jump; and
@@ -221,7 +219,7 @@ function climb(p: PlayerState, input: InputFrame | null, dt: number, structures:
   if (!input || p.dead) return 0;
   if (input.jump) {
     p.climb = null;
-    p.vy = JUMP_VELOCITY;
+    p.vy = jumpVelocityOf(p.avatar);
     return 0;
   }
   const way = input.actions.includes('swap-left') ? -1 : input.actions.includes('swap-right') ? 1 : 0;
@@ -235,7 +233,7 @@ function climb(p: PlayerState, input: InputFrame | null, dt: number, structures:
     }
   }
   const my = Math.max(-1, Math.min(1, input.my));
-  let next = feet + my * CLIMB_SPEED * rise * dt;
+  let next = feet + my * climbSpeedOf(p.avatar) * rise * dt;
   if (my > 0 && next >= top) {
     const beyond = structures.ladderSpot(hold.piece, flipped(hold.side), top);
     if (structures.fits(beyond.x, beyond.z, top, height, PLAYER_RADIUS)) {

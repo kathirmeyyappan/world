@@ -22,7 +22,7 @@ import {
 } from './constants';
 import { BUILDING_FOOTPRINTS, STANDING_KEEPS } from '../content/buildings';
 import { TUNG_TUNG_TOWER_FOOTPRINT, TUNG_TUNG_TOWER_LEVELS } from '../content/tower';
-import { AVATAR_IDS, AVATARS, type Hitbox } from './avatars';
+import { AVATAR_IDS, AVATARS, walkSpeedOf, type Hitbox } from './avatars';
 import { CAPSULE_TOP } from './health';
 import { createPlayer, stepPlayer } from './player';
 import { isGrounded } from './walker';
@@ -71,6 +71,7 @@ export interface BotMap {
   lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
   eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
+  walks: Record<string, number>; // how fast each avatar walks at full keys, m/s (sim/avatars.ts walkSpeedOf)
   insides: Region[]; // the floors indoors, inside the tower's wall and the keeps': where a sniper starts and lies in wait
   indoors: number[]; // every node inside a building's wall, the stairs between its floors included
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
@@ -79,7 +80,7 @@ export interface BotMap {
 }
 
 // A fingerprint of what the map depends on: the world's outline and structures, the body and
-// movement constants, this file's own settings, the avatars' hitboxes and eyes, and the buildings' insides.
+// movement constants, this file's own settings, the avatars' hitboxes, eyes and walks, and the buildings' insides.
 export function botMapSource(): number {
   const physics = [
     EYE_HEIGHT,
@@ -104,7 +105,7 @@ export function botMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), BUILDINGS]));
+  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), walks(), BUILDINGS]));
 }
 
 function hitboxes(): Record<string, Hitbox> {
@@ -113,6 +114,10 @@ function hitboxes(): Record<string, Hitbox> {
 
 function eyes(): Record<string, number> {
   return Object.fromEntries(AVATAR_IDS.map((id) => [id, AVATARS[id].eye]));
+}
+
+function walks(): Record<string, number> {
+  return Object.fromEntries(AVATAR_IDS.map((id) => [id, walkSpeedOf(id)]));
 }
 
 // The structures without their looks, which nothing here depends on; a leaning ladder as the
@@ -167,6 +172,7 @@ export function buildBotMap(): BotMap {
     lookoutPlaces: found.map((i) => placeOf(nodes[i])),
     hitboxes: hitboxes(),
     eyes: eyes(),
+    walks: walks(),
     insides: INSIDES,
     indoors: nodes.flatMap((n, i) => (indoors(n) ? [i] : [])),
     sightChecks: sightChecks(nodes),
