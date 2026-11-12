@@ -31,6 +31,8 @@ import {
   lifeOf,
   walkSpeedOf,
   type AvatarId,
+  type BotFlag,
+  type BotWorker,
   type GearId,
   type ItemId,
   type PickupKind,
@@ -68,7 +70,7 @@ export function characterStats(id: AvatarId): Stat[] {
   const life = lifeOf(id);
   const hearts = `${life.hearts}${life.sprite === 'crystal' ? ' crystals' : ''}`;
   const rows: Stat[] = [];
-  if (look.command) rows.push({ label: 'Wear it', value: equip(commandsFor(look.command, id), look.nameTag) });
+  if (look.command) rows.push({ label: 'Equip', value: equip(commandsFor(look.command, id), look.nameTag) });
   rows.push({ label: 'Hearts', value: look.regen ? `${hearts}, back at ${num(REGEN_RATE)} a second` : hearts });
   if (look.class === 'walker') {
     const walk = walkSpeedOf(id);
@@ -87,24 +89,18 @@ export function characterStats(id: AvatarId): Stat[] {
         value: `${num(2 * look.hitbox.radius)} m wide; the top ${num(look.hitbox.head)} m is the head`,
       },
     );
+    rows.push({
+      label: 'Items',
+      value: look.item ? `its own ${ITEMS[look.item].name} only` : cls.kit ? 'any' : 'none',
+    });
   } else {
     const shape = dragonShape(id);
     rows.push(
       { label: 'Length', value: `${num(shape.links.reduce((a, b) => a + b, 0))} m` },
       { label: 'Cruise', value: `${num(shape.cruise)} m/s` },
-      { label: 'Tightest turn', value: `${num(shape.turnRadius)} m across` },
+      { label: 'Turning radius', value: `${num(shape.turnRadius)} m` },
     );
-    if (shape.weak.length > 0)
-      rows.push({
-        label: 'Weak points',
-        value: `${shape.weak.length}, the only places a hit hurts, and only from below`,
-      });
   }
-  rows.push({
-    label: 'Items',
-    value: look.item ? `its own ${ITEMS[look.item].name} only` : cls.kit ? 'any' : 'none',
-  });
-  rows.push({ label: 'Bots can wear it', value: cls.bots ? 'yes' : 'no' });
   return rows;
 }
 
@@ -207,13 +203,12 @@ export function speedyStats(): Stat[] {
   ];
 }
 
-// The flags a bot command takes, with the defaults the parser applies.
-export function botFlagRows(): Stat[] {
-  return BOT_FLAG_IDS.map((f) => {
+// The flags a bot on `worker` takes, each with what it does and the defaults the parser applies.
+export function botFlagRows(worker: BotWorker, text: Record<BotFlag, string>): Stat[] {
+  return BOT_FLAG_IDS.filter((f) => BOT_FLAGS[f].workers.includes(worker)).map((f) => {
     const flag = BOT_FLAGS[f];
     const forms = [flag.short, flag.long].filter((s) => s !== null).join(', ');
-    const which = flag.workers.includes('dumb') ? 'all bots' : 'combat bots only';
     const extra = f === 'time' ? `; ${num(BOT_DEFAULT_SECONDS)} unless given, up to ${num(BOT_MAX_SECONDS)}` : '';
-    return { label: `${forms} [${flag.value}]`, value: `${which}${extra}` };
+    return { label: `${forms} [${flag.value}]`, value: `${text[f]}${extra}` };
   });
 }

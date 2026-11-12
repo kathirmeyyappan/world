@@ -2,7 +2,7 @@
 // here: anything the game decides (speeds, damage, heights, counts) is read off the code in
 // stats.ts. The tables are keyed by the registries' ids, so a new skin or item doesn't build until
 // it has an entry. `facts` are shown under a thing's numbers when there are any.
-import type { AvatarId, GearId, ItemId, PickupKind } from '@world/shared';
+import type { AvatarId, BotFlag, BotId, GearId, ItemId, PickupKind } from '@world/shared';
 
 export interface Entry {
   title: string;
@@ -11,19 +11,31 @@ export interface Entry {
 }
 
 export const INTRO = [
-  'There’s no real goal here. Hop online with your friends and do random stuff. You can kill each other, explore, fight bots, or just hang out.',
+  'This is by no means exhaustive, but hopefully it sheds light on the full potential of kathir world.',
 ];
 
-// The keys every body on foot uses; a dragon flies forward on W and roars on A, S and D.
-export const CONTROLS: [string, string][] = [
-  ['WASD', 'move'],
-  ['Space', 'jump'],
-  ['Mouse', 'look; click to shoot, open a door or read a cube'],
+// The keys, on foot and as a dragon.
+const SHARED: [string, string][] = [
   ['Z', 'first or third person'],
   ['C', 'every command as a button'],
   ['Enter', 'chat, or a /command'],
   ['X / Esc', 'menu'],
   ['P', 'map: near or the whole world'],
+];
+export const CONTROLS: { title: string; keys: [string, string][] }[] = [
+  {
+    title: 'Standard',
+    keys: [
+      ['WASD', 'move'],
+      ['Space', 'jump'],
+      ['Mouse', 'look; click to shoot, open a door or read a cube'],
+      ...SHARED,
+    ],
+  },
+  {
+    title: 'Dragon',
+    keys: [['W', 'fly forward'], ['Mouse', 'steer; hold click to breathe'], ['A / S / D', 'roar'], ...SHARED],
+  },
 ];
 
 const plain = (title: string, summary: string): Entry => ({ title, summary, facts: [] });
@@ -34,17 +46,17 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
   sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),
   mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
-  spongebob: plain('SpongeBob SquarePants', 'SpongeBob SquarePants.'),
-  patrick: plain('Patrick Star', 'Patrick Star from SpongeBob SquarePants.'),
-  krabs: plain('Eugene Krabs', 'Eugene Krabs from SpongeBob SquarePants.'),
-  squidward: plain('Squidward Tentacles', 'Squidward Tentacles from SpongeBob SquarePants.'),
+  spongebob: plain('SpongeBob SquarePants', 'The one and only SpongeBob SquarePants.'),
+  patrick: plain('Patrick Star', 'SpongeBob’s best friend. Is mayonnaise an instrument?'),
+  krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),
+  squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
   plankton: plain('Plankton', 'Plankton from SpongeBob SquarePants.'),
-  'light-dragon': plain(
-    'Light Dragon',
-    'The Light Dragon from Tears of the Kingdom. A dragon flies, with its own controls.',
+  'light-dragon': plain('Light Dragon', 'The Light Dragon from Tears of the Kingdom.'),
+  colgera: plain(
+    'Colgera',
+    'Colgera from Tears of the Kingdom. Its weak points are the 3 circular crystals on its underbelly.',
   ),
-  colgera: plain('Colgera', 'Colgera from Tears of the Kingdom. A dragon flies, with its own controls.'),
 };
 
 export const ITEM_TEXT: Record<ItemId, Entry> = {
@@ -87,7 +99,8 @@ export const PLACES: Place[] = [
   {
     id: 'main',
     title: 'Main area',
-    summary: 'Where all non-bot players spawn. Contains floating cubes that list Kathir’s job experiences.',
+    summary:
+      'Where all non-bot players spawn. This is home to the resume cubes and is the entirety of what kathir world once was.',
     facts: [],
     photos: [
       { file: 'main-cubes', caption: 'The info cubes over the main area' },
@@ -97,15 +110,15 @@ export const PLACES: Place[] = [
   {
     id: 'pineapple',
     title: 'SpongeBob’s house',
-    summary: 'Building 1: SpongeBob’s pineapple house, with rooms inside.',
+    summary: 'SpongeBob’s house in as much of its glory as I could build.',
     facts: [],
     photos: [
-      { file: 'pineapple-outside', caption: 'SpongeBob’s pineapple, on its dune' },
-      { file: 'pineapple-dune', caption: 'The pineapple from its dune' },
+      { file: 'pineapple-far', caption: 'SpongeBob’s pineapple, on its dune' },
+      { file: 'pineapple-aerial', caption: 'From above' },
       { file: 'pineapple-living-room', caption: 'The living room' },
       { file: 'pineapple-living-room-2', caption: 'The living room from by the side door' },
       { file: 'pineapple-living-room-3', caption: 'The living room from near the front door' },
-      { file: 'pineapple-library', caption: 'The library at the top, and its ladder' },
+      { file: 'pineapple-bedroom', caption: 'The bedroom' },
       { file: 'pineapple-plan-ground-floor', caption: 'Floor plan: the ground floor' },
       { file: 'pineapple-plan-first-floor', caption: 'Floor plan: the first floor, round the bedroom' },
       { file: 'pineapple-plan-library', caption: 'Floor plan: the library' },
@@ -115,7 +128,7 @@ export const PLACES: Place[] = [
     id: 'welcome',
     building: 1,
     title: '',
-    summary: 'Building 2. A copy of the tower’s ground floor.',
+    summary: 'A room with some info about me and a live Spotify widget.',
     facts: [],
     photos: [
       { file: 'welcome-room-outside', caption: 'Outside' },
@@ -127,7 +140,7 @@ export const PLACES: Place[] = [
     id: 'sanctuary',
     building: 2,
     title: '',
-    summary: 'Building 3. A copy of the tower’s first floor.',
+    summary: 'A room with some peak anime as well as a live tracker of my recently watched / read media.',
     facts: [],
     photos: [
       { file: 'dire-sanctuary-outside', caption: 'Outside' },
@@ -150,7 +163,7 @@ export const PLACES: Place[] = [
     id: 'tower',
     title: 'Tung Tung Tower',
     summary:
-      'A four-floor tower. The Welcome Room and the Dire Sanctuary are copies of its ground and first floors. A bridge on top connects it to the terrace.',
+      'Tung Tung Tung Sahur’s abode. Some floors are clones of other standalone buildings’ interiors. Some floors have a stalker bot positioned in the middle.',
     facts: [],
     photos: [
       { file: 'tower-outside', caption: 'Tung Tung Tower from the bridge' },
@@ -173,13 +186,29 @@ export const PLACES: Place[] = [
 
 export const BOT_NOTE = 'Bots run using Modal functions, and will not respawn after they die.';
 
-export const BOT_EXAMPLES: [string, string][] = [
-  [
+// What each flag of a bot command does; its numbers (the default stay, the longest) are stats.ts's.
+export const BOT_FLAG_TEXT: Record<BotFlag, string> = {
+  time: 'how long it stays, in seconds',
+  name: 'what it plays as',
+  skin: 'how it looks: any skin’s command, like elizabeth or tung',
+  target: 'who it goes after: the words up to the next flag, each any part of a name',
+};
+
+// What each bot's page shows of it: a looping clip, or a still where it's mostly standing still.
+export const BOT_MEDIA: Record<BotId, { file: string; caption: string }> = {
+  sniper: { file: 'sniper.jpg', caption: 'A sniper bot on a floor of the tower, scoped' },
+  circle: { file: 'circle.mp4', caption: 'A circle bot as SpongeBob, circling Patrick' },
+  stalker: { file: 'stalker.mp4', caption: 'A stalker bot watching a player walk past' },
+};
+
+export const BOT_EXAMPLES: Record<BotId, [string, string]> = {
+  sniper: [
     '/sniper-bot -t 500 -n snipah -s elizabeth --target circ',
     'spawns a sniper bot named snipah for 500s with the Elizabeth avatar, targeting players with “circ” in their username.',
   ],
-  [
+  circle: [
     '/circle-bot --skin tung',
     'spawns a circle bot named circle-bot with the Tung Tung Tung Sahur skin, for the default time.',
   ],
-];
+  stalker: ['/stalker-bot -t 60 -n watcher', 'spawns a stalker bot named watcher for 60s.'],
+};

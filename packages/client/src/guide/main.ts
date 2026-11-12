@@ -12,22 +12,28 @@ import {
   BUILDING_LEVELS,
   BUILDING_NAMES,
   CUBES,
+  DUNE_HEIGHT,
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
   MAIN_AREA,
   PICKUP_AREAS,
   PINEAPPLE_LEVELS,
+  PINEAPPLE_PROFILE,
   TERRACE,
   TOWER_LEVELS,
   defaultBotsFor,
+  botArguments,
   type AvatarId,
+  type BotId,
   type Region,
 } from '@world/shared';
 import { BodyView, type Shown, type Thing } from '../render/BodyView';
 import { commandGroups } from '../ui/commands';
 import {
   BOT_EXAMPLES,
+  BOT_FLAG_TEXT,
+  BOT_MEDIA,
   BOT_NOTE,
   CHARACTERS,
   CONTROLS,
@@ -45,7 +51,8 @@ import {
 import { cubeThing, gearThing, itemThing, pickupThing } from './things';
 import { botFlagRows, characterStats, gearStats, itemStats, num, pickupStats, speedyStats, type Stat } from './stats';
 
-const COLOR = '#64b5f6'; // the standard body's paint in the views: the page's accent
+const COLOR = '#ff7043'; // the standard body's paint in the views
+const FLOOR = { fill: '#111014', rule: 'rgba(255, 200, 87, 0.4)' }; // the views' floor, in the page's amber
 
 // One thing a catalog lists: its words, its numbers, and what its view shows: a body, a thing on
 // its own, or nothing.
@@ -75,7 +82,7 @@ function characters(): Section[] {
     view: { body: shown(id) },
   });
   return [
-    { title: 'On foot', picks: listed.filter((id) => AVATARS[id].class === 'walker').map(pick) },
+    { title: 'Characters', picks: listed.filter((id) => AVATARS[id].class === 'walker').map(pick) },
     { title: 'Dragons', picks: listed.filter((id) => AVATARS[id].class !== 'walker').map(pick) },
   ];
 }
@@ -163,10 +170,29 @@ function facts(lines: string[]): HTMLElement[] {
   return lines.length === 0 ? [] : [el('h3', '', 'Fun facts'), list(lines)];
 }
 
+// A row of small tabs over one body at a time, `first` showing to begin with.
+function subTabs(tabs: { title: string; body: HTMLElement }[], first = 0): HTMLElement {
+  const box = el('div', 'subtabs');
+  const row = el('nav');
+  const buttons = tabs.map(({ title }, i) => {
+    const b = el('button', '', title);
+    b.addEventListener('click', () => pick(i));
+    row.append(b);
+    return b;
+  });
+  const pick = (at: number) => {
+    buttons.forEach((b, i) => b.classList.toggle('on', i === at));
+    tabs.forEach(({ body }, i) => body.classList.toggle('hidden', i !== at));
+  };
+  box.append(row, ...tabs.map((t) => t.body));
+  pick(first);
+  return box;
+}
+
 // A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across picks.
 class Catalog {
   readonly el = el('div', 'catalog');
-  private readonly view = new BodyView();
+  private readonly view = new BodyView(FLOOR);
   private readonly viewBox = el('div', 'view');
   private readonly text = el('div', 'text');
   private readonly list = el('nav', 'picker');
@@ -238,8 +264,12 @@ function heartsIn(regions: Region[]): number {
   return PICKUP_AREAS.filter((a) => a.kind === 'heart' && regions.includes(a.region)).reduce((n, a) => n + a.count, 0);
 }
 
+// The height of the highest floor in these regions.
+function topOf(regions: Region[]): Stat {
+  return { label: 'Height', value: `${num(Math.max(...regions.map((r) => r.y)))} m` };
+}
+
 function placeStats(place: Place): Stat[] {
-  const stalkers = defaultBotsFor('guide', () => 0).filter((b) => b.bot === 'stalker').length;
   switch (place.id) {
     case 'main':
       return [
@@ -248,6 +278,8 @@ function placeStats(place: Place): Stat[] {
       ].filter((s) => s.value);
     case 'pineapple':
       return [
+        // To the deck on the crown, the top of the house anyone stands on.
+        { label: 'Height', value: `${num(DUNE_HEIGHT + PINEAPPLE_PROFILE.attic.deck.y)} m` },
         { label: 'Floors', value: `${PINEAPPLE_LEVELS.length}` },
         { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}` },
       ];
@@ -256,20 +288,16 @@ function placeStats(place: Place): Stat[] {
     case 'building4': {
       const ground = BUILDING_GROUNDS[place.building ?? 0];
       const levels = BUILDING_LEVELS.filter((r) => Math.hypot(r.x - ground.x, r.z - ground.z) < 1);
-      return [{ label: 'Hearts', value: `${heartsIn(levels)}` }];
+      return [topOf(levels), { label: 'Hearts', value: `${heartsIn(levels)}` }];
     }
     case 'tower':
       return [
+        topOf(TOWER_LEVELS),
         { label: 'Floors', value: `${TOWER_LEVELS.length - 1}, and the roof` },
-        { label: 'Roof', value: `${num(TOWER_LEVELS[TOWER_LEVELS.length - 1].y)} m up` },
         { label: 'Hearts', value: `${heartsIn(TOWER_LEVELS)}` },
-        { label: 'Guards', value: `${stalkers} stalker bots, one on each of the lower floors` },
       ];
     case 'terrace':
-      return [
-        { label: 'Height', value: `${num(TERRACE.y)} m up` },
-        { label: 'Hearts', value: `${heartsIn([TERRACE])}` },
-      ];
+      return [topOf([TERRACE]), { label: 'Hearts', value: `${heartsIn([TERRACE])}` }];
   }
 }
 
@@ -362,6 +390,42 @@ function worldPanel(): HTMLElement {
   return panel;
 }
 
+// A bot's clip, playing on a loop with no sound, or its still.
+function botMedia(id: BotId): HTMLElement {
+  const { file, caption } = BOT_MEDIA[id];
+  const src = `/assets/guide/bots/${file}`;
+  if (file.endsWith('.mp4')) {
+    const video = el('video', 'bot-media');
+    Object.assign(video, { src, muted: true, loop: true, autoplay: true, playsInline: true, title: caption });
+    return video;
+  }
+  const img = el('img', 'bot-media');
+  Object.assign(img, { src, alt: caption, title: caption });
+  return img;
+}
+
+function botPage(id: BotId): HTMLElement {
+  const bot = BOTS[id];
+  const page = el('div');
+  const head = el('h2', 'command', `/${bot.playerName}`);
+  head.append(el('span', 'args', ` ${botArguments(bot.worker)}`));
+  const [cmd, what] = BOT_EXAMPLES[id];
+  const example = el('p', 'example');
+  example.append(el('code', '', cmd), el('span', '', what));
+  page.append(
+    head,
+    botMedia(id),
+    el('p', 'summary', sentence(bot.blurb)),
+    statTable(botFlagRows(bot.worker, BOT_FLAG_TEXT)),
+    el('h3', '', 'For example'),
+    example,
+  );
+  return page;
+}
+
+// The sniper first, the bot people ask about most; then the rest as the registry lists them.
+const SHOWN_BOTS: BotId[] = ['sniper', ...BOT_IDS.filter((id) => id !== 'sniper')];
+
 function botsPanel(): HTMLElement {
   const panel = el('div', 'cards');
   const lineup = defaultBotsFor('guide', () => 0);
@@ -374,30 +438,12 @@ function botsPanel(): HTMLElement {
     el(
       'p',
       'summary',
-      `Every room starts with ${circles} circle bots, each in a random skin, and ${stalkers} Tung Tung Tung Sahur stalkers in the tower.`,
+      `Every room starts with ${circles} circle bots, each in a random skin, and ${stalkers} Tung Tung Tung Sahur stalkers in the tower. Flags go in any order, each at most once.`,
     ),
   );
-  panel.append(about);
-  for (const id of BOT_IDS) {
-    const bot = BOTS[id];
-    const card = el('section', 'card');
-    card.append(
-      el('h2', '', `/${bot.playerName}`),
-      el('p', 'summary', sentence(bot.blurb)),
-      statTable([{ label: 'Kind', value: bot.worker === 'combat' ? 'combat: takes --target' : 'simple' }]),
-    );
-    panel.append(card);
-  }
-  const flags = el('section', 'card wide');
-  flags.append(el('h2', '', 'Flags'), el('p', 'summary', 'In any order, each at most once.'), statTable(botFlagRows()));
-  const examples = el('ul', 'facts');
-  for (const [cmd, what] of BOT_EXAMPLES) {
-    const li = el('li');
-    li.append(el('code', '', cmd), document.createTextNode(` ${what}`));
-    examples.append(li);
-  }
-  flags.append(el('h3', '', 'For example'), examples);
-  panel.append(flags);
+  const bots = el('section', 'card wide');
+  bots.append(subTabs(SHOWN_BOTS.map((id) => ({ title: BOTS[id].playerName, body: botPage(id) }))));
+  panel.append(about, bots);
   return panel;
 }
 
@@ -406,8 +452,9 @@ function commandsPanel(): HTMLElement {
   const controls = el('section', 'card wide');
   controls.append(
     el('h2', '', 'Controls'),
-    statTable(CONTROLS.map(([label, value]) => ({ label, value }))),
-    el('p', 'summary', 'A dragon flies forward on W and roars on A, S and D.'),
+    subTabs(
+      CONTROLS.map(({ title, keys }) => ({ title, body: statTable(keys.map(([label, value]) => ({ label, value }))) })),
+    ),
   );
   panel.append(controls);
   for (const group of commandGroups()) {
@@ -421,7 +468,7 @@ function commandsPanel(): HTMLElement {
 function main(): void {
   const root = document.getElementById('guide')!;
   const header = el('header');
-  const back = el('a', 'back', '← into the world');
+  const back = el('a', 'back', '← back to kathir world');
   back.href = '/';
   header.append(back, el('h1', '', 'KATHIR WORLD GUIDE'), ...INTRO.map((p) => el('p', 'intro', p)));
 

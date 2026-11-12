@@ -1,7 +1,7 @@
 // What the guide's item views show: each item on its own, floating and turning as a pickup does in
 // the world (sim/pickups.ts), and each résumé cube floating as the cubes do (sim/cubes.ts), built
 // from the shapes the game draws them with.
-import { TransformNode } from '@babylonjs/core';
+import { TransformNode, Vector3 } from '@babylonjs/core';
 import {
   CUBE_BASE_Y,
   CUBE_FLOAT_AMPLITUDE,
@@ -22,15 +22,24 @@ import { buildHeart } from '../render/Pickups';
 import { buildTank, buildWeapon, weaponPalette } from '../render/Weapons';
 
 const HOVER = 1.2; // metres up an item floats over the floor, about where it's held
+const ITEM_BOB = 0.06; // of an item's size, how far it floats up and down
 const BIG = 2; // a big heart is the heart at twice the size (render/Pickups.ts)
 // A cube's float and turn: the middle of the ranges the sim draws each cube's from.
 const CUBE_FLOAT_HZ = 1.5;
 const CUBE_TURN = 0.35;
 
-// Floats `node` up and down and turns it, as a pickup does, `t` seconds in.
-function float(node: TransformNode, height: number, t: number): void {
-  node.position.y = height + Math.sin(t * PICKUP_BOB_HZ * 2 * Math.PI) * PICKUP_BOB;
+// Floats `node` up and down by `bob` metres and turns it, as a pickup does, `t` seconds in.
+function float(node: TransformNode, height: number, t: number, bob = PICKUP_BOB): void {
+  node.position.y = height + Math.sin(t * PICKUP_BOB_HZ * 2 * Math.PI) * bob;
   node.rotation.y = t * PICKUP_SPIN;
+}
+
+// Moves `piece` within its parent so the middle of what's built under it sits at the parent's
+// origin, the axis it turns about, and gives its size corner to corner.
+function centre(piece: TransformNode): number {
+  const { min, max } = piece.getHierarchyBoundingVectors();
+  piece.position.subtractInPlace(Vector3.Center(min, max));
+  return Vector3.Distance(min, max);
 }
 
 export function itemThing(id: ItemId): Thing {
@@ -39,13 +48,16 @@ export function itemThing(id: ItemId): Thing {
     build(engine, parent) {
       const scene = engine.scene;
       const pal = weaponPalette(scene, `guide-${id}`);
+      const node = new TransformNode(`guide-${id}`, scene);
+      node.parent = parent;
       const item = new TransformNode(`guide-${id}-item`, scene);
-      item.parent = parent;
+      item.parent = node;
       buildWeapon(scene, `guide-${id}`, id, item, pal);
       // A hold weapon's tank floats beside it, as it hangs on the back of whoever holds it.
       const element = ITEMS[id].element;
       if (element) buildTank(scene, `guide-${id}`, item, pal, element).position.set(-0.35, 0, 0.1);
-      return (t) => float(item, HOVER, t);
+      const bob = centre(item) * ITEM_BOB;
+      return (t) => float(node, HOVER, t, bob);
     },
   };
 }
@@ -58,9 +70,9 @@ export function gearThing(id: GearId): Thing {
       node.parent = parent;
       const piece = new TransformNode(`guide-${id}-piece`, engine.scene);
       piece.parent = node;
-      const { depth } = buildGear(engine.scene, `guide-${id}`, id, piece);
-      piece.position.z = depth / 2; // built with its back at its origin: turned about its middle
-      return (t) => float(node, HOVER, t);
+      buildGear(engine.scene, `guide-${id}`, id, piece);
+      const bob = centre(piece) * ITEM_BOB;
+      return (t) => float(node, HOVER, t, bob);
     },
   };
 }
