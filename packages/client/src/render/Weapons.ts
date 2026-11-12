@@ -174,8 +174,9 @@ export class Viewmodel {
         const nozzle = new TransformNode(`viewmodel-${id}-nozzle`, scene);
         nozzle.parent = node;
         nozzle.position.copyFrom(muzzle);
-        // The root is scaled down, so the jet is stretched to still reach the item's range.
-        jet = createJet(engine, `viewmodel-${id}`, nozzle, spec.element, spec.range / SCALE, coneAngle(spec));
+        // The jet is drawn in metres, out of the root's scale.
+        nozzle.scaling.setAll(1 / SCALE);
+        jet = createJet(engine, `viewmodel-${id}`, nozzle, spec.element, spec.range, coneAngle(spec));
       }
       const flash = buildFlash(engine, `viewmodel-${id}`, node, muzzle);
       node.setEnabled(false);
