@@ -61,10 +61,9 @@ export class HeldItems {
       const nozzle = new TransformNode(`${name}-${item}-nozzle`, scene);
       nozzle.parent = node;
       nozzle.position.copyFrom(muzzle);
-      // The jet is drawn in the nozzle's frame, so a scaled weapon's jet is lengthened to match: it
-      // still reaches the item's range.
-      const length = spec.range / this.weaponScale;
-      this.jets.set(item, createJet(engine, `${name}-${item}`, nozzle, spec.element, length, coneAngle(spec)));
+      // The jet is drawn in metres whatever the weapon's scale, so it's the same spray on every body.
+      nozzle.scaling.setAll(1 / this.weaponScale);
+      this.jets.set(item, createJet(engine, `${name}-${item}`, nozzle, spec.element, spec.range, coneAngle(spec)));
       const tank = buildTank(scene, `${name}-${item}`, back, pal, spec.element);
       tank.position.copyFrom(backOffset);
       tank.scaling.setAll(this.packScale);
