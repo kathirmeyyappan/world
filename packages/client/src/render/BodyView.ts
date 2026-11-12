@@ -107,7 +107,10 @@ export class BodyView {
   private seen = false; // drawn since it was last hidden: the first frame shown sizes the canvas
   private lastNow = performance.now();
 
-  constructor() {
+  // `pixels` is CSS pixels per rendered one: the world's grid unless given. The menu's view, drawn
+  // beside the world, keeps it; a page with nothing else to draw (the home screen, the guide) can
+  // draw at the screen's own.
+  constructor(private readonly pixels = PIXELS) {
     this.canvas.addEventListener('pointerdown', () => (this.dragging = true));
     window.addEventListener('pointerup', () => this.drop());
     window.addEventListener('pointercancel', () => this.drop());
@@ -192,7 +195,7 @@ export class BodyView {
 
   private build(): Engine {
     const engine = new Engine(this.canvas);
-    engine.engine.setHardwareScalingLevel(PIXELS);
+    engine.engine.setHardwareScalingLevel(this.pixels);
     const scene = engine.scene;
     // From in front of the body (it faces +z), a little above, turned by a drag or a pinch; never
     // slid about.

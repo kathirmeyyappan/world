@@ -569,8 +569,9 @@ skin on it.
 
 The home screen (`app/home.ts`) is the room on the left (JOIN GLOBAL, or a code to join or create)
 and the player on the right: a `BodyView` of the chosen skin, the name, and a dropdown of every look
-on foot (no dragons) a person can switch to by command (the first, a random color, shown white; last,
-the standard body in each named color, riding as `?color=`), both kept in localStorage. The skin
+on foot (no dragons) a person can switch to by command (the first, the standard body in a named
+color drawn afresh each load, so the choice is kept but not the color; last, the standard body in each
+named color; a color rides as `?color=`), both kept in localStorage. The skin
 rides the join as `?avatar=` (through the lobby on the launcher), and the Room puts a person in it if
 it's one on foot they could switch to.
 
