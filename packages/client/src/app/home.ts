@@ -34,10 +34,11 @@ export interface HomeResult {
 const GLOBAL_ROOM = 'global';
 const NAME_KEY = 'world.name';
 const SKIN_KEY = 'world.skin';
-// The dropdown's first choice: the standard body, which the room paints a color of its own
-// choosing, so the stage shows it white.
-const RANDOM = '';
-const UNPAINTED = '#ffffff';
+// The dropdown's first choice: the standard body in a named color drawn afresh each time the page
+// loads, so that people who keep it don't all join alike. The choice is kept, never the color.
+const STANDARD = 'standard';
+const ROLLED = Object.keys(NAMED_COLORS)[Math.floor(Math.random() * Object.keys(NAMED_COLORS).length)];
+const UNPAINTED = '#ffffff'; // what the stage paints a skin of its own, which takes no paint
 const COLOR = 'color:'; // before a NAMED_COLORS name, a choice of the standard body in that color
 
 export function showHome(): Promise<HomeResult> {
@@ -56,7 +57,7 @@ export function showHome(): Promise<HomeResult> {
   roomInput.value = params.get('room') ?? '';
   const skin = new Picker(document.getElementById('home-skin')!, skinChoices());
   const asked = params.has('avatar') || params.has('color');
-  skin.choose(asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? RANDOM));
+  skin.choose(asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? STANDARD));
   const stage = new Stage(document.getElementById('home-view')!, skin);
 
   const joiner = (): Joiner => ({
@@ -65,7 +66,7 @@ export function showHome(): Promise<HomeResult> {
   });
   const keep = (you: Joiner) => {
     store(NAME_KEY, you.name);
-    store(SKIN_KEY, choiceOf(you.avatar, you.color));
+    store(SKIN_KEY, skin.value);
   };
 
   // The page loads showing the loading screen. Only reveal the home screen when there is
@@ -172,15 +173,14 @@ export function showHome(): Promise<HomeResult> {
 }
 
 // Every look on foot a person can switch to by command, by the guide's name for it with the command
-// beside it, the standard body first as a random color; then, always last, the standard body in each
-// named color.
+// beside it, the standard body first (in the color drawn for this load); then, always last, the
+// standard body in each named color.
 function skinChoices(): Choice[] {
   const choices: Choice[] = [];
   for (const id of AVATAR_IDS) {
     const command = AVATARS[id].command;
     if (command === null || AVATARS[id].class !== 'walker') continue;
-    if (id === 'standard') choices.push({ value: RANDOM, label: 'Random color', note: '' });
-    else choices.push({ value: id, label: CHARACTERS[id].title, note: `/${command}` });
+    choices.push({ value: id, label: CHARACTERS[id].title, note: `/${command}` });
   }
   for (const name of Object.keys(NAMED_COLORS))
     choices.push({ value: COLOR + name, label: `${name[0].toUpperCase()}${name.slice(1)}`, note: `/${name}` });
@@ -189,14 +189,15 @@ function skinChoices(): Choice[] {
 
 // What a dropdown choice joins as.
 function lookOf(value: string): { avatar: AvatarId | null; color: string | null } {
+  if (value === STANDARD) return { avatar: null, color: ROLLED };
   if (value.startsWith(COLOR)) return { avatar: null, color: value.slice(COLOR.length) };
-  return { avatar: isAvatarId(value) && value !== 'standard' ? value : null, color: null };
+  return { avatar: isAvatarId(value) ? value : null, color: null };
 }
 
 // The dropdown choice for a skin, or the standard body in a named color.
 function choiceOf(avatar: string | null, color: string | null): string {
   if (isAvatarId(avatar) && avatar !== 'standard') return avatar;
-  return color ? COLOR + color : RANDOM;
+  return color ? COLOR + color : STANDARD;
 }
 
 function stored(key: string): string | null {
