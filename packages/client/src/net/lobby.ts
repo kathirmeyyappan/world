@@ -84,7 +84,7 @@ export function switchRoom(roomId: string, you: Joiner): void {
   location.href = roomLink(roomId, you);
 }
 
-// Who's joining: their name, and their skin (null for the standard body in a random colour).
+// Who's joining: their name, and their skin (null for the standard body in a random color).
 export interface Joiner {
   name: string;
   avatar: AvatarId | null;

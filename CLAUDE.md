@@ -569,7 +569,7 @@ skin on it.
 
 The home screen (`app/home.ts`) is the room on the left (JOIN GLOBAL, or a code to join or create)
 and the player on the right: a `BodyView` of the chosen skin, the name, and a dropdown of every look
-a person can switch to by command (the first, a random colour, shown white), both kept in
+a person can switch to by command (the first, a random color, shown white), both kept in
 localStorage. The skin rides the join as `?avatar=` (through the lobby on the launcher), and the Room
 puts a person in it if it's one they could switch to and it fits, as `/<skin>` would.
 

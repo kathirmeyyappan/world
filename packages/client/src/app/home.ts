@@ -25,7 +25,7 @@ export interface HomeResult {
 const GLOBAL_ROOM = 'global';
 const NAME_KEY = 'world.name';
 const SKIN_KEY = 'world.skin';
-// The dropdown's first choice: the standard body, which the room paints a colour of its own
+// The dropdown's first choice: the standard body, which the room paints a color of its own
 // choosing, so the stage shows it white.
 const RANDOM = '';
 const UNPAINTED = '#ffffff';
@@ -163,18 +163,18 @@ export function showHome(): Promise<HomeResult> {
 }
 
 // Every look a person can switch to by command, by the guide's name for it; the standard body
-// first, as a random colour.
+// first, as a random color.
 function fillSkins(select: HTMLSelectElement): void {
   for (const id of AVATAR_IDS) {
     if (AVATARS[id].command === null) continue;
     const option = document.createElement('option');
     option.value = id === 'standard' ? RANDOM : id;
-    option.textContent = id === 'standard' ? 'Random colour' : CHARACTERS[id].title;
+    option.textContent = id === 'standard' ? 'Random color' : CHARACTERS[id].title;
     select.append(option);
   }
 }
 
-// The skin a dropdown value or a stored one names, null for a random colour.
+// The skin a dropdown value or a stored one names, null for a random color.
 function skinOf(value: string | null): AvatarId | null {
   return isAvatarId(value) && value !== 'standard' ? value : null;
 }
