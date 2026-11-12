@@ -23,7 +23,6 @@ import {
   CHILL_SECONDS,
   DEATH_SCREEN_SECONDS,
   NAMED_COLORS,
-  PLAYER_COLORS,
   PLAYER_PADDING,
   SPEEDY_SECONDS,
   STEP_UP,
@@ -89,7 +88,7 @@ export interface JoinOptions extends BotPlacement {
   room?: string; // the public room code the client asked for; bots called from here join it
   // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
   // spawns at random, in the avatar if it's one on foot they could switch to by command.
-  color?: string; // one of NAMED_COLORS' names, for the standard body; else the room picks one
+  color?: string; // one of NAMED_COLORS' names, for the standard body; else one of them at random
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -196,7 +195,10 @@ export class Room {
     }
     const id = `p${this.nextPlayerId++}`;
     const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint();
-    const color = opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? NAMED_COLORS[opts.color] : this.pickColor();
+    const names = Object.keys(NAMED_COLORS);
+    const named =
+      opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? opts.color : names[Math.floor(this.rng() * names.length)];
+    const color = NAMED_COLORS[named];
     const state = createPlayer(id, sanitizeName(rawName), color, at, !!opts.bot);
     if (opts.bot && opts.avatar) {
       becomeAvatar(state, opts.avatar);
@@ -482,15 +484,6 @@ export class Room {
 
   private cubeSnapshot(): CubeSnapshot[] {
     return this.cubes.map((c) => ({ id: c.id, x: c.pos.x, y: c.pos.y, z: c.pos.z, rx: c.rot.x, ry: c.rot.y }));
-  }
-
-  // One of the least-used colours in the room, picked at random among the ties.
-  private pickColor(): string {
-    const used = new Map<string, number>();
-    for (const s of this.seats.values()) used.set(s.state.color, (used.get(s.state.color) ?? 0) + 1);
-    const fewest = Math.min(...PLAYER_COLORS.map((c) => used.get(c) ?? 0));
-    const choices = PLAYER_COLORS.filter((c) => (used.get(c) ?? 0) === fewest);
-    return choices[Math.floor(this.rng() * choices.length)];
   }
 
   private runCommand(seat: Seat, command: Command): void {

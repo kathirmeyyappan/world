@@ -1,7 +1,7 @@
 // The guide's numbers, read off the registries the game runs on (AVATARS, ITEMS, GEAR, PICKUPS and
 // the constants), so a change to the game is a change here with no one remembering to make it.
-// Everything is worked out the way the sim does it: a jump's rise from its takeoff and gravity, a
-// spray's damage a second from its damage a tick and how often it ticks.
+// Everything is worked out the way the sim does it: a spray's damage a second from its damage a tick
+// and how often it ticks.
 import {
   AVATARS,
   BOT_DEFAULT_SECONDS,
@@ -27,7 +27,6 @@ import {
   classOf,
   climbSpeedOf,
   dragonShape,
-  jumpVelocityOf,
   lifeOf,
   walkSpeedOf,
   type AvatarId,
@@ -69,16 +68,11 @@ export function characterStats(id: AvatarId): Stat[] {
   if (look.command) rows.push({ label: 'Equip', value: commandsFor(look.command, id).join(', ') });
   rows.push({ label: 'Hearts', value: look.regen ? `${hearts}, back at ${num(REGEN_RATE)} a second` : hearts });
   if (look.class === 'walker') {
-    const walk = walkSpeedOf(id);
-    const takeoff = jumpVelocityOf(id);
-    const rise = takeoff ** 2 / (2 * GRAVITY);
-    const air = (2 * takeoff) / GRAVITY;
     rows.push(
       { label: 'Height', value: `${num(look.hitbox.top)} m` },
       { label: 'Eye height', value: `${num(look.eye)} m` },
-      { label: 'Walk', value: `${num(walk)} m/s` },
-      { label: 'Jump', value: `${num(rise)} m high, ${num(air)} s in the air` },
-      { label: 'Running jump', value: `${num(walk * air)} m` },
+      { label: 'Walk', value: `${num(walkSpeedOf(id))} m/s` },
+      { label: 'Jump power', value: num(look.jump) },
       { label: 'Ladder climb', value: `${num(climbSpeedOf(id))} m/s` },
       {
         label: 'Target',
