@@ -566,6 +566,16 @@ labels over heads and the bots follow; what a name gives (an avatar's or an item
 read only when a player joins. Switching rooms is a page load through `roomLink` (`net/lobby.ts`), the
 link an invite is, with the player's name on it.
 
+## Guide
+
+The guide (`world.kathirm.com/guide/`, `packages/client/guide/index.html` and `src/guide/`) is a
+second Vite page: every character, item, place, bot and command in tabs, a character or item shown
+in a `BodyView` (`render/BodyView.ts`, the menu's player view, an item held or worn by the standard
+body in a close view). Its numbers are worked out in `guide/stats.ts` from the registries the game
+runs on, never typed in, and its words are `guide/content.ts`, keyed by the registries' ids, so a
+new skin, item, gear, pickup or bot doesn't build until it has an entry there: a title, a line or
+two, and fun facts (no numbers in the words; anything the game decides belongs in `stats.ts`).
+
 ## Adding a Modal bot
 
 Keep this section synchronized with `AGENTS.md`. A bot is a headless Python client in
