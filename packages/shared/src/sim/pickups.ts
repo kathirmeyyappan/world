@@ -53,9 +53,10 @@ export interface PickupField {
 }
 
 const MARGIN = 1.5; // metres a pickup keeps from its region's edge
-const BOB = 0.15; // metres up and down
-const BOB_HZ = 1.5;
-const SPIN = 1.4; // radians per second
+// How a pickup floats: up and down by BOB metres at BOB_HZ, turning at SPIN radians a second.
+export const PICKUP_BOB = 0.15;
+export const PICKUP_BOB_HZ = 1.5;
+export const PICKUP_SPIN = 1.4;
 
 export function createPickups(areas: readonly PickupArea[], rng: Rng): PickupField {
   const field: PickupField = {
@@ -73,8 +74,8 @@ export function createPickups(areas: readonly PickupArea[], rng: Rng): PickupFie
 export function stepPickups(field: PickupField, dt: number, rng: Rng): void {
   for (const p of field.items) {
     p.time += dt;
-    p.ry += SPIN * dt;
-    p.pos.y = p.floor + PICKUPS[p.kind].height + Math.sin(p.time * BOB_HZ * 2 * Math.PI) * BOB;
+    p.ry += PICKUP_SPIN * dt;
+    p.pos.y = p.floor + PICKUPS[p.kind].height + Math.sin(p.time * PICKUP_BOB_HZ * 2 * Math.PI) * PICKUP_BOB;
     if (!p.area) continue; // a drop stays where it was left
     const { region } = p.area;
     const dx = p.target.x - p.pos.x;

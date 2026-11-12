@@ -1,6 +1,6 @@
 // The guide (world.kathirm.com/guide/): every character, item, place, bot and command, in tabs. A
 // character or item is picked from a list and shown in a 3D view of its own (BodyView, the menu's
-// player view) beside what it is and its numbers; the numbers come from stats.ts, read off the
+// player view: a character standing, an item floating on its own) beside what it is and its numbers; the numbers come from stats.ts, read off the
 // game's registries, and the words from content.ts. The tab and the pick are in the URL's hash
 // (#characters/gary), so a link goes straight to one.
 import {
@@ -8,7 +8,10 @@ import {
   AVATAR_IDS,
   BOTS,
   BOT_IDS,
+  BUILDING_GROUNDS,
   BUILDING_LEVELS,
+  BUILDING_NAMES,
+  CUBES,
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
@@ -21,34 +24,36 @@ import {
   type AvatarId,
   type Region,
 } from '@world/shared';
-import { BodyView, type Shown } from '../render/BodyView';
+import { BodyView, type Shown, type Thing } from '../render/BodyView';
 import { commandGroups } from '../ui/commands';
 import {
   BOT_EXAMPLES,
   BOT_NOTE,
-  BOT_TEXT,
   CHARACTERS,
   CONTROLS,
   GEAR_TEXT,
   INTRO,
   PICKUP_TEXT,
   PLACES,
+  RESUME_CUBE,
   SPEEDY,
   ITEM_TEXT,
   type Entry,
   type Photo,
   type Place,
 } from './content';
+import { cubeThing, gearThing, itemThing, pickupThing } from './things';
 import { botFlagRows, characterStats, gearStats, itemStats, num, pickupStats, speedyStats, type Stat } from './stats';
 
 const COLOR = '#64b5f6'; // the standard body's paint in the views: the page's accent
 
-// One thing a catalog lists: its words, its numbers, and the body that shows it (none: no view).
+// One thing a catalog lists: its words, its numbers, and what its view shows: a body, a thing on
+// its own, or nothing.
 interface Pick {
   id: string;
   entry: Entry;
   stats: () => Stat[];
-  shown: Shown | null;
+  view: { body: Shown } | { thing: Thing } | null;
 }
 
 interface Section {
@@ -56,8 +61,8 @@ interface Section {
   picks: Pick[];
 }
 
-function shown(avatar: AvatarId, extra: Partial<Shown> = {}): Shown {
-  return { name: '', avatar, color: COLOR, item: null, gear: null, chilled: false, shattered: [], ...extra };
+function shown(avatar: AvatarId): Shown {
+  return { name: '', avatar, color: COLOR, item: null, gear: null, chilled: false, shattered: [] };
 }
 
 // The skins anyone can wear, the ones only bots can wear left out.
@@ -67,7 +72,7 @@ function characters(): Section[] {
     id,
     entry: CHARACTERS[id],
     stats: () => characterStats(id),
-    shown: shown(id),
+    view: { body: shown(id) },
   });
   return [
     { title: 'On foot', picks: listed.filter((id) => AVATARS[id].class === 'walker').map(pick) },
@@ -75,41 +80,61 @@ function characters(): Section[] {
   ];
 }
 
-// The items as the commands card groups them: what you equip (held by the standard body, spraying
-// where it's a spray; gear worn on its back), a dragon's breath by its dragon, and what floats
-// about or is just a command, with no body to show it.
+// The items as the commands card groups them: what you equip, each floating on its own; a dragon's
+// breath, which is its dragon's mouth and so has nothing to show alone; what floats about the world
+// (hearts, and the résumé cubes); and the speed boost, which is just a command.
 function items(): Section[] {
-  const owner = (item: string) => AVATAR_IDS.find((a) => AVATARS[a].item === item) ?? 'standard';
-  const held = (id: (typeof ITEM_IDS)[number]): Pick => {
-    const spec = ITEMS[id];
-    const firing = spec.actions.shoot?.mode === 'hold';
-    return {
-      id,
-      entry: ITEM_TEXT[id],
-      stats: () => itemStats(id),
-      shown: spec.own ? shown(owner(id), { item: id, firing }) : shown('standard', { item: id, firing, close: true }),
-    };
-  };
-  const worn = GEAR_IDS.map((id): Pick => ({
+  const own = ITEM_IDS.filter((id) => ITEMS[id].own);
+  const item = (id: (typeof ITEM_IDS)[number]): Pick => ({
     id,
-    entry: GEAR_TEXT[id],
-    stats: () => gearStats(id),
-    shown: shown('standard', { gear: id, thrusting: true, close: true }),
-  }));
+    entry: ITEM_TEXT[id],
+    stats: () => itemStats(id),
+    view: ITEMS[id].own ? null : { thing: itemThing(id) },
+  });
+  const cube: Pick = {
+    id: 'resume-cube',
+    entry: RESUME_CUBE,
+    stats: () => [{ label: 'How many', value: `${CUBES.length}` }],
+    view: { thing: cubeThing(CUBES[0]) },
+  };
   return [
-    { title: 'Equip', picks: [...ITEM_IDS.filter((id) => !ITEMS[id].own).map(held), ...worn] },
-    { title: 'Dragon breath', picks: ITEM_IDS.filter((id) => ITEMS[id].own).map(held) },
     {
-      title: 'Pickups',
-      picks: (['heart', 'big-heart'] as const).map((kind) => ({
-        id: kind,
-        entry: PICKUP_TEXT[kind],
-        stats: () => pickupStats(kind),
-        shown: null,
-      })),
+      title: 'Equip',
+      picks: [
+        ...ITEM_IDS.filter((id) => !own.includes(id)).map(item),
+        ...GEAR_IDS.map((id): Pick => ({
+          id,
+          entry: GEAR_TEXT[id],
+          stats: () => gearStats(id),
+          view: { thing: gearThing(id) },
+        })),
+      ],
     },
-    { title: 'Other', picks: [{ id: 'speedy', entry: SPEEDY, stats: speedyStats, shown: null }] },
+    { title: 'Dragon breath', picks: own.map(item) },
+    {
+      title: 'Floating about',
+      picks: [
+        ...(['heart', 'big-heart'] as const).map((kind): Pick => ({
+          id: kind,
+          entry: PICKUP_TEXT[kind],
+          stats: () => pickupStats(kind),
+          view: { thing: pickupThing(kind) },
+        })),
+        cube,
+      ],
+    },
+    { title: 'Other', picks: [{ id: 'speedy', entry: SPEEDY, stats: speedyStats, view: null }] },
   ];
+}
+
+// A name as the game shouts it ("DIRE SANCTUARY") in the guide's case ("Dire Sanctuary").
+function titleCase(name: string): string {
+  return name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// A registry's one-line blurb ("circles the nearest player") as a sentence.
+function sentence(blurb: string): string {
+  return `${blurb[0].toUpperCase()}${blurb.slice(1)}.`;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
@@ -128,11 +153,14 @@ function statTable(stats: Stat[]): HTMLTableElement {
   return table;
 }
 
-function facts(list: string[]): HTMLElement[] {
-  if (list.length === 0) return [];
+function list(lines: string[]): HTMLUListElement {
   const ul = el('ul', 'facts');
-  for (const f of list) ul.append(el('li', '', f));
-  return [el('h3', '', 'Fun facts'), ul];
+  for (const line of lines) ul.append(el('li', '', line));
+  return ul;
+}
+
+function facts(lines: string[]): HTMLElement[] {
+  return lines.length === 0 ? [] : [el('h3', '', 'Fun facts'), list(lines)];
 }
 
 // A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across picks.
@@ -187,11 +215,10 @@ class Catalog {
       if (b.offsetLeft < scrollLeft || b.offsetLeft + b.offsetWidth > scrollLeft + clientWidth)
         this.list.scrollLeft = b.offsetLeft - 8;
     });
-    this.viewBox.classList.toggle('none', !pick.shown);
+    this.viewBox.classList.toggle('none', !pick.view);
     const { entry } = pick;
     this.text.replaceChildren(
       el('h2', '', entry.title),
-      ...(entry.from ? [el('p', 'from', `from ${entry.from}`)] : []),
       el('p', 'summary', entry.summary),
       statTable(pick.stats()),
       ...facts(entry.facts),
@@ -200,8 +227,9 @@ class Catalog {
   }
 
   frame(visible: boolean): void {
-    const s = this.current.shown;
-    this.view.sync(s ?? shown('standard'), visible && s !== null);
+    const v = this.current.view;
+    if (v && 'thing' in v) this.view.syncThing(v.thing, visible);
+    else this.view.sync(v?.body ?? shown('standard'), visible && v !== null);
   }
 }
 
@@ -223,9 +251,12 @@ function placeStats(place: Place): Stat[] {
         { label: 'Floors', value: `${PINEAPPLE_LEVELS.length}` },
         { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}, one on each floor` },
       ];
-    case 'buildings': {
-      const keeps = BUILDING_LEVELS.filter((r) => !PINEAPPLE_LEVELS.includes(r));
-      return [{ label: 'Hearts', value: `${heartsIn(keeps)}: one inside each, and one on each roof` }];
+    case 'welcome':
+    case 'sanctuary':
+    case 'building4': {
+      const ground = BUILDING_GROUNDS[place.building ?? 0];
+      const levels = BUILDING_LEVELS.filter((r) => Math.hypot(r.x - ground.x, r.z - ground.z) < 1);
+      return [{ label: 'Hearts', value: `${heartsIn(levels)}: inside and on the roof` }];
     }
     case 'tower':
       return [
@@ -320,7 +351,7 @@ function worldPanel(): HTMLElement {
   for (const place of PLACES) {
     const card = el('section', 'card');
     card.append(
-      el('h2', '', place.title),
+      el('h2', '', place.building === undefined ? place.title : titleCase(BUILDING_NAMES[place.building])),
       gallery(place.photos, lightbox),
       el('p', 'summary', place.summary),
       statTable(placeStats(place)),
@@ -352,7 +383,7 @@ function botsPanel(): HTMLElement {
     const card = el('section', 'card');
     card.append(
       el('h2', '', `/${bot.playerName}`),
-      el('p', 'summary', BOT_TEXT[id].summary),
+      el('p', 'summary', sentence(bot.blurb)),
       statTable([{ label: 'Kind', value: bot.worker === 'combat' ? 'combat: takes --target' : 'simple' }]),
     );
     panel.append(card);

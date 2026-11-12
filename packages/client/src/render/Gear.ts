@@ -57,7 +57,7 @@ export class WornGear {
 
 // One piece's shape under `parent`, its back against the parent's origin and the rest behind it
 // (-z). Returns how deep it is and where its nozzles are.
-function buildGear(
+export function buildGear(
   scene: Scene,
   name: string,
   id: GearId,
