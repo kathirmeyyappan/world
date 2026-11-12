@@ -16,7 +16,7 @@ export class Preview {
   constructor(minimap: Minimap) {
     this.el.className = 'preview';
     this.map = new MenuMap(minimap);
-    this.body.className = 'view body';
+    this.body.className = 'view player';
     this.body.append(this.view.canvas);
     // Each view is named: a title across its top while it fills the window, a caption under its
     // square while it's small, where it's a button to bring it up (the button covers the square, so

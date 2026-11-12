@@ -142,11 +142,11 @@
   outline: none;
   touch-action: none;
 }
-#menu .preview .body canvas {
+#menu .preview .player canvas {
   image-rendering: pixelated;
   cursor: grab;
 }
-#menu .preview .body canvas:active {
+#menu .preview .player canvas:active {
   cursor: grabbing;
 }
 /* The big view's name across its top, on a dark tag so it reads over the map's lines too. */
