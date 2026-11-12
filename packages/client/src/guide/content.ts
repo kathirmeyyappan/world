@@ -51,7 +51,7 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),
   squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
-  plankton: plain('Plankton', 'Plankton from SpongeBob SquarePants.'),
+  plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
   'light-dragon': plain('Light Dragon', 'The Light Dragon from Tears of the Kingdom.'),
   colgera: plain(
     'Colgera',
