@@ -55,7 +55,7 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   'light-dragon': plain('Light Dragon', 'The Light Dragon from Tears of the Kingdom.'),
   colgera: plain(
     'Colgera',
-    'Colgera from Tears of the Kingdom. Its weak points are the 3 circular crystals on its underbelly.',
+    'The Wind Temple boss from Tears of the Kingdom. Its weak points are the 3 circular crystals on its underbelly.',
   ),
 };
 
