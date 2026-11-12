@@ -10,7 +10,7 @@ import {
   TransformNode,
   Vector3,
 } from '@babylonjs/core';
-import { MOVE_SPEED, WORLD_STRUCTURES, type AvatarId, type ItemAction } from '@world/shared';
+import { WORLD_STRUCTURES, type AvatarId, type ItemAction } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { perScene } from '../perScene';
@@ -32,23 +32,23 @@ export interface Avatar {
 
 const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
 
-// A walk cycle from how fast a player's feet are walking (`walk`, m/s, PlayerState.walk), frame to
-// frame. `phase` (radians) is the stride's, paced by the footsteps (`step`: 0 at one foot's fall, 1
-// at the other's, 2 back at the first's), a leg out at each footfall, so the legs land with the
-// sounds; `effort` (0 to 1) is how big the steps are, the walk against a full-speed one (its square
-// root, so a slow walk still visibly steps), eased so a jittery frame doesn't twitch the legs. 0
-// in the air.
+// A walk cycle from how fast a player's feet are walking, frame to frame: `pace`, PlayerState.walk
+// as a share of the look's own full walk (walkSpeedOf). `phase` (radians) is the stride's, paced by
+// the footsteps (`step`: 0 at one foot's fall, 1 at the other's, 2 back at the first's), a leg out
+// at each footfall, so the legs land with the sounds; `effort` (0 to 1) is how big the steps are,
+// the pace's square root (so a slow walk still visibly steps), eased so a jittery frame doesn't
+// twitch the legs. 0 in the air.
 export class Gait {
   phase = 0;
   effort = 0;
   private lastTime: number | null = null;
 
-  update(walk: number, airborne: boolean, step: number): void {
+  update(pace: number, airborne: boolean, step: number): void {
     const time = performance.now() / 1000;
     const dt = this.lastTime === null ? 0 : time - this.lastTime;
     this.lastTime = time;
     this.phase = Math.PI / 2 + Math.PI * step;
-    const target = airborne ? 0 : Math.sqrt(Math.min(1, walk / MOVE_SPEED));
+    const target = airborne ? 0 : Math.sqrt(Math.min(1, pace));
     this.effort += (target - this.effort) * Math.min(1, dt / GAIT_EASE);
   }
 }

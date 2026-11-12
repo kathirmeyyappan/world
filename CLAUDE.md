@@ -110,8 +110,8 @@ wire: server and client both build the world from that file.
   and that bridge turned round the main disc to 90°, 150°, 210° and 270°), and an arc through all
   four grounds, twice a path's width. A part is a disc, a straight `bridge` or a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
-  their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
-  2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
+  their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
+  anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
 - Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area and its side facing
   the tower), each as likely, standing on the ground (or anything within a step
@@ -154,7 +154,7 @@ A ladder (`sim/structures.ts` `ladder(foot, y, top, yaw, { material, width, lean
 `LADDER_GIRTH` through, climbed from either of its faces (its local ±z); to everything else it is
 a thin box, and it never frosts. With a `lean` (radians from upright, `MAX_LADDER_LEAN`, 45°, at
 most, further over being a ramp with rungs) its top is over toward its local +z, as a ladder stood
-against a wall there leans: the climb keeps to the rails (`CLIMB_SPEED`
+against a wall there leans: the climb keeps to the rails (the climber's speed
 along them, the body moving over as it rises, the face it reaches for and the spot it swaps to at
 its feet's height, the step over the top where the top is), the avatar leans with it, and the
 drawn frame tips over; a jump is still straight up, and gravity still straight down. Where it leans
@@ -162,7 +162,7 @@ it is the wedge under its rails to everyone else (a ramp over its footprint, in 
 bots' map), so a body never fits under it: lean one against something, and only the face it leans
 away from is climbed. A walker holding forward (W) within
 `LADDER_REACH` of a face, between the rails, facing it, takes hold (`walker.ts` `takeHold`,
-`PlayerState.climb`: the piece and the face, ±1) and climbs at `CLIMB_SPEED` on W and S, nothing
+`PlayerState.climb`: the piece and the face, ±1) and climbs at `CLIMB_SHARE` of its walk on W and S, nothing
 pulling it down; one holding back (S) beside a ladder's top (its feet up to `OVER_TOP` under it, so
 from the floor beyond a rail it tops out at), looking away, backs onto it by its far face a body's
 height down it (so the first steps up don't step it straight back over), to climb down: holding up at the top steps it over onto whatever is beyond the ladder there (so
@@ -332,8 +332,9 @@ the client's `build` (the compiler asks for both), a check in `validateStructure
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
 Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`, about a minute): the structures, the walkable graph, the lookouts,
-and every avatar's hitbox. Rebuild it and commit the new map with the change whenever any of those
+the real sim (`sim/botMap.ts`, about five minutes): the structures, the walkable graph, the
+lookouts, every avatar's hitbox and walk, and the jumps for each way a look on foot moves (each
+distinct walk and jump power is simulated over the whole graph). Rebuild it and commit the new map with the change whenever any of those
 inputs move: a structure or landmark added or changed, the world's outline, the player's body or
 movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
 you do (the map carries a fingerprint of all of them).
@@ -346,7 +347,8 @@ terrace, the sky bridge and the staircases. List a landmark's there when it's wo
 ## Avatars
 
 An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: name tag, command, eye
-height, hitbox) and a builder in `packages/client/src/render/avatars/` (`WALKERS` in `index.ts`,
+height, hitbox, and on foot its `walk` in m/s and its `jump` power, 1 rising `JUMP_RISE`, 1.6 m;
+`walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim) and a builder in `packages/client/src/render/avatars/` (`WALKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -652,9 +654,10 @@ Bots must use the modules under `modal-bots/common/`:
 - `log_kill`, `log_death`, and `log_message` write structured JSON to Modal's normal function logs.
 - `load_world_map()` (`common/world.py`) is the world's structures and walkable ground, shared by
   every bot in the process. `world.clear(a, b)` is the sim's line of sight (what a shot can pass);
-  `world.node_at(feet)` and `world.path(start, goal)` find a way between the spots a player can
-  stand on a 1 m grid, up the stair and over the rail where only a jump gets there.
-  `Route(world, path, tick)` (`common/navigation.py`) walks it: call `route.steer(me.pos, tick,
+  `world.node_at(feet)` and `world.path(start, goal, avatar)` find a way between the spots a player
+  can stand on a 1 m grid, up the stair and over the rail where only a jump gets there, and only by
+  the jumps that avatar's walk and jump power make (`world.jumps_of`).
+  `Route(world, path, tick, avatar)` (`common/navigation.py`) walks it: call `route.steer(me.pos, tick,
   controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
   `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
   `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the

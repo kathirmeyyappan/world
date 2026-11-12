@@ -11,15 +11,18 @@ export const STEP_UP = 0.5;
 export const STEP_DOWN = 0.5;
 
 export const EYE_HEIGHT = 1.7;
+// The standard body's walk, m/s, and a jump's rise at a jump power of 1, metres: each look on foot
+// walks at its own speed and jumps with its own power (avatars.ts `walk`, `jump`).
 export const MOVE_SPEED = 8;
 export const GRAVITY = 20;
-export const JUMP_VELOCITY = 8;
+export const JUMP_RISE = 1.6;
+export const JUMP_VELOCITY = Math.sqrt(2 * GRAVITY * JUMP_RISE); // the standard body's takeoff, m/s
 // The fastest a walk slides across a slippery footing (sim/surfaces.ts), however steep the slope.
 export const SLIDE_SPEED = 14;
-// Ladders (structures.ts, walker.ts): how fast one is climbed, m/s; how far from one of its faces
-// a walker facing it reaches to take hold, metres from the face to the body's middle; and how far
-// off the face a climber's body stands.
-export const CLIMB_SPEED = 3;
+// Ladders (structures.ts, walker.ts): how fast one is climbed, as a share of the climber's walk
+// (avatars.ts `climbSpeedOf`); how far from one of its faces a walker facing it reaches to take
+// hold, metres from the face to the body's middle; and how far off the face a climber's body stands.
+export const CLIMB_SHARE = 2 / 3;
 export const LADDER_REACH = 0.9;
 export const LADDER_GAP = 0.05;
 export const MAX_PITCH = Math.PI / 2 - 0.1;

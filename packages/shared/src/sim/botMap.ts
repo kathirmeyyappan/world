@@ -22,7 +22,7 @@ import {
 } from './constants';
 import { BUILDING_FOOTPRINTS, STANDING_KEEPS } from '../content/buildings';
 import { TUNG_TUNG_TOWER_FOOTPRINT, TUNG_TUNG_TOWER_LEVELS } from '../content/tower';
-import { AVATAR_IDS, AVATARS, type Hitbox } from './avatars';
+import { AVATAR_IDS, AVATARS, jumpVelocityOf, walkSpeedOf, type AvatarId, type Hitbox } from './avatars';
 import { CAPSULE_TOP } from './health';
 import { createPlayer, stepPlayer } from './player';
 import { isGrounded } from './walker';
@@ -66,11 +66,17 @@ export interface BotMap {
   structures: Structure[]; // as content/structures.ts lists them, without their looks
   nodes: [number, number, number][]; // feet x, y, z
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
-  jumps: number[][]; // per node, the ones only a running jump toward them reaches
+  jumps: number[][]; // per node, the ones only the standard body's running jump toward them reaches
+  // The same for every way a look on foot moves (its walk and jump power, sim/avatars.ts), each
+  // once, and which of them each avatar's is: a look's jump goes as far as its walk and as high as
+  // its power take it.
+  jumpSets: number[][][];
+  jumpSet: Record<string, number>;
   lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
   lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
   hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
   eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
+  walks: Record<string, number>; // how fast each avatar walks at full keys, m/s (sim/avatars.ts walkSpeedOf)
   insides: Region[]; // the floors indoors, inside the tower's wall and the keeps': where a sniper starts and lies in wait
   indoors: number[]; // every node inside a building's wall, the stairs between its floors included
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
@@ -79,7 +85,7 @@ export interface BotMap {
 }
 
 // A fingerprint of what the map depends on: the world's outline and structures, the body and
-// movement constants, this file's own settings, the avatars' hitboxes and eyes, and the buildings' insides.
+// movement constants, this file's own settings, the avatars' hitboxes, eyes, walks and jumps, and the buildings' insides.
 export function botMapSource(): number {
   const physics = [
     EYE_HEIGHT,
@@ -104,7 +110,7 @@ export function botMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), BUILDINGS]));
+  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), moves(), BUILDINGS]));
 }
 
 function hitboxes(): Record<string, Hitbox> {
@@ -113,6 +119,15 @@ function hitboxes(): Record<string, Hitbox> {
 
 function eyes(): Record<string, number> {
   return Object.fromEntries(AVATAR_IDS.map((id) => [id, AVATARS[id].eye]));
+}
+
+function walks(): Record<string, number> {
+  return Object.fromEntries(AVATAR_IDS.map((id) => [id, walkSpeedOf(id)]));
+}
+
+// How every avatar walks and jumps, which its walk speed and jumps follow.
+function moves(): Record<string, [number, number]> {
+  return Object.fromEntries(AVATAR_IDS.map((id) => [id, [walkSpeedOf(id), jumpVelocityOf(id)]]));
 }
 
 // The structures without their looks, which nothing here depends on; a leaning ladder as the
@@ -142,20 +157,22 @@ export function buildBotMap(): BotMap {
     if (list) list.push(i);
     else columns.set(key, [i]);
   });
+  const { movers, jumpSet } = moversOf();
   const edges: number[][] = [];
-  const jumps: number[][] = [];
+  const jumpSets: number[][][] = movers.map(() => []);
   for (const a of nodes) {
     const walk: number[] = [];
-    const jump: number[] = [];
+    const jump: number[][] = movers.map(() => []);
     for (const [di, dj] of NEIGHBOURS)
       for (const j of columns.get(columnKey(a.x + di * SPACING, a.z + dj * SPACING)) ?? []) {
         if (Math.abs(nodes[j].y - a.y) > MAX_RISE) continue;
-        if (reaches(a, nodes[j], false)) walk.push(j);
-        else if (reaches(a, nodes[j], true)) jump.push(j);
+        if (reaches(a, nodes[j], false, 'standard')) walk.push(j);
+        else movers.forEach((avatar, k) => reaches(a, nodes[j], true, avatar) && jump[k].push(j));
       }
     edges.push(walk);
-    jumps.push(jump);
+    jump.forEach((out, k) => jumpSets[k].push(out));
   }
+  const jumps = jumpSets[jumpSet.standard];
   const found = lookouts(nodes, edges, jumps);
   return {
     source: botMapSource(),
@@ -163,10 +180,13 @@ export function buildBotMap(): BotMap {
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
     edges,
     jumps,
+    jumpSets,
+    jumpSet,
     lookouts: found,
     lookoutPlaces: found.map((i) => placeOf(nodes[i])),
     hitboxes: hitboxes(),
     eyes: eyes(),
+    walks: walks(),
     insides: INSIDES,
     indoors: nodes.flatMap((n, i) => (indoors(n) ? [i] : [])),
     sightChecks: sightChecks(nodes),
@@ -220,11 +240,27 @@ function topAt(s: Structure, x: number, z: number): number[] {
   return [(s.y ?? 0) + surfaceOf(s).top(lx, lz)];
 }
 
-// Whether a player heading straight for b from a at full speed (jumping as they set off, if
+// Each way a look on foot moves, once (the first look to move that way stands for it), and which
+// of them each avatar's is; any other class's is the standard body's.
+function moversOf(): { movers: AvatarId[]; jumpSet: Record<string, number> } {
+  const movers: AvatarId[] = [];
+  const jumpSet: Record<string, number> = {};
+  const moves = (id: AvatarId) => `${walkSpeedOf(id)} ${jumpVelocityOf(id)}`;
+  for (const id of AVATAR_IDS) {
+    const as = AVATARS[id].class === 'walker' ? id : 'standard';
+    let k = movers.findIndex((m) => moves(m) === moves(as));
+    if (k < 0) k = movers.push(as) - 1;
+    jumpSet[id] = k;
+  }
+  return { movers, jumpSet };
+}
+
+// Whether `avatar` heading straight for b from a at full speed (jumping as they set off, if
 // `jump`) and letting go once past b's column comes to stand there: within a hand of its line, at
 // its height, in about the time the walk and a jump take.
-function reaches(a: Vec3, b: Vec3, jump: boolean): boolean {
+function reaches(a: Vec3, b: Vec3, jump: boolean, avatar: AvatarId): boolean {
   const p = createPlayer('map', 'map', '#000', { x: a.x, y: a.y + EYE_HEIGHT, z: a.z });
+  p.avatar = avatar;
   const yaw = Math.atan2(b.x - a.x, b.z - a.z);
   const length = Math.hypot(b.x - a.x, b.z - a.z);
   const frame = (my: number, jumping: boolean) => ({
@@ -238,7 +274,8 @@ function reaches(a: Vec3, b: Vec3, jump: boolean): boolean {
     actions: [],
   });
   const ticks =
-    2 * Math.ceil(length / (MOVE_SPEED * TICK_DT)) + (jump ? Math.ceil((2 * JUMP_VELOCITY) / GRAVITY / TICK_DT) : 0);
+    2 * Math.ceil(length / (walkSpeedOf(avatar) * TICK_DT)) +
+    (jump ? Math.ceil((2 * jumpVelocityOf(avatar)) / GRAVITY / TICK_DT) : 0);
   let along = 0;
   for (let tick = 0; tick < ticks; tick++) {
     stepPlayer(p, along < length ? frame(1, jump && tick === 0) : frame(0, false), TICK_DT);

@@ -95,8 +95,9 @@ Use:
 - `log_kill`, `log_death`, and `log_message` for structured Modal logs.
 - `load_world_map()` (`common/world.py`) for the world's structures and walkable ground, shared by
   every bot in the process: `world.clear(a, b)` is the sim's line of sight, and `world.node_at(feet)`
-  and `world.path(start, goal)` find a way over a 1 m grid of standing spots, up the stair and over
-  its rail where only a jump gets there. `Route(world, path, tick)` (`common/navigation.py`) walks
+  and `world.path(start, goal, avatar)` find a way over a 1 m grid of standing spots, up the stair
+  and over its rail where only that avatar's jump gets there. `Route(world, path, tick, avatar)`
+  (`common/navigation.py`) walks
   it: `route.steer(me.pos, tick, controls)` on every snapshot after `look`, and plan again when
   `route.stuck(tick)`. `controls.walk_toward(origin, target)` moves toward a point whatever the look.
   `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the same
@@ -410,8 +411,8 @@ wire: server and client both build the world from that file.
   and that bridge turned round the main disc to 90°, 150°, 210° and 270°), and an arc through all
   four grounds, twice a path's width. A part is a disc, a straight `bridge` or a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
-  their own, and a running jump lands on tops up to about 1.9 m (make anything meant to stop a jump
-  2.1 m or taller). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
+  their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
+  anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
 - Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area and its side facing
   the tower), each as likely, standing on the ground (or anything within a step
@@ -541,8 +542,9 @@ the client's `build` (the compiler asks for both), a check in `validateStructure
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
 Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`, about a minute): the structures, the walkable graph, the lookouts,
-and every avatar's hitbox. Rebuild it and commit the new map with the change whenever any of those
+the real sim (`sim/botMap.ts`, about five minutes): the structures, the walkable graph, the
+lookouts, every avatar's hitbox and walk, and the jumps for each way a look on foot moves (each
+distinct walk and jump power is simulated over the whole graph). Rebuild it and commit the new map with the change whenever any of those
 inputs move: a structure or landmark added or changed, the world's outline, the player's body or
 movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
 you do (the map carries a fingerprint of all of them).

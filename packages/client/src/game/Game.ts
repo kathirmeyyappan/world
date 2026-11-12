@@ -35,9 +35,9 @@ import {
   type ServerMessage,
   type Vec3,
   EYE_HEIGHT,
-  MOVE_SPEED,
   eyeOf,
   statureOf,
+  walkSpeedOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, heard, loopsOf, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
@@ -781,7 +781,8 @@ export class Game {
     if (!this.scoped) this.camera.fov = this.wornFov();
     // The bob follows the feet's own walk, so it fades out against a wall and stops in the air,
     // down the scope and in death; its dip is deepest as each step lands.
-    const walking = !this.dead && !this.scoped && isGrounded(self) ? Math.sqrt(Math.min(1, self.walk / MOVE_SPEED)) : 0;
+    const walking =
+      !this.dead && !this.scoped && isGrounded(self) ? Math.sqrt(Math.min(1, self.walk / walkSpeedOf(self.avatar))) : 0;
     this.bobbing += (walking - this.bobbing) * Math.min(1, dt / BOB_EASE);
     const dip =
       ((BOB * this.stature * this.bobbing) / 2) * (1 + Math.cos(2 * Math.PI * this.footsteps.phase(this.myId)));

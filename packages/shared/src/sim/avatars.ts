@@ -5,7 +5,7 @@
 // one means a row here, a builder in the client's render/avatars/, and `npm run bot-map` (bots aim
 // with these hitboxes).
 import type { LifeSpec } from './classes';
-import { EYE_HEIGHT } from './constants';
+import { CLIMB_SHARE, EYE_HEIGHT, GRAVITY, JUMP_RISE, MOVE_SPEED } from './constants';
 import type { DragonShape } from './dragon';
 import type { ItemId } from './items';
 import type { Vec3 } from './types';
@@ -52,8 +52,16 @@ interface Look {
   life?: LifeSpec; // a life of its own, in place of its class's (classes.ts `lifeOf`)
 }
 
-// A look is of a class (classes.ts), and brings what its class's sim needs of it: a dragon its body.
-export type AvatarSpec = (Look & { class: 'walker' }) | (Look & { class: 'asian-dragon'; dragon: DragonShape });
+// What a look on foot moves with (walker.ts): its walk, m/s, and its jump power, 1 being a jump
+// that rises JUMP_RISE and the rise going with the power. It climbs ladders at CLIMB_SHARE of its walk.
+interface Moves {
+  walk: number;
+  jump: number;
+}
+
+// A look is of a class (classes.ts), and brings what its class's sim needs of it: a walker how it
+// moves, a dragon its body.
+export type AvatarSpec = (Look & { class: 'walker' } & Moves) | (Look & { class: 'asian-dragon'; dragon: DragonShape });
 
 // How many times its model's size each dragon is (sim/dragon.ts DragonShape.size).
 const LIGHT_DRAGON_SIZE = 1.15;
@@ -70,6 +78,8 @@ const LOOKS = {
     command: 'standard',
     eye: EYE_HEIGHT,
     hitbox: { top: 2.0, radius: 0.55, head: 0.5 },
+    walk: 8,
+    jump: 1,
   },
   elizabeth: {
     id: 'elizabeth',
@@ -81,6 +91,8 @@ const LOOKS = {
     command: 'elizabeth',
     eye: 1.62,
     hitbox: { top: 2.0, radius: 0.75, head: 0.55 }, // the egg is 1.24 m across, flippers out past that
+    walk: 8,
+    jump: 1,
   },
   sahur: {
     id: 'sahur',
@@ -92,6 +104,8 @@ const LOOKS = {
     command: 'tung',
     eye: 2.67,
     hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
+    walk: 8,
+    jump: 1,
   },
   sulley: {
     id: 'sulley',
@@ -103,6 +117,8 @@ const LOOKS = {
     command: 'sulley',
     eye: 2.35,
     hitbox: { top: 2.6, radius: 0.72, head: 0.75 }, // the torso is 1.25 m across; the head sits on the shoulders, chin at 1.6 m
+    walk: 8,
+    jump: 1.2,
   },
   mike: {
     id: 'mike',
@@ -114,6 +130,8 @@ const LOOKS = {
     command: 'mike',
     eye: 1.08,
     hitbox: { top: 1.4, radius: 0.5, head: 0.5 }, // a 0.9 m ball that is all head: the eye is 1.07 m up
+    walk: 8,
+    jump: 1,
   },
   spongebob: {
     id: 'spongebob',
@@ -125,6 +143,8 @@ const LOOKS = {
     command: 'spongebob',
     eye: 1.48,
     hitbox: { top: 1.9, radius: 0.55, head: 0.75 }, // a 0.95 m square that is all head: the eyes are 1.5 m up
+    walk: 8,
+    jump: 1,
   },
   patrick: {
     id: 'patrick',
@@ -136,6 +156,8 @@ const LOOKS = {
     command: 'patrick',
     eye: 2.0,
     hitbox: { top: 2.85, radius: 0.7, head: 1.0 }, // a cone that is all head: the eyes are 2 m up
+    walk: 8,
+    jump: 1,
   },
   krabs: {
     id: 'krabs',
@@ -147,6 +169,8 @@ const LOOKS = {
     command: 'krabs',
     eye: 1.95, // the pupils, near the top of the eyestalks
     hitbox: { top: 2.4, radius: 0.7, head: 1.3 }, // a 1.35 m shell with the face on it, eyestalks on top: the head is everything from the mouth up
+    walk: 7,
+    jump: 0.9,
   },
   squidward: {
     id: 'squidward',
@@ -158,6 +182,8 @@ const LOOKS = {
     command: 'squidward',
     eye: 2.74,
     hitbox: { top: 3.2, radius: 0.6, head: 1.25 }, // a 0.95 m head on a 0.75 m shirt, the collar 1.95 m up: the head is everything above it
+    walk: 6,
+    jump: 0.8,
   },
   gary: {
     id: 'gary',
@@ -169,6 +195,8 @@ const LOOKS = {
     command: 'gary',
     eye: 0.5, // his eyes, on stalks at the front of his body
     hitbox: { top: 0.65, radius: 0.4, head: 0.2 }, // a 0.63 m snail, 0.75 m from shell to eyes, with the eyes as the head
+    walk: 5,
+    jump: 0.3,
   },
   plankton: {
     id: 'plankton',
@@ -180,6 +208,8 @@ const LOOKS = {
     command: 'plankton',
     eye: 0.135, // his one eye, in the middle of his face
     hitbox: { top: 0.28, radius: 0.06, head: 0.19 }, // 0.28 m to his antennae's tips, 0.07 m across: the head is everything from the mouth up
+    walk: 3.5,
+    jump: 1,
   },
   'light-dragon': {
     id: 'light-dragon',
@@ -270,9 +300,26 @@ export function eyeOf(p: { pos: Vec3; avatar: AvatarId }): Vec3 {
 // How big an avatar is beside the standard one, by where its eyes are: Mike 0.64, SpongeBob 0.87,
 // Patrick 1.18, Tung Tung Tung 1.57. The client scales what makes a wearer feel their size by it
 // (how wide they see, how often and how heavily they step, how far their head bobs); the sim does
-// not, so a look is never a faster or a harder-to-hit body.
+// not: how a look moves is its own numbers (walkSpeedOf, jumpVelocityOf).
 export function statureOf(avatar: AvatarId): number {
   return AVATARS[avatar].eye / EYE_HEIGHT;
+}
+
+// How fast a look walks at full keys, m/s: its own on foot, the standard body's for any other class.
+export function walkSpeedOf(avatar: AvatarId): number {
+  const look = AVATARS[avatar];
+  return look.class === 'walker' ? look.walk : MOVE_SPEED;
+}
+
+// How fast a look leaves the ground on a jump, m/s: what rises its jump power times JUMP_RISE.
+export function jumpVelocityOf(avatar: AvatarId): number {
+  const look = AVATARS[avatar];
+  return Math.sqrt(2 * GRAVITY * JUMP_RISE * (look.class === 'walker' ? look.jump : 1));
+}
+
+// How fast a look climbs a ladder, m/s, along the rails.
+export function climbSpeedOf(avatar: AvatarId): number {
+  return walkSpeedOf(avatar) * CLIMB_SHARE;
 }
 
 // The avatar a chat command word ("tung") switches a person to, if any.

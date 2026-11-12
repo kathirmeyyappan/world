@@ -99,7 +99,11 @@ class WorldMap:
         # the ones only a running jump reaches.
         self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in data["nodes"])
         self.edges = tuple(tuple(int(j) for j in out) for out in data["edges"])
-        self.jumps = tuple(frozenset(int(j) for j in out) for out in data["jumps"])
+        # Per node, the nodes only a running jump reaches: for each way a look on foot moves (its
+        # walk and jump power), and which of those each avatar's is. ``jumps`` is the standard body's.
+        self._jump_sets = tuple(tuple(frozenset(int(j) for j in out) for out in jumps) for jumps in data["jumpSets"])
+        self._jump_set = {avatar: int(k) for avatar, k in data["jumpSet"].items()}
+        self.jumps = self.jumps_of("standard")
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
         self.lookouts = tuple(int(i) for i in data["lookouts"])
         # The lookouts by where they are: "tower" (its balconies and roof), "building" (a building's
@@ -112,6 +116,8 @@ class WorldMap:
             for avatar, h in data["hitboxes"].items()
         }
         self.eyes = {avatar: float(e) for avatar, e in data["eyes"].items()}
+        # How fast each avatar walks at full input, m/s.
+        self.walks = {avatar: float(w) for avatar, w in data["walks"].items()}
         # The floors indoors: the tower's four inside its wall, ground floor first, then each keep's.
         self.insides = tuple(
             Region(
@@ -140,6 +146,16 @@ class WorldMap:
     def hitbox(self, avatar: str) -> Hitbox:
         """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
         return self.hitboxes.get(avatar, self.hitboxes["standard"])
+
+    def jumps_of(self, avatar: str) -> tuple[frozenset[int], ...]:
+        """Per node, the nodes only ``avatar``'s running jump reaches; the standard body's for an
+        avatar the map doesn't know."""
+        return self._jump_sets[self._jump_set.get(avatar, self._jump_set["standard"])]
+
+    def walk_speed(self, avatar: str) -> float:
+        """How fast an avatar walks at full input, m/s; the standard one's for an avatar the map
+        doesn't know."""
+        return self.walks.get(avatar, self.walks["standard"])
 
     def eye_of(self, p: Player) -> Vec3:
         """Where a player's avatar has its eyes, and so where its shots leave: ``pos`` is the body's
@@ -187,9 +203,11 @@ class WorldMap:
             and abs(self.nodes[i].y - feet.y) <= rise
         ]
 
-    def path(self, start: int, goal: int) -> list[int] | None:
-        """The shortest way from node ``start`` to node ``goal`` (both ends included), or None
-        when there's none. It jumps only where walking can't get there (``jumps``)."""
+    def path(self, start: int, goal: int, avatar: str = "standard") -> list[int] | None:
+        """The shortest way from node ``start`` to node ``goal`` (both ends included) for a body
+        that moves as ``avatar`` does, or None when there's none. It jumps only where walking
+        can't get there, and only where that avatar's jump does (``jumps_of``)."""
+        jumps = self.jumps_of(avatar)
         target = self.nodes[goal]
         frontier = [(0.0, start)]
         cost = {start: 0.0}
@@ -202,10 +220,10 @@ class WorldMap:
                     route.append(came_from[route[-1]])
                 return route[::-1]
             here = self.nodes[i]
-            for j in (*self.edges[i], *self.jumps[i]):
+            for j in (*self.edges[i], *jumps[i]):
                 there = self.nodes[j]
                 step = cost[i] + math.dist((here.x, here.y, here.z), (there.x, there.y, there.z))
-                if j in self.jumps[i]:
+                if j in jumps[i]:
                     step += JUMP_COST
                 if step < cost.get(j, math.inf):
                     cost[j] = step

@@ -38,7 +38,6 @@ RING_BAND = 3
 DETOUR_STEP = math.radians(60)
 # A detour is planned again when its target has moved this far since.
 REPLAN_DISTANCE = 4
-MOVE_SPEED = 8  # metres per second at full input (MOVE_SPEED in packages/shared/src/sim/constants.ts)
 # Blocked means covering under half the commanded distance over a few ticks: the world's edge or a
 # wall is soaking up the move. The window is long enough that one late snapshot doesn't count.
 BLOCKED_PROGRESS = 0.5
@@ -167,7 +166,9 @@ class Circler:
                 self.route.steer(me.pos, tick, controls)
                 return False
         distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
-        if abs(distance - ORBIT_RADIUS) > RING_BAND or self.stall.blocked(tick, me.pos, controls):
+        if abs(distance - ORBIT_RADIUS) > RING_BAND or self.stall.blocked(
+            tick, me.pos, controls, self.world.walk_speed(me.avatar)
+        ):
             return self._detour(tick, me, center)
         _orbit(controls, distance)
         return False
@@ -181,9 +182,9 @@ class Circler:
         if start is None:
             return False
         for goal in self.ring_goals(me, center):
-            path = self.world.path(start, goal)
+            path = self.world.path(start, goal, me.avatar)
             if path is not None:
-                self.route = Route(self.world, path, tick)
+                self.route = Route(self.world, path, tick, me.avatar)
                 self.detours += 1
                 return True
         return False
@@ -227,8 +228,9 @@ class Stall:
         self._settle_until = tick + SETTLE_TICKS
         self._start = None
 
-    def blocked(self, tick: int, pos: Vec3, controls: Controls) -> bool:
-        """Judge the move commanded so far against where the bot got to."""
+    def blocked(self, tick: int, pos: Vec3, controls: Controls, speed: float) -> bool:
+        """Judge the move commanded so far against where the bot got to, walking at ``speed`` m/s
+        at full input."""
         if self._settle_until is None:
             self._settle_until = tick + SETTLE_TICKS
         dx, dz = _world_move(controls)
@@ -245,7 +247,7 @@ class Stall:
             return False
         # Metres along the commanded line, scaled up as if the command had been full speed.
         made = ((pos.x - x) * sdx + (pos.z - z) * sdz) / wanted
-        if made >= BLOCKED_PROGRESS * MOVE_SPEED * elapsed / TICK_RATE:
+        if made >= BLOCKED_PROGRESS * speed * elapsed / TICK_RATE:
             return False
         self._settle_until = tick + SETTLE_TICKS
         return True

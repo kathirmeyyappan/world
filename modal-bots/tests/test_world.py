@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import math
 
 from common import Vec3
@@ -27,3 +28,14 @@ def test_a_walk_from_the_main_disc_climbs_to_every_balcony() -> None:
         assert math.isclose(world.nodes[route[-1]].y, floor, abs_tol=0.05)
         # Up the stair and off it (over the rail, on floors 1 and 2), never higher than a jump.
         assert max(world.nodes[i].y for i in route) <= floor + 1.5
+
+
+def test_a_way_takes_only_the_jumps_its_avatar_makes() -> None:
+    world = load_world_map()
+    gary = world.jumps_of("gary")
+    # A jump the standard body makes and Gary's 0.48 m hop doesn't: his way round never takes it.
+    i, j = next((i, j) for i, out in enumerate(world.jumps) for j in out if j not in gary[i])
+    route = world.path(i, j, "gary")
+    assert route != [i, j]
+    if route is not None:
+        assert all(b in world.edges[a] or b in gary[a] for a, b in itertools.pairwise(route))

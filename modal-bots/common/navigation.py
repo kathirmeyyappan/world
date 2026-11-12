@@ -21,11 +21,13 @@ LOOKAHEAD = 2.5
 
 
 class Route:
-    """A path from ``world.path``. Call ``steer`` on every snapshot; it sets the controls' move
-    (relative to whatever they're looking at, so look first) and says when the walk is over."""
+    """A path from ``world.path``, for a body that moves as ``avatar`` does (the same one the path
+    was found for). Call ``steer`` on every snapshot; it sets the controls' move (relative to
+    whatever they're looking at, so look first) and says when the walk is over."""
 
-    def __init__(self, world: WorldMap, path: list[int], tick: int):
+    def __init__(self, world: WorldMap, path: list[int], tick: int, avatar: str = "standard"):
         self.world = world
+        self.jumps = world.jumps_of(avatar)
         self.path = path
         self.next = 1 if len(path) > 1 else 0
         self._since = tick
@@ -53,7 +55,7 @@ class Route:
         while (
             not self._jumping
             and i + 1 < len(self.path)
-            and self.path[i + 1] not in self.world.jumps[self.path[i]]
+            and self.path[i + 1] not in self.jumps[self.path[i]]
             and _across(feet, self.world.nodes[self.path[i + 1]]) <= LOOKAHEAD
         ):
             i += 1
@@ -94,7 +96,7 @@ class Route:
     @property
     def _jumping(self) -> bool:
         """Whether the way to the next node is a jump."""
-        return 0 < self.next < len(self.path) and self.path[self.next] in self.world.jumps[self.path[self.next - 1]]
+        return 0 < self.next < len(self.path) and self.path[self.next] in self.jumps[self.path[self.next - 1]]
 
     def _reached(self, feet: Vec3) -> bool:
         node = self.world.nodes[self.path[self.next]]
