@@ -66,10 +66,7 @@ export function characterStats(id: AvatarId): Stat[] {
   const life = lifeOf(id);
   const hearts = `${life.hearts}${life.sprite === 'crystal' ? ' crystals' : ''}`;
   const rows: Stat[] = [];
-  if (look.command) {
-    const home = look.class === 'walker' ? ['or pick it on the home screen'] : [];
-    rows.push({ label: 'Equip', value: [...commandsFor(look.command, id), ...home].join(', ') });
-  }
+  if (look.command) rows.push({ label: 'Equip', value: commandsFor(look.command, id).join(', ') });
   rows.push({ label: 'Hearts', value: look.regen ? `${hearts}, back at ${num(REGEN_RATE)} a second` : hearts });
   if (look.class === 'walker') {
     const walk = walkSpeedOf(id);

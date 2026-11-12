@@ -51,11 +51,11 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),
   squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
-  plankton: plain('Plankton', 'Plankton from SpongeBob SquarePants.'),
+  plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
   'light-dragon': plain('Light Dragon', 'The Light Dragon from Tears of the Kingdom.'),
   colgera: plain(
     'Colgera',
-    'Colgera from Tears of the Kingdom. Its weak points are the 3 circular crystals on its underbelly.',
+    'The Wind Temple boss from Tears of the Kingdom. Its weak points are the 3 circular crystals on its underbelly.',
   ),
 };
 
@@ -64,8 +64,8 @@ export const ITEM_TEXT: Record<ItemId, Entry> = {
   sniper: plain('Sniper rifle', 'A sniper rifle.'),
   flamethrower: plain('Flamethrower', 'A flamethrower.'),
   'ice-blower': plain('Ice blower', 'An ice blower.'),
-  firebreath: plain('Fire breath', 'The Light Dragon’s fire breath.'),
-  frostbreath: plain('Frost breath', 'Colgera’s frost breath.'),
+  firebreath: plain('Fire breath', ''),
+  frostbreath: plain('Frost breath', ''),
 };
 
 export const GEAR_TEXT: Record<GearId, Entry> = {

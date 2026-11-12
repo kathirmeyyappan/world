@@ -245,7 +245,7 @@ class Catalog {
     const { entry } = pick;
     this.text.replaceChildren(
       el('h2', '', entry.title),
-      el('p', 'summary', entry.summary),
+      ...(entry.summary ? [el('p', 'summary', entry.summary)] : []),
       statTable(pick.stats()),
       ...facts(entry.facts),
     );
