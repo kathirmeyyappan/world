@@ -95,13 +95,11 @@ export class Environment {
   private createKerb(mat: ShaderMaterial): void {
     const positions: number[] = [];
     const indices: number[] = [];
-    const runs = this.exposedRuns(this.shape);
-    const corners = mitres(runs);
     const foot = OUTSIDE_HEIGHT + KERB_HEIGHT;
-    runs.forEach(({ part, points }, r) => {
+    // The kerb along `points`, each with the way out square to the edge there.
+    const strip = (points: { p: Point; n: Point }[]) => {
       const base = positions.length / 3;
-      points.forEach((p, i) => {
-        const n = corners.get(`${r}:${i}`) ?? outward(part, p);
+      for (const { p, n } of points) {
         const at = (d: number) => [p.x + n.x * d, p.z + n.z * d];
         const [ix, iz] = at(-KERB_WIDTH);
         const [ox, oz] = at(STEP_GAP);
@@ -126,7 +124,7 @@ export class Environment {
           OUTSIDE_HEIGHT,
           tz,
         );
-      });
+      }
       for (let i = 0; i < points.length - 1; i++) {
         const a = base + i * KERB_RING;
         for (let band = 0; band < KERB_RING - 1; band++) {
@@ -134,7 +132,10 @@ export class Environment {
           indices.push(p, p + 1, q, p + 1, q + 1, q);
         }
       }
-    });
+    };
+    const runs = this.exposedRuns(this.shape);
+    for (const { part, points } of runs) strip(points.map((p) => ({ p, n: outward(part, p) })));
+    for (const corner of roundJoins(runs)) strip(corner);
     const kerb = new Mesh('kerb', this.engine.scene);
     const data = new VertexData();
     data.positions = positions;
@@ -313,7 +314,7 @@ export class Environment {
   private exposedRuns(shape: WorldPart[]): { part: WorldPart; points: Point[] }[] {
     const runs: { part: WorldPart; points: Point[] }[] = [];
     for (const part of shape) {
-      const exposed = (p: Point) => shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
+      const exposed = (p: Point) => shape.every((other) => other === part || partDistance(p.x, p.z, other) > 0);
       let run: Point[] = [];
       const end = () => {
         if (run.length >= 2) runs.push({ part, points: run });
@@ -406,25 +407,32 @@ export class Environment {
 
 const KERB_RING = 6; // vertices across the kerb at each point along it: its inner face, top, drop and toe
 
-// Where two runs of the edge meet (a corner between two parts), the kerb's normal at both their
-// ends: the two parts' outward normals' mean, stretched so the kerb keeps its width along each, so
-// both stretches end on the corner's bisector and the kerb turns it in one piece. Keyed by run and
-// point index.
-function mitres(runs: { part: WorldPart; points: Point[] }[]): Map<string, Point> {
-  const ends = runs.flatMap(({ part, points }, r) =>
-    [0, points.length - 1].map((i) => ({ key: `${r}:${i}`, p: points[i], n: outward(part, points[i]) })),
+const JOIN_STEP = Math.PI / 18; // radians between the kerb's normals round a corner
+
+// Where two runs of the edge meet (a corner between two parts, both runs ending on the very point
+// their edges cross), the kerb swept round that point from one run's way out to the other's, the
+// short way: a round join, closing the corner whichever way the edge bends there.
+function roundJoins(runs: { part: WorldPart; points: Point[] }[]): { p: Point; n: Point }[][] {
+  const ends = runs.flatMap(({ part, points }) =>
+    [points[0], points[points.length - 1]].map((p) => ({ p, n: outward(part, p) })),
   );
-  const corners = new Map<string, Point>();
-  for (const a of ends)
-    for (const b of ends) {
-      if (a === b || Math.hypot(a.p.x - b.p.x, a.p.z - b.p.z) > 0.01) continue;
-      const m = { x: a.n.x + b.n.x, z: a.n.z + b.n.z };
-      const len = Math.hypot(m.x, m.z) || 1;
-      const u = { x: m.x / len, z: m.z / len };
-      const stretch = 1 / Math.max(0.25, a.n.x * u.x + a.n.z * u.z); // at most 4 times, at a sharp corner
-      corners.set(a.key, { x: u.x * stretch, z: u.z * stretch });
-    }
-  return corners;
+  const joins: { p: Point; n: Point }[][] = [];
+  ends.forEach((a, i) =>
+    ends.slice(i + 1).forEach((b) => {
+      if (Math.hypot(a.p.x - b.p.x, a.p.z - b.p.z) > 0.01) return;
+      const from = Math.atan2(a.n.z, a.n.x);
+      const turn = Math.atan2(a.n.x * b.n.z - a.n.z * b.n.x, a.n.x * b.n.x + a.n.z * b.n.z);
+      if (Math.abs(turn) < 1e-3) return; // a loop closing on itself, or edges meeting straight on
+      const steps = Math.ceil(Math.abs(turn) / JOIN_STEP);
+      joins.push(
+        Array.from({ length: steps + 1 }, (_, k) => {
+          const angle = from + (turn * k) / steps;
+          return { p: a.p, n: { x: Math.cos(angle), z: Math.sin(angle) } };
+        }),
+      );
+    }),
+  );
+  return joins;
 }
 
 // The way out of `part` square to its edge at `p`, a unit vector.
