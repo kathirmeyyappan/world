@@ -8,7 +8,7 @@ import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 import { AVATARS, EYE_HEIGHT, WORLD_STRUCTURES } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
 
-const ABOVE_BODY = 0.3; // metres from the top of the body to the middle of the name
+export const ABOVE_BODY = 0.3; // metres from the top of the body to the middle of the name
 const TAG_EM = 0.23; // metres: the font size in the world, about 20 px at 6 m
 const MIN_PX = 9; // far off, small but still sharp
 const MAX_PX = 28;
@@ -23,6 +23,27 @@ interface Tag {
   color: string;
 }
 
+// Where a tag for a name at `at` stands on a canvas `w` by `h` CSS pixels (from its top left) and its
+// lettering's size in pixels, or null where it's behind the camera or off the canvas.
+export function tagOnScreen(
+  at: Vector3,
+  scene: Scene,
+  camera: Camera,
+  w: number,
+  h: number,
+): { x: number; y: number; px: number } | null {
+  const screen = Vector3.Project(at, Matrix.Identity(), scene.getTransformMatrix(), camera.viewport.toGlobal(w, h));
+  const ahead = Vector3.TransformCoordinates(at, camera.getViewMatrix()).z > 0;
+  if (!ahead || screen.x < 0 || screen.x > w || screen.y < 0 || screen.y > h) return null;
+  const pxPerMetreAt1m = h / (2 * Math.tan(camera.fov / 2)); // vertical field of view
+  const d = Vector3.Distance(camera.globalPosition, at);
+  return {
+    x: screen.x,
+    y: screen.y,
+    px: Math.round(Math.min(MAX_PX, Math.max(MIN_PX, (TAG_EM * pxPerMetreAt1m) / d))),
+  };
+}
+
 export class NameTags {
   private readonly root = document.getElementById('name-tags')!;
   private readonly tags = new Map<string, Tag>();
@@ -30,11 +51,7 @@ export class NameTags {
   update(players: RemotePlayer[], scene: Scene, camera: Camera, canvas: HTMLCanvasElement): void {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    const view = camera.getViewMatrix();
-    const viewport = camera.viewport.toGlobal(w, h);
-    const transform = scene.getTransformMatrix();
     const eye = camera.globalPosition;
-    const pxPerMetreAt1m = h / (2 * Math.tan(camera.fov / 2)); // vertical field of view
     const seen = new Set<string>();
 
     for (const p of players) {
@@ -43,18 +60,12 @@ export class NameTags {
       if (p.name !== tag.name) tag.el.textContent = tag.name = p.name;
       if (p.color !== tag.color) tag.el.style.color = tag.color = p.color;
       const at = new Vector3(p.x, p.y - EYE_HEIGHT + AVATARS[p.avatar].hitbox.top + ABOVE_BODY, p.z);
-      const screen = Vector3.Project(at, Matrix.Identity(), transform, viewport);
-      const visible =
-        Vector3.TransformCoordinates(at, view).z > 0 &&
-        screen.x >= 0 &&
-        screen.x <= w &&
-        screen.y >= 0 &&
-        screen.y <= h &&
-        WORLD_STRUCTURES.clear(eye, at);
+      const screen = tagOnScreen(at, scene, camera, w, h);
+      const visible = screen !== null && WORLD_STRUCTURES.clear(eye, at);
       tag.el.style.display = visible ? 'block' : 'none';
       if (!visible) continue;
       const d = Vector3.Distance(eye, at);
-      const px = Math.round(Math.min(MAX_PX, Math.max(MIN_PX, (TAG_EM * pxPerMetreAt1m) / d)));
+      const px = screen.px;
       if (px !== tag.px) {
         tag.px = px;
         tag.el.style.fontSize = `${px}px`;

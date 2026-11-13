@@ -134,27 +134,48 @@
         <div class="card home-card">
           <div class="home-head">
             <h1>KATHIR WORLD</h1>
-            <p class="tagline">
-              a small 3D playground. bring friends. read guide
-              <a href="/guide/" target="_blank" rel="noopener">here</a>. see repo
-              <a href="https://github.com/kathirmeyyappan/world" target="_blank" rel="noopener">here</a>.
-            </p>
+            <div class="home-links">
+              <a id="home-guide" class="home-link" href="/guide/" target="_blank" rel="noopener">
+                <span>KATHIR WORLD GUIDE</span>
+              </a>
+              <a
+                id="home-source"
+                class="home-link"
+                href="https://github.com/kathirmeyyappan/world"
+                target="_blank"
+                rel="noopener"
+              >
+                <span>SOURCE CODE</span>
+              </a>
+            </div>
           </div>
           <div class="home-join">
-            <button id="home-global" class="wide">JOIN GLOBAL</button>
-            <div class="divider"><span>OR</span></div>
-            <label>
-              <span>ROOM CODE</span>
-              <input
-                id="home-room"
-                type="text"
-                maxlength="24"
-                placeholder="e.g. late-night"
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </label>
-            <button id="home-join" class="wide">JOIN / CREATE ROOM</button>
+            <div class="home-tabs" role="tablist">
+              <button role="tab" data-mode="join" aria-selected="true">JOIN ROOM</button>
+              <button role="tab" data-mode="create" aria-selected="false">CREATE ROOM</button>
+            </div>
+            <div class="home-tab-panel" role="tabpanel">
+              <div id="home-global-row">
+                <button id="home-global" class="wide">JOIN GLOBAL</button>
+                <div class="divider"><span>OR</span></div>
+              </div>
+              <div class="field">
+                <span>ROOM CODE</span>
+                <div class="home-code-row">
+                  <input
+                    id="home-room"
+                    type="text"
+                    maxlength="24"
+                    placeholder="e.g. late-night"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-label="room code"
+                  />
+                  <button id="home-join">JOIN</button>
+                </div>
+              </div>
+              <p id="home-mode-hint"></p>
+            </div>
             <button id="home-offline" class="wide subtle hidden">PLAY OFFLINE</button>
             <div id="home-status"></div>
           </div>

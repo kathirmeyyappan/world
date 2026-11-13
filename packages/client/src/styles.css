@@ -177,11 +177,6 @@ body {
   text-shadow: 3px 3px 0 #000;
   margin-bottom: 6px;
 }
-.card .tagline {
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 20px;
-}
 .card label,
 .card .field {
   display: block;
@@ -247,12 +242,6 @@ body {
   flex: 1;
   border-top: 2px solid rgba(var(--accent-rgb), 0.3);
 }
-.card .tagline a {
-  color: var(--accent);
-}
-.card .tagline a:hover {
-  color: var(--accent-soft);
-}
 
 /* Home: the room on the left, the player on the right; stacked on a phone, the player between. */
 .card.home-card {
@@ -267,6 +256,126 @@ body {
 }
 .home-head {
   grid-area: head;
+}
+/* The guide and the source, side by side under the title: thick pixel buttons with an icon over
+   the words, a gap before the way into a room. */
+.home-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin: 18px 0 26px;
+}
+.home-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 66px;
+  padding: 9px 8px;
+  font: 7px/1.6 var(--pixel);
+  letter-spacing: 1px;
+  text-align: center;
+  text-decoration: none;
+  color: #fff;
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 2px solid rgba(var(--accent-rgb), 0.6);
+  box-shadow: 4px 4px 0 #000;
+  transition:
+    background 0.1s,
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+.home-link:hover,
+.home-link:focus-visible {
+  outline: none;
+  background: rgba(var(--accent-rgb), 0.22);
+  border-color: var(--accent);
+}
+.home-link:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000;
+}
+.home-icon {
+  width: auto;
+  height: 22px;
+  fill: var(--accent);
+  filter: drop-shadow(2px 2px 0 #000);
+  shape-rendering: crispEdges;
+}
+.home-icon .ink {
+  fill: var(--label);
+}
+/* CREATE and JOIN, as tabs on a panel holding the code and its button. */
+.home-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.card .home-tabs button {
+  position: relative;
+  padding: 12px 6px 10px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.45);
+  background: transparent;
+  border: 2px solid rgba(var(--accent-rgb), 0.3);
+  border-bottom-color: var(--accent);
+  box-shadow: none;
+}
+.card .home-tabs button + button {
+  border-left: none;
+}
+.card .home-tabs button:hover {
+  color: #fff;
+  background: rgba(var(--accent-rgb), 0.1);
+}
+.card .home-tabs button[aria-selected='true'] {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: var(--accent);
+  border-bottom-color: transparent;
+}
+.home-tab-panel {
+  padding: 24px 22px;
+  border: 2px solid var(--accent);
+  border-top: none;
+  background: rgba(var(--accent-rgb), 0.05);
+}
+.home-tab-panel .field {
+  margin-bottom: 0;
+}
+/* The code and its button on one line, the button the input's height. */
+.home-code-row {
+  display: flex;
+  gap: 10px;
+}
+.home-code-row input {
+  flex: 1;
+  min-width: 0;
+}
+.card .home-code-row button {
+  flex: none;
+  min-width: 96px;
+  padding: 0 18px;
+}
+.home-tab-panel #home-global {
+  margin-top: 0;
+  padding: 20px 12px;
+  font-size: 12px;
+}
+/* The OR's rule sits as far under JOIN GLOBAL as the panel's top is over it. */
+.home-tab-panel .divider {
+  margin: 19px 0 19px;
+}
+#home-mode-hint:empty {
+  display: none;
+}
+#home-mode-hint {
+  margin-top: 8px;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.5);
+}
+#home-view .name-tag {
+  pointer-events: none;
 }
 .home-join {
   grid-area: join;
@@ -392,11 +501,16 @@ body {
     border-left: none;
     padding-left: 0;
     padding-bottom: 18px;
-    margin-bottom: 8px;
-    border-bottom: 2px solid rgba(var(--accent-rgb), 0.3);
   }
   #home-view {
     height: 200px;
+  }
+  .home-tab-panel {
+    padding: 20px 14px;
+  }
+  .card .home-code-row button {
+    min-width: 0;
+    padding: 0 14px;
   }
 }
 
