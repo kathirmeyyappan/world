@@ -580,6 +580,11 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
     Math.abs(worldDistance(p.pos.x, p.pos.z) + PLAYER_PADDING) < 1e-6,
     `on the edge: ${p.pos.x.toFixed(1)}, ${p.pos.z.toFixed(1)}`,
   );
+  // One down in the drop past the edge comes up onto the floor there.
+  becomeAvatar(p, 'light-dragon');
+  p.pos = { x: 60, y: -4, z: 60 };
+  becomeAvatar(p, 'standard');
+  assert.equal(p.pos.y, EYE_HEIGHT);
 });
 
 test('a dead dragon drapes over an edge, its body a link apart, rather than stretching down to the ground', () => {

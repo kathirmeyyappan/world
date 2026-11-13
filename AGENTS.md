@@ -417,11 +417,13 @@ wire: server and client both build the world from that file.
   a straight `bridge` or a pie-slice `sector` (its straight sides kept under a path). Players are
   clamped 1 m inside it no matter what, so keep structures inside too.
   Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
-  whose outer face drops to the ground past the edge, drawn `OUTSIDE_HEIGHT` (1 m) down
-  (`render/Environment.ts`), so where you can't go reads from afar. The floor and that ground both
-  end under the kerb, so every edge in sight is real geometry rather than a shader's cut. It's only
-  drawn (the sim's floor is flat, and players never reach the kerb), and the third-person camera
-  keeps above the floor's level.
+  whose outer face drops to the ground past the edge, `OUTSIDE_HEIGHT` (10 m) down
+  (`render/Environment.ts`), so where you can't go reads from afar; the grid carries on down that
+  drop, its upright lines where the floor's meet it. The floor and that ground both end under the
+  kerb, so every edge in sight is real geometry rather than a shader's cut. A walker never leaves
+  the floor (it's flat, and players never reach the kerb); a dragon can fly down into the drop,
+  where the floor's rim is a wall it climbs before coming back in (`dragon.ts`), and a walker it
+  turns back into there comes up onto the floor at the edge. The camera follows it down.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;

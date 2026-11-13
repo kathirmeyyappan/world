@@ -33,7 +33,12 @@ export const WALKER: ClassSpec = {
   actions: {},
   actionTicks: 0,
   fits: () => true,
-  confine: (p, shape) => clampToWorld(p.pos, PLAYER_PADDING, shape),
+  // Inside the outline and never under the floor: a dragon down in the drop past the edge comes back
+  // up onto it.
+  confine: (p, shape) => {
+    clampToWorld(p.pos, PLAYER_PADDING, shape);
+    p.pos.y = Math.max(p.pos.y, EYE_HEIGHT);
+  },
   enter() {},
   exit(p) {
     p.climb = null;

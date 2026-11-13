@@ -49,9 +49,9 @@ export const WORLD_SHAPE: WorldPart[] = [
 ];
 
 // Metres the ground past the world's edge stands above the floor: below it, so the kerb along the
-// edge drops to it and where you can't go reads from afar. Only drawn (render/Environment.ts): the
-// sim keeps everyone inside the edge and its floor flat.
-export const OUTSIDE_HEIGHT = -1;
+// edge drops to it and where you can't go reads from afar (render/Environment.ts). A walker is kept
+// inside the edge, on a flat floor; a dragon can fly down into the drop (dragon.ts).
+export const OUTSIDE_HEIGHT = -10;
 
 // The structures standing inside the outline, indexed for the sim's queries.
 export const WORLD_STRUCTURES = new Structures(STRUCTURES);

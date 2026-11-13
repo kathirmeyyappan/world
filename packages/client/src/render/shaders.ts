@@ -1,5 +1,5 @@
 // GLSL for the environment. Kept in one place so the ground, sky and boundary share helpers.
-import { EYE_HEIGHT, OUTSIDE_HEIGHT } from '@world/shared';
+import { EYE_HEIGHT } from '@world/shared';
 import { BASE_FOG_DENSITY } from './Engine';
 
 // The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera, the scene's
@@ -103,8 +103,9 @@ export const KERB_HEIGHT = 0.08;
 // colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
 // three parts of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT
 // down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb's top
-// is lit bright, its inner face the grid's colour and its outer face darkening down the drop, so
-// where you can't go reads from afar.
+// is lit bright and its inner face the grid's colour, so where you can't go reads from afar. The
+// kerb's outer face, the drop, carries the grid on down from the floor to the ground below: its
+// upright lines where the floor's meet it, and level ones at the same spacing.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
@@ -119,21 +120,46 @@ uniform float time;
 ${WORLD_SDF}
 ${SKY_GRADIENT}
 
+float gridLine1(float v, float spacing, float width) {
+  float g = abs(fract(v / spacing - 0.5) - 0.5) * spacing;
+  float fw = fwidth(v) * 1.2;
+  return 1.0 - smoothstep(width - fw, width + fw, g);
+}
+
 float gridLine(vec2 p, float spacing, float width) {
-  vec2 g = abs(fract(p / spacing - 0.5) - 0.5) * spacing;
-  vec2 fw = fwidth(p) * 1.2;
-  vec2 a = 1.0 - smoothstep(width - fw, width + fw, g);
-  return max(a.x, a.y);
+  return max(gridLine1(p.x, spacing, width), gridLine1(p.y, spacing, width));
+}
+
+// The grid on an upright face: where x or z crosses a line of the floor's, an upright line, and a
+// level one at each multiple of the spacing in height. A face running along an axis never crosses
+// that axis's lines, so they're left off it rather than lighting all of it where it lies on one.
+float wallGridLine(vec3 w, float spacing, float width) {
+  vec3 n = normalize(cross(dFdx(w), dFdy(w)));
+  vec2 along = abs(n.zx) / max(length(n.xz), 1.0e-4); // how much x and z change along the face, level
+  return max(
+    max(gridLine1(w.x, spacing, width) * smoothstep(0.15, 0.35, along.x), gridLine1(w.z, spacing, width) * smoothstep(0.15, 0.35, along.y)),
+    gridLine1(w.y, spacing, width)
+  );
 }
 
 void main() {
   vec2 p = vWorld.xz;
   float dist = length(p - cameraPos.xz);
-  float plain = side > 1.5 ? 0.0 : 1.0; // the kerb has no grid
-  float minor = gridLine(p, 2.0, 0.045) * plain;
-  float major = gridLine(p, 10.0, 0.09) * plain;
   float sd = worldDistance(p);
   if (side < 0.5 ? sd > ${-KERB_WIDTH / 2} : side < 1.5 && sd < ${-KERB_WIDTH / 2}) discard;
+  // On the kerb: its top, its inner face, or else the drop.
+  float top = side > 1.5 ? step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : 0.0;
+  float inner = side > 1.5 ? step(sd, ${-KERB_WIDTH / 2}) * (1.0 - top) : 0.0;
+  float minor;
+  float major;
+  if (side > 1.5) {
+    float drop = (1.0 - top) * (1.0 - inner);
+    minor = wallGridLine(vWorld, 2.0, 0.045) * drop;
+    major = wallGridLine(vWorld, 10.0, 0.09) * drop;
+  } else {
+    minor = gridLine(p, 2.0, 0.045);
+    major = gridLine(p, 10.0, 0.09);
+  }
   float inside = 1.0 - smoothstep(-2.0, 6.0, sd);
   float pulse = 0.85 + 0.15 * sin(time * 1.5 - length(p) * 0.15);
   vec3 col = floorColor;
@@ -141,13 +167,8 @@ void main() {
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
   float outside = side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
-  if (side > 1.5) {
-    float top = step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y);
-    float inner = step(sd, ${-KERB_WIDTH / 2});
-    float down = clamp(vWorld.y / ${OUTSIDE_HEIGHT.toFixed(2)}, 0.0, 1.0); // 0 at the floor, 1 at the ground past it
-    vec3 face = mix(lineColor * 0.45, mix(vec3(0.2), vec3(0.04), down), 1.0 - inner);
-    col = mix(face, majorColor * pulse, top);
-  }
+  col = mix(col, lineColor * 0.45, inner);
+  col = mix(col, majorColor * pulse, top);
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);
