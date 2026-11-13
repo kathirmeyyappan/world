@@ -102,9 +102,9 @@ export const KERB_HEIGHT = 0.08;
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
 // colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
 // three parts of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT
-// down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb is lit
-// bright along the top of the drop (green on its top, grey down the face) and along its toe at the
-// foot (grey), so where you can't go reads from afar. The
+// down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb is drawn
+// as a bold line of the grid along the top of the drop (green on its top, grey down the face) and
+// along its toe at the foot (grey), so where you can't go reads from afar. The
 // kerb's outer face, the drop, carries the grid on down from the floor to the ground below
 // (surfaceGridLine).
 export const GROUND_FRAGMENT = `
@@ -158,9 +158,10 @@ void main() {
   float minor;
   float major;
   if (side > 1.5) {
+    // The lit parts are drawn as a bold line of the grid, so they're its colour exactly.
     float drop = (1.0 - lit) * (1.0 - rim);
-    minor = surfaceGridLine(vWorld, 2.0, 0.045) * drop;
-    major = surfaceGridLine(vWorld, 10.0, 0.09) * drop;
+    minor = max(surfaceGridLine(vWorld, 2.0, 0.045) * drop, lit);
+    major = max(surfaceGridLine(vWorld, 10.0, 0.09) * drop, lit);
   } else {
     minor = gridLine(p, 2.0, 0.045);
     major = gridLine(p, 10.0, 0.09);
@@ -170,14 +171,10 @@ void main() {
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
-  float outside = side > 0.5 ? 1.0 : 0.0;
+  // Grey past the edge: the ground there and all of the kerb but its top, at the floor's edge.
+  float outside = side > 1.5 ? 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
   col = mix(col, lineColor * 0.45, rim);
-  // Lit green on the curb's top, at the floor's edge; grey like everything past it elsewhere.
-  vec3 bright = majorColor * pulse;
-  float past = 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y);
-  bright = mix(bright, vec3(dot(bright, vec3(0.299, 0.587, 0.114))), past);
-  col = mix(col, bright, lit);
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);
