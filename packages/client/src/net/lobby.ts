@@ -62,6 +62,14 @@ export function rememberName(name: string): void {
   if (sessionStorage.getItem('world.room')) sessionStorage.setItem('world.name', name);
 }
 
+// Back into the room after dying: the page reloads as a fresh player, and the join says it's a
+// respawn, so the Room puts it where the dead come back (RESPAWN_AREAS) rather than where people
+// first come in.
+export function respawn(): void {
+  sessionStorage.setItem('world.respawn', '1');
+  location.reload();
+}
+
 // The launcher the player came from, or this host's own menu when that isn't known.
 export function homeUrl(): string {
   return sessionStorage.getItem('world.home') || location.pathname;
@@ -151,6 +159,8 @@ export async function joinRoom(roomId: string, you: Joiner, mode: JoinMode | nul
     const query = joinQuery(you);
     query.set('room', roomId);
     if (mode) query.set('mode', mode);
+    if (sessionStorage.getItem('world.respawn')) query.set('respawn', '1');
+    sessionStorage.removeItem('world.respawn');
     return query;
   };
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';

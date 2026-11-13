@@ -3,7 +3,7 @@
 // can both host one. Ticks on a fixed timestep and broadcasts a snapshot after every tick.
 import { CUBE_IDS } from './content/cubes';
 import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
-import { SPAWN_AREAS } from './content/regions';
+import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from './content/regions';
 import {
   isClientMessage,
   type ClientMessage,
@@ -89,6 +89,7 @@ export interface JoinOptions extends BotPlacement {
   // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
   // spawns at random, in the avatar if it's one on foot they could switch to by command.
   color?: string; // one of NAMED_COLORS' names, for the standard body; else one of them at random
+  respawn?: boolean; // a person back after dying (the death screen's reload): RESPAWN_AREAS, not SPAWN_AREAS
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -194,7 +195,10 @@ export class Room {
       return null;
     }
     const id = `p${this.nextPlayerId++}`;
-    const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint();
+    const at =
+      opts.bot && opts.spawn
+        ? this.placedSpawn(opts.spawn)
+        : this.spawnPoint(opts.respawn && !opts.bot ? RESPAWN_AREAS : SPAWN_AREAS);
     const names = Object.keys(NAMED_COLORS);
     const named =
       opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? opts.color : names[Math.floor(this.rng() * names.length)];
@@ -664,11 +668,12 @@ export class Room {
     return { x: p.x, y: this.standAt(p.x, p.z, feet.y) + EYE_HEIGHT, z: p.z };
   }
 
-  // Somewhere in one of SPAWN_AREAS, on the ground (or anything within a step of it): inside a
-  // building's ground floor, never on a roof. Returns the eye position.
-  private spawnPoint(): Vec3 {
-    const area = SPAWN_AREAS[Math.floor(this.rng() * SPAWN_AREAS.length)]; // one for every try, so each gets its share
-    const feet = this.standingSpot(() => randomPointInRegion(area, SPAWN_MARGIN, this.rng), 0);
+  // Somewhere in one of `areas`, by their weights, on its floor (or anything within a step of it):
+  // inside a building's ground floor, never on a roof. Returns the eye position.
+  private spawnPoint(areas: SpawnArea[]): Vec3 {
+    let pick = this.rng() * areas.reduce((sum, a) => sum + a.weight, 0);
+    const { region } = areas.find((a) => (pick -= a.weight) < 0) ?? areas[areas.length - 1];
+    const feet = this.standingSpot(() => randomPointInRegion(region, SPAWN_MARGIN, this.rng), region.y);
     return { ...feet, y: feet.y + EYE_HEIGHT };
   }
 
