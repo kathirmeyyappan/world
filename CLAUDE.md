@@ -288,10 +288,12 @@ cut from a board (the roof's staves, the arches, the plinth, the kitchen's doors
 the flags) is its silhouette traced and pushed through again (`prism`), anything convex (crates,
 barrels, rivets, the chimney) the hull of its outermost points (`hull`), and the boat a hull lofted
 through its outline at each plank's edge (`boat`); what's too small to see is dropped (the floor's
-nails, the steel's rivets). The timber gets plank textures painted in the script and wrapped over
-it in metres, and everything else a plain colour from one small atlas, which also carries the menu
-and the ORDER HERE sign. It comes to about 9,100 triangles and 255 KB in nine parts, all lit like
-the pineapple's outside, and a profile (`content/krustyKrabProfile.ts`) of 167 boxes, the roof's
+nails, the rivets round the doors), and the bolts along the kitchen wall's plates are kept as their
+heads alone, a square each. The timber gets plank textures painted in the script and wrapped over
+it in metres, and everything else a plain colour from one small atlas (the model's own colours,
+but the kitchen's wall darker and greyer, as steel), which also carries the menu and the ORDER HERE
+sign. It comes to about 9,300 triangles and 260 KB in nine parts, all lit like the pineapple's
+outside, and a profile (`content/krustyKrabProfile.ts`) of 167 boxes, the roof's
 four leaning staves as ramps, and the door's two leaves. A model's parts list is all `Models.ts`
 needs of it: a new model is a script, its files, and a row in `MODELS` there.
 

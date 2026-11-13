@@ -29,14 +29,16 @@ object kept is built again from its shape, whichever way suits it (build):
   as it is.
 
 The scenery goes (the sky, the sand and its base, the road, the two houses and the seaweed), and
-so does everything too small to see: the floor's nails and the steel's rivets, each a little dome
-of triangles, tens of thousands of them (MIN_SIZE), and the straws in the drinks. The floor's 305
-bevelled planks become one slab.
+so does everything too small to see: the floor's nails and the rivets round the doors, each a
+little dome of triangles, tens of thousands of them (MIN_SIZE), and the straws in the drinks. The
+bolts along the edges of the kitchen wall's plates stay, each as its head alone, a square (bolt).
+The floor's 305 bevelled planks become one slab.
 
 Nothing keeps the model's photographic textures. The timber is two small plank textures painted
 here and wrapped over it in metres (planks, planked), the floor a third, and everything else a
 plain colour from one small atlas, which also carries the menu, the ORDER HERE sign and the one
-flag with a picture, shrunk (atlas).
+flag with a picture, shrunk (atlas). The colours are the model's own but for the kitchen's wall,
+whose plates and doors are darker and greyer than it paints them, as steel (steel).
 
 The parts: roof and frame (the timber, dark and light), floor, trim (everything else that's
 solid, indoors and out), glass, and the two leaves of the door with their handles, each on a pin
@@ -615,8 +617,23 @@ def pipe(mesh: Mesh, length: float = 1.2) -> Mesh:
     return merged(lengths)
 
 
-PROUD = 0.03  # metres the kitchen's panels stand off the block behind them
-LAPPED = {"Plane.008": 0.01, "Plane.012": 0.02}  # metres more for the panels lying over others' edges
+PROUD = 0.03  # metres the kitchen's plates stand off the block behind them
+LAPPED = {"Plane.008": 0.01, "Plane.012": 0.02}  # metres more for the plates lying over others' edges
+
+
+def bolt(rivet: Mesh, moved: np.ndarray | None = None) -> Mesh:
+    """One of the kitchen wall's rivets, a dome of hundreds of triangles, as its head alone: a
+    square the dome's size standing off the wall's face (which looks out along +z) by the dome's
+    height, `moved` with the plate it is in."""
+    moved = np.zeros(3) if moved is None else moved
+    low, high = rivet.points.min(axis=0) + moved, rivet.points.max(axis=0) + moved
+    x, y = (low[:2] + high[:2]) / 2
+    r = max(high[0] - low[0], high[1] - low[1]) / 2
+    z = low[2] + max(high[2] - low[2], 0.02)
+    points = np.array([[x - r, y - r, z], [x + r, y - r, z], [x + r, y + r, z], [x - r, y + r, z]])
+    return Mesh(points, np.array([[0, 1, 2], [0, 2, 3]]))
+
+
 # Metres up the boat's side the sim stops at, a little under its rim (1.68 m): Squidward jumps
 # 1.28 m and a walker steps the last of a climb, so this is what lets him into his own boat.
 BOAT_RIM = 1.5
@@ -751,7 +768,6 @@ def build(objs: dict[str, Obj]) -> Model:
             "Circle.011",  # the two houses
             "Circle.016",
             "Circle.002",  # the floor's nails
-            "Circle.010",  # a row of rivets along the kitchen's top
             "Cylinder.004",  # a column's foot, twice
             "Plane.003",  # a steel panel, twice
         ):
@@ -875,8 +891,9 @@ def build(objs: dict[str, Obj]) -> Model:
         for strap in loose(take(name).meshes["Mtal_poutre"]):
             model.add("trim", "Mtal_poutre", hull(strap.points, BLOCK, merge=0.08))
 
-    # The kitchen: a block the building's length with the loft on top, steel panels over its
-    # front, the three doors and the order window (a dark box behind it), none of which open.
+    # The kitchen: a block the building's length with the loft on top, steel plates over its
+    # front with the bolts along their edges, a row of bigger bolts under the loft's edge, the
+    # three doors and the order window (a dark box behind it), none of which open.
     kitchen = take("Cube.010")
     for material, mesh in kitchen.meshes.items():
         model.add("trim", material, mesh)
@@ -889,13 +906,19 @@ def build(objs: dict[str, Obj]) -> Model:
     dark = one("Cube.014")
     model.add("trim", "Material.003", Mesh(dark.points - 0.03 * Z, dark.tris))
     for name in ("Cube.018", "Cube.017", "Plane.008", "Plane.011", "Plane.012", "Cube.015", "Cube.019"):
+        # A little proud of the block's face, so the two never share a plane, and the two plates
+        # that lap over their neighbours a little further still; a plate's bolts go with it.
+        out = (PROUD + LAPPED.get(name, 0.0)) * Z
         for material, mesh in take(name).meshes.items():
             if material.startswith("Cuisine"):
-                panel = prism(mesh, Z, tolerance=0.03) if len(mesh) > 100 else Mesh(mesh.points.copy(), mesh.tris)
-                # A little proud of the block's face, so the two never share a plane, and the two
-                # panels that lap over their neighbours a little further still.
-                panel.points += (PROUD + LAPPED.get(name, 0.0)) * Z
-                model.add("trim", material, panel)
+                plate = prism(mesh, Z, tolerance=0.03) if len(mesh) > 100 else Mesh(mesh.points.copy(), mesh.tris)
+                plate.points += out
+                model.add("trim", material, plate)
+            else:
+                for rivet in loose(mesh):
+                    model.add("trim", "bolt", bolt(rivet, out))
+    for rivet in loose(one("Circle.010")):
+        model.add("trim", "bolt", bolt(rivet))
     for name in ("Circle.008", "Circle.007", "Circle.009", "Cube.013"):
         for material, mesh in take(name).meshes.items():
             if material.startswith("Metal_porte"):
@@ -1029,10 +1052,24 @@ CREASE = 40.0  # degrees between two faces past which the edge they share is dra
 PICTURES = {"Menu_1": 96, "Menu_3": 40, "Flag-Jaune": 32}  # materials that keep their picture, and how tall, px
 GLASS = (176, 216, 235)
 PORTHOLE = (128, 170, 205)
+# The kitchen's steel, darker and greyer than the model paints it: how much of a plate's own colour
+# gives way to grey, and how much of its brightness it keeps. Its doors and the window's frame keep
+# more of their blue. A bolt is a shade lighter than the plates, enough to be made out up close.
+STEEL = (0.65, 0.45)
+DOOR_STEEL = (0.3, 0.55)
+BOLT = 1.25
+
+
+def steel(colour: tuple[int, int, int], mute: float, keep: float) -> tuple[int, int, int]:
+    """A colour as steel wears it: drawn toward its own grey, darkened, and a touch cold."""
+    grey = float(np.dot(colour, (0.3, 0.59, 0.11)))
+    cold = (np.array(colour) + (grey - np.array(colour)) * mute) * keep * (0.97, 1.0, 1.06)
+    return tuple(int(c) for c in np.round(cold))
 
 
 def colours(doc: dict, blob: bytes) -> dict[str, tuple[int, int, int]]:
-    """Each material's plain colour: its base colour times the middle of its texture, if it has one."""
+    """Each material's plain colour: its base colour times the middle of its texture, if it has
+    one; the kitchen's wall and doors as steel."""
     out: dict[str, tuple[int, int, int]] = {"glass": GLASS, "porthole": PORTHOLE}
     for material in doc["materials"]:
         pbr = material.get("pbrMetallicRoughness", {})
@@ -1042,6 +1079,13 @@ def colours(doc: dict, blob: bytes) -> dict[str, tuple[int, int, int]]:
             linear = linear * (np.asarray(picture(doc, blob, texture)).reshape(-1, 3) / 255).mean(axis=0) ** 2.2
         out[material["name"]] = tuple(int(c) for c in np.round(255 * linear ** (1 / 2.2)))
     out["boat-shade"] = tuple(int(c * 0.86) for c in out["Blanc_Bateau"])
+    for name, colour in out.items():
+        if name.startswith("Cuisine"):
+            out[name] = steel(colour, *STEEL)
+        elif name.startswith("Metal_porte"):
+            out[name] = steel(colour, *DOOR_STEEL)
+    plates = np.array([colour for name, colour in out.items() if name.startswith("Cuisine")])
+    out["bolt"] = tuple(int(c) for c in np.round(np.median(plates, axis=0) * BOLT))
     return out
 
 
