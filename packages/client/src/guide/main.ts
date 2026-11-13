@@ -8,6 +8,7 @@ import {
   AVATAR_IDS,
   BOTS,
   BOT_IDS,
+  ANNEX,
   BUILDING_GROUNDS,
   BUILDING_LEVELS,
   BUILDING_NAMES,
@@ -17,6 +18,7 @@ import {
   ITEMS,
   ITEM_IDS,
   KRUSTY_KRAB_FLOOR,
+  KRUSTY_KRAB_GROUNDS,
   KRUSTY_KRAB_PROFILE,
   PICKUP_AREAS,
   PINEAPPLE_LEVELS,
@@ -377,42 +379,131 @@ function gallery(photos: Photo[], lightbox: Lightbox): HTMLElement {
   return row;
 }
 
+// Where each place is on the map, to name it under the pointer and pick it with a click: its
+// grounds, and while the map shows what's up high, the terrace's deck over them all.
+interface PlaceSpot {
+  id: Place['id'];
+  x: number;
+  z: number;
+  r: number;
+  inner?: number; // metres from the middle out to a ring's inside edge
+  high?: boolean; // only while the map shows the walkways up high
+}
+
+function placeSpots(): PlaceSpot[] {
+  const spots: PlaceSpot[] = [];
+  if (TERRACE.kind === 'ring') spots.push({ id: 'terrace', ...TERRACE, high: true });
+  spots.push({ id: 'tower', ...ANNEX }, { id: 'krusty-krab', ...KRUSTY_KRAB_GROUNDS });
+  for (const place of PLACES) {
+    const n = place.id === 'pineapple' ? 0 : place.building;
+    if (n !== undefined) spots.push({ id: place.id, ...BUILDING_GROUNDS[n] });
+  }
+  return spots;
+}
+
+function placeTitle(place: Place): string {
+  return place.building === undefined ? place.title : titleCase(BUILDING_NAMES[place.building]);
+}
+
+const CLICK_SLOP = 5; // CSS pixels a press may move and still be a click rather than a drag
+
 // The world's map at the top of the World tab, the game's own (MapCanvas: the minimap's WORLD view,
-// at ground level, with no one on it), to drag about and zoom.
+// with no one on it), to drag about and zoom, and a HIGH toggle for the walkways the game's map
+// shows only once you're up past HIGH_UP (the terrace, the sky bridge, the staircases). A place
+// under the pointer is named beside it, and a click on one picks it.
 class WorldMap {
   readonly el = el('section', 'card wide world-map');
   private readonly canvas = el('canvas');
   private readonly map = new MapCanvas(this.canvas);
   private readonly controls = new MapControls(this.canvas, () => this.map.baseScale('world'));
+  private readonly high = el('button', 'high', 'HIGH');
+  private readonly label = el('span', 'label');
+  private readonly spots = placeSpots();
+  private pressed: { x: number; y: number } | null = null;
 
-  constructor() {
+  constructor(onPick: (id: Place['id']) => void) {
     const zoom = matchMedia('(pointer: coarse)').matches ? 'pinch' : 'scroll';
     const box = el('div', 'view');
-    box.append(this.canvas, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
+    this.high.addEventListener('click', () => this.high.classList.toggle('on'));
+    this.canvas.addEventListener('pointerdown', (e) => (this.pressed = { x: e.clientX, y: e.clientY }));
+    this.canvas.addEventListener('pointermove', (e) => this.hover(e));
+    this.canvas.addEventListener('pointerleave', () => this.name(null));
+    this.canvas.addEventListener('click', (e) => {
+      const from = this.pressed;
+      if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > CLICK_SLOP) return;
+      const spot = this.spotAt(e);
+      if (spot) onPick(spot.id);
+    });
+    box.append(this.canvas, this.label, this.high, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
     this.el.append(el('h2', '', 'Map'), box);
   }
 
   draw(): void {
-    this.map.drawWorld(this.controls.framing);
+    this.map.drawWorld(this.controls.framing, this.showsHigh);
+  }
+
+  private get showsHigh(): boolean {
+    return this.high.classList.contains('on');
+  }
+
+  private spotAt(e: MouseEvent): PlaceSpot | null {
+    const r = this.canvas.getBoundingClientRect();
+    const at = this.map.worldAt(e.clientX - r.left, e.clientY - r.top, this.controls.framing);
+    return (
+      this.spots.find((s) => {
+        const d = Math.hypot(at.x - s.x, at.z - s.z);
+        return (!s.high || this.showsHigh) && d <= s.r && d >= (s.inner ?? 0);
+      }) ?? null
+    );
+  }
+
+  private hover(e: PointerEvent): void {
+    if (e.buttons) return this.name(null); // dragging
+    const spot = this.spotAt(e);
+    this.name(spot);
+    if (!spot) return;
+    const r = this.canvas.getBoundingClientRect();
+    this.label.style.left = `${e.clientX - r.left}px`;
+    this.label.style.top = `${e.clientY - r.top}px`;
+  }
+
+  private name(spot: PlaceSpot | null): void {
+    const place = spot && PLACES.find((p) => p.id === spot.id);
+    this.label.textContent = place ? placeTitle(place) : '';
+    this.label.classList.toggle('on', !!place);
+    this.canvas.classList.toggle('over', !!place);
   }
 }
 
-function worldPanel(map: WorldMap): HTMLElement {
+const FLASH_MS = 1600; // how long a picked place's card stays lit, as .card.flash's animation runs
+
+function worldPanel(): { panel: HTMLElement; map: WorldMap } {
   const panel = el('div', 'cards');
+  const cards = new Map<Place['id'], HTMLElement>();
+  const map = new WorldMap((id) => {
+    const card = cards.get(id);
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('flash');
+    void card.offsetWidth; // restarts the animation on a second pick
+    card.classList.add('flash');
+    window.setTimeout(() => card.classList.remove('flash'), FLASH_MS);
+  });
   panel.append(map.el);
   const lightbox = new Lightbox();
   for (const place of PLACES) {
     const card = el('section', 'card');
     card.append(
-      el('h2', '', place.building === undefined ? place.title : titleCase(BUILDING_NAMES[place.building])),
+      el('h2', '', placeTitle(place)),
       gallery(place.photos, lightbox),
       el('p', 'summary', place.summary),
       statTable(placeStats(place)),
       ...facts(place.facts),
     );
+    cards.set(place.id, card);
     panel.append(card);
   }
-  return panel;
+  return { panel, map };
 }
 
 function botPage(id: BotId): HTMLElement {
@@ -498,8 +589,8 @@ function main(): void {
   const catalogs = [new Catalog('characters', characters(), go), new Catalog('items', items(), go)];
   panels.set('characters', catalogs[0].el);
   panels.set('items', catalogs[1].el);
-  const worldMap = new WorldMap();
-  panels.set('world', worldPanel(worldMap));
+  const { panel: world, map: worldMap } = worldPanel();
+  panels.set('world', world);
   panels.set('bots', botsPanel());
   panels.set('commands', commandsPanel());
   const buttons = new Map<string, HTMLButtonElement>();

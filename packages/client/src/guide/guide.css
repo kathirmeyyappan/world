@@ -454,6 +454,62 @@ h2.command .args {
   cursor: grabbing;
 }
 
+.world-map canvas.over {
+  cursor: pointer;
+}
+
+/* The name of the place under the pointer, just above and right of it. */
+.world-map .label {
+  position: absolute;
+  display: none;
+  transform: translate(10px, calc(-100% - 6px));
+  padding: 5px 8px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  color: var(--accent-soft);
+  font: 9px/1 var(--pixel);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.world-map .label.on {
+  display: block;
+}
+
+/* A place's card picked on the map, lit up and fading back. */
+.card.flash {
+  animation: flash 1.6s ease-out;
+}
+
+@keyframes flash {
+  0%,
+  45% {
+    border-color: var(--accent);
+    box-shadow:
+      0 0 0 3px var(--accent),
+      0 0 24px rgba(255, 200, 87, 0.45);
+  }
+}
+
+/* The HIGH toggle in the map's corner, lit while the walkways up high are shown. */
+.world-map .high {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 7px 10px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--accent-soft);
+  font: 10px/1 var(--pixel);
+}
+
+.world-map .high.on,
+.world-map .high:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--panel);
+}
+
 .world-map .hint {
   position: absolute;
   right: 10px;
