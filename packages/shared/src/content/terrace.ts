@@ -11,7 +11,7 @@ import { KEEP_GROUNDS } from './buildings';
 import { OUTER, RAIL, SILL, STOREY, deg } from './keep';
 
 // The deck's own outline, its top at y.
-export const TERRACE_RING = { x: 0, z: 0, r: 40, inner: 16, y: 3 * STOREY };
+export const TERRACE_RING = { x: 0, z: 0, r: 32, inner: 12.8, y: 3 * STOREY };
 export const DECK = 0.4; // thickness of the terrace and the sky bridge
 export const WALKWAY = 4; // width of the sky bridge and the staircases
 
