@@ -24,6 +24,9 @@ export interface Footprint {
   door?: { id: string; open: boolean }; // a door's slab (doors.ts): stands only while the door is open or shut as `open` says
   hidden?: boolean; // collided with but never drawn: the shape of something the client draws its own way (a model)
   worldTop?: boolean; // map the top in world x/z whatever the look does, so overlapping tops of a plank look paint alike
+  // A piece of a round wall (roundWall): its long sides map their look round the ring, by the arc at
+  // radius r about (x, z), so the pattern runs on unbroken across the joints between pieces.
+  ring?: { x: number; z: number; r: number };
 }
 
 // Surface looks the renderer knows how to paint.
@@ -111,6 +114,8 @@ export function validateStructure(s: Structure, label: string): void {
     throw bad(`lean must be from 0 to ${MAX_LADDER_LEAN} radians`);
   if (s.surface !== undefined && !isSurfaceId(s.surface)) throw bad(`unknown surface ${String(s.surface)}`);
   if (s.worldTop !== undefined && typeof s.worldTop !== 'boolean') throw bad('worldTop must be a boolean');
+  if (s.ring !== undefined && !(Number.isFinite(s.ring.x) && Number.isFinite(s.ring.z) && s.ring.r > 0))
+    throw bad('ring must be a centre and a positive radius');
   if (s.kind === 'terrain') {
     const cols = s.heights[0]?.length ?? 0;
     if (s.heights.length < 2 || cols < 2 || s.heights.some((r) => r.length !== cols))
@@ -144,6 +149,7 @@ export const MAX_LADDER_LEAN = Math.PI / 4; // radians from upright: further ove
 export interface LadderOptions {
   material?: StructureMaterial;
   width?: number; // metres across the rails
+  girth?: number; // metres through the frame, the rails drawn as stout as it
   lean?: number; // radians from upright, toward the ladder's local +z
   hidden?: boolean; // for one a model draws
 }
@@ -155,7 +161,7 @@ export function ladder(
   y: number,
   top: number,
   yaw: number,
-  { material = 'wood', width = LADDER_WIDTH, lean = 0, hidden }: LadderOptions = {},
+  { material = 'wood', width = LADDER_WIDTH, girth = LADDER_GIRTH, lean = 0, hidden }: LadderOptions = {},
 ): Ladder {
   const piece: Ladder = {
     kind: 'ladder',
@@ -164,7 +170,7 @@ export function ladder(
     y,
     yaw,
     w: width,
-    d: LADDER_GIRTH,
+    d: girth,
     h: top - y,
     material,
   };
@@ -298,6 +304,7 @@ export function roundWall(opts: {
   worldTop?: boolean;
 }): Box[] {
   const { x, z, r, h, thickness, y = 0, segments = 32, gaps = [], material, color, hidden, worldTop } = opts;
+  const ring = { x, z, r };
   const step = (2 * Math.PI) / segments;
   const pieces: Box[] = [];
   for (let i = 0; i < segments; i++) {
@@ -342,6 +349,7 @@ export function roundWall(opts: {
           color,
           hidden,
           worldTop,
+          ring,
         });
       if (g.to < step / 2 - 1e-6)
         pieces.push({
@@ -350,11 +358,13 @@ export function roundWall(opts: {
           color,
           hidden,
           worldTop,
+          ring,
         });
     }
     spans.push([from, y + h]);
     for (const [lo, hi] of spans)
-      if (hi - lo > 1e-6) pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color, hidden, worldTop });
+      if (hi - lo > 1e-6)
+        pieces.push({ ...wall(a, b, hi - lo, thickness, lo), material, color, hidden, worldTop, ring });
   }
   return pieces;
 }

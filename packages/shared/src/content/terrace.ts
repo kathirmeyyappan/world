@@ -11,7 +11,7 @@ import { KEEP_GROUNDS } from './buildings';
 import { OUTER, RAIL, SILL, STOREY, deg } from './keep';
 
 // The deck's own outline, its top at y.
-export const TERRACE_RING = { x: 0, z: 0, r: 40, inner: 16, y: 3 * STOREY };
+export const TERRACE_RING = { x: 0, z: 0, r: 32, inner: 16, y: 3 * STOREY };
 export const DECK = 0.4; // thickness of the terrace and the sky bridge
 export const WALKWAY = 4; // width of the sky bridge and the staircases
 
@@ -34,9 +34,7 @@ const ARRIVALS = [ANNEX, ...KEEP_GROUNDS].map(({ x, z }) => Math.atan2(z - Z, x 
 // Steel ladders from the ground up the deck's outer edge to the top of its parapet, which a climber
 // steps over onto, between the ways up arriving there.
 const LADDER_R = R + LADDER_GIRTH / 2 + 0.1; // metres from the middle to a ladder's rails
-const LADDERS = [45, 180, 315].map((a) =>
-  ringLadder({ x: X, z: Z }, LADDER_R, deg(a), 0, Y + RAIL, { material: 'steel' }),
-);
+const LADDERS = [45, 180].map((a) => ringLadder({ x: X, z: Z }, LADDER_R, deg(a), 0, Y + RAIL, { material: 'steel' }));
 
 export const TERRACE: Structure[] = [
   ...roundFloor({ ...TERRACE_RING, thickness: DECK, material: 'flagstone' }),
