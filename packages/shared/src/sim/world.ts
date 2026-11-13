@@ -7,7 +7,7 @@ import {
   ANNEX,
   BUILDING_FAN,
   BUILDING_GROUNDS,
-  BUILDING_PATHS,
+  FAN_SIDES,
   FLOOR_BRIDGE,
   KRUSTY_KRAB_GROUNDS,
   MAIN_DISC,
@@ -45,16 +45,16 @@ export interface Sector {
 
 export type WorldPart = Disc | Bridge | Sector;
 
-export { ANNEX, BUILDING_FAN, BUILDING_GROUNDS, BUILDING_PATHS, FLOOR_BRIDGE, KRUSTY_KRAB_GROUNDS, MAIN_DISC };
+export { ANNEX, BUILDING_FAN, BUILDING_GROUNDS, FAN_SIDES, FLOOR_BRIDGE, KRUSTY_KRAB_GROUNDS, MAIN_DISC };
 // The main disc first: it's the cubes' home (sim/cubes.ts).
 export const WORLD_SHAPE: WorldPart[] = [
   MAIN_DISC,
   ANNEX,
   FLOOR_BRIDGE,
   ...BUILDING_GROUNDS,
-  ...BUILDING_PATHS,
   KRUSTY_KRAB_GROUNDS,
   BUILDING_FAN,
+  ...FAN_SIDES,
 ];
 
 // Metres the ground past the world's edge stands above the floor: below it, so the kerb along the
