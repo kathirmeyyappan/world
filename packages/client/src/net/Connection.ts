@@ -21,16 +21,7 @@ export class WsConnection implements Connection {
   private closedWith: string | null = null;
 
   private constructor(private readonly ws: WebSocket) {
-    ws.onmessage = (e) => {
-      let parsed: ServerMessage;
-      try {
-        parsed = JSON.parse(e.data);
-      } catch {
-        return;
-      }
-      if (this.messageCb) this.messageCb(parsed);
-      else this.backlog = [...this.backlog.filter((m) => parsed.t !== 'snap' || m.t !== 'snap'), parsed];
-    };
+    ws.onmessage = (e) => this.take(e);
     ws.onclose = (e) => {
       const reason = e.reason || `connection closed (${e.code})`;
       if (this.closeCb) this.closeCb(reason);
@@ -38,6 +29,19 @@ export class WsConnection implements Connection {
     };
   }
 
+  private take(e: MessageEvent): void {
+    let parsed: ServerMessage;
+    try {
+      parsed = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+    if (this.messageCb) this.messageCb(parsed);
+    else this.backlog = [...this.backlog.filter((m) => parsed.t !== 'snap' || m.t !== 'snap'), parsed];
+  }
+
+  // Connected once the room says anything (its welcome, or why it won't seat you); a close before
+  // that is the server turning the join away, with its reason.
   static connect(url: string, timeoutMs = 8000): Promise<WsConnection> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(url);
@@ -45,9 +49,11 @@ export class WsConnection implements Connection {
         ws.close();
         reject(new Error('connection timed out'));
       }, timeoutMs);
-      ws.onopen = () => {
+      ws.onmessage = (e) => {
         clearTimeout(timer);
-        resolve(new WsConnection(ws));
+        const connection = new WsConnection(ws);
+        connection.take(e);
+        resolve(connection);
       };
       ws.onerror = () => {
         clearTimeout(timer);

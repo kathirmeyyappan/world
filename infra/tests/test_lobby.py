@@ -30,8 +30,9 @@ def test_healthz_warms_a_room_without_waiting_for_it() -> None:
     asyncio.run(run())
 
 
-def test_join_never_starts_a_room_for_a_bot(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A person joining a room with no live session gets a fresh one; a bot gets turned away."""
+def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A person creating a room with no live session gets a fresh one; a bot, or a person joining it,
+    gets turned away, and a create on a running room is too. A person goes back where they came from."""
     from infra import lobby
 
     started: list[str] = []
@@ -46,8 +47,8 @@ def test_join_never_starts_a_room_for_a_bot(monkeypatch: pytest.MonkeyPatch) -> 
     class Server:
         get_url = Aio("https://room.test")
 
-    async def live_session(room_id: str, room_url: str) -> None:
-        return None
+    async def live_session(room_id: str, room_url: str) -> dict[str, str] | None:
+        return {"session_id": "sd-0", "token": "old"} if room_id == "taken" else None
 
     async def start_session(room_id: str) -> dict[str, str]:
         started.append(room_id)
@@ -64,7 +65,16 @@ def test_join_never_starts_a_room_for_a_bot(monkeypatch: pytest.MonkeyPatch) -> 
             bot = await client.get("/join/late-night", params={"name": "circle-bot", "bot": "1"})
             assert bot.status_code == 409 and bot.json() == {"detail": "no one here"}
             assert started == []
-            person = await client.get("/join/late-night", params={"name": "kathir"})
+            home = {"referer": "https://world.test/"}
+            joined = await client.get("/join/late-night", params={"mode": "join"}, headers=home)
+            assert joined.headers["location"].startswith("https://world.test/?error=room+late-night+doesn")
+            created = await client.get("/join/taken", params={"mode": "create"}, headers=home)
+            assert (
+                created.headers["location"]
+                == "https://world.test/?error=room+taken+already+exists&tab=create&code=taken"
+            )
+            assert started == []
+            person = await client.get("/join/late-night", params={"name": "kathir", "mode": "create"})
             assert person.status_code == 302 and "modal_session_token=tok" in person.headers["location"]
             assert started == ["late-night"]
 

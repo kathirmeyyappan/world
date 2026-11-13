@@ -583,8 +583,10 @@ labels over heads and the bots follow; a name is only a name, giving its player 
 is a page load through `roomLink` (`net/lobby.ts`), the link an invite is, with the player's name and
 skin on it.
 
-The home screen (`app/home.ts`) is the room on the left (JOIN GLOBAL, or a code to join or create)
-and the player on the right: a `BodyView` of the chosen skin, the name, and a dropdown of every look
+The home screen (`app/home.ts`) is the room on the left (JOIN GLOBAL, or a code under a CREATE or a JOIN tab;
+the lobby, or Node in dev, turns away a create on a running room and a join on none, back to home
+with `?error=`; global is always open)
+and the player on the right: a `BodyView` of the chosen skin with the typed name over its head, the name, and a dropdown of every look
 on foot (no dragons) a person can switch to by command (the first, the standard body in a named
 color drawn afresh each load, so the choice is kept but not the color; last, the standard body in each
 named color; a color rides as `?color=`), both kept in localStorage. The skin

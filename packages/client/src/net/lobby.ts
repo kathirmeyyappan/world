@@ -73,16 +73,21 @@ export function leaveRoom(): void {
   location.href = homeUrl();
 }
 
-// The link into a room: a friend's invite, or with `you`, this player's own way to another room
-// under their name and in their skin. On Pages or in dev the page itself takes ?room=; the room
-// host's page only works with its session's cookie, so from there the link goes through the lobby,
-// which starts or finds the room's session.
+// The room everyone shares. It is always open: creating or joining it both just go in.
+export const GLOBAL_ROOM = 'global';
+
+// What a join asks of its code: `create` a room no one is in yet, or `join` one that's running. The
+// lobby (or, in dev, the room server) refuses the other, and the refusal comes back to the home
+// screen as its error.
+export type JoinMode = 'create' | 'join';
+
+// The link into a running room: a friend's invite, or with `you`, this player's own way to another
+// room under their name and in their skin. On Pages or in dev the page itself takes ?room= (the
+// home screen joins it); the room host's page only works with its session's cookie, so from there
+// the link goes through the lobby, which finds the room's session.
 export function roomLink(roomId: string, you?: Joiner): string {
   const lobby = lobbyUrl();
-  if (lobby && SERVED_BY_ROOM_HOST) {
-    const query = you ? `?${joinQuery(you)}` : '';
-    return `${lobby}/join/${encodeURIComponent(roomId)}${query}`;
-  }
+  if (lobby && SERVED_BY_ROOM_HOST) return lobbyJoin(lobby, roomId, you, 'join');
   const url = new URL(location.href);
   url.search = '';
   url.searchParams.set('room', roomId);
@@ -106,6 +111,12 @@ export interface Joiner {
 // The name of a color a player wears, if it's one of NAMED_COLORS.
 export function colorName(hex: string): string | null {
   return Object.keys(NAMED_COLORS).find((name) => NAMED_COLORS[name] === hex) ?? null;
+}
+
+function lobbyJoin(lobby: string, roomId: string, you: Joiner | undefined, mode: JoinMode): string {
+  const query = you ? joinQuery(you) : new URLSearchParams();
+  query.set('mode', mode);
+  return `${lobby}/join/${encodeURIComponent(roomId)}?${query}`;
 }
 
 function joinQuery({ name, avatar, color }: Joiner): URLSearchParams {
@@ -133,10 +144,13 @@ export function warmLobby(): void {
   if (lobby) fetch(`${lobby}/healthz`, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
 }
 
-export async function joinRoom(roomId: string, you: Joiner): Promise<Connection> {
+// Into a room as `mode` asks, or with no mode, into the room host's own room (the one the lobby sent
+// this page to, or this tab's on a reload), which the lobby has already admitted it to.
+export async function joinRoom(roomId: string, you: Joiner, mode: JoinMode | null): Promise<Connection> {
   const ws = () => {
     const query = joinQuery(you);
     query.set('room', roomId);
+    if (mode) query.set('mode', mode);
     return query;
   };
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -146,12 +160,13 @@ export async function joinRoom(roomId: string, you: Joiner): Promise<Connection>
     return WsConnection.connect(`${base}?${ws()}`);
   }
 
-  if (SERVED_BY_ROOM_HOST) {
+  // The room host serves one session's room; any other goes through the lobby.
+  const lobby = lobbyUrl();
+  if (SERVED_BY_ROOM_HOST && (!mode || !lobby)) {
     return WsConnection.connect(`${wsScheme}://${location.host}/ws?${ws()}`);
   }
 
-  const lobby = lobbyUrl();
   if (!lobby) throw new LobbyUnavailableError('no lobby configured');
-  location.href = `${lobby}/join/${encodeURIComponent(roomId)}?${joinQuery(you)}`;
+  location.href = lobbyJoin(lobby, roomId, you, mode ?? 'join');
   return new Promise(() => {});
 }

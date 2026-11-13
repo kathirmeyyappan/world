@@ -9,6 +9,7 @@ import { createStaticHandler } from './static';
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_HEADER = 'x-modal-server-session-id';
 const EMPTY_ROOM_GRACE_MS = 30_000;
+const GLOBAL_ROOM = 'global';
 const SIM_LATENCY_MS = Number(process.env.SIM_LATENCY_MS ?? 0);
 const SIM_JITTER_MS = Number(process.env.SIM_JITTER_MS ?? 0);
 const STATIC_DIR = process.env.STATIC_DIR;
@@ -60,6 +61,18 @@ function roomKey(req: IncomingMessage, url: URL): string {
   return url.searchParams.get('room') || 'local';
 }
 
+// Why a join's mode (?mode=create or join; none is either) turns it away, or null. Behind Modal the
+// lobby has already checked it against the room's session; a bare server keeps rooms by code, so it
+// checks here. The global room is always open. A room counts while it's in `rooms`, its empty spell
+// included, as a session does.
+function refusal(req: IncomingMessage, url: URL, key: string): string | null {
+  if (req.headers[SESSION_HEADER] || key === GLOBAL_ROOM) return null;
+  const mode = url.searchParams.get('mode');
+  if (mode === 'create' && rooms.has(key)) return `room ${key} already exists`;
+  if (mode === 'join' && !rooms.has(key)) return `room ${key} doesn't exist`;
+  return null;
+}
+
 function linkFor(ws: WebSocket): ClientLink {
   const raw = (msg: ServerMessage) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
@@ -95,8 +108,14 @@ http.on('upgrade', (req, socket, head) => {
     socket.destroy();
     return;
   }
+  const key = roomKey(req, url);
+  const refused = refusal(req, url, key);
   wss.handleUpgrade(req, socket, head, (ws) => {
-    const room = roomFor(roomKey(req, url));
+    if (refused) {
+      ws.close(1008, refused);
+      return;
+    }
+    const room = roomFor(key);
     // ?bot=1 is the bot framework declaring itself; the browser client never sends it. A bot may
     // also say where it stands (?x=&y=&z=); anyone may say how they look (?avatar= or ?color=).
     const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), {

@@ -28,6 +28,8 @@ if TYPE_CHECKING:
 Session = dict[str, str]
 
 ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
+# The room everyone shares: always open, whichever mode a join asks for.
+GLOBAL_ROOM = "global"
 
 
 def room_server() -> modal.Server:
@@ -97,16 +99,34 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
 
     @api.get("/join/{room_id}")
     async def join(
-        request: Request, room_id: str, name: str = "", bot: str = "", avatar: str = "", color: str = ""
+        request: Request,
+        room_id: str,
+        name: str = "",
+        bot: str = "",
+        avatar: str = "",
+        color: str = "",
+        mode: str = "",
     ) -> RedirectResponse:
-        """Join a room, creating one if necessary. A bot (`bot=1`, what the bot framework sends)
-        only joins a room that is already running: bots don't keep rooms open, so one must never
-        start a room either."""
+        """Into a room as `mode` asks: `create` one no one is in, `join` one that's running, or
+        with no mode (an older page) either. A refused join is sent back to the page it came from
+        with the reason as `?error=`. A bot (`bot=1`, what the bot framework sends) only joins a
+        room that is already running: bots don't keep rooms open, so one must never start a room
+        either."""
         print(f"Attempting to join room {room_id} with name {name}")
 
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
+        if room_id == GLOBAL_ROOM:
+            mode = ""
+        # Where the player came from (the launcher), so the room page can send them back to it.
+        home = urlparse(request.headers.get("referer", ""))
+
+        def refuse(reason: str) -> RedirectResponse:
+            if not (home.scheme and home.netloc):
+                raise HTTPException(409, reason)
+            back = urlencode({"error": reason, "tab": mode, "code": room_id})
+            return RedirectResponse(f"{home.scheme}://{home.netloc}/?{back}", status_code=302)
 
         # get_url() is typed Optional; a deployed Server always has one. cast() is a no-op at runtime.
         room_url = cast(str, await room_server().get_url.aio()).rstrip("/")
@@ -114,10 +134,12 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         if entry_info is None:
             if bot == "1":
                 raise HTTPException(409, "no one here")
+            if mode == "join":
+                return refuse(f"room {room_id} doesn't exist")
             entry_info = await start_session(room_id)
+        elif mode == "create":
+            return refuse(f"room {room_id} already exists")
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
-        # Where the player came from (the launcher), so the room page can send them back to it.
-        home = urlparse(request.headers.get("referer", ""))
         params = {
             "modal_session_token": entry_info["token"],
             "room": room_id,

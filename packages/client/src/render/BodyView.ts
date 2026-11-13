@@ -27,6 +27,7 @@ import {
   type ItemId,
 } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
+import { ABOVE_BODY, tagOnScreen } from '../ui/NameTags';
 import { createAvatar, type Avatar } from './avatars';
 import { Engine } from './Engine';
 
@@ -173,6 +174,15 @@ export class BodyView {
     stage.floor.visibility = Math.min(1, Math.max(0, height));
     stage.floor.setEnabled(height > 0);
     engine.scene.render();
+  }
+
+  // Where a name over the standing body's head goes on the canvas and how big, as the world's name
+  // tags are drawn; null for a dragon or a thing, or before the first frame.
+  overHead(): { x: number; y: number; px: number } | null {
+    const avatar = this.avatar;
+    if (!avatar || !this.engine || !this.camera || AVATARS[avatar.kind].class === 'asian-dragon') return null;
+    const at = new Vector3(0, AVATARS[avatar.kind].hitbox.top + ABOVE_BODY, 0);
+    return tagOnScreen(at, this.engine.scene, this.camera, this.canvas.clientWidth, this.canvas.clientHeight);
   }
 
   // The canvas has changed size.

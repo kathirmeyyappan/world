@@ -15,14 +15,13 @@ import {
 } from '@world/shared';
 import type { Channel, Sfx } from '../../audio/Sfx';
 import type { View } from '../../game/View';
-import { SERVED_BY_ROOM_HOST, colorName, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
+import { GLOBAL_ROOM, SERVED_BY_ROOM_HOST, colorName, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
 import type { Picture } from '../../render/Picture';
 import type { Minimap } from '../Minimap';
 import type { Field, Note, Row, Section, Tab } from './rows';
 
 const GUIDE_URL = '/guide/';
 const REPO_URL = 'https://github.com/kathirmeyyappan/world';
-const GLOBAL_ROOM = 'global';
 // How long a rename may take to show in the room before the menu says it didn't: a snapshot comes
 // thirty times a second, so this is a lost message, not a slow one.
 const RENAME_TIMEOUT_MS = 3000;
@@ -129,8 +128,8 @@ function nameField(hooks: MenuHooks, me: Me): Field {
   };
 }
 
-// Another room by its code, under the name you have now; a code nobody is using starts a new room,
-// as on the home screen.
+// Another running room by its code, under the name you have now. A new room is made on the home
+// screen; a code no one is in sends you there with the lobby's error.
 function roomField(hooks: MenuHooks, me: Me): Field {
   let note: Note | null = null;
   return {
@@ -139,7 +138,7 @@ function roomField(hooks: MenuHooks, me: Me): Field {
     placeholder: 'e.g. late-night',
     maxLength: MAX_ROOM_ID_LENGTH,
     action: 'GO',
-    hint: 'a code no one is using starts a new room',
+    hint: 'a room someone is in; make a new one from home',
     submit: (text) => {
       const code = text.trim().toLowerCase();
       if (!isValidRoomId(code)) note = { text: 'room codes are 1-24 letters, digits or dashes', tone: 'bad' };
