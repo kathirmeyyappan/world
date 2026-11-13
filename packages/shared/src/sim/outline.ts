@@ -14,7 +14,7 @@ const PATH_HALF_WIDTH = 4; // the buildings' paths, narrower than the bridge to 
 // its dune sits on the floor with room round it.
 const KEEP_OUT = 100;
 const BUILDING_SITES: { bearing: number; out: number; r?: number }[] = [
-  { bearing: 70, out: 124, r: 36 },
+  { bearing: 70, out: 124, r: 52 },
   { bearing: 135, out: KEEP_OUT },
   { bearing: 225, out: KEEP_OUT },
   { bearing: 290, out: KEEP_OUT },
