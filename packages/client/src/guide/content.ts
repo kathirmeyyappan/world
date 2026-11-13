@@ -10,9 +10,7 @@ export interface Entry {
   facts: string[];
 }
 
-export const INTRO = [
-  'This is by no means exhaustive, but hopefully it sheds light on the full potential of kathir world.',
-];
+export const INTRO = ['this is the kathir world official (can I call it that?) guide.'];
 
 // The keys, on foot and as a dragon.
 const SHARED: [string, string][] = [

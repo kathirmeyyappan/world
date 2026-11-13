@@ -3,8 +3,8 @@
 // structures show on the map. Only what you'd navigate by belongs here: a keep, not the decks and
 // rails around it. A disc can carry `rings`, circles drawn evenly inside it (Tung Tung Tower has one
 // per floor above the ground, which marks it out from the one-storey buildings), or an `inner`
-// radius it's open within. SpongeBob's house and the Krusty Krab are drawn as themselves
-// (PineappleMark, KrustyKrabMark).
+// radius it's open within, and a bridge can be `wood`, drawn brown under the grey. SpongeBob's house
+// and the Krusty Krab are drawn as themselves (PineappleMark, KrustyKrabMark).
 //
 // Up past HIGH_UP the map greys in HIGH_LANDMARKS as well: the walkways up there, which would only
 // clutter the map on the ground.
@@ -37,7 +37,8 @@ export interface KrustyKrabMark {
   yaw: number;
 }
 
-export type Landmark = (Disc & { rings?: number; inner?: number }) | Bridge | PineappleMark | KrustyKrabMark;
+export type Landmark =
+  (Disc & { rings?: number; inner?: number }) | (Bridge & { wood?: boolean }) | PineappleMark | KrustyKrabMark;
 
 export const LANDMARKS: Landmark[] = [
   { ...TUNG_TUNG_TOWER_FOOTPRINT, rings: TUNG_TUNG_TOWER_ROOMS.length - 1 },
@@ -50,6 +51,6 @@ export const HIGH_UP = 35; // metres: the height of your feet past which the map
 export const HIGH_LANDMARKS: Landmark[] = [
   { kind: 'disc', ...TERRACE_RING },
   SKY_BRIDGE_FOOTPRINT,
-  ...STAIRCASE_FOOTPRINTS,
+  ...STAIRCASE_FOOTPRINTS.map((s) => ({ ...s, wood: true })),
   PINEAPPLE_DECK,
 ];

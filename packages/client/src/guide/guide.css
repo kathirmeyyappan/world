@@ -491,11 +491,15 @@ h2.command .args {
   }
 }
 
-/* The HIGH toggle in the map's corner, lit while the walkways up high are shown. */
-.world-map .high {
+/* The GROUND / HIGH toggle in the map's corner, the view shown lit. */
+.world-map .toggle {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: flex;
+}
+
+.world-map .toggle button {
   padding: 7px 10px;
   border: 2px solid var(--line);
   background: var(--panel);
@@ -503,8 +507,12 @@ h2.command .args {
   font: 10px/1 var(--pixel);
 }
 
-.world-map .high.on,
-.world-map .high:hover {
+.world-map .toggle button + button {
+  border-left: 0;
+}
+
+.world-map .toggle button.on,
+.world-map .toggle button:hover {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--panel);
