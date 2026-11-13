@@ -416,14 +416,14 @@ wire: server and client both build the world from that file.
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
-  (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds and paths (the
-  annex and that bridge, as wide, turned round the main disc to 70°, 125°, 235° and 290°, the keeps' pulled in to
-  100 m and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
+  (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds (discs the
+  annex's size round the main disc at 70°, 125°, 235° and 290°, the keeps' 100 m out and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
   100 m out, so the five sites are 55° apart), and the fan between them all, a slice of the main
-  disc's middle out to the keeps' from the first building's bearing round to the last's, so the
-  bridge to the tower is the only corridor and everything between the buildings is open floor. A part is a disc,
-  a straight `bridge` or a pie-slice `sector` (its straight sides kept under a path). Players are
+  disc's middle out to the keeps' from 10° short of the first building's bearing round to 10° past
+  the last's, so the bridge to the tower is the only corridor and everything between the buildings
+  is open floor. A part is a disc,
+  a straight `bridge` or a pie-slice `sector`. Players are
   clamped 1 m inside it no matter what, so keep structures inside too.
   Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
   rounded where two parts' edges meet, whose outer face drops to the ground past the edge, with a
