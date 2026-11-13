@@ -5,9 +5,8 @@ import type { Bridge, Disc, Sector } from './world';
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
 export const FLOOR_BRIDGE: Bridge = { kind: 'bridge', ax: 40, az: 0, bx: 92, bz: 0, halfWidth: 8 };
-const PATH_HALF_WIDTH = 4; // the buildings' paths, narrower than the bridge to the tower
 
-// Buildings 1 to 4's grounds and paths: the annex and the floor bridge (at PATH_HALF_WIDTH) turned
+// Buildings 1 to 4's grounds and paths: the annex and the floor bridge (as wide as the tower's) turned
 // round the main disc's middle to each one's bearing (degrees from +x toward +z), round its far side
 // from the tower, out at `out` on grounds the annex's size unless the building says otherwise.
 // SpongeBob's house stands further out than the keeps, on wider grounds, so its dune sits on the
@@ -35,7 +34,7 @@ export const BUILDING_GROUNDS: Disc[] = BUILDING_SITES.map(({ bearing, out, r = 
 export const BUILDING_PATHS: Bridge[] = BUILDING_SITES.map(({ bearing, out, r = ANNEX.r }) => {
   const a = turned(bearing, FLOOR_BRIDGE.ax, FLOOR_BRIDGE.az);
   const b = turned(bearing, out - r + PATH_INTO, 0);
-  return { ...FLOOR_BRIDGE, ax: a.x, az: a.z, bx: b.x, bz: b.z, halfWidth: PATH_HALF_WIDTH };
+  return { ...FLOOR_BRIDGE, ax: a.x, az: a.z, bx: b.x, bz: b.z };
 });
 // The Krusty Krab's grounds, on the fan's rim like the keeps': wide enough to walk all the way round
 // the building (36 m by 24 m, content/krustyKrab.ts) with ten metres to spare at its corners. No

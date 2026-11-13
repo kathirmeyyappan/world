@@ -116,7 +116,7 @@ wire: server and client both build the world from that file.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
   (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds and paths (the
-  annex and that bridge, at half its width, turned round the main disc to 70°, 125°, 235° and 290°, the keeps' pulled in to
+  annex and that bridge, as wide, turned round the main disc to 70°, 125°, 235° and 290°, the keeps' pulled in to
   100 m and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
   100 m out, so the five sites are 55° apart), and the fan between them all, a slice of the main
