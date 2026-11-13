@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, cast
 import modal
 
 from .common import app, lobby_image, rooms
-from .config import APP_NAME, SESSION_IDLE_TIMEOUT, WARMUP_SESSION_IDLE_TIMEOUT
+from .config import APP_NAME, LAUNCHER_URL, SESSION_IDLE_TIMEOUT, WARMUP_SESSION_IDLE_TIMEOUT
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -89,6 +89,22 @@ async def warm_room() -> None:
         print(f"room warm-up failed: {e}")
 
 
+def bounce_target(referer: str, room_url: str) -> str:
+    """Where a refused join goes back to: the page it came from when that is one of the game's own
+    (the launcher, the room host, a local dev page), else the launcher. An invite opened from a chat
+    app's web page has that page as its referer, and the error must not land there."""
+    from urllib.parse import urlparse
+
+    def origin(url: str) -> str:
+        parts = urlparse(url)
+        return f"{parts.scheme}://{parts.netloc}"
+
+    came_from = origin(referer)
+    if came_from in (LAUNCHER_URL, origin(room_url)) or urlparse(referer).hostname in ("localhost", "127.0.0.1"):
+        return came_from
+    return LAUNCHER_URL
+
+
 def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "FastAPI":
     from urllib.parse import urlencode, urlparse
 
@@ -119,17 +135,14 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
             raise HTTPException(400, "invalid room id")
         if room_id == GLOBAL_ROOM:
             mode = ""
-        # Where the player came from (the launcher), so the room page can send them back to it.
-        home = urlparse(request.headers.get("referer", ""))
-
-        def refuse(reason: str) -> RedirectResponse:
-            if not (home.scheme and home.netloc):
-                raise HTTPException(409, reason)
-            back = urlencode({"error": reason, "tab": mode, "code": room_id})
-            return RedirectResponse(f"{home.scheme}://{home.netloc}/?{back}", status_code=302)
-
         # get_url() is typed Optional; a deployed Server always has one. cast() is a no-op at runtime.
         room_url = cast(str, await room_server().get_url.aio()).rstrip("/")
+
+        def refuse(reason: str) -> RedirectResponse:
+            back = urlencode({"error": reason, "tab": mode, "code": room_id})
+            target = bounce_target(request.headers.get("referer", ""), room_url)
+            return RedirectResponse(f"{target}/?{back}", status_code=302)
+
         entry_info = await live_session(room_id, room_url)
         if entry_info is None:
             if bot == "1":
@@ -140,6 +153,8 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         elif mode == "create":
             return refuse(f"room {room_id} already exists")
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
+        # Where the player came from (the launcher), so the room page can send them back to it.
+        home = urlparse(request.headers.get("referer", ""))
         params = {
             "modal_session_token": entry_info["token"],
             "room": room_id,

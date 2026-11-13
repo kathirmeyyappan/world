@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 import pytest
 
+from infra.config import LAUNCHER_URL
 from infra.lobby import build_api
 
 
@@ -65,13 +66,14 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
             bot = await client.get("/join/late-night", params={"name": "circle-bot", "bot": "1"})
             assert bot.status_code == 409 and bot.json() == {"detail": "no one here"}
             assert started == []
-            home = {"referer": "https://world.test/"}
-            joined = await client.get("/join/late-night", params={"mode": "join"}, headers=home)
-            assert joined.headers["location"].startswith("https://world.test/?error=room+late-night+doesn")
-            created = await client.get("/join/taken", params={"mode": "create"}, headers=home)
+            room_host = {"referer": "https://room.test/"}
+            joined = await client.get("/join/late-night", params={"mode": "join"}, headers=room_host)
+            assert joined.headers["location"].startswith("https://room.test/?error=room+late-night+doesn")
+            # An invite opened from someone else's page goes back to the launcher, not to that page.
+            elsewhere = {"referer": "https://chat.example/"}
+            created = await client.get("/join/taken", params={"mode": "create"}, headers=elsewhere)
             assert (
-                created.headers["location"]
-                == "https://world.test/?error=room+taken+already+exists&tab=create&code=taken"
+                created.headers["location"] == f"{LAUNCHER_URL}/?error=room+taken+already+exists&tab=create&code=taken"
             )
             assert started == []
             person = await client.get("/join/late-night", params={"name": "kathir", "mode": "create"})

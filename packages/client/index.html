@@ -159,19 +159,22 @@
                 <button id="home-global" class="wide">JOIN GLOBAL</button>
                 <div class="divider"><span>OR</span></div>
               </div>
-              <label>
+              <div class="field">
                 <span>ROOM CODE</span>
-                <input
-                  id="home-room"
-                  type="text"
-                  maxlength="24"
-                  placeholder="e.g. late-night"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-              </label>
+                <div class="home-code-row">
+                  <input
+                    id="home-room"
+                    type="text"
+                    maxlength="24"
+                    placeholder="e.g. late-night"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-label="room code"
+                  />
+                  <button id="home-join">JOIN</button>
+                </div>
+              </div>
               <p id="home-mode-hint"></p>
-              <button id="home-join" class="wide">JOIN ROOM</button>
             </div>
             <button id="home-offline" class="wide subtle hidden">PLAY OFFLINE</button>
             <div id="home-status"></div>

@@ -109,8 +109,8 @@ http.on('upgrade', (req, socket, head) => {
     return;
   }
   const key = roomKey(req, url);
-  const refused = refusal(req, url, key);
   wss.handleUpgrade(req, socket, head, (ws) => {
+    const refused = refusal(req, url, key);
     if (refused) {
       ws.close(1008, refused);
       return;

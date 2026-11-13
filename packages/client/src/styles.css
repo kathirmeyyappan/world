@@ -335,16 +335,27 @@ body {
   border-bottom-color: transparent;
 }
 .home-tab-panel {
-  padding: 24px 14px;
+  padding: 24px 22px;
   border: 2px solid var(--accent);
   border-top: none;
   background: rgba(var(--accent-rgb), 0.05);
 }
-.home-tab-panel label {
+.home-tab-panel .field {
   margin-bottom: 0;
 }
-.home-tab-panel #home-join {
-  margin-top: 24px;
+/* The code and its button on one line, the button the input's height. */
+.home-code-row {
+  display: flex;
+  gap: 10px;
+}
+.home-code-row input {
+  flex: 1;
+  min-width: 0;
+}
+.card .home-code-row button {
+  flex: none;
+  min-width: 96px;
+  padding: 0 18px;
 }
 .home-tab-panel #home-global {
   margin-top: 0;
@@ -493,6 +504,13 @@ body {
   }
   #home-view {
     height: 200px;
+  }
+  .home-tab-panel {
+    padding: 20px 14px;
+  }
+  .card .home-code-row button {
+    min-width: 0;
+    padding: 0 14px;
   }
 }
 

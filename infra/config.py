@@ -1,6 +1,9 @@
 from pathlib import Path
 
 APP_NAME = "kathir-world"
+# The launcher (GitHub Pages): where a join the lobby refuses is sent back to, unless it came from
+# the room host or a local dev page.
+LAUNCHER_URL = "https://world.kathirm.com"
 REPO = Path(__file__).resolve().parent.parent
 
 ROOM_PORT = 8000
