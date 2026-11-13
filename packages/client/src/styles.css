@@ -348,8 +348,15 @@ body {
   padding: 20px 12px;
   font-size: 12px;
 }
+/* The OR's rule sits as far under JOIN GLOBAL as the panel's top is over it. */
+.home-tab-panel:has(#home-global-row:not(.hidden)) {
+  padding-top: 24px;
+}
 .home-tab-panel .divider {
-  margin: 26px 0 22px;
+  margin: 19px 0 19px;
+}
+#home-mode-hint:empty {
+  display: none;
 }
 #home-mode-hint {
   font-size: 17px;

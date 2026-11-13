@@ -47,10 +47,10 @@ const UNPAINTED = '#ffffff'; // what the stage paints a skin of its own, which t
 const COLOR = 'color:'; // before a NAMED_COLORS name, a choice of the standard body in that color
 const TAG_PX = 16; // the least the name over the stage's body is drawn at: the view is small and close
 
-// What each tab's button says, and the line under its code.
+// What each tab's button says, and the line under its code, if any.
 const TABS: Record<JoinMode, { action: string; hint: string }> = {
   create: { action: 'CREATE ROOM', hint: 'a new room under a code no one is using' },
-  join: { action: 'JOIN ROOM', hint: 'a room someone is already in' },
+  join: { action: 'JOIN ROOM', hint: '' },
 };
 
 export function showHome(): Promise<HomeResult> {
