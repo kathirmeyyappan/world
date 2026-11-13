@@ -41,7 +41,7 @@ const RETRY_MS = 60000; // after a step finer fails, how long before trying agai
 const RETRY_MAX_MS = 8 * 60000; // and never longer: a machine that can't go finer is tried this often for good
 const PIXELS_KEY = 'world.pixels';
 const FRAME_RATE_KEY = 'world.fps';
-const CEILING_KEY = 'world.pixels-ceiling'; // a step coarser than the finest size the page has died at here
+const CEILING_KEY = 'world.pixels-ceiling-2'; // a step coarser than the finest size the page has died at here
 const TRIAL_KEY = 'world.pixels-trial'; // the step finer under trial, while the page lives
 
 export class Picture {
@@ -57,8 +57,11 @@ export class Picture {
   private probeAt = Infinity; // when auto may next try a step finer
   private probing = false; // the level drawn is a step finer under trial
   private retryMs = RETRY_MS;
+  private readonly main: boolean;
 
-  constructor(touch: boolean, now: number) {
+  // Only the `main` picture (the game's) reads a trial left marked as a death and marks its own.
+  constructor(touch: boolean, now: number, main: boolean) {
+    this.main = main;
     this.frameRate = FRAME_RATE;
     if (
       touch &&
@@ -76,7 +79,7 @@ export class Picture {
       if (isPixelSize(pinned)) this.pinned = pinned;
       // A trial still marked is one the page died in: that size is beyond this device.
       const trial = Number(localStorage.getItem(TRIAL_KEY));
-      if (isPixelSize(trial)) this.pin(trial);
+      if (main && isPixelSize(trial)) this.pin(trial);
     } catch {
       // no storage: the defaults
     }
@@ -85,7 +88,7 @@ export class Picture {
     this.current = this.pixels === 'auto' ? this.start : this.pixels;
     this.holdUntil = now + STARTUP_MS;
     this.probeAt = now + STARTUP_MS; // the first window judged that keeps up earns a try at finer
-    window.addEventListener('pagehide', () => drop(TRIAL_KEY)); // a clean leaving, not a death
+    if (main) window.addEventListener('pagehide', () => drop(TRIAL_KEY)); // a clean leaving, not a death
   }
 
   // The GPU has dropped the context: the size drawn is beyond this device, so it's pinned off,
@@ -138,6 +141,7 @@ export class Picture {
     this.retryMs = RETRY_MS;
     this.probeAt = 0;
     this.holdUntil = Infinity; // auto picks up again from the next frame (frame() sets it)
+    if (this.main) drop(TRIAL_KEY); // no step is under trial any more
     keep(PIXELS_KEY, String(pixels));
   }
 
@@ -152,6 +156,7 @@ export class Picture {
     this.retryMs = RETRY_MS;
     this.probeAt = 0;
     this.holdUntil = Infinity;
+    if (this.main) drop(TRIAL_KEY); // no step is under trial any more
     keep(FRAME_RATE_KEY, String(rate));
   }
 
@@ -198,6 +203,7 @@ export class Picture {
     this.current = this.settled = PIXEL_SIZES[to];
     this.late = [];
     this.holdUntil = now + SETTLE_MS;
+    if (!this.main) return;
     if (this.probing) keep(TRIAL_KEY, String(this.current));
     else drop(TRIAL_KEY);
   }
