@@ -6,7 +6,8 @@ import type { Region } from '../sim/regions';
 import { TERRACE_DECK } from './terrace';
 import { TUNG_TUNG_TOWER_INSIDE, TUNG_TUNG_TOWER_LEVELS } from './tower';
 
-export const MAIN_AREA: Region = { ...MAIN_DISC, y: 0 };
+// The floor in the middle of the world, out to where the cubes wander.
+export const MIDDLE: Region = { ...MAIN_DISC, y: 0 };
 export const TERRACE: Region = TERRACE_DECK;
 // Ground floor, the three floors above it, then the roof.
 export const TOWER_LEVELS: Region[] = TUNG_TUNG_TOWER_LEVELS;
@@ -17,8 +18,8 @@ export { BUILDING_LEVELS } from './buildings';
 // The Krusty Krab's dining room.
 export { KRUSTY_KRAB_FLOOR } from './krustyKrab';
 
-// Where people spawn, each as likely, both on the ground of the main area: its middle and its side
-// facing the tower.
+// Where people spawn, each as likely, both on the ground in the middle of the world: its centre and
+// its side facing the tower.
 export const SPAWN_AREAS: Region[] = [
   { kind: 'disc', x: 0, z: 0, r: 15, y: 0 },
   { kind: 'rect', x: 31.5, z: 0, w: 25, d: 30, y: 0 },

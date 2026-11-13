@@ -139,7 +139,7 @@ wire: server and client both build the world from that file.
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
-- Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main area and its side facing
+- Spawns land in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main disc and its side facing
   the tower), each as likely, standing on the ground (or anything within a step
   of it) with headroom, so a building's ground floor can be a spawn point and roofs, decks and wall
   tops never are. Info cubes wander the main disc at about 3 m and
@@ -352,7 +352,7 @@ the canvas can't become the frame's texture from afar.
   floor at height `y`.
   Landmarks export theirs (a keep's `levels`: each floor inside its stair and its roof, so the
   tower's `TUNG_TUNG_TOWER_LEVELS` and the buildings' `BUILDING_LEVELS`; the terrace's
-  `TERRACE_DECK`) and `content/regions.ts` names the ones the game uses (`MAIN_AREA`, `TERRACE`,
+  `TERRACE_DECK`) and `content/regions.ts` names the ones the game uses (`MIDDLE`, `TERRACE`,
   `TOWER_LEVELS`, `BUILDING_LEVELS`, `SPAWN_AREAS`). Anything that spawns somewhere picks its spot with `randomPointInRegion`, so
   reshape a place where it's defined, never at the spawner.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a

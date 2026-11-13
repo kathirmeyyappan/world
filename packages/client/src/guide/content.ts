@@ -90,23 +90,12 @@ export interface Photo {
 }
 
 export interface Place extends Entry {
-  id: 'main' | 'pineapple' | 'krusty-krab' | 'welcome' | 'sanctuary' | 'building4' | 'tower' | 'terrace';
+  id: 'pineapple' | 'krusty-krab' | 'welcome' | 'sanctuary' | 'building4' | 'tower' | 'terrace';
   building?: number; // a building's place, by its number less one: its title is the game's name for it (BUILDING_NAMES)
   photos: Photo[];
 }
 
 export const PLACES: Place[] = [
-  {
-    id: 'main',
-    title: 'Main area',
-    summary:
-      'Where all non-bot players spawn. This is home to the resume cubes and is the entirety of what kathir world once was.',
-    facts: [],
-    photos: [
-      { file: 'main-cubes', caption: 'The info cubes over the main area' },
-      { file: 'main-wide', caption: 'Across the main area toward the tower' },
-    ],
-  },
   {
     id: 'pineapple',
     title: 'SpongeBob’s house',
@@ -130,7 +119,7 @@ export const PLACES: Place[] = [
     summary: 'The Krusty Krab, with its dining room and the cashier’s boat inside.',
     facts: [],
     photos: [
-      { file: 'krusty-krab-outside', caption: 'The Krusty Krab, from the main area' },
+      { file: 'krusty-krab-outside', caption: 'The Krusty Krab, from outside' },
       { file: 'krusty-krab-end', caption: 'The rope net under one of its arches' },
       { file: 'krusty-krab-inside', caption: 'The dining room' },
       { file: 'krusty-krab-boat', caption: 'The cashier’s boat, under the order window' },
@@ -187,10 +176,10 @@ export const PLACES: Place[] = [
     id: 'terrace',
     title: 'Terrace',
     summary:
-      'A brick terrace above the main area, reached by staircases from the roofs of the Welcome Room, the Dire Sanctuary and Building 4, and by the bridge from the tower.',
+      'A brick terrace above the middle of the world, reached by staircases from the roofs of the Welcome Room, the Dire Sanctuary and Building 4, and by the bridge from the tower.',
     facts: [],
     photos: [
-      { file: 'terrace-overview', caption: 'The terrace over the main area, with its staircases' },
+      { file: 'terrace-overview', caption: 'The terrace, with its staircases' },
       { file: 'terrace-deck', caption: 'On the deck' },
     ],
   },
