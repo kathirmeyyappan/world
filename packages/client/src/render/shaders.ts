@@ -90,19 +90,25 @@ float worldDistance(vec2 p) {
 }
 `;
 
-// Metres past the world's edge the ground outside it starts: the step to it stands there,
-// clear of the boundary wall on the edge itself.
+// Metres past the world's edge the kerb's outer face stands, clear of the boundary wall on the edge
+// itself.
 export const STEP_GAP = 0.02;
+// The kerb along the edge (render/Environment.ts): metres across, inside the edge, and up. The floor
+// and the ground past the edge each stop halfway across under it, so neither's cut edge shows. It
+// lies inside the margin players are kept in by (PLAYER_PADDING), so no foot reaches it.
+export const KERB_WIDTH = 0.5;
+export const KERB_HEIGHT = 0.08;
 
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
 // colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
-// three sides of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT up
-// (or down), and the step between them; past the edge the grid dims and turns grey, and the step's
-// top is lit, so where you can't go reads from afar.
+// three parts of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT
+// down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb's top
+// is lit bright, its inner face the grid's colour and its outer face darkening down the drop, so
+// where you can't go reads from afar.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
-uniform float side; // 0 the floor, 1 the ground past the edge, 2 the step
+uniform float side; // 0 the floor, 1 the ground past the edge, 2 the kerb
 uniform vec3 cameraPos;
 uniform vec3 lineColor;
 uniform vec3 majorColor;
@@ -123,11 +129,11 @@ float gridLine(vec2 p, float spacing, float width) {
 void main() {
   vec2 p = vWorld.xz;
   float dist = length(p - cameraPos.xz);
-  float plain = side > 1.5 ? 0.0 : 1.0; // the step is plain but for its rim
+  float plain = side > 1.5 ? 0.0 : 1.0; // the kerb has no grid
   float minor = gridLine(p, 2.0, 0.045) * plain;
   float major = gridLine(p, 10.0, 0.09) * plain;
   float sd = worldDistance(p);
-  if (side < 0.5 ? sd > ${STEP_GAP} : side < 1.5 && sd < ${STEP_GAP}) discard;
+  if (side < 0.5 ? sd > ${-KERB_WIDTH / 2} : side < 1.5 && sd < ${-KERB_WIDTH / 2}) discard;
   float inside = 1.0 - smoothstep(-2.0, 6.0, sd);
   float pulse = 0.85 + 0.15 * sin(time * 1.5 - length(p) * 0.15);
   vec3 col = floorColor;
@@ -135,8 +141,13 @@ void main() {
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
   float outside = side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
-  float rim = side > 1.5 ? 1.0 - smoothstep(0.0, 0.06 + fwidth(vWorld.y), ${Math.max(0, OUTSIDE_HEIGHT).toFixed(2)} - vWorld.y) : 0.0;
-  col = mix(mix(col, vec3(0.12), 1.0 - plain), vec3(0.55), rim * 0.8);
+  if (side > 1.5) {
+    float top = step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y);
+    float inner = step(sd, ${-KERB_WIDTH / 2});
+    float down = clamp(vWorld.y / ${OUTSIDE_HEIGHT.toFixed(2)}, 0.0, 1.0); // 0 at the floor, 1 at the ground past it
+    vec3 face = mix(lineColor * 0.45, mix(vec3(0.2), vec3(0.04), down), 1.0 - inner);
+    col = mix(face, majorColor * pulse, top);
+  }
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);

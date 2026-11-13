@@ -48,9 +48,9 @@ export const WORLD_SHAPE: WorldPart[] = [
   BUILDING_FAN,
 ];
 
-// Metres the ground past the world's edge stands above the floor (below it, negative), so where you
-// can't go reads from afar. Only drawn (render/Environment.ts): the sim keeps everyone inside the
-// edge and its floor flat.
+// Metres the ground past the world's edge stands above the floor: below it, so the kerb along the
+// edge drops to it and where you can't go reads from afar. Only drawn (render/Environment.ts): the
+// sim keeps everyone inside the edge and its floor flat.
 export const OUTSIDE_HEIGHT = -1;
 
 // The structures standing inside the outline, indexed for the sim's queries.

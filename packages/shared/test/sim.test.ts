@@ -136,7 +136,7 @@ test('the annex is reachable only through the bridge', () => {
   for (let i = 1; i < 30 * 30; i++) {
     stepPlayer(off, frame(i, { my: 1, yaw }), TICK_DT, WORLD_SHAPE);
     assert.ok(worldDistance(off.pos.x, off.pos.z, WORLD_SHAPE) <= -1 + 1e-6, `inside at tick ${i}`);
-    if (off.pos.x > 51 && off.pos.x < 81) assert.ok(Math.abs(off.pos.z) <= 3 + 1e-6, `on the bridge at tick ${i}`);
+    if (off.pos.x > 51 && off.pos.x < 81) assert.ok(Math.abs(off.pos.z) <= 7 + 1e-6, `on the bridge at tick ${i}`);
   }
 });
 

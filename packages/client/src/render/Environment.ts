@@ -1,5 +1,5 @@
-// Static scenery: shader-drawn grid floor, the ground past the world's edge OUTSIDE_HEIGHT from it
-// with a step between, gradient sky with stars, and a boundary wall that only shows up when you
+// Static scenery: shader-drawn grid floor, a kerb along the world's edge with the ground past it
+// OUTSIDE_HEIGHT below, gradient sky with stars, and a boundary wall that only shows up when you
 // get close, at whatever height you're at. All of it follows the world shape. Sky billboards live in
 // SkyObject.ts.
 import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData } from '@babylonjs/core';
@@ -12,6 +12,8 @@ import {
   MAX_SECTORS,
   MAX_BRIDGES,
   MAX_DISCS,
+  KERB_HEIGHT,
+  KERB_WIDTH,
   SKY_FRAGMENT,
   SKY_VERTEX,
   STEP_GAP,
@@ -33,7 +35,7 @@ type Point = { x: number; z: number };
 
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
-  private readonly grounds: ShaderMaterial[] = []; // the floor's, the ground's past the edge and the step's
+  private readonly grounds: ShaderMaterial[] = []; // the floor's, the ground's past the edge and the kerb's
   private sky!: ShaderMaterial; // set in createSky
   private fogScale = 1;
   private fogTarget = 1;
@@ -68,8 +70,9 @@ export class Environment {
     this.skyWall.setEnabled(bounds === 'sky');
   }
 
-  // The floor inside the world's edge, the ground past it, and the step between them: one
-  // shader, each drawing only its own side of the edge.
+  // The floor inside the world's edge, the ground past it, and the kerb along it: one shader, the
+  // floor and the ground each drawn only on its own side of the kerb's middle, so both end under it
+  // and every edge in sight is the kerb's own.
   private createGround(): void {
     const scene = this.engine.scene;
     const size = this.span * 6;
@@ -83,12 +86,37 @@ export class Environment {
     };
     plane('ground', 0, 0);
     plane('outside-ground', OUTSIDE_HEIGHT, 1);
-    // The step stands STEP_GAP out from the edge, where the ground past it starts, off the wall's
-    // plane. A sector's straight sides stay put: they're kept under a path (sim/outline.ts).
-    const out = this.shape.map((part): WorldPart =>
-      part.kind === 'bridge' ? { ...part, halfWidth: part.halfWidth + STEP_GAP } : { ...part, r: part.r + STEP_GAP },
-    );
-    this.createWall('ground-step', out, OUTSIDE_HEIGHT, this.groundMaterial('ground-step', 2));
+    this.createKerb(this.groundMaterial('kerb', 2));
+  }
+
+  // A bold kerb along the world's edge: KERB_WIDTH across inside it and KERB_HEIGHT up, its outer
+  // face (STEP_GAP out, off the boundary wall's plane) going on down to the ground past the edge.
+  private createKerb(mat: ShaderMaterial): void {
+    const positions: number[] = [];
+    const indices: number[] = [];
+    for (const { part, points } of this.exposedRuns(this.shape)) {
+      const base = positions.length / 3;
+      for (const p of points) {
+        const n = outward(part, p);
+        const [ix, iz] = [p.x - n.x * KERB_WIDTH, p.z - n.z * KERB_WIDTH];
+        const [ox, oz] = [p.x + n.x * STEP_GAP, p.z + n.z * STEP_GAP];
+        positions.push(ix, 0, iz, ix, KERB_HEIGHT, iz, ox, KERB_HEIGHT, oz, ox, OUTSIDE_HEIGHT, oz);
+      }
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = base + i * 4;
+        for (let band = 0; band < 3; band++) {
+          const [p, q] = [a + band, a + 4 + band];
+          indices.push(p, p + 1, q, p + 1, q + 1, q);
+        }
+      }
+    }
+    const kerb = new Mesh('kerb', this.engine.scene);
+    const data = new VertexData();
+    data.positions = positions;
+    data.indices = indices;
+    data.applyToMesh(kerb);
+    kerb.isPickable = false;
+    kerb.material = mat;
   }
 
   private groundMaterial(name: string, side: number): ShaderMaterial {
@@ -220,10 +248,7 @@ export class Environment {
     this.skyWall.setEnabled(false);
   }
 
-  // A vertical ribbon along a shape's outline, `top` metres tall. Each part's edge is sampled,
-  // samples that fall inside another part are dropped (that's where parts join), and the survivors
-  // become quads, each run carried on to the exact point where its edge goes into the other part,
-  // so two parts' walls meet in the corner between them.
+  // A vertical ribbon along a shape's outline, `top` metres tall.
   private createWall(name: string, shape: WorldPart[], top: number, mat: ShaderMaterial): Mesh {
     const scene = this.engine.scene;
     const positions: number[] = [];
@@ -231,8 +256,7 @@ export class Environment {
     const indices: number[] = [];
     let arc = 0;
 
-    const pushRun = (run: { x: number; z: number }[]) => {
-      if (run.length < 2) return;
+    for (const { points: run } of this.exposedRuns(shape)) {
       const base = positions.length / 3;
       for (let i = 0; i < run.length; i++) {
         if (i > 0) arc += Math.hypot(run[i].x - run[i - 1].x, run[i].z - run[i - 1].z);
@@ -244,29 +268,6 @@ export class Environment {
         indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
       }
       arc += 3; // gap so the pattern doesn't line up across a join
-    };
-
-    for (const part of shape) {
-      const exposed = (p: Point) => shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
-      let run: Point[] = [];
-      let last: { p: Point; out: boolean } | null = null;
-      for (const p of this.outline(part)) {
-        if (!p) {
-          pushRun(run);
-          run = [];
-          last = null;
-          continue;
-        }
-        const out = exposed(p);
-        if (last && out !== last.out) run.push(crossing(last.p, p, exposed));
-        if (out) run.push(p);
-        else {
-          pushRun(run);
-          run = [];
-        }
-        last = { p, out };
-      }
-      pushRun(run);
     }
 
     const wall = new Mesh(name, scene);
@@ -278,6 +279,37 @@ export class Environment {
     wall.isPickable = false;
     wall.material = mat;
     return wall;
+  }
+
+  // The stretches of a shape's outline that are its edge: each part's edge sampled, the samples that
+  // fall inside another part dropped (that's where parts join), and each run carried on to the exact
+  // point where its edge goes into the other part, so two parts' stretches meet in the corner
+  // between them.
+  private exposedRuns(shape: WorldPart[]): { part: WorldPart; points: Point[] }[] {
+    const runs: { part: WorldPart; points: Point[] }[] = [];
+    for (const part of shape) {
+      const exposed = (p: Point) => shape.every((other) => other === part || partDistance(p.x, p.z, other) > -0.05);
+      let run: Point[] = [];
+      const end = () => {
+        if (run.length >= 2) runs.push({ part, points: run });
+        run = [];
+      };
+      let last: { p: Point; out: boolean } | null = null;
+      for (const p of this.outline(part)) {
+        if (!p) {
+          end();
+          last = null;
+          continue;
+        }
+        const out = exposed(p);
+        if (last && out !== last.out) run.push(crossing(last.p, p, exposed));
+        if (out) run.push(p);
+        else end();
+        last = { p, out };
+      }
+      end();
+    }
+    return runs;
   }
 
   // Points along one part's own edge, in order: a closed loop for discs and sectors, two sides for
@@ -345,6 +377,15 @@ export class Environment {
     this.sky.setFloat('horizon', horizon);
     for (const g of this.grounds) g.setFloat('horizon', horizon);
   }
+}
+
+// The way out of `part` square to its edge at `p`, a unit vector.
+function outward(part: WorldPart, p: Point): Point {
+  const e = 0.01;
+  const dx = partDistance(p.x + e, p.z, part) - partDistance(p.x - e, p.z, part);
+  const dz = partDistance(p.x, p.z + e, part) - partDistance(p.x, p.z - e, part);
+  const len = Math.hypot(dx, dz) || 1;
+  return { x: dx / len, z: dz / len };
 }
 
 // The point between `a` and `b` where `test` changes its answer, to well under a millimetre.

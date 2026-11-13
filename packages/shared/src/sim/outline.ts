@@ -4,12 +4,13 @@ import type { Bridge, Disc, Sector } from './world';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
-export const FLOOR_BRIDGE: Bridge = { kind: 'bridge', ax: 40, az: 0, bx: 92, bz: 0, halfWidth: 4 };
+export const FLOOR_BRIDGE: Bridge = { kind: 'bridge', ax: 40, az: 0, bx: 92, bz: 0, halfWidth: 8 };
+const PATH_HALF_WIDTH = 4; // the buildings' paths, narrower than the bridge to the tower
 
-// Buildings 1 to 4's grounds and paths: the annex and the floor bridge turned round the main disc's
-// middle to each one's bearing (degrees from +x toward +z), round its far side from the tower with
-// the widest gap between Buildings 2 and 3, out at `out` on grounds the annex's size unless the
-// building says otherwise. SpongeBob's house stands further out than the keeps, on wider grounds, so
+// Buildings 1 to 4's grounds and paths: the annex and the floor bridge (at PATH_HALF_WIDTH) turned
+// round the main disc's middle to each one's bearing (degrees from +x toward +z), round its far side
+// from the tower with the widest gap between Buildings 2 and 3, out at `out` on grounds the annex's
+// size unless the building says otherwise. SpongeBob's house stands further out than the keeps, on wider grounds, so
 // its dune sits on the floor with room round it.
 const KEEP_OUT = 100;
 const BUILDING_SITES: { bearing: number; out: number; r?: number }[] = [
@@ -31,7 +32,7 @@ export const BUILDING_GROUNDS: Disc[] = BUILDING_SITES.map(({ bearing, out, r = 
 export const BUILDING_PATHS: Bridge[] = BUILDING_SITES.map(({ bearing, out, r = ANNEX.r }) => {
   const a = turned(bearing, FLOOR_BRIDGE.ax, FLOOR_BRIDGE.az);
   const b = turned(bearing, out - r + PATH_INTO, 0);
-  return { ...FLOOR_BRIDGE, ax: a.x, az: a.z, bx: b.x, bz: b.z };
+  return { ...FLOOR_BRIDGE, ax: a.x, az: a.z, bx: b.x, bz: b.z, halfWidth: PATH_HALF_WIDTH };
 });
 // The floor between them all: a slice of the main disc's middle out to the keeps' middles, from the
 // first building's bearing round to the last's, so the only way out of it is the bridge to the
