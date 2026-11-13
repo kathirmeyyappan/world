@@ -345,9 +345,11 @@ body {
 }
 .home-tab-panel #home-global {
   margin-top: 0;
+  padding: 20px 12px;
+  font-size: 12px;
 }
 .home-tab-panel .divider {
-  margin: 16px 0 12px;
+  margin: 26px 0 22px;
 }
 #home-mode-hint {
   font-size: 17px;
@@ -480,8 +482,6 @@ body {
     border-left: none;
     padding-left: 0;
     padding-bottom: 18px;
-    margin-bottom: 8px;
-    border-bottom: 2px solid rgba(var(--accent-rgb), 0.3);
   }
   #home-view {
     height: 200px;
