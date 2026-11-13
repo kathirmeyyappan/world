@@ -1952,10 +1952,103 @@ body {
     opacity: 0;
   }
 }
-/* A phone on its side: under the area title, above the crosshair. */
+/* A phone on its side, a screen as little as 280px tall once the browser's bars are off it. The menu
+   button and the room panel share one row at the top left, CHAT and CMDS one at the top right; the
+   pad and the right thumb's buttons are smaller, FIRE and SCOPE side by side over JUMP and SWAP, so
+   nothing on the right stands higher than 136px; the chat runs from under the corner to just over
+   the pad (or the throttle), its oldest lines cut off at the top. */
 @media (pointer: coarse) and (max-height: 500px) {
+  #corner {
+    top: 8px;
+    left: 8px;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  #hud .panel {
+    min-width: 0;
+    padding: 6px 10px;
+  }
+  /* The gear alone, so the corner stays clear of the hearts in the middle. */
+  #menu-button span {
+    display: none;
+  }
+  #pad {
+    left: 16px;
+    bottom: 16px;
+    width: 96px;
+    height: 96px;
+  }
+  #throttle {
+    left: 16px;
+    bottom: 16px;
+  }
+  #chat {
+    bottom: 124px;
+    width: min(280px, calc(50vw - 130px)); /* clear of the item hint in the middle */
+  }
+  #app:has(#throttle:not(.hidden)) #chat {
+    bottom: 178px;
+  }
+  #chat-log {
+    max-height: calc(100dvh - 124px - 64px);
+    overflow: hidden;
+    justify-content: flex-end;
+  }
+  #app:has(#throttle:not(.hidden)) #chat-log {
+    max-height: calc(100dvh - 178px - 64px);
+  }
+  #chat-log li {
+    flex: none;
+    font-size: 15px;
+  }
+  #jump-button {
+    right: 16px;
+    bottom: 16px;
+    width: 72px;
+    height: 72px;
+  }
+  .touch-button {
+    height: 40px;
+    padding: 0 10px;
+  }
+  #action-button,
+  #scope-button {
+    bottom: 96px;
+    width: 72px;
+  }
+  #action-button {
+    right: 16px;
+  }
+  #action-button.disabled {
+    line-height: 11px;
+  }
+  #scope-button {
+    right: 96px;
+  }
+  #swap-button {
+    right: 96px;
+    bottom: 16px;
+    width: 72px;
+    height: 72px;
+  }
+  #chat-button,
+  #commands-button {
+    top: 8px;
+    width: 64px;
+    padding: 0;
+  }
+  #chat-button {
+    right: 16px;
+  }
+  #commands-button {
+    right: 88px;
+  }
   #item-hint {
     top: 96px;
+    font-size: 15px;
+  }
+  #item-hint .stats {
+    font-size: 12px;
   }
   #fuel {
     bottom: 146px;

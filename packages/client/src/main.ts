@@ -52,6 +52,10 @@ function showStart(canvas: HTMLCanvasElement): void {
     () => {
       window.removeEventListener('keydown', keys, { capture: true });
       if (!IS_TOUCH) void canvas.requestPointerLock?.();
+      // A phone or tablet plays fullscreen, out from under the browser's bars, where its browser
+      // can take a page fullscreen (an iPhone's can't, so it's left as it is).
+      else if (document.fullscreenEnabled)
+        void document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
       gate.classList.add('gone');
       setTimeout(() => gate.remove(), START_FADE_MS);
     },
