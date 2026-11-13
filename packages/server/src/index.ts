@@ -117,11 +117,13 @@ http.on('upgrade', (req, socket, head) => {
     }
     const room = roomFor(key);
     // ?bot=1 is the bot framework declaring itself; the browser client never sends it. A bot may
-    // also say where it stands (?x=&y=&z=); anyone may say how they look (?avatar= or ?color=).
+    // also say where it stands (?x=&y=&z=); anyone may say how they look (?avatar= or ?color=),
+    // and a person back from the death screen says so (?respawn=1) to come back where the dead do.
     const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), {
       bot: url.searchParams.get('bot') === '1',
       room: url.searchParams.get('room') ?? undefined,
       color: url.searchParams.get('color') ?? undefined,
+      respawn: url.searchParams.get('respawn') === '1',
       ...placementFromQuery((key) => url.searchParams.get(key)),
     });
     if (!id) {

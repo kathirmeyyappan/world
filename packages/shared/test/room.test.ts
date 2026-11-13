@@ -15,6 +15,7 @@ import {
   PICKUP_AREAS,
   RENAME_SECONDS,
   Room,
+  RESPAWN_AREAS,
   SPAWN_AREAS,
   STEP_UP,
   Structures,
@@ -178,28 +179,34 @@ test('room calls onEmpty when the last player leaves', () => {
   assert.equal(empty, 1);
 });
 
-test('players spawn at random spots in every spawn area, on the ground', () => {
+test('players spawn at random spots in every spawn area, on its floor, and the dead come back in the respawn areas', () => {
   const room = new Room('spawn', { seed: 3 });
   const inside = (r: Region, p: Vec3) =>
     r.kind === 'disc'
       ? Math.hypot(p.x - r.x, p.z - r.z) <= r.r
       : r.kind === 'rect' && Math.abs(p.x - r.x) <= r.w / 2 && Math.abs(p.z - r.z) <= r.d / 2;
-  const used = new Set<number>();
-  const spots = new Set<string>();
-  for (let i = 0; i < 40; i++) {
-    const l = link();
-    const id = room.join(`p${i}`, l)!;
-    const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
-    assert.ok(me);
-    const area = SPAWN_AREAS.findIndex((a) => inside(a, me.pos));
-    assert.ok(area >= 0, 'in a spawn area');
-    used.add(area);
-    spots.add(`${me.pos.x.toFixed(1)},${me.pos.z.toFixed(1)}`);
-    assert.ok(me.pos.y <= EYE_HEIGHT + STEP_UP + 1e-9, 'on the ground, or a step up from it');
-    room.leave(id);
+  for (const [areas, respawn, joins] of [
+    [SPAWN_AREAS, false, 40],
+    [RESPAWN_AREAS, true, 120],
+  ] as const) {
+    const used = new Set<number>();
+    const spots = new Set<string>();
+    for (let i = 0; i < joins; i++) {
+      const l = link();
+      const id = room.join(`p${i}`, l, { respawn })!;
+      const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
+      assert.ok(me);
+      const area = areas.findIndex(({ region }) => inside(region, me.pos));
+      assert.ok(area >= 0, 'in a spawn area');
+      used.add(area);
+      spots.add(`${me.pos.x.toFixed(1)},${me.pos.z.toFixed(1)}`);
+      const floor = areas[area].region.y;
+      assert.ok(me.pos.y - EYE_HEIGHT <= floor + STEP_UP + 1e-9, 'on the floor, or a step up from it');
+      room.leave(id);
+    }
+    assert.equal(used.size, areas.length, 'every area gets some');
+    assert.equal(spots.size, joins, 'all different');
   }
-  assert.equal(used.size, SPAWN_AREAS.length, 'every area gets some');
-  assert.equal(spots.size, 40, 'all different');
 });
 
 test('/speedy and /s boost the sender and tell everyone in grey', () => {
