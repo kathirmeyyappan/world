@@ -86,12 +86,13 @@ export const TUNG_TUNG_TOWER: Structure[] = [...TOWER.structures, ...balconies, 
 
 export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = TOWER.footprint;
 
-// The sky bridge on the ground, for the minimap's view from up high (content/landmarks.ts).
+// The sky bridge on the ground, for the minimap's view from up high (content/landmarks.ts), on
+// across the balcony it lands on to the wall, so it meets the tower's footprint.
 export const SKY_BRIDGE_FOOTPRINT: Bridge = {
   kind: 'bridge',
   ax: bridgeEnd,
   az: Z,
-  bx: bridgeStart,
+  bx: X - OUTER,
   bz: Z,
   halfWidth: halfW,
 };

@@ -408,15 +408,17 @@ function placeTitle(place: Place): string {
 const CLICK_SLOP = 5; // CSS pixels a press may move and still be a click rather than a drag
 
 // The world's map at the top of the World tab, the game's own (MapCanvas: the minimap's WORLD view,
-// with no one on it), to drag about and zoom, and a HIGH toggle for the walkways the game's map
-// shows only once you're up past HIGH_UP (the terrace, the sky bridge, the staircases). A place
-// under the pointer is named beside it, and a click on one picks it.
+// with no one on it), to drag about and zoom, seen from the ground or from up high: the GROUND and
+// HIGH toggle, high being the view the game's map takes past HIGH_UP, with the walkways up there
+// (the terrace, the sky bridge, the staircases). A place under the pointer is named beside it, and
+// a click on one picks it.
 class WorldMap {
   readonly el = el('section', 'card wide world-map');
   private readonly canvas = el('canvas');
   private readonly map = new MapCanvas(this.canvas);
   private readonly controls = new MapControls(this.canvas, () => this.map.baseScale('world'));
-  private readonly high = el('button', 'high', 'HIGH');
+  private readonly toggle = el('div', 'toggle');
+  private showsHigh = false;
   private readonly label = el('span', 'label');
   private readonly spots = placeSpots();
   private pressed: { x: number; y: number } | null = null;
@@ -424,7 +426,12 @@ class WorldMap {
   constructor(onPick: (id: Place['id']) => void) {
     const zoom = matchMedia('(pointer: coarse)').matches ? 'pinch' : 'scroll';
     const box = el('div', 'view');
-    this.high.addEventListener('click', () => this.high.classList.toggle('on'));
+    for (const high of [false, true]) {
+      const button = el('button', '', high ? 'HIGH' : 'GROUND');
+      button.addEventListener('click', () => this.setHigh(high));
+      this.toggle.append(button);
+    }
+    this.setHigh(false);
     this.canvas.addEventListener('pointerdown', (e) => (this.pressed = { x: e.clientX, y: e.clientY }));
     this.canvas.addEventListener('pointermove', (e) => this.hover(e));
     this.canvas.addEventListener('pointerleave', () => this.name(null));
@@ -434,7 +441,7 @@ class WorldMap {
       const spot = this.spotAt(e);
       if (spot) onPick(spot.id);
     });
-    box.append(this.canvas, this.label, this.high, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
+    box.append(this.canvas, this.label, this.toggle, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
     this.el.append(el('h2', '', 'Map'), box);
   }
 
@@ -442,8 +449,9 @@ class WorldMap {
     this.map.drawWorld(this.controls.framing, this.showsHigh);
   }
 
-  private get showsHigh(): boolean {
-    return this.high.classList.contains('on');
+  private setHigh(high: boolean): void {
+    this.showsHigh = high;
+    [...this.toggle.children].forEach((b, i) => b.classList.toggle('on', i === Number(high)));
   }
 
   private spotAt(e: MouseEvent): PlaceSpot | null {

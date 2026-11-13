@@ -52,6 +52,7 @@ const GRID = `rgba(${ACCENT}, 0.27)`;
 const OUTLINE = `rgba(${ACCENT}, 0.9)`;
 const LANDMARK = 'rgba(150, 150, 158, 0.78)';
 const RING = 'rgb(70, 70, 78)'; // a landmark's inner circles
+const WOOD = 'rgb(138, 100, 64)'; // a wooden walkway's footprint (the terrace's staircases)
 // SpongeBob's house: its dune's sand, the fruit's skin and the diamonds hatched across it, and its
 // leaves, the outer ones darker.
 const SAND = 'rgb(214, 196, 140)';
@@ -87,6 +88,7 @@ export class MapCanvas {
   private readonly gridLayer = layer();
   private readonly floorLayer = layer();
   private readonly landmarkLayer = layer();
+  private readonly woodLayer = layer();
   private readonly houseLayer = layer();
   private readonly parts: Path2D[];
   private readonly bounds;
@@ -158,6 +160,7 @@ export class MapCanvas {
       this.gridLayer.canvas,
       this.floorLayer.canvas,
       this.landmarkLayer.canvas,
+      this.woodLayer.canvas,
       this.houseLayer.canvas,
     ]) {
       c.width = width * RES;
@@ -245,9 +248,13 @@ export class MapCanvas {
       }
     }
     const marks = landmarks.filter((l): l is Footprint => l.kind !== 'pineapple' && l.kind !== 'krusty-krab');
+    const wooden = (l: Footprint) => l.kind === 'bridge' && !!l.wood;
     place(this.landmarkLayer);
-    cover(this.landmarkLayer, marks.map(partPath));
+    cover(this.landmarkLayer, marks.filter((l) => !wooden(l)).map(partPath));
     tint(this.landmarkLayer, LANDMARK);
+    place(this.woodLayer);
+    cover(this.woodLayer, marks.filter(wooden).map(partPath));
+    tint(this.woodLayer, WOOD);
     place(this.houseLayer);
     for (const l of landmarks) {
       if (l.kind === 'pineapple') drawPineapple(this.houseLayer, l, px);
@@ -277,7 +284,8 @@ export class MapCanvas {
     tint(this.floorLayer, FLOOR);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    for (const l of [this.houseLayer, this.landmarkLayer, grid, this.floorLayer]) ctx.drawImage(l.canvas, 0, 0);
+    for (const l of [this.houseLayer, this.landmarkLayer, this.woodLayer, grid, this.floorLayer])
+      ctx.drawImage(l.canvas, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
   }
 
