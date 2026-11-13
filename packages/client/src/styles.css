@@ -335,13 +335,16 @@ body {
   border-bottom-color: transparent;
 }
 .home-tab-panel {
-  padding: 16px 14px 14px;
+  padding: 24px 14px;
   border: 2px solid var(--accent);
   border-top: none;
   background: rgba(var(--accent-rgb), 0.05);
 }
 .home-tab-panel label {
-  margin-bottom: 6px;
+  margin-bottom: 0;
+}
+.home-tab-panel #home-join {
+  margin-top: 24px;
 }
 .home-tab-panel #home-global {
   margin-top: 0;
@@ -349,9 +352,6 @@ body {
   font-size: 12px;
 }
 /* The OR's rule sits as far under JOIN GLOBAL as the panel's top is over it. */
-.home-tab-panel:has(#home-global-row:not(.hidden)) {
-  padding-top: 24px;
-}
 .home-tab-panel .divider {
   margin: 19px 0 19px;
 }
@@ -359,6 +359,7 @@ body {
   display: none;
 }
 #home-mode-hint {
+  margin-top: 8px;
   font-size: 17px;
   color: rgba(255, 255, 255, 0.5);
 }
