@@ -200,6 +200,7 @@ export class Room {
       opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? opts.color : names[Math.floor(this.rng() * names.length)];
     const color = NAMED_COLORS[named];
     const state = createPlayer(id, sanitizeName(rawName), color, at, !!opts.bot);
+    state.yaw = this.rng() * 2 * Math.PI; // a fresh body faces any way, so no landmark greets every spawn
     if (opts.bot && opts.avatar) {
       becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
