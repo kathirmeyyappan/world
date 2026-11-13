@@ -20,18 +20,16 @@ export type PixelSize = (typeof PIXEL_SIZES)[number];
 export const FRAME_RATES = [15, 30, 45, 60, 75, 90] as const; // the choices, fifteen apart
 export type FrameRate = (typeof FRAME_RATES)[number];
 
-// Where auto starts: a phone on the coarse grid it has always had, a mouse device a step finer;
-// either climbs to the finest size for as long as it keeps up. The frame rate is the device's
-// unless one is chosen, a phone's a notch under a mouse device's.
+// Where auto starts: a phone a step coarser than a mouse device; either climbs to the finest size
+// for as long as it keeps up. The frame rate is 60 unless one is chosen.
 const AUTO_START: PixelSize = 1.5;
-const TOUCH_START: PixelSize = 2.5;
+const TOUCH_START: PixelSize = 2;
 const FINEST: PixelSize = 1;
 // A phone that says it has little memory keeps to the coarse sizes; one that says nothing (Safari
 // never does) is tried like any other.
 const LOW_MEMORY_GB = 4;
 const LOW_MEMORY_FINEST: PixelSize = 2;
 const FRAME_RATE: FrameRate = 60;
-const TOUCH_FRAME_RATE: FrameRate = 45;
 const STARTUP_MS = 6000; // the world is still streaming in: its hitches say nothing about the machine
 const SETTLE_MS = 3000; // after a step, before its frames count (the resize itself hitches)
 const WINDOW = 120; // frames judged at a time: two seconds at 60
@@ -61,7 +59,7 @@ export class Picture {
   private retryMs = RETRY_MS;
 
   constructor(touch: boolean, now: number) {
-    this.frameRate = touch ? TOUCH_FRAME_RATE : FRAME_RATE;
+    this.frameRate = FRAME_RATE;
     if (
       touch &&
       'deviceMemory' in navigator &&
