@@ -18,7 +18,6 @@ import {
   ITEM_IDS,
   KRUSTY_KRAB_FLOOR,
   KRUSTY_KRAB_PROFILE,
-  MAIN_AREA,
   PICKUP_AREAS,
   PINEAPPLE_LEVELS,
   PINEAPPLE_PROFILE,
@@ -275,11 +274,6 @@ function topOf(regions: Region[]): Stat {
 
 function placeStats(place: Place): Stat[] {
   switch (place.id) {
-    case 'main':
-      return [
-        { label: 'Diameter', value: MAIN_AREA.kind === 'disc' ? `${num(2 * MAIN_AREA.r)} m` : '' },
-        { label: 'Hearts', value: `${heartsIn([MAIN_AREA])}` },
-      ].filter((s) => s.value);
     case 'pineapple':
       return [
         // To the deck on the crown, the top of the house anyone stands on.
