@@ -122,10 +122,22 @@ export class MapCanvas {
     this.arrow(t, x, z, view === 'near' ? 0 : frame.me.yaw, 1);
   }
 
-  // The whole world, north up, at ground level, with no one on it.
-  drawWorld(framing: Framing = STILL): void {
+  // The whole world, north up, with no one on it: at ground level, or with `high` as it's seen
+  // from up past HIGH_UP.
+  drawWorld(framing: Framing = STILL, high = false): void {
     this.fit();
-    if (this.width) this.drawFloor(this.transform({ x: 0, y: 0, z: 0, yaw: 0 }, 'world', framing), LANDMARKS);
+    if (!this.width) return;
+    const t = this.transform({ x: 0, y: 0, z: 0, yaw: 0 }, 'world', framing);
+    this.drawFloor(t, high ? [...LANDMARKS, ...HIGH_LANDMARKS] : LANDMARKS);
+  }
+
+  // The world point under `x`, `y` CSS pixels from the canvas's corner, in the world view.
+  worldAt(x: number, y: number, framing: Framing = STILL): { x: number; z: number } {
+    this.fit();
+    const t = this.transform({ x: 0, y: 0, z: 0, yaw: 0 }, 'world', framing);
+    const right = (x - this.width / 2) * t.scale;
+    const up = (this.height / 2 - y) * t.scale;
+    return { x: t.ox + right * t.rx + up * t.fx, z: t.oz + right * t.rz + up * t.fz };
   }
 
   // Metres per CSS pixel the view is drawn at before any zoom: what a wheel's step is relative to.
