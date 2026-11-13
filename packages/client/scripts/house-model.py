@@ -106,7 +106,7 @@ PATH_SPREAD = (
     10.0  # metres either side of the path's line its flagstones lie within (the model's rock lies further out)
 )
 DUNE_HEIGHT = 3.0  # metres the dune's flat top, and the house's floor, stand above the floor
-DUNE_FOOT = 30.0  # where the dune meets the floor: the grounds' radius (sim/outline.ts BUILDING_GROUNDS)
+DUNE_FOOT = 30.0  # where the dune meets the floor: within the grounds' radius (sim/outline.ts BUILDING_GROUNDS)
 DUNE_BULGES = 5  # soft mounds round the slope
 BULGE = 0.5  # metres they rise and fall by
 CLIENT = Path(__file__).resolve().parents[1]

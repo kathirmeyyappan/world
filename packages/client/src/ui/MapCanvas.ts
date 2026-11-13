@@ -1,13 +1,25 @@
-// A map of the world drawn onto a canvas, as the HUD's minimap (Minimap.ts) and the menu's map
-// (menu/Map.ts) draw it. Two views: NEAR keeps you centred and rotates so you always face up; WORLD
-// shows the whole outline north-up. Everything is drawn each frame as shapes in world metres through
-// the view's transform, at the screen's own pixel density (RES canvas pixels to the CSS pixel), so
-// edges stay smooth at any zoom and as the near view turns: the outline's parts (discs, bridges and
-// arcs), landmarks (content/landmarks.ts) grey on the floor, and up past HIGH_UP the walkways up
-// there too. Markers go on top: cubes as faint specks, people as smaller copies of your arrow
-// pointing their way, bots as squares, and anyone on another level (a floor above, a bridge below)
-// faded. The canvas can be any size and change it; each draw fits the view to the size it has.
-import { EYE_HEIGHT, HIGH_UP, worldBounds, type Landmark, type WorldPart } from '@world/shared';
+// A map of the world drawn onto a canvas: every map there is draws through this, the HUD's minimap
+// (Minimap.ts), the menu's (menu/Map.ts) and the guide's, so they all show the one world, the
+// outline (WORLD_SHAPE) and the landmarks (content/landmarks.ts) as shared has them. Two views: NEAR
+// keeps you centred and rotates so you always face up; WORLD shows the whole outline north-up.
+// Everything is drawn each frame as shapes in world metres through the view's transform, at the
+// screen's own pixel density (RES canvas pixels to the CSS pixel), so edges stay smooth at any zoom
+// and as the near view turns: the outline's parts (discs, bridges and arcs), landmarks grey on the
+// floor (SpongeBob's house as itself), and up past HIGH_UP the walkways up there too. Markers go on
+// top: cubes as faint specks, people as smaller copies of your arrow pointing their way, bots as
+// squares, and anyone on another level (a floor above, a bridge below) faded. The canvas can be any
+// size and change it; each draw fits the view to the size it has.
+import {
+  EYE_HEIGHT,
+  HIGH_LANDMARKS,
+  HIGH_UP,
+  LANDMARKS,
+  WORLD_SHAPE,
+  worldBounds,
+  type Landmark,
+  type PineappleMark,
+  type WorldPart,
+} from '@world/shared';
 
 export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
@@ -39,6 +51,13 @@ const GRID = `rgba(${ACCENT}, 0.27)`;
 const OUTLINE = `rgba(${ACCENT}, 0.9)`;
 const LANDMARK = 'rgba(150, 150, 158, 0.78)';
 const RING = 'rgb(70, 70, 78)'; // a landmark's inner circles
+// SpongeBob's house: its dune's sand, the fruit's skin and the diamonds hatched across it, and its
+// leaves, the outer ones darker.
+const SAND = 'rgb(214, 196, 140)';
+const PINEAPPLE = 'rgb(232, 168, 58)';
+const HATCH = 'rgba(128, 72, 24, 0.85)';
+const LEAVES = ['rgb(62, 140, 62)', 'rgb(118, 192, 84)'];
+const LEAF_EDGE = 'rgba(24, 64, 28, 0.8)';
 const OTHERS = 0.6; // other people's arrows, as a fraction of yours
 const BOT = 5; // CSS pixels across a bot's square, inside its light edge: still under a person's arrow
 const LEVEL = 3; // metres of height difference at which another player reads as above or below you
@@ -61,20 +80,16 @@ export class MapCanvas {
   private readonly gridLayer = layer();
   private readonly floorLayer = layer();
   private readonly landmarkLayer = layer();
+  private readonly houseLayer = layer();
   private readonly parts: Path2D[];
   private readonly bounds;
   private width = 0; // CSS pixels, as last drawn
   private height = 0;
 
-  constructor(
-    readonly canvas: HTMLCanvasElement,
-    shape: WorldPart[],
-    private readonly landmarks: Landmark[] = [],
-    private readonly high: Landmark[] = [], // shown too while your feet are above HIGH_UP
-  ) {
+  constructor(readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
-    this.parts = shape.map(partPath);
-    this.bounds = worldBounds(shape);
+    this.parts = WORLD_SHAPE.map(partPath);
+    this.bounds = worldBounds(WORLD_SHAPE);
   }
 
   // The frame in `view`, filling the canvas at the size it's shown at.
@@ -83,7 +98,7 @@ export class MapCanvas {
     if (!this.width) return;
     const { x, y, z } = frame.me;
     const t = this.transform(frame.me, view, framing);
-    this.drawFloor(t, y - EYE_HEIGHT > HIGH_UP ? [...this.landmarks, ...this.high] : this.landmarks);
+    this.drawFloor(t, y - EYE_HEIGHT > HIGH_UP ? [...LANDMARKS, ...HIGH_LANDMARKS] : LANDMARKS);
 
     const ctx = this.ctx;
     ctx.setTransform(RES, 0, 0, RES, 0, 0); // markers in CSS pixels
@@ -100,6 +115,12 @@ export class MapCanvas {
     this.arrow(t, x, z, view === 'near' ? 0 : frame.me.yaw, 1);
   }
 
+  // The whole world, north up, at ground level, with no one on it.
+  drawWorld(framing: Framing = STILL): void {
+    this.fit();
+    if (this.width) this.drawFloor(this.transform({ x: 0, y: 0, z: 0, yaw: 0 }, 'world', framing), LANDMARKS);
+  }
+
   // Metres per CSS pixel the view is drawn at before any zoom: what a wheel's step is relative to.
   baseScale(view: MinimapView): number {
     this.fit();
@@ -113,7 +134,13 @@ export class MapCanvas {
     if (width === this.width && height === this.height) return;
     this.width = width;
     this.height = height;
-    for (const c of [this.canvas, this.gridLayer.canvas, this.floorLayer.canvas, this.landmarkLayer.canvas]) {
+    for (const c of [
+      this.canvas,
+      this.gridLayer.canvas,
+      this.floorLayer.canvas,
+      this.landmarkLayer.canvas,
+      this.houseLayer.canvas,
+    ]) {
       c.width = width * RES;
       c.height = height * RES;
     }
@@ -198,9 +225,12 @@ export class MapCanvas {
         ctx.stroke();
       }
     }
+    const marks = landmarks.filter((l): l is Footprint => l.kind !== 'pineapple');
     place(this.landmarkLayer);
-    cover(this.landmarkLayer, landmarks.map(partPath));
+    cover(this.landmarkLayer, marks.map(partPath));
     tint(this.landmarkLayer, LANDMARK);
+    place(this.houseLayer);
+    for (const l of landmarks) if (l.kind === 'pineapple') drawPineapple(this.houseLayer, l, px);
 
     place(this.floorLayer);
     cover(this.floorLayer, this.parts); // the world's floor, as a mask for the grid first
@@ -225,7 +255,7 @@ export class MapCanvas {
     tint(this.floorLayer, FLOOR);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    for (const l of [this.landmarkLayer, grid, this.floorLayer]) ctx.drawImage(l.canvas, 0, 0);
+    for (const l of [this.houseLayer, this.landmarkLayer, grid, this.floorLayer]) ctx.drawImage(l.canvas, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
   }
 
@@ -284,9 +314,65 @@ function layer(): CanvasRenderingContext2D {
   return document.createElement('canvas').getContext('2d')!;
 }
 
+// A landmark filled in grey: any but the house.
+type Footprint = Exclude<Landmark, PineappleMark>;
+
+// SpongeBob's house from above, in world metres: its dune's sand, the fruit hatched in diamonds as
+// its skin is, and its crown of leaves in the middle, a ring of long dark ones under a ring of short
+// light ones between them. `px` is CSS pixels in metres.
+function drawPineapple(c: CanvasRenderingContext2D, m: PineappleMark, px: (n: number) => number): void {
+  const disc = (r: number) => {
+    c.beginPath();
+    c.arc(m.x, m.z, r, 0, 2 * Math.PI);
+  };
+  c.fillStyle = SAND;
+  disc(m.sand);
+  c.fill();
+  c.fillStyle = PINEAPPLE;
+  disc(m.r);
+  c.fill();
+  c.save();
+  c.clip();
+  c.strokeStyle = HATCH;
+  c.lineWidth = px(1.2);
+  c.beginPath();
+  const step = m.r / 3.5;
+  for (let d = -2 * m.r; d <= 2 * m.r; d += step) {
+    c.moveTo(m.x + d - m.r, m.z - m.r);
+    c.lineTo(m.x + d + m.r, m.z + m.r);
+    c.moveTo(m.x + d - m.r, m.z + m.r);
+    c.lineTo(m.x + d + m.r, m.z - m.r);
+  }
+  c.stroke();
+  c.restore();
+  c.strokeStyle = HATCH;
+  c.lineWidth = px(1.2);
+  disc(m.r);
+  c.stroke();
+  c.strokeStyle = LEAF_EDGE;
+  c.lineWidth = px(0.8);
+  LEAVES.forEach((fill, ring) => {
+    const length = m.r * (ring === 0 ? 0.62 : 0.4);
+    const width = length * 0.3;
+    c.fillStyle = fill;
+    for (let i = 0; i < 8; i++) {
+      const a = ((i + ring / 2) / 8) * 2 * Math.PI;
+      const [ux, uz] = [Math.cos(a), Math.sin(a)];
+      const tip = { x: m.x + ux * length, z: m.z + uz * length };
+      const mid = { x: m.x + (ux * length) / 2, z: m.z + (uz * length) / 2 };
+      c.beginPath();
+      c.moveTo(m.x, m.z);
+      c.quadraticCurveTo(mid.x - uz * width, mid.z + ux * width, tip.x, tip.z);
+      c.quadraticCurveTo(mid.x + uz * width, mid.z - ux * width, m.x, m.z);
+      c.fill();
+      c.stroke();
+    }
+  });
+}
+
 // A part of the outline, or a landmark, as one closed path in world metres (a landmark open in the
 // middle as a second circle, which an even-odd fill leaves out). Bridges and arcs have round ends.
-function partPath(p: WorldPart | Landmark): Path2D {
+function partPath(p: WorldPart | Footprint): Path2D {
   const path = new Path2D();
   if (p.kind === 'disc') {
     path.arc(p.x, p.z, p.r, 0, 2 * Math.PI);

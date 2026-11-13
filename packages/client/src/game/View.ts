@@ -12,7 +12,9 @@ import {
   isDragonAvatar,
   lookDirection,
   MAX_PITCH,
+  OUTSIDE_HEIGHT,
   reach,
+  worldDistance,
   type AvatarId,
   type AvatarsOf,
   type PlayerClass,
@@ -152,11 +154,10 @@ export class View {
     const span = Vector3.Distance(eyes, want);
     const dir = want.subtract(eyes).scaleInPlace(1 / span);
     const along = Math.max(0, Math.min(span * out, structures.raycast(eyes, dir, span) - SKIN));
-    camera.position.set(
-      eyes.x + dir.x * along,
-      Math.max(FLOOR, eyes.y + dir.y * along - dip * (1 - out)),
-      eyes.z + dir.z * along,
-    );
+    const x = eyes.x + dir.x * along;
+    const z = eyes.z + dir.z * along;
+    const ground = worldDistance(x, z) > 0 ? OUTSIDE_HEIGHT : 0; // the ground past the edge stands higher
+    camera.position.set(x, Math.max(ground + FLOOR, eyes.y + dir.y * along - dip * (1 - out)), z);
   }
 
   // The look to send: the camera's own at the eyes, else from the eyes to where the camera's centre

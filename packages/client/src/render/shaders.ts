@@ -1,5 +1,5 @@
 // GLSL for the environment. Kept in one place so the ground, sky and boundary share helpers.
-import { EYE_HEIGHT } from '@world/shared';
+import { EYE_HEIGHT, OUTSIDE_HEIGHT } from '@world/shared';
 import { BASE_FOG_DENSITY } from './Engine';
 
 // The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera, the scene's
@@ -88,12 +88,19 @@ float worldDistance(vec2 p) {
 }
 `;
 
+// Metres past the world's edge the raised ground outside it starts: the step up to it stands there,
+// clear of the boundary wall on the edge itself.
+export const STEP_GAP = 0.02;
+
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
-// colour in that direction, so the floor meets the horizon wherever you're standing. Past the world's
-// edge the grid dims and turns grey, so where you can't go reads before you reach the wall.
+// colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
+// three sides of the world's edge (side): the floor inside it, the ground past it raised
+// OUTSIDE_HEIGHT, and the step up between them; past the edge the grid dims and turns grey, and the
+// step's top is lit, so where you can't go reads from afar.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
+uniform float side; // 0 the floor, 1 the raised ground, 2 the step
 uniform vec3 cameraPos;
 uniform vec3 lineColor;
 uniform vec3 majorColor;
@@ -114,16 +121,20 @@ float gridLine(vec2 p, float spacing, float width) {
 void main() {
   vec2 p = vWorld.xz;
   float dist = length(p - cameraPos.xz);
-  float minor = gridLine(p, 2.0, 0.045);
-  float major = gridLine(p, 10.0, 0.09);
+  float plain = side > 1.5 ? 0.0 : 1.0; // the step is plain but for its rim
+  float minor = gridLine(p, 2.0, 0.045) * plain;
+  float major = gridLine(p, 10.0, 0.09) * plain;
   float sd = worldDistance(p);
+  if (side < 0.5 ? sd > ${STEP_GAP} : side < 1.5 && sd < ${STEP_GAP}) discard;
   float inside = 1.0 - smoothstep(-2.0, 6.0, sd);
   float pulse = 0.85 + 0.15 * sin(time * 1.5 - length(p) * 0.15);
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
-  float outside = smoothstep(0.0, 1.5, sd); // across the first 1.5 m past the edge
+  float outside = side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
+  float rim = side > 1.5 ? 1.0 - smoothstep(0.0, 0.06 + fwidth(vWorld.y), ${OUTSIDE_HEIGHT.toFixed(2)} - vWorld.y) : 0.0;
+  col = mix(mix(col, vec3(0.12), 1.0 - plain), vec3(0.55), rim * 0.8);
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);
