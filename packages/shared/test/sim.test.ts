@@ -90,10 +90,11 @@ test('movement is yaw-relative and clamped to the world edge', () => {
   assert.ok(p.pos.x > 7.9 && Math.abs(p.pos.z) < 1e-9, 'yaw of pi/2 walks along +x');
   for (let i = 2; i < 200; i++) stepPlayer(p, frame(i, { my: 1, yaw: Math.PI / 2 }), 1, WORLD_SHAPE);
   assert.ok(worldDistance(p.pos.x, p.pos.z, WORLD_SHAPE) <= -1 + 1e-9);
-  // Walking straight out from the middle of the arc round the buildings (r 112, 8 m either side).
-  const q = createPlayer('b', 'b', '#fff', { x: -112, y: EYE_HEIGHT, z: 0 });
+  // Walking straight out across the fan between the buildings, through the gap opposite the tower
+  // (the fan's round side at r 100).
+  const q = createPlayer('b', 'b', '#fff', { x: -60, y: EYE_HEIGHT, z: 0 });
   for (let i = 1; i < 100; i++) stepPlayer(q, frame(i, { my: 1, yaw: -Math.PI / 2 }), 1, WORLD_SHAPE);
-  assert.ok(Math.abs(q.pos.x + 119) < 1e-6 && Math.abs(q.pos.z) < 1e-6, `held a metre inside the arc: ${q.pos.x}`);
+  assert.ok(Math.abs(q.pos.x + 99) < 1e-6 && Math.abs(q.pos.z) < 1e-6, `held a metre inside the fan: ${q.pos.x}`);
 });
 
 test('jump only from the ground, and gravity brings you back', () => {
@@ -135,7 +136,7 @@ test('the annex is reachable only through the bridge', () => {
   for (let i = 1; i < 30 * 30; i++) {
     stepPlayer(off, frame(i, { my: 1, yaw }), TICK_DT, WORLD_SHAPE);
     assert.ok(worldDistance(off.pos.x, off.pos.z, WORLD_SHAPE) <= -1 + 1e-6, `inside at tick ${i}`);
-    if (off.pos.x > 51 && off.pos.x < 81) assert.ok(Math.abs(off.pos.z) <= 3 + 1e-6, `on the bridge at tick ${i}`);
+    if (off.pos.x > 51 && off.pos.x < 81) assert.ok(Math.abs(off.pos.z) <= 7 + 1e-6, `on the bridge at tick ${i}`);
   }
 });
 
@@ -579,6 +580,11 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
     Math.abs(worldDistance(p.pos.x, p.pos.z) + PLAYER_PADDING) < 1e-6,
     `on the edge: ${p.pos.x.toFixed(1)}, ${p.pos.z.toFixed(1)}`,
   );
+  // One down in the drop past the edge comes up onto the floor there.
+  becomeAvatar(p, 'light-dragon');
+  p.pos = { x: 60, y: -4, z: 60 };
+  becomeAvatar(p, 'standard');
+  assert.equal(p.pos.y, EYE_HEIGHT);
 });
 
 test('a dead dragon drapes over an edge, its body a link apart, rather than stretching down to the ground', () => {

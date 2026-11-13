@@ -1,9 +1,9 @@
-// The walkable world: discs joined by bridges, all unioned. Everything that cares about the
+// The walkable world: discs joined by bridges, and pie slices, all unioned. Everything that cares about the
 // outline reads this: the sim's clamp (server and client), the wall and floor renderers, sky
 // object placement and the minimap. Signed distance is the one primitive they share.
 import { STRUCTURES } from '../content/structures';
 import { Structures } from './collision';
-import { ANNEX, BUILDING_ARC, BUILDING_GROUNDS, BUILDING_PATHS, FLOOR_BRIDGE, MAIN_DISC } from './outline';
+import { ANNEX, BUILDING_FAN, BUILDING_GROUNDS, BUILDING_PATHS, FLOOR_BRIDGE, MAIN_DISC } from './outline';
 import type { Rng } from './rng';
 import type { Vec3 } from './types';
 
@@ -24,22 +24,20 @@ export interface Bridge {
   halfWidth: number;
 }
 
-// A curved corridor: `halfWidth` either side of the circle of radius r round (x, z), from bearing
-// `from` round to `to` (radians from +x toward +z, `to` past `from`). Like a bridge, its ends should
-// sit inside the discs it joins.
-export interface Arc {
-  kind: 'arc';
+// A pie slice: everything within r of (x, z) from bearing `from` round to `to` (radians from +x
+// toward +z, `to` past `from`), its two straight sides running out from (x, z).
+export interface Sector {
+  kind: 'sector';
   x: number;
   z: number;
   r: number;
   from: number;
   to: number;
-  halfWidth: number;
 }
 
-export type WorldPart = Disc | Bridge | Arc;
+export type WorldPart = Disc | Bridge | Sector;
 
-export { ANNEX, BUILDING_ARC, BUILDING_GROUNDS, BUILDING_PATHS, FLOOR_BRIDGE, MAIN_DISC };
+export { ANNEX, BUILDING_FAN, BUILDING_GROUNDS, BUILDING_PATHS, FLOOR_BRIDGE, MAIN_DISC };
 // The main disc first: it's the cubes' home (sim/cubes.ts).
 export const WORLD_SHAPE: WorldPart[] = [
   MAIN_DISC,
@@ -47,12 +45,13 @@ export const WORLD_SHAPE: WorldPart[] = [
   FLOOR_BRIDGE,
   ...BUILDING_GROUNDS,
   ...BUILDING_PATHS,
-  BUILDING_ARC,
+  BUILDING_FAN,
 ];
 
-// Metres the ground past the world's edge stands above the floor, so where you can't go reads from
-// afar. Only drawn (render/Environment.ts): the sim keeps everyone inside the edge and its floor flat.
-export const OUTSIDE_HEIGHT = 0.6;
+// Metres the ground past the world's edge stands above the floor: below it, so the kerb along the
+// edge drops to it and where you can't go reads from afar (render/Environment.ts). A walker is kept
+// inside the edge, on a flat floor; a dragon can fly down into the drop (dragon.ts).
+export const OUTSIDE_HEIGHT = -10;
 
 // The structures standing inside the outline, indexed for the sim's queries.
 export const WORLD_STRUCTURES = new Structures(STRUCTURES);
@@ -60,7 +59,11 @@ export const WORLD_STRUCTURES = new Structures(STRUCTURES);
 // Signed distance from (x, z) to one part's edge: negative inside.
 export function partDistance(x: number, z: number, part: WorldPart): number {
   if (part.kind === 'disc') return Math.hypot(x - part.x, z - part.z) - part.r;
-  const q = closestOnSpine(x, z, part);
+  if (part.kind === 'sector') {
+    const q = closestOnSectorEdge(x, z, part);
+    return (inSector(x, z, part) ? -1 : 1) * Math.hypot(x - q.x, z - q.z);
+  }
+  const q = closestOnSegment(x, z, part);
   return Math.hypot(x - q.x, z - q.z) - part.halfWidth;
 }
 
@@ -89,11 +92,13 @@ export function worldBounds(shape: WorldPart[] = WORLD_SHAPE): {
     else if (part.kind === 'bridge') {
       grow(part.ax, part.az, part.halfWidth);
       grow(part.bx, part.bz, part.halfWidth);
-    } else
+    } else {
+      grow(part.x, part.z, 0);
       for (let i = 0; i <= 64; i++) {
         const a = part.from + ((part.to - part.from) * i) / 64;
-        grow(part.x + part.r * Math.cos(a), part.z + part.r * Math.sin(a), part.halfWidth);
+        grow(part.x + part.r * Math.cos(a), part.z + part.r * Math.sin(a), 0);
       }
+    }
   }
   return b;
 }
@@ -114,7 +119,7 @@ export function worldReach(shape: WorldPart[] = WORLD_SHAPE): number {
         Math.hypot(part.ax, part.az) + part.halfWidth,
         Math.hypot(part.bx, part.bz) + part.halfWidth,
       );
-    else reach = Math.max(reach, Math.hypot(part.x, part.z) + part.r + part.halfWidth);
+    else reach = Math.max(reach, Math.hypot(part.x, part.z) + part.r);
   }
   return reach;
 }
@@ -134,6 +139,14 @@ export function clampToWorld(pos: Vec3, padding: number, shape: WorldPart[] = WO
   }
   if (!best || bestD <= -padding) return;
 
+  if (best.kind === 'sector') {
+    // Onto the nearest point of its edge, then `padding` back in from it.
+    const q = closestOnSectorEdge(pos.x, pos.z, best);
+    const out = (inSector(pos.x, pos.z, best) ? -1 : 1) / Math.max(Math.hypot(pos.x - q.x, pos.z - q.z), 1e-9);
+    pos.x = q.x - (pos.x - q.x) * out * padding;
+    pos.z = q.z - (pos.z - q.z) * out * padding;
+    return;
+  }
   let cx: number;
   let cz: number;
   let radius: number;
@@ -142,7 +155,7 @@ export function clampToWorld(pos: Vec3, padding: number, shape: WorldPart[] = WO
     cz = best.z;
     radius = best.r - padding;
   } else {
-    const q = closestOnSpine(pos.x, pos.z, best);
+    const q = closestOnSegment(pos.x, pos.z, best);
     cx = q.x;
     cz = q.z;
     radius = best.halfWidth - padding;
@@ -178,21 +191,30 @@ export function nearestDisc(x: number, z: number, shape: WorldPart[] = WORLD_SHA
   return best;
 }
 
-// The nearest point to (x, z) on a corridor's middle line.
-function closestOnSpine(x: number, z: number, part: Bridge | Arc): { x: number; z: number } {
-  return part.kind === 'bridge' ? closestOnSegment(x, z, part) : closestOnArc(x, z, part);
+// Whether (x, z)'s bearing from the slice's middle is between its sides.
+function withinSpan(x: number, z: number, s: Sector): boolean {
+  const round = (((Math.atan2(z - s.z, x - s.x) - s.from) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); // from `from`
+  return round <= s.to - s.from;
 }
 
-function closestOnArc(x: number, z: number, a: Arc): { x: number; z: number } {
-  const at = (angle: number) => ({ x: a.x + a.r * Math.cos(angle), z: a.z + a.r * Math.sin(angle) });
-  const angle = Math.atan2(z - a.z, x - a.x);
-  const round = (((angle - a.from) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); // from `from`
-  if (round <= a.to - a.from) return at(angle);
-  const [p, q] = [at(a.from), at(a.to)];
-  return Math.hypot(x - p.x, z - p.z) < Math.hypot(x - q.x, z - q.z) ? p : q;
+function inSector(x: number, z: number, s: Sector): boolean {
+  return Math.hypot(x - s.x, z - s.z) <= s.r && withinSpan(x, z, s);
 }
 
-function closestOnSegment(x: number, z: number, b: Bridge): { x: number; z: number } {
+// The nearest point to (x, z) on the slice's edge: its round side, or either straight one.
+function closestOnSectorEdge(x: number, z: number, s: Sector): { x: number; z: number } {
+  const side = (a: number) =>
+    closestOnSegment(x, z, { ax: s.x, az: s.z, bx: s.x + s.r * Math.cos(a), bz: s.z + s.r * Math.sin(a) });
+  const candidates = [side(s.from), side(s.to)];
+  const d = Math.hypot(x - s.x, z - s.z);
+  if (d > 1e-9 && withinSpan(x, z, s))
+    candidates.push({ x: s.x + ((x - s.x) * s.r) / d, z: s.z + ((z - s.z) * s.r) / d });
+  let best = candidates[0];
+  for (const c of candidates) if (Math.hypot(x - c.x, z - c.z) < Math.hypot(x - best.x, z - best.z)) best = c;
+  return best;
+}
+
+function closestOnSegment(x: number, z: number, b: Pick<Bridge, 'ax' | 'az' | 'bx' | 'bz'>): { x: number; z: number } {
   const vx = b.bx - b.ax;
   const vz = b.bz - b.az;
   const len2 = vx * vx + vz * vz;

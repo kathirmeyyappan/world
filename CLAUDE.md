@@ -107,14 +107,22 @@ wire: server and client both build the world from that file.
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
-  (r 30 at x 112) and the bridge between them, the four buildings' grounds and paths (the annex
-  and that bridge turned round the main disc to 90°, 150°, 210° and 270°; SpongeBob's house's
-  further out, at 124 m, on wider grounds, r 36, so its dune sits on the floor with room round it),
-  and an arc through all four grounds, twice a path's width. A part is a disc, a straight `bridge` or
-  a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
-  Past the edge the ground is drawn `OUTSIDE_HEIGHT` (0.6 m) up, with a grey step to it
-  (`render/Environment.ts`), so where you can't go reads from afar; it's only drawn (the sim's floor
-  is flat), and the third-person camera keeps above it.
+  (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds and paths (the
+  annex and that bridge, at half its width, turned round the main disc to 70°, 135°, 225° and 290°, the keeps' pulled in to
+  100 m and SpongeBob's house's further out, at 124 m, on wider grounds, r 36, so its dune sits on
+  the floor with room round it), and the fan between them all, a slice of the main disc's middle out
+  to the keeps' from the first building's bearing round to the last's, so the bridge to the tower is
+  the only corridor and the widest gap, between Buildings 2 and 3, is open floor. A part is a disc,
+  a straight `bridge` or a pie-slice `sector` (its straight sides kept under a path). Players are
+  clamped 1 m inside it no matter what, so keep structures inside too.
+  Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
+  whose outer face drops to the ground past the edge, `OUTSIDE_HEIGHT` (10 m) down
+  (`render/Environment.ts`), so where you can't go reads from afar; the grid carries on down that
+  drop, its upright lines where the floor's meet it. The floor and that ground both end under the
+  kerb, so every edge in sight is real geometry rather than a shader's cut. A walker never leaves
+  the floor (it's flat, and players never reach the kerb); a dragon can fly down into the drop,
+  where the floor's rim is a wall it climbs before coming back in (`dragon.ts`), and a walker it
+  turns back into there comes up onto the floor at the edge. The camera follows it down.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;

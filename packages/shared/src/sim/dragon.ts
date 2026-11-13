@@ -9,7 +9,9 @@
 // body never folds on itself. The head itself turns toward the look only as far as the neck lets
 // it (HEAD_YAW round, HEAD_PITCH up or down), and its breath goes where the head points. The head
 // keeps MIN_ALTITUDE above whatever is under it, is too big for any doorway, and has the whole sky
-// out to the world's reach, the void between its parts included. A new one rises out of the ground
+// out to the world's reach, the void between its parts included, down to the ground drawn past the
+// world's edge (OUTSIDE_HEIGHT): the drop at the edge is a wall to a head below the floor, which
+// climbs out of it before it comes back in. A new one rises out of the ground
 // where its rider stood, head up and body straight below, and climbs straight on by itself,
 // whatever the keys, until the whole of its spine is out; only then is it free to fly. Until then
 // nothing can hit it: a rider is caught half in the ground, unable to steer, and would be a
@@ -22,7 +24,7 @@ import { EYE_HEIGHT, TICK_RATE } from './constants';
 import { lookDirection } from './look';
 import type { ItemSpec } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
-import { worldReach, type WorldPart } from './world';
+import { OUTSIDE_HEIGHT, WORLD_SHAPE, worldDistance, worldReach, type WorldPart } from './world';
 
 export const MIN_ALTITUDE = 5; // metres the head keeps above whatever is under it
 export const HEAD_YAW = 0.5; // radians the head can turn round from the way the neck runs
@@ -198,7 +200,7 @@ export function stepDragon(
 // cruise, looking straight up all the while, until the whole spine is out; the keys do nothing.
 function emerge(p: PlayerState, d: DragonState, body: DragonShape, dt: number, structures: Structures): void {
   const head = p.pos;
-  const ground = structures.groundAt(head.x, head.z, head.y);
+  const ground = groundAt(head.x, head.z, head.y, structures);
   if (head.y < ground + MIN_ALTITUDE) {
     head.y = Math.min(ground + MIN_ALTITUDE, head.y + RISE_SPEED * dt);
     d.speed = 0;
@@ -229,7 +231,7 @@ function fly(
   const step = d.speed * dt;
   const from = { ...head };
   const r = body.headRadius;
-  const ground = groundUnder(head, r, structures);
+  const ground = groundUnder(head, r, structures, shape);
   // Up or down first, stopped under any underside and MIN_ALTITUDE over whatever is below (a dive
   // stops there; where the ground rises, the head climbs at CLIMB_SPEED); then across, pushed out
   // of walls, and back where it was if that still leaves the head in one (a doorway's jambs, a
@@ -241,6 +243,14 @@ function fly(
   if (head.y < floor) head.y = Math.min(floor, Math.max(head.y, from.y) + CLIMB_SPEED * dt);
   structures.move(head, dir.x * step, dir.z * step, headBody(head.y, r));
   clampToSky(head, shape, r);
+  // Down in the drop past the edge, the floor's rim is a wall the head climbs at CLIMB_SPEED, held
+  // off it, until it's MIN_ALTITUDE over the floor and can come in.
+  const inward = from.y < MIN_ALTITUDE ? worldDistance(head.x, head.z, shape) : Infinity;
+  if (inward < r && inward < worldDistance(from.x, from.z, shape)) {
+    head.x = from.x;
+    head.z = from.z;
+    head.y = Math.min(MIN_ALTITUDE, Math.max(head.y, from.y) + CLIMB_SPEED * dt);
+  }
   if (structures.touches(head.x, head.z, headBody(head.y, r))) {
     head.x = from.x;
     head.y = from.y;
@@ -249,15 +259,24 @@ function fly(
   follow(d.spine, head, body.links);
 }
 
+// The ground under (x, z) for a dragon whose underside reaches up to `reach`: the structures' (or
+// the floor) inside the world's edge, and past it the ground drawn OUTSIDE_HEIGHT down.
+function groundAt(x: number, z: number, reach: number, structures: Structures, shape = WORLD_SHAPE): number {
+  return worldDistance(x, z, shape) > 0 ? OUTSIDE_HEIGHT : structures.groundAt(x, z, reach);
+}
+
 // The highest ground under any of the head: read at its centre and round its edge, so a merlon or
 // a step at the edge lifts the head over itself before the head reaches it.
-function groundUnder(head: Vec3, r: number, structures: Structures): number {
-  let ground = structures.groundAt(head.x, head.z, head.y);
+function groundUnder(head: Vec3, r: number, structures: Structures, shape: WorldPart[]): number {
+  // Well inside the edge, all of it is over the structures' ground; only near it is the drop asked about.
+  const under =
+    worldDistance(head.x, head.z, shape) < -r
+      ? (x: number, z: number) => structures.groundAt(x, z, head.y)
+      : (x: number, z: number) => groundAt(x, z, head.y, structures, shape);
+  let ground = under(head.x, head.z);
   for (let i = 0; i < GROUND_SAMPLES; i++) {
     const a = (i / GROUND_SAMPLES) * 2 * Math.PI;
-    const x = head.x + Math.cos(a) * r;
-    const z = head.z + Math.sin(a) * r;
-    ground = Math.max(ground, structures.groundAt(x, z, head.y));
+    ground = Math.max(ground, under(head.x + Math.cos(a) * r, head.z + Math.sin(a) * r));
   }
   return ground;
 }
@@ -317,7 +336,7 @@ function settle(p: PlayerState, d: DragonState, body: DragonShape, dt: number, s
   const points: Vec3[] = [p.pos];
   for (let i = 0; i < d.spine.length; i += 3) points.push({ x: d.spine[i], y: d.spine[i + 1], z: d.spine[i + 2] });
   const rests = points.map(
-    (q, i) => structures.groundAt(q.x, q.z, q.y) + (i === 0 ? body.underside.head : body.underside.body),
+    (q, i) => groundAt(q.x, q.z, q.y, structures) + (i === 0 ? body.underside.head : body.underside.body),
   );
   p.vy = 0;
   for (let i = 0; i < points.length; i++) points[i].y = Math.max(rests[i], points[i].y - SINK_SPEED * dt);
@@ -457,7 +476,7 @@ function hurt(p: PlayerState, part: HitPart, damage: number, item: ItemSpec): nu
 // Under the head and under every `heartsEvery`-th spine point.
 function lies(p: PlayerState, structures: Structures): Vec3[] {
   const every = dragonShape(p.avatar).heartsEvery;
-  const under = (x: number, y: number, z: number): Vec3 => ({ x, y: structures.groundAt(x, z, y), z });
+  const under = (x: number, y: number, z: number): Vec3 => ({ x, y: groundAt(x, z, y, structures), z });
   const points = [under(p.pos.x, p.pos.y, p.pos.z)];
   const spine = p.dragon?.spine ?? [];
   for (let i = (every - 1) * 3; i < spine.length; i += every * 3)
