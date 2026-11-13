@@ -58,6 +58,9 @@ import {
   MOVE_SPEED,
   SURFACES,
   terrain,
+  KRUSTY_KRAB_PLACEMENT,
+  KRUSTY_KRAB_PROFILE,
+  WORLD_STRUCTURES,
 } from '@world/shared';
 import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
 
@@ -280,6 +283,24 @@ test('a roof stops a jump and a doorway lets a player in', () => {
     top = Math.max(top, p.pos.y + 0.3);
   }
   assert.ok(top <= 2.4 + 1e-9, `head stopped at the roof, reached ${top}`);
+});
+
+test("the Krusty Krab's roof has no seam to drop through: anywhere across it, some of it is under a body's middle", () => {
+  // A body stands wherever its middle is, so a hair's gap between two of the roof's pieces is a
+  // hole in it. Straight down on the barrel, every half centimetre across it, the first thing
+  // under the sky is the roof (its walls top out at 11 m) and never what's in the room (under 10).
+  const { x, z, yaw } = KRUSTY_KRAB_PLACEMENT;
+  const { w, d } = KRUSTY_KRAB_PROFILE.size;
+  for (const along of [-w / 3, 0, w / 3]) {
+    for (let across = -0.39 * d; across <= 0.39 * d; across += 0.005) {
+      const top = WORLD_STRUCTURES.groundAt(
+        x + along * Math.cos(yaw) + across * Math.sin(yaw),
+        z - along * Math.sin(yaw) + across * Math.cos(yaw),
+        Infinity,
+      );
+      assert.ok(top > 10.5, `no roof ${across.toFixed(3)} m across it, ${along.toFixed(1)} m along: ${top} m`);
+    }
+  }
 });
 
 test("a slippery footing keeps the walk's momentum until the feet slow it, and gravity wins on its slope", () => {
