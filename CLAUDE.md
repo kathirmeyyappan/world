@@ -582,11 +582,11 @@ its native bar hidden.
 The picture's settings (`render/Picture.ts`, the PICTURE rows) are the size of its pixels (CSS
 pixels per rendered one, `PIXEL_SIZES`; the frame is drawn that much smaller and the browser blows
 it up with nearest sampling, the retro grid) and its frame rate (15 to 90 by 15, `FRAME_RATES`;
-60 unless chosen, 45 on a touch device).
+60 unless chosen).
 `Engine.run` draws a frame only when one is due, each due the rate's interval on from the last, so
 30 is every other tick of a 60 Hz display, 45 alternates one tick and two and comes out right over
 time, and a rate past the display's is the display's. The pixel size is auto
-unless chosen: auto starts at 1.5 on a mouse device and 2.5 on a touch one (a touch device that
+unless chosen: auto starts at 1.5 on a mouse device and 2 on a touch one (a touch device that
 reports under 4 GB of memory, where the browser says, goes no finer than 2), steps coarser when a fifth of the last two seconds' frames came late (held
 past the tick they were due on, as `Engine.run` judges it against the display's tick, the
 median of the last second's gaps between its runs), and tries a step finer as soon as the first
