@@ -30,12 +30,15 @@ vec3 skyColor(vec3 dir) {
 export const GROUND_VERTEX = `
 precision highp float;
 attribute vec3 position;
+attribute vec3 normal;
 uniform mat4 worldViewProjection;
 uniform mat4 world;
 varying vec3 vWorld;
+varying vec3 vNormal;
 void main() {
   vec4 wp = world * vec4(position, 1.0);
   vWorld = wp.xyz;
+  vNormal = mat3(world) * normal;
   gl_Position = worldViewProjection * vec4(position, 1.0);
 }
 `;
@@ -110,6 +113,7 @@ export const KERB_HEIGHT = 0.08;
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
+varying vec3 vNormal;
 uniform float side; // 0 the floor, 1 the ground past the edge, 2 the kerb
 uniform vec3 cameraPos;
 uniform vec3 lineColor;
@@ -131,12 +135,14 @@ float gridLine(vec2 p, float spacing, float width) {
   return max(gridLine1(p.x, spacing, width), gridLine1(p.y, spacing, width));
 }
 
-// The grid on any surface, from its world position: of the three axes, the one its normal lies
-// nearest picks the grid (a level surface the floor's lines across x and z; one facing most along x
+// The grid on any surface, from its world position and its mesh's normal there (interpolated, so
+// it turns smoothly over a curve and the family switches along one clean line; a normal worked out
+// from the pixels' own slopes is noisy enough near halfway to flip back and forth): of the three
+// axes, the one the normal lies nearest picks the grid (a level surface the floor's lines across x and z; one facing most along x
 // the lines across z and up; along z, across x and up), so one family of lines runs over each face
 // and a curve switches family where it turns past halfway rather than showing two at once.
-float surfaceGridLine(vec3 w, float spacing, float width) {
-  vec3 n = abs(normalize(cross(dFdx(w), dFdy(w))));
+float surfaceGridLine(vec3 w, vec3 normal, float spacing, float width) {
+  vec3 n = abs(normalize(normal));
   vec2 plane = n.y >= max(n.x, n.z) ? w.xz : n.x >= n.z ? w.zy : w.xy;
   return gridLine(plane, spacing, width);
 }
@@ -160,8 +166,8 @@ void main() {
   if (side > 1.5) {
     // The lit parts are drawn as a bold line of the grid, so they're its colour exactly.
     float drop = (1.0 - lit) * (1.0 - rim);
-    minor = max(surfaceGridLine(vWorld, 2.0, 0.045) * drop, lit);
-    major = max(surfaceGridLine(vWorld, 10.0, 0.09) * drop, lit);
+    minor = max(surfaceGridLine(vWorld, vNormal, 2.0, 0.045) * drop, lit);
+    major = max(surfaceGridLine(vWorld, vNormal, 10.0, 0.09) * drop, lit);
   } else {
     minor = gridLine(p, 2.0, 0.045);
     major = gridLine(p, 10.0, 0.09);

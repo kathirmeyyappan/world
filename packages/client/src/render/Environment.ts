@@ -94,6 +94,7 @@ export class Environment {
   // with a toe as bold along its foot, KERB_WIDTH out over that ground and KERB_HEIGHT up from it.
   private createKerb(mat: ShaderMaterial): void {
     const positions: number[] = [];
+    const normals: number[] = [];
     const indices: number[] = [];
     const foot = OUTSIDE_HEIGHT + KERB_HEIGHT;
     // The kerb along `points`, each with the way out square to the edge there.
@@ -124,6 +125,8 @@ export class Environment {
           OUTSIDE_HEIGHT,
           tz,
         );
+        // The way out, level, at every vertex: what the grid down the drop is laid by (shaders.ts).
+        for (let k = 0; k < KERB_RING; k++) normals.push(n.x, 0, n.z);
       }
       for (let i = 0; i < points.length - 1; i++) {
         const a = base + i * KERB_RING;
@@ -139,6 +142,7 @@ export class Environment {
     const kerb = new Mesh('kerb', this.engine.scene);
     const data = new VertexData();
     data.positions = positions;
+    data.normals = normals;
     data.indices = indices;
     data.applyToMesh(kerb);
     kerb.isPickable = false;
@@ -147,7 +151,7 @@ export class Environment {
 
   private groundMaterial(name: string, side: number): ShaderMaterial {
     const mat = new ShaderMaterial(`${name}Mat`, this.engine.scene, 'worldGround', {
-      attributes: ['position'],
+      attributes: ['position', 'normal'],
       uniforms: [
         'world',
         'worldViewProjection',
