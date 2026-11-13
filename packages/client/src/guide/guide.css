@@ -4,6 +4,7 @@
   --accent: #ffc857;
   --accent-soft: #ffdc8f;
   --second: #7fd1ae;
+  --shot: #ff7043;
   --panel: #111014;
   --cell: #18171c;
   --line: rgba(255, 236, 200, 0.18);
@@ -249,15 +250,114 @@ h2.command .args {
   white-space: normal;
 }
 
-.bot-media {
-  display: block;
-  width: 100%;
+/* The guide's diagrams (src/guide/diagram.ts): the subject green, people amber, other bots grey,
+   walls hatched; a stroke's colour says what it is, and faint marks are where something was or what
+   it ignores. */
+.diagram {
   max-width: 640px;
-  aspect-ratio: 16 / 9;
   margin: 8px 0 12px;
   border: 1px solid var(--line);
   background: var(--cell);
-  object-fit: cover;
+}
+
+.diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.diagram .dg-subject circle {
+  fill: var(--second);
+}
+
+.diagram .dg-subject line {
+  stroke: var(--second);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.diagram .dg-person {
+  fill: var(--accent);
+}
+
+.diagram .dg-other {
+  fill: var(--dim);
+}
+
+.diagram .dg-wall {
+  stroke: var(--dim);
+  stroke-width: 1.5;
+}
+
+.diagram .dg-hatch {
+  stroke: var(--dim);
+  stroke-width: 1.5;
+}
+
+.diagram .dg-ring {
+  fill: none;
+  stroke: rgba(255, 236, 200, 0.3);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+}
+
+.diagram .dg-stroke {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.diagram .dg-move,
+.diagram .dg-detour {
+  stroke: var(--accent-soft);
+}
+
+.diagram .dg-detour {
+  stroke-dasharray: 8 6;
+}
+
+.diagram .dg-look,
+.diagram .dg-turn {
+  stroke: var(--second);
+}
+
+.diagram .dg-look {
+  stroke-dasharray: 2 7;
+}
+
+.diagram .dg-shot,
+.diagram .dg-cross {
+  stroke: var(--shot);
+}
+
+.diagram .dg-cross {
+  fill: none;
+  stroke-width: 2;
+}
+
+.diagram .dg-faint {
+  opacity: 0.4;
+}
+
+.diagram .dg-head-move {
+  fill: var(--accent-soft);
+}
+
+.diagram .dg-head-look {
+  fill: var(--second);
+}
+
+.diagram .dg-head-shot {
+  fill: var(--shot);
+}
+
+.diagram .dg-label {
+  fill: var(--text);
+  font: 20px var(--mono);
+}
+
+.diagram .dg-label.dg-note {
+  fill: var(--dim);
 }
 
 .example {
