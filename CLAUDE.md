@@ -159,7 +159,8 @@ wire: server and client both build the world from that file.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
   flicker shows wherever they paint different pixels. Structure textures are mapped from the world
   origin, so pieces of one look (with `worldTop` for their tops) paint identical pixels there, which
-  is what lets the helpers overlap their joints. Anywhere else (two looks, or tops mapped in each
+  is what lets the helpers overlap their joints. A round wall's pieces carry their `ring`, and
+  their long sides map round it by arc, so the bricks run on across the joints. Anywhere else (two looks, or tops mapped in each
   piece's frame) keep faces out of one plane: drop one piece a couple of centimetres (a door sill
   under a floor, a stair's landing step, a bridge deck under a balcony, a wall or flight under a
   floor of another look stopping inside its slab) or stand it on the other rather than beside it
@@ -178,9 +179,10 @@ wire: server and client both build the world from that file.
 
 ### Ladders
 
-A ladder (`sim/structures.ts` `ladder(foot, y, top, yaw, { material, width, lean, hidden })`, kind
+A ladder (`sim/structures.ts` `ladder(foot, y, top, yaw, { material, width, girth, lean, hidden })`, kind
 `ladder`) is a frame of two rails and rungs, `LADDER_WIDTH` across unless given a width, and
-`LADDER_GIRTH` through, climbed from either of its faces (its local ±z); to everything else it is
+`LADDER_GIRTH` through unless given a girth (its rails drawn as stout as it; the keeps' and the
+tower's are `WALL_LADDER`, half again both), climbed from either of its faces (its local ±z); to everything else it is
 a thin box, and it never frosts. With a `lean` (radians from upright, `MAX_LADDER_LEAN`, 45°, at
 most, further over being a ramp with rungs) its top is over toward its local +z, as a ladder stood
 against a wall there leans: the climb keeps to the rails (the climber's speed

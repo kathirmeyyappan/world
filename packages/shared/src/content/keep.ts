@@ -10,6 +10,7 @@
 // in, so a floor is the same room, frames and all, wherever it stands.
 import {
   LADDER_GIRTH,
+  LADDER_WIDTH,
   ringLadder,
   roundFloor,
   roundWall,
@@ -63,9 +64,11 @@ const DOORS = [
 // ones) so its top steps over onto the wall there, and clear of every floor's doors and the roof's
 // exit over the main door.
 const LADDERS = [127.5, 232.5, 337.5].map(deg);
+export const WALL_LADDER = { width: LADDER_WIDTH * 1.5, girth: LADDER_GIRTH * 1.5 };
 // Metres from a keep's middle to the rails of a ladder stood against the outside of its wall at the
 // middle of a segment: the wall's outer face there, the ladder's half girth and a hair.
-export const WALL_LADDER_R = (OUTER - WALL / 2) * Math.cos(Math.PI / SEGMENTS) + WALL / 2 + LADDER_GIRTH / 2 + 0.05;
+export const WALL_LADDER_R =
+  (OUTER - WALL / 2) * Math.cos(Math.PI / SEGMENTS) + WALL / 2 + WALL_LADDER.girth / 2 + 0.05;
 // Floors whose main door is twice the others' width and height: the ground floor's way in and the top
 // floor's, onto the tower's sky bridge. The rest are ordinary doors.
 const WIDE_MAIN = [0, 3];
@@ -170,7 +173,9 @@ export function keep({
         const along = 0.045; // half the merlon's arc, in radians
         return { ...wall(onWall(a - along), onWall(a + along), MERLON, WALL, roof + ROOF_WALL), material: 'brick' };
       }),
-    ...(ladders ? LADDERS.map((a) => ringLadder({ x, z }, WALL_LADDER_R, a + turn, 0, roof + ROOF_WALL)) : []),
+    ...(ladders
+      ? LADDERS.map((a) => ringLadder({ x, z }, WALL_LADDER_R, a + turn, 0, roof + ROOF_WALL, WALL_LADDER))
+      : []),
   ];
 
   // Frames centre halfway up each storey, and a frame's angle 0 is the main door's bearing on every

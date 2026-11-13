@@ -760,9 +760,23 @@ def build_stair(profile: Profile, hall: float) -> list[list[float]]:
     centre = np.array(at(rm, inside.HALL_BEARING))
     tangent = np.array([np.cos(inside.HALL_BEARING), -np.sin(inside.HALL_BEARING)])
     rows.append([*centre, top - inside.STAIR_THICKNESS, across, out, inside.STAIR_THICKNESS, inside.HALL_BEARING])
+    # The platform is straight and the flight round, so at its outer edge the flight ends past the
+    # platform's near side: a slab across the flight's width carries the platform on to it, and the
+    # outer rail with it.
+    reach = (plat_in + out) * np.sin(plat_half) - across / 2 + 0.05
+    fill = np.array(at((r_in_top + plat_in + out) / 2, inside.HALL_BEARING)) - tangent * (across + reach) / 2
     rows.append(
-        [*at(plat_in + out - rail_w / 2, inside.HALL_BEARING), top, across, rail_w, inside.RAIL, inside.HALL_BEARING]
+        [
+            *fill,
+            top - inside.STAIR_THICKNESS,
+            reach,
+            plat_in + out - r_in_top,
+            inside.STAIR_THICKNESS,
+            inside.HALL_BEARING,
+        ]
     )
+    rail_out = np.array(at(plat_in + out - rail_w / 2, inside.HALL_BEARING)) - tangent * reach / 2
+    rows.append([*rail_out, top, across + reach, rail_w, inside.RAIL, inside.HALL_BEARING])
     far = centre + tangent * (across / 2 - rail_w / 2)
     rows.append([*far, top, rail_w, out - rail_w, inside.RAIL, inside.HALL_BEARING])
     # The near rail runs from the wall out to the stair's inner rail, butting against it.

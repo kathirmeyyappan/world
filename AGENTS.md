@@ -460,7 +460,8 @@ wire: server and client both build the world from that file.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
   flicker shows wherever they paint different pixels. Structure textures are mapped from the world
   origin, so pieces of one look (with `worldTop` for their tops) paint identical pixels there, which
-  is what lets the helpers overlap their joints. Anywhere else (two looks, or tops mapped in each
+  is what lets the helpers overlap their joints. A round wall's pieces carry their `ring`, and
+  their long sides map round it by arc, so the bricks run on across the joints. Anywhere else (two looks, or tops mapped in each
   piece's frame) keep faces out of one plane: drop one piece a couple of centimetres (a door sill
   under a floor, a stair's landing step, a bridge deck under a balcony, a wall or flight under a
   floor of another look stopping inside its slab) or stand it on the other rather than beside it

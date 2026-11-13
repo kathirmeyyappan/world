@@ -21,6 +21,7 @@ import {
   type Scene,
 } from '@babylonjs/core';
 import {
+  LADDER_GIRTH,
   surfaceOf,
   type Box,
   type Ladder,
@@ -40,7 +41,7 @@ const DEFAULT_COLORS: Record<StructureKind, string> = {
   terrain: '#1d3a2c',
   ladder: '#8a6a3c',
 };
-const RAIL = 0.08; // metres square a ladder's rails are
+const RAIL = 0.08; // metres square a ladder's rails are, at LADDER_GIRTH through
 const RUNG = 0.3; // metres between a ladder's rungs
 const REGION = 48; // metres: pieces in the same REGION × REGION square share a merged mesh
 const FLAT_TILE = 4; // texture repeat for flat-coloured pieces, which have no texture to repeat
@@ -132,7 +133,9 @@ function build(scene: Scene, name: string, s: Structure, mapping: Mapping): Mesh
 // so a climber's hands reach past the rungs, each painted like the piece and all merged into one,
 // tipped over together by the piece's lean.
 function frame(scene: Scene, name: string, s: Ladder, mapping: Mapping): Mesh {
-  const depth = Math.min(s.d, 0.14);
+  const stout = s.d / LADDER_GIRTH;
+  const rail = RAIL * stout;
+  const depth = 0.14 * stout;
   const lean = s.lean ?? 0;
   const length = s.h / Math.cos(lean); // of the rails
   const parts: Mesh[] = [];
@@ -146,8 +149,8 @@ function frame(scene: Scene, name: string, s: Ladder, mapping: Mapping): Mesh {
     paintFaces(mesh, s, positions, mesh.getVerticesData(VertexBuffer.NormalKind)!, 0, mapping);
     parts.push(mesh);
   };
-  for (const side of [-1, 1]) part(`rail${side}`, RAIL, length, depth, side * (s.w / 2 - RAIL / 2), length / 2);
-  for (let a = RUNG; a < length - RAIL; a += RUNG) part(`rung${a}`, s.w - 2 * RAIL, RAIL * 0.6, depth * 0.6, 0, a);
+  for (const side of [-1, 1]) part(`rail${side}`, rail, length, depth, side * (s.w / 2 - rail / 2), length / 2);
+  for (let a = RUNG; a < length - rail; a += RUNG) part(`rung${a}`, s.w - 2 * rail, rail * 0.6, depth * 0.6, 0, a);
   return Mesh.MergeMeshes(parts, true, true)!;
 }
 
@@ -229,7 +232,16 @@ function paintFaces(
       const ax = -nx * sin + nz * cos;
       const az = -(nx * cos + nz * sin);
       const len = Math.hypot(ax, az);
-      uvs.push((wx * ax + wz * az) / len / tile, wy / tile);
+      const { ring } = s;
+      if (ring && Math.abs(nx) > Math.abs(nz)) {
+        // A round wall's long side: the arc round the ring, unwrapped about the piece's own bearing so
+        // no face straddles the turn's seam, running the way the face's own mapping would.
+        const middle = Math.atan2(s.z - ring.z, s.x - ring.x);
+        const off = Math.atan2(wz - ring.z, wx - ring.x) - middle;
+        const arc = ring.r * (middle + Math.atan2(Math.sin(off), Math.cos(off)));
+        const outward = ax * (s.z - ring.z) - az * (s.x - ring.x) > 0;
+        uvs.push((outward ? -arc : arc) / tile, wy / tile);
+      } else uvs.push((wx * ax + wz * az) / len / tile, wy / tile);
     }
     colors.push(shade, shade, shade, 1);
   }

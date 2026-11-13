@@ -4,13 +4,13 @@
 // perch), and the top balcony's west side opens onto a sky bridge. The bridge runs back over the
 // floor bridge (inside the outline's corridor, so players can't be clamped off it) to the terrace
 // floating over the middle of the main disc (content/terrace.ts).
-import { LADDER_GIRTH, ringLadder, roundFloor, roundWall, wall, type Box, type Structure } from '../sim/structures';
+import { ringLadder, roundFloor, roundWall, wall, type Box, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Vec3 } from '../sim/types';
 import type { Bridge, Disc } from '../sim/world';
-import { OUTER, RAIL, ROOF_WALL, SILL, STOREY, WALL_LADDER_R, deg, keep } from './keep';
+import { OUTER, RAIL, ROOF_WALL, SILL, STOREY, WALL_LADDER, WALL_LADDER_R, deg, keep } from './keep';
 import { DECK, TERRACE_RING, WALKWAY } from './terrace';
 
 const X = ANNEX.x;
@@ -45,14 +45,14 @@ const balconies: Structure[] = [STOREY, 2 * STOREY, TOP].flatMap((level) => [
 // on a balcony takes hold over its parapet); from the top balcony up the wall to the roof, in a
 // gap between merlons clear of the top floor's doors and the sky bridge. Each stands at the middle
 // of a segment of the parapets and the wall.
-const EDGE_LADDER_R = OUTER + BALCONY + LADDER_GIRTH / 2 + 0.1;
+const EDGE_LADDER_R = OUTER + BALCONY + WALL_LADDER.girth / 2 + 0.1;
 const ZIGZAG = 22.5; // degrees either side of a column's middle
 const ladders: Structure[] = [180, 0].flatMap((middle) =>
   [0, 1, 2, 3].map((i) => {
     const angle = deg(middle + (i % 2 ? ZIGZAG : -ZIGZAG));
     return i < 3
-      ? ringLadder({ x: X, z: Z }, EDGE_LADDER_R, angle, i * STOREY, (i + 1) * STOREY + PARAPET)
-      : ringLadder({ x: X, z: Z }, WALL_LADDER_R, angle, TOP, 4 * STOREY + ROOF_WALL);
+      ? ringLadder({ x: X, z: Z }, EDGE_LADDER_R, angle, i * STOREY, (i + 1) * STOREY + PARAPET, WALL_LADDER)
+      : ringLadder({ x: X, z: Z }, WALL_LADDER_R, angle, TOP, 4 * STOREY + ROOF_WALL, WALL_LADDER);
   }),
 );
 
