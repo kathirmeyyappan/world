@@ -85,8 +85,12 @@ export class Engine {
   // from the one before, so a rate the display's doesn't divide (45 on 60 Hz) comes out right over
   // time, drawn on alternating ticks, and a rate past the display's is the display's. The game steps
   // by the time since the last frame drawn, the picture's auto pixel size judges the pace, and the
-  // frame is drawn at whatever size that has settled on. A frame is late when the machine held it
-  // past the first tick it could have been drawn on, by more than half a tick.
+  // frame is drawn at whatever size that has settled on. A frame is late when it's drawn more than
+  // a tick and a half after it could first have been (when it came due, or the last frame, if it
+  // was due already): on time, the first run after that is within a tick of it. Judged from when
+  // the loop actually let it through, since the loop's runs jitter round the display's tick, and a
+  // frame coming due a hair before one (45 on a 120 Hz display does, every few frames) is let
+  // through on that tick or the next as the jitter falls, both of them on time.
   run(update: (dt: number) => void): void {
     this.engine.runRenderLoop(() => {
       const now = performance.now();
@@ -95,8 +99,7 @@ export class Engine {
       if (gap >= MIN_TICK_MS && gap < MAX_TICK_MS) this.measureTick(gap);
       if (now < this.due - TICK_SLACK_MS) return;
       const interval = now - this.drawnAt;
-      const ticks = Math.max(1, Math.ceil((this.due - TICK_SLACK_MS - this.drawnAt) / this.tick));
-      const late = interval > (ticks + 0.5) * this.tick;
+      const late = now - Math.max(this.due - TICK_SLACK_MS, this.drawnAt) > 1.5 * this.tick;
       this.drawnAt = now;
       // Behind (a slow frame), the next is due sooner to catch up, but never already: a tab back
       // from sleep draws on the next tick and goes on from there.
