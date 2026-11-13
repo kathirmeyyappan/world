@@ -1,35 +1,107 @@
 // Landmarks drawn from mesh files rather than built from structures: the pineapple house, in the
-// parts scripts/house-model.py writes (render/models/pineappleParts.ts), fetched through the
-// loader (render/Loader.ts) and stood where the shared content puts it (content/pineapple.ts). The
-// sim never sees these meshes; it collides with the structures the content hides inside them, so
-// what you bump into is theirs to keep true to the models. Each door hangs on a node at its pin and
-// swings to the state the Room tells us (sim/doors.ts) over DOOR_SWING_SECONDS.
+// parts scripts/house-model.py writes (render/models/pineappleParts.ts), and the Krusty Krab, in
+// those scripts/krusty-krab-model.py writes (render/models/krustyKrabParts.ts), each fetched
+// through the loader (render/Loader.ts) and stood where the shared content puts it
+// (content/pineapple.ts, content/krustyKrab.ts). The sim never sees these meshes; it collides with
+// the structures the content hides inside them, so what you bump into is theirs to keep true to the
+// models. Each door hangs on a node at its pin and swings to the state the Room tells us
+// (sim/doors.ts) over DOOR_SWING_SECONDS; a door of two leaves has a node for each.
 import { Color3, Mesh, StandardMaterial, Texture, TransformNode, VertexData, type Scene } from '@babylonjs/core';
-import { DOOR_SWING_SECONDS, PINEAPPLE_PLACEMENT, PINEAPPLE_PROFILE } from '@world/shared';
+import {
+  DOOR_SWING_SECONDS,
+  KRUSTY_KRAB_DOOR,
+  KRUSTY_KRAB_PLACEMENT,
+  KRUSTY_KRAB_PROFILE,
+  PINEAPPLE_PLACEMENT,
+  PINEAPPLE_PROFILE,
+} from '@world/shared';
 import type { Engine } from '../Engine';
 import type { Loader } from '../Loader';
-import { PINEAPPLE_PARTS, type PineapplePart } from './pineappleParts';
+import { KRUSTY_KRAB_PARTS } from './krustyKrabParts';
+import { PINEAPPLE_PARTS } from './pineappleParts';
 
 const GLOW = 0.3; // how much a model lights itself, like the avatars, so it reads at night
 const UV_UNIT = 4096; // texture coordinate units to the repeat in the mesh files
 
+// One part of a model, as the scripts list them: its mesh (<name>.bin in the model's folder), its
+// texture (<texture>.png beside it), whether the texture repeats or is an atlas, whether it has
+// clear pixels, whether it's drawn as painted rather than lit, how solid it's drawn if it's
+// see-through, whether only its outside is drawn, and the hinge it hangs on, if it swings.
+interface Part {
+  name: string;
+  texture: string;
+  wrap: boolean;
+  alpha?: boolean;
+  unlit?: boolean;
+  opacity?: number;
+  oneSided?: boolean;
+  door?: string;
+}
+
+// A model: its folder under /assets/models, where it stands, its parts, and its hinges, each
+// named as the parts name it, with its pin in the model's frame, how far it swings, and the sim's
+// door it belongs to.
+interface Model {
+  name: string;
+  placement: { x: number; y: number; z: number; yaw: number };
+  parts: readonly Part[];
+  hinges: { name: string; door: string; at: readonly [number, number]; y: number; swing: number }[];
+}
+
+const MODELS: Model[] = [
+  {
+    name: 'pineapple',
+    placement: PINEAPPLE_PLACEMENT,
+    parts: PINEAPPLE_PARTS,
+    hinges: PINEAPPLE_PROFILE.doors.map((d) => ({ name: d.id, door: d.id, at: d.hinge, y: d.y, swing: d.swing })),
+  },
+  {
+    name: 'krusty-krab',
+    placement: KRUSTY_KRAB_PLACEMENT,
+    parts: KRUSTY_KRAB_PARTS,
+    hinges: KRUSTY_KRAB_PROFILE.doors.map((d) => ({
+      name: d.part,
+      door: KRUSTY_KRAB_DOOR,
+      at: d.hinge,
+      y: 0,
+      swing: d.swing,
+    })),
+  },
+];
+
+interface Hinge {
+  node: TransformNode;
+  swing: number;
+}
+
 export class Models {
-  private readonly doors = new Map<string, { node: TransformNode; swing: number; open: boolean; at: number }>();
+  // Each of the sim's doors: its hinges, whether it stands open, and when it last began to swing.
+  private readonly doors = new Map<string, { hinges: Hinge[]; open: boolean; at: number }>();
 
   constructor(engine: Engine, loader: Loader) {
     const scene = engine.scene;
-    const house = new TransformNode('model-pineapple', scene);
-    house.position.set(PINEAPPLE_PLACEMENT.x, PINEAPPLE_PLACEMENT.y, PINEAPPLE_PLACEMENT.z);
-    house.rotation.y = PINEAPPLE_PLACEMENT.yaw;
-    for (const door of PINEAPPLE_PROFILE.doors) {
-      const hinge = new TransformNode(`model-pineapple-door-${door.id}`, scene);
-      hinge.parent = house;
-      hinge.position.set(door.hinge[0], door.y, door.hinge[1]);
-      this.doors.set(door.id, { node: hinge, swing: door.swing, open: false, at: 0 });
-    }
-    for (const part of PINEAPPLE_PARTS) {
-      const parent = part.door ? this.doors.get(part.door)!.node : house;
-      loader.add({ x: PINEAPPLE_PLACEMENT.x, z: PINEAPPLE_PLACEMENT.z, load: () => fetchPart(scene, part, parent) });
+    for (const model of MODELS) {
+      const root = new TransformNode(`model-${model.name}`, scene);
+      root.position.set(model.placement.x, model.placement.y, model.placement.z);
+      root.rotation.y = model.placement.yaw;
+      const hinges = new Map<string, TransformNode>();
+      for (const hinge of model.hinges) {
+        const node = new TransformNode(`model-${model.name}-door-${hinge.name}`, scene);
+        node.parent = root;
+        node.position.set(hinge.at[0], hinge.y, hinge.at[1]);
+        hinges.set(hinge.name, node);
+        const door = this.doors.get(hinge.door) ?? { hinges: [], open: false, at: 0 };
+        door.hinges.push({ node, swing: hinge.swing });
+        this.doors.set(hinge.door, door);
+      }
+      for (const part of model.parts) {
+        const parent = part.door ? hinges.get(part.door)! : root;
+        loader.add({
+          x: model.placement.x,
+          z: model.placement.z,
+          load: () => fetchPart(scene, model.name, part, parent),
+        });
+      }
     }
   }
 
@@ -50,7 +122,7 @@ export class Models {
     const now = performance.now();
     for (const door of this.doors.values()) {
       // The sim's swing turns from +x toward +z; Babylon's turn about y goes the other way round.
-      door.node.rotation.y = -door.swing * swung(door, now);
+      for (const hinge of door.hinges) hinge.node.rotation.y = -hinge.swing * swung(door, now);
     }
   }
 }
@@ -66,8 +138,8 @@ function swung(door: { open: boolean; at: number }, now: number): number {
 // centimetres (Int16), texture coordinates (Uint16, UV_UNIT to the repeat), triangles (Uint16),
 // unit normals (Int8). Drawn both sides (the leaves and the rooms' walls are single sheets) unless
 // the part says nothing looks at its inside.
-async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNode): Promise<void> {
-  const buffer = await (await fetch(`/assets/models/pineapple/${part.name}.bin`)).arrayBuffer();
+async function fetchPart(scene: Scene, model: string, part: Part, parent: TransformNode): Promise<void> {
+  const buffer = await (await fetch(`/assets/models/${model}/${part.name}.bin`)).arrayBuffer();
   const [vertices, triangles] = new Uint32Array(buffer, 0, 2);
   let at = 8;
   const positions = new Int16Array(buffer, at, vertices * 3);
@@ -82,17 +154,17 @@ async function fetchPart(scene: Scene, part: PineapplePart, parent: TransformNod
   data.uvs = Array.from(uvs, (u) => u / UV_UNIT);
   data.indices = Array.from(indices);
   data.normals = Array.from(normals, (n) => n / 127);
-  const mesh = new Mesh(`model-pineapple-${part.name}`, scene);
+  const mesh = new Mesh(`model-${model}-${part.name}`, scene);
   data.applyToMesh(mesh);
   const image = new Texture(
-    `/assets/models/pineapple/${part.texture}.png`,
+    `/assets/models/${model}/${part.texture}.png`,
     scene,
     false,
     false,
     Texture.NEAREST_NEAREST_MIPLINEAR,
   );
   if (part.wrap) image.wrapU = image.wrapV = Texture.WRAP_ADDRESSMODE;
-  const material = new StandardMaterial(`model-pineapple-${part.name}`, scene);
+  const material = new StandardMaterial(`model-${model}-${part.name}`, scene);
   material.diffuseTexture = image;
   material.emissiveTexture = image;
   material.specularColor = Color3.Black();

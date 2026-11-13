@@ -3,12 +3,14 @@
 // structures show on the map. Only what you'd navigate by belongs here: a keep, not the decks and
 // rails around it. A disc can carry `rings`, circles drawn evenly inside it (Tung Tung Tower has one
 // per floor above the ground, which marks it out from the one-storey buildings), or an `inner`
-// radius it's open within. SpongeBob's house is drawn as itself (PineappleMark).
+// radius it's open within. SpongeBob's house and the Krusty Krab are drawn as themselves
+// (PineappleMark, KrustyKrabMark).
 //
 // Up past HIGH_UP the map greys in HIGH_LANDMARKS as well: the walkways up there, which would only
 // clutter the map on the ground.
 import type { Bridge, Disc } from '../sim/world';
 import { STANDING_KEEPS } from './buildings';
+import { KRUSTY_KRAB_FOOTPRINT } from './krustyKrab';
 import { PINEAPPLE_DECK, PINEAPPLE_FOOTPRINT } from './pineapple';
 import { PINEAPPLE_PROFILE } from './pineappleProfile';
 import { STAIRCASE_FOOTPRINTS, TERRACE_RING } from './terrace';
@@ -24,12 +26,24 @@ export interface PineappleMark {
   sand: number;
 }
 
-export type Landmark = (Disc & { rings?: number; inner?: number }) | Bridge | PineappleMark;
+// The Krusty Krab from above: its plinth, `w` along the building and `d` through it, turned by
+// `yaw` (the door facing its own +z), with the barrel of its roof between the arches at its ends.
+export interface KrustyKrabMark {
+  kind: 'krusty-krab';
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  yaw: number;
+}
+
+export type Landmark = (Disc & { rings?: number; inner?: number }) | Bridge | PineappleMark | KrustyKrabMark;
 
 export const LANDMARKS: Landmark[] = [
   { ...TUNG_TUNG_TOWER_FOOTPRINT, rings: TUNG_TUNG_TOWER_ROOMS.length - 1 },
   ...STANDING_KEEPS.map((k) => k.footprint),
   { ...PINEAPPLE_FOOTPRINT, kind: 'pineapple', sand: PINEAPPLE_PROFILE.dune.foot },
+  { ...KRUSTY_KRAB_FOOTPRINT, kind: 'krusty-krab' },
 ];
 
 export const HIGH_UP = 35; // metres: the height of your feet past which the map shows HIGH_LANDMARKS

@@ -9,15 +9,18 @@ const PATH_HALF_WIDTH = 4; // the buildings' paths, narrower than the bridge to 
 
 // Buildings 1 to 4's grounds and paths: the annex and the floor bridge (at PATH_HALF_WIDTH) turned
 // round the main disc's middle to each one's bearing (degrees from +x toward +z), round its far side
-// from the tower with the widest gap between Buildings 2 and 3, out at `out` on grounds the annex's
-// size unless the building says otherwise. SpongeBob's house stands further out than the keeps, on wider grounds, so
-// its dune sits on the floor with room round it.
+// from the tower, out at `out` on grounds the annex's size unless the building says otherwise.
+// SpongeBob's house stands further out than the keeps, on wider grounds, so its dune sits on the
+// floor with room round it. Buildings 2 and 3 stand either side of the Krusty Krab, which faces the
+// tower from straight across the main disc: the five are a turn of SITE_TURN apart.
 const KEEP_OUT = 100;
+const SITE_TURN = 55;
+const KRUSTY_KRAB_BEARING = 180;
 const BUILDING_SITES: { bearing: number; out: number; r?: number }[] = [
-  { bearing: 70, out: 124, r: 52 },
-  { bearing: 135, out: KEEP_OUT },
-  { bearing: 225, out: KEEP_OUT },
-  { bearing: 290, out: KEEP_OUT },
+  { bearing: KRUSTY_KRAB_BEARING - 2 * SITE_TURN, out: 124, r: 52 },
+  { bearing: KRUSTY_KRAB_BEARING - SITE_TURN, out: KEEP_OUT },
+  { bearing: KRUSTY_KRAB_BEARING + SITE_TURN, out: KEEP_OUT },
+  { bearing: KRUSTY_KRAB_BEARING + 2 * SITE_TURN, out: KEEP_OUT },
 ];
 const PATH_INTO = FLOOR_BRIDGE.bx - (ANNEX.x - ANNEX.r); // metres a path runs on into the grounds it leads to
 const turned = (deg: number, x: number, z: number) => {
@@ -34,6 +37,10 @@ export const BUILDING_PATHS: Bridge[] = BUILDING_SITES.map(({ bearing, out, r = 
   const b = turned(bearing, out - r + PATH_INTO, 0);
   return { ...FLOOR_BRIDGE, ax: a.x, az: a.z, bx: b.x, bz: b.z, halfWidth: PATH_HALF_WIDTH };
 });
+// The Krusty Krab's grounds, on the fan's rim like the keeps': wide enough to walk all the way round
+// the building (36 m by 24 m, content/krustyKrab.ts) with ten metres to spare at its corners. No
+// path leads to them: the fan is open floor all the way from the main disc.
+export const KRUSTY_KRAB_GROUNDS: Disc = { kind: 'disc', ...turned(KRUSTY_KRAB_BEARING, KEEP_OUT, 0), r: 32 };
 // The floor between them all: a slice of the main disc's middle out to the keeps' middles, from the
 // first building's bearing round to the last's, so the only way out of it is the bridge to the
 // tower. Its straight sides run under the first and last paths, which hide them.

@@ -5,10 +5,10 @@
 // Everything is drawn each frame as shapes in world metres through the view's transform, at the
 // screen's own pixel density (RES canvas pixels to the CSS pixel), so edges stay smooth at any zoom
 // and as the near view turns: the outline's parts (discs, bridges and arcs), landmarks grey on the
-// floor (SpongeBob's house as itself), and up past HIGH_UP the walkways up there too. Markers go on
-// top: cubes as faint specks, people as smaller copies of your arrow pointing their way, bots as
-// squares, and anyone on another level (a floor above, a bridge below) faded. The canvas can be any
-// size and change it; each draw fits the view to the size it has.
+// floor (SpongeBob's house and the Krusty Krab as themselves), and up past HIGH_UP the walkways up
+// there too. Markers go on top: cubes as faint specks, people as smaller copies of your arrow
+// pointing their way, bots as squares, and anyone on another level (a floor above, a bridge below)
+// faded. The canvas can be any size and change it; each draw fits the view to the size it has.
 import {
   EYE_HEIGHT,
   HIGH_LANDMARKS,
@@ -16,6 +16,7 @@ import {
   LANDMARKS,
   WORLD_SHAPE,
   worldBounds,
+  type KrustyKrabMark,
   type Landmark,
   type PineappleMark,
   type WorldPart,
@@ -58,6 +59,12 @@ const PINEAPPLE = 'rgb(232, 168, 58)';
 const HATCH = 'rgba(128, 72, 24, 0.85)';
 const LEAVES = ['rgb(62, 140, 62)', 'rgb(118, 192, 84)'];
 const LEAF_EDGE = 'rgba(24, 64, 28, 0.8)';
+// The Krusty Krab: its plinth, the arches at its ends, the barrel of its roof and the seams between
+// the roof's staves.
+const PLINTH = 'rgb(104, 78, 54)';
+const ARCH = 'rgb(150, 114, 78)';
+const ROOF = 'rgb(84, 62, 44)';
+const SEAM = 'rgba(36, 24, 14, 0.9)';
 const OTHERS = 0.6; // other people's arrows, as a fraction of yours
 const BOT = 5; // CSS pixels across a bot's square, inside its light edge: still under a person's arrow
 const LEVEL = 3; // metres of height difference at which another player reads as above or below you
@@ -225,12 +232,15 @@ export class MapCanvas {
         ctx.stroke();
       }
     }
-    const marks = landmarks.filter((l): l is Footprint => l.kind !== 'pineapple');
+    const marks = landmarks.filter((l): l is Footprint => l.kind !== 'pineapple' && l.kind !== 'krusty-krab');
     place(this.landmarkLayer);
     cover(this.landmarkLayer, marks.map(partPath));
     tint(this.landmarkLayer, LANDMARK);
     place(this.houseLayer);
-    for (const l of landmarks) if (l.kind === 'pineapple') drawPineapple(this.houseLayer, l, px);
+    for (const l of landmarks) {
+      if (l.kind === 'pineapple') drawPineapple(this.houseLayer, l, px);
+      else if (l.kind === 'krusty-krab') drawKrustyKrab(this.houseLayer, l, px);
+    }
 
     place(this.floorLayer);
     cover(this.floorLayer, this.parts); // the world's floor, as a mask for the grid first
@@ -314,8 +324,8 @@ function layer(): CanvasRenderingContext2D {
   return document.createElement('canvas').getContext('2d')!;
 }
 
-// A landmark filled in grey: any but the house.
-type Footprint = Exclude<Landmark, PineappleMark>;
+// A landmark filled in grey: any but the two drawn as themselves.
+type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark>;
 
 // SpongeBob's house from above, in world metres: its dune's sand, the fruit hatched in diamonds as
 // its skin is, and its crown of leaves in the middle, a ring of long dark ones under a ring of short
@@ -368,6 +378,35 @@ function drawPineapple(c: CanvasRenderingContext2D, m: PineappleMark, px: (n: nu
       c.stroke();
     }
   });
+}
+
+// The Krusty Krab from above, in world metres: its plinth, open at the door, the barrel of its roof
+// with the seams between its staves running its length, and the arches across its two ends. `px`
+// is CSS pixels in metres.
+function drawKrustyKrab(c: CanvasRenderingContext2D, m: KrustyKrabMark, px: (n: number) => number): void {
+  const arch = m.w * 0.08; // how much of the length each arch takes
+  const roof = { w: m.w - 2 * arch - m.w * 0.05, d: m.d * 0.8 };
+  c.save();
+  c.translate(m.x, m.z);
+  c.rotate(-m.yaw); // the building's own frame: its length across, its door toward +z
+  c.fillStyle = PLINTH;
+  c.fillRect(-m.w / 2, -m.d / 2, m.w, m.d);
+  c.clearRect(-m.w * 0.085, m.d * 0.4, m.w * 0.17, m.d * 0.11); // the doorway
+  c.fillStyle = ROOF;
+  c.fillRect(-roof.w / 2, -roof.d / 2, roof.w, roof.d);
+  c.strokeStyle = SEAM;
+  c.lineWidth = px(0.8);
+  c.beginPath();
+  for (let i = 1; i < 6; i++) {
+    const z = -roof.d / 2 + (roof.d * i) / 6;
+    c.moveTo(-roof.w / 2, z);
+    c.lineTo(roof.w / 2, z);
+  }
+  c.stroke();
+  c.fillStyle = ARCH;
+  for (const side of [-1, 1]) c.fillRect(side * (roof.w / 2 + arch / 2) - arch / 2, -m.d * 0.46, arch, m.d * 0.92);
+  c.strokeRect(-m.w / 2, -m.d / 2, m.w, m.d);
+  c.restore();
 }
 
 // A part of the outline, or a landmark, as one closed path in world metres (a landmark open in the

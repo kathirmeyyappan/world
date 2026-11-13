@@ -14,6 +14,8 @@ export const TOWER_LEVELS: Region[] = TUNG_TUNG_TOWER_LEVELS;
 export const TOWER_INSIDE: Region[] = TUNG_TUNG_TOWER_INSIDE;
 // Each building's floor and roof, Building 1 first.
 export { BUILDING_LEVELS } from './buildings';
+// The Krusty Krab's dining room.
+export { KRUSTY_KRAB_FLOOR } from './krustyKrab';
 
 // Where people spawn, each as likely, both on the ground of the main area: its middle and its side
 // facing the tower.

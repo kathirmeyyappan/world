@@ -90,11 +90,13 @@ test('movement is yaw-relative and clamped to the world edge', () => {
   assert.ok(p.pos.x > 7.9 && Math.abs(p.pos.z) < 1e-9, 'yaw of pi/2 walks along +x');
   for (let i = 2; i < 200; i++) stepPlayer(p, frame(i, { my: 1, yaw: Math.PI / 2 }), 1, WORLD_SHAPE);
   assert.ok(worldDistance(p.pos.x, p.pos.z, WORLD_SHAPE) <= -1 + 1e-9);
-  // Walking straight out across the fan between the buildings, through the gap opposite the tower
-  // (the fan's round side at r 100).
-  const q = createPlayer('b', 'b', '#fff', { x: -60, y: EYE_HEIGHT, z: 0 });
-  for (let i = 1; i < 100; i++) stepPlayer(q, frame(i, { my: 1, yaw: -Math.PI / 2 }), 1, WORLD_SHAPE);
-  assert.ok(Math.abs(q.pos.x + 99) < 1e-6 && Math.abs(q.pos.z) < 1e-6, `held a metre inside the fan: ${q.pos.x}`);
+  // Walking straight out across the fan between the buildings, through the gap between the Krusty
+  // Krab's grounds and Building 2's (the fan's round side at r 100).
+  const out = (152.5 * Math.PI) / 180;
+  const q = createPlayer('b', 'b', '#fff', { x: 60 * Math.cos(out), y: EYE_HEIGHT, z: 60 * Math.sin(out) });
+  for (let i = 1; i < 100; i++) stepPlayer(q, frame(i, { my: 1, yaw: Math.PI / 2 - out }), 1, WORLD_SHAPE);
+  const reached = Math.hypot(q.pos.x, q.pos.z);
+  assert.ok(Math.abs(reached - 99) < 1e-6, `held a metre inside the fan: ${reached}`);
 });
 
 test('jump only from the ground, and gravity brings you back', () => {
