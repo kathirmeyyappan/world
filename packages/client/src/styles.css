@@ -262,7 +262,7 @@ body {
 .home-links {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 28px;
   margin: 18px 0 26px;
 }
 .home-link {
@@ -270,10 +270,10 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  min-height: 92px;
-  padding: 14px 10px;
-  font: 9px/1.6 var(--pixel);
+  gap: 8px;
+  min-height: 66px;
+  padding: 9px 8px;
+  font: 7px/1.6 var(--pixel);
   letter-spacing: 1px;
   text-align: center;
   text-decoration: none;
@@ -297,8 +297,8 @@ body {
   box-shadow: 2px 2px 0 #000;
 }
 .home-icon {
-  width: 40px;
-  height: auto;
+  width: auto;
+  height: 22px;
   fill: var(--accent);
   filter: drop-shadow(2px 2px 0 #000);
   shape-rendering: crispEdges;
@@ -342,6 +342,12 @@ body {
 }
 .home-tab-panel label {
   margin-bottom: 6px;
+}
+.home-tab-panel #home-global {
+  margin-top: 0;
+}
+.home-tab-panel .divider {
+  margin: 16px 0 12px;
 }
 #home-mode-hint {
   font-size: 17px;

@@ -150,13 +150,15 @@
             </div>
           </div>
           <div class="home-join">
-            <button id="home-global" class="wide">JOIN GLOBAL</button>
-            <div class="divider"><span>OR</span></div>
             <div class="home-tabs" role="tablist">
-              <button role="tab" data-mode="create" aria-selected="true">CREATE ROOM</button>
-              <button role="tab" data-mode="join" aria-selected="false">JOIN ROOM</button>
+              <button role="tab" data-mode="join" aria-selected="true">JOIN ROOM</button>
+              <button role="tab" data-mode="create" aria-selected="false">CREATE ROOM</button>
             </div>
             <div class="home-tab-panel" role="tabpanel">
+              <div id="home-global-row">
+                <button id="home-global" class="wide">JOIN GLOBAL</button>
+                <div class="divider"><span>OR</span></div>
+              </div>
               <label>
                 <span>ROOM CODE</span>
                 <input
@@ -169,7 +171,7 @@
                 />
               </label>
               <p id="home-mode-hint"></p>
-              <button id="home-join" class="wide">CREATE ROOM</button>
+              <button id="home-join" class="wide">JOIN ROOM</button>
             </div>
             <button id="home-offline" class="wide subtle hidden">PLAY OFFLINE</button>
             <div id="home-status"></div>

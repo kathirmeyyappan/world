@@ -1,5 +1,5 @@
-// Home screen: the room on the left (drop into the global room, or by code under a tab: CREATE a
-// room under a code no one is using, or JOIN one that's running), the player on the right (their
+// Home screen: the room on the left, under two tabs: JOIN one that's running (the global room, or
+// one by code) or CREATE a room under a code no one is using, the player on the right (their
 // name, and a skin from a dropdown shown on a turning stage with the name over its head, as the
 // guide and the menu show bodies). Resolves with a live Connection. Also honours
 // ?room=&name=&avatar=&color= for invite links (a join) and tests, and ?error=&tab=&code= for a join
@@ -67,9 +67,11 @@ export function showHome(): Promise<HomeResult> {
   document.getElementById('home-guide')!.prepend(pixelSvg(BOOK, 'home-icon', { o: 'ink' }));
   document.getElementById('home-source')!.prepend(pixelSvg(GITHUB, 'home-icon'));
 
-  let mode: JoinMode = 'create';
+  const globalRow = document.getElementById('home-global-row')!;
+  let mode: JoinMode = 'join';
   const pick = (to: JoinMode) => {
     mode = to;
+    globalRow.classList.toggle('hidden', to !== 'join');
     for (const tab of tabs) tab.setAttribute('aria-selected', String(tab.dataset.mode === to));
     joinBtn.textContent = TABS[to].action;
     modeHint.textContent = TABS[to].hint;
@@ -80,7 +82,7 @@ export function showHome(): Promise<HomeResult> {
   const params = new URLSearchParams(location.search);
   nameInput.value = params.get('name') ?? stored(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? params.get('code') ?? '';
-  pick(params.get('tab') === 'join' ? 'join' : 'create');
+  pick(params.get('tab') === 'create' ? 'create' : 'join');
   const skin = new Picker(document.getElementById('home-skin')!, skinChoices());
   const asked = params.has('avatar') || params.has('color');
   skin.choose(asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? STANDARD));
