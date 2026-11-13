@@ -6,9 +6,9 @@
 // what's in them, cut on a grid, so a couch is something to stand on). Round the rooms the shell is
 // solid, as hidden rings: the whole thickness outside the ground floor's rooms, a seal just inside
 // the skin above them, and from the library's wall out above its floor; open only at the doorway
-// and the vestibule behind it, and at the back door and the hall's. The dune rises from the
-// grounds' edge to a flat top the house sits on, and bulges a little round it; the rooms' sand
-// floor lies on it.
+// and the vestibule behind it, and at the back door and the hall's. The dune rises from the floor
+// inside the grounds' edge to a flat top the house sits on, and bulges a little round it; the rooms'
+// sand floor lies on it.
 //
 // Inside, the rooms are the game's (Battle for Bikini Bottom): the living room through the front
 // door, the closet off it, the kitchen behind, the bathroom off the kitchen, the bedroom upstairs
@@ -49,7 +49,7 @@ import { PINEAPPLE_PROFILE as SHAPE } from './pineappleProfile';
 const GROUND = BUILDING_GROUNDS[0];
 const X = GROUND.x;
 const Z = GROUND.z;
-if (SHAPE.dune.foot !== GROUND.r) throw new Error('the house model laid its dune for other grounds');
+if (SHAPE.dune.foot > GROUND.r) throw new Error('the house model laid its dune wider than its grounds');
 export const DUNE_HEIGHT = SHAPE.dune.height; // metres the dune's flat top, and the house's floor, stand above the floor
 const GROUND_CORE = 13.3; // radius the shell is solid from on the ground floor: just outside the rooms' outer wall
 const SEAL = 0.4; // metres inside the skin the seal above the ground floor begins: just behind the hall's wall
@@ -497,9 +497,10 @@ const stones: Structure[] = [
   ...SHAPE.slide.map((piece) => ({ ...lying(piece), surface: 'ice' as const })),
 ];
 
-// Flat on top, down to the floor by the grounds' edge, never steeper than a walk; its underside a
-// hair under the floor, so its rim and corners (the grounds are round, it is square) stay out of
-// sight beneath it. Heights are over the underside. The same hill the model's garden was laid on.
+// Flat on top, down to the floor at its foot (inside the grounds' edge), never steeper than a walk;
+// its underside a hair under the floor, so its rim and corners (the dune is round, the terrain
+// square) stay out of sight beneath it. Heights are over the underside. The same hill the model's
+// garden was laid on.
 const { dune: hill } = SHAPE;
 const dune = terrain({
   x: X,

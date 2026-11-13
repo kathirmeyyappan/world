@@ -409,8 +409,13 @@ wire: server and client both build the world from that file.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
   (r 30 at x 112) and the bridge between them, the four buildings' grounds and paths (the annex
-  and that bridge turned round the main disc to 90°, 150°, 210° and 270°), and an arc through all
-  four grounds, twice a path's width. A part is a disc, a straight `bridge` or a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
+  and that bridge turned round the main disc to 90°, 150°, 210° and 270°; SpongeBob's house's
+  further out, at 124 m, on wider grounds, r 36, so its dune sits on the floor with room round it),
+  and an arc through all four grounds, twice a path's width. A part is a disc, a straight `bridge` or
+  a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
+  Past the edge the ground is drawn `OUTSIDE_HEIGHT` (0.6 m) up, with a grey step to it
+  (`render/Environment.ts`), so where you can't go reads from afar; it's only drawn (the sim's floor
+  is flat), and the third-person camera keeps above it.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
@@ -550,10 +555,13 @@ inputs move: a structure or landmark added or changed, the world's outline, the 
 movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
 you do (the map carries a fingerprint of all of them).
 
-Cubes don't know about structures, and the minimap shows only the footprints in
-`content/landmarks.ts` (grey on the floor, a disc's `rings` drawn inside it: Tung Tung Tower has one
-per floor above the ground), and with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the
-terrace, the sky bridge and the staircases. List a landmark's there when it's worth navigating by.
+Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
+through `ui/MapCanvas.ts`, which reads the outline (`WORLD_SHAPE`) and `content/landmarks.ts` itself,
+so they all show one world and a map change is a change there: footprints grey on the floor (a disc's
+`rings` drawn inside it: Tung Tung Tower has one per floor above the ground), SpongeBob's house as
+itself (a `PineappleMark`: the fruit hatched, its leaves in the middle, on the sand of its dune), and
+with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the terrace, the sky bridge and the
+staircases. List a landmark's there when it's worth navigating by.
 
 ## Pull requests
 

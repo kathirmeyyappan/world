@@ -29,6 +29,8 @@ import {
   type Region,
 } from '@world/shared';
 import { BodyView, type Shown, type Thing } from '../render/BodyView';
+import { MapCanvas } from '../ui/MapCanvas';
+import { MapControls } from '../ui/mapControls';
 import { commandGroups } from '../ui/commands';
 import {
   BOT_EXAMPLES,
@@ -372,8 +374,29 @@ function gallery(photos: Photo[], lightbox: Lightbox): HTMLElement {
   return row;
 }
 
-function worldPanel(): HTMLElement {
+// The world's map at the top of the World tab, the game's own (MapCanvas: the minimap's WORLD view,
+// at ground level, with no one on it), to drag about and zoom.
+class WorldMap {
+  readonly el = el('section', 'card wide world-map');
+  private readonly canvas = el('canvas');
+  private readonly map = new MapCanvas(this.canvas);
+  private readonly controls = new MapControls(this.canvas, () => this.map.baseScale('world'));
+
+  constructor() {
+    const zoom = matchMedia('(pointer: coarse)').matches ? 'pinch' : 'scroll';
+    const box = el('div', 'view');
+    box.append(this.canvas, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
+    this.el.append(el('h2', '', 'Map'), box);
+  }
+
+  draw(): void {
+    this.map.drawWorld(this.controls.framing);
+  }
+}
+
+function worldPanel(map: WorldMap): HTMLElement {
   const panel = el('div', 'cards');
+  panel.append(map.el);
   const lightbox = new Lightbox();
   for (const place of PLACES) {
     const card = el('section', 'card');
@@ -486,7 +509,8 @@ function main(): void {
   const catalogs = [new Catalog('characters', characters(), go), new Catalog('items', items(), go)];
   panels.set('characters', catalogs[0].el);
   panels.set('items', catalogs[1].el);
-  panels.set('world', worldPanel());
+  const worldMap = new WorldMap();
+  panels.set('world', worldPanel(worldMap));
   panels.set('bots', botsPanel());
   panels.set('commands', commandsPanel());
   const buttons = new Map<string, HTMLButtonElement>();
@@ -514,6 +538,7 @@ function main(): void {
 
   const frame = () => {
     for (const c of catalogs) c.frame(c.tab === active);
+    if (active === 'world') worldMap.draw();
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

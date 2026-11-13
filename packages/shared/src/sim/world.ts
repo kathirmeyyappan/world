@@ -50,6 +50,10 @@ export const WORLD_SHAPE: WorldPart[] = [
   BUILDING_ARC,
 ];
 
+// Metres the ground past the world's edge stands above the floor, so where you can't go reads from
+// afar. Only drawn (render/Environment.ts): the sim keeps everyone inside the edge and its floor flat.
+export const OUTSIDE_HEIGHT = 0.6;
+
 // The structures standing inside the outline, indexed for the sim's queries.
 export const WORLD_STRUCTURES = new Structures(STRUCTURES);
 

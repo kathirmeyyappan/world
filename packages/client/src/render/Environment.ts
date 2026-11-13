@@ -1,8 +1,9 @@
-// Static scenery: shader-drawn grid floor, gradient sky with stars, and a boundary wall that only
-// shows up when you get close, at whatever height you're at. All of it follows the world shape. Sky
-// billboards live in SkyObject.ts.
+// Static scenery: shader-drawn grid floor, the ground past the world's edge raised OUTSIDE_HEIGHT over
+// it with a step up between, gradient sky with stars, and a boundary wall that only shows up when you
+// get close, at whatever height you're at. All of it follows the world shape. Sky billboards live in
+// SkyObject.ts.
 import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData } from '@babylonjs/core';
-import { EYE_HEIGHT, partDistance, worldBounds, type WorldPart, worldReach } from '@world/shared';
+import { EYE_HEIGHT, OUTSIDE_HEIGHT, partDistance, worldBounds, type WorldPart, worldReach } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
   GROUND_FOG,
@@ -13,6 +14,7 @@ import {
   MAX_DISCS,
   SKY_FRAGMENT,
   SKY_VERTEX,
+  STEP_GAP,
   WALL_FRAGMENT,
   WALL_VERTEX,
 } from './shaders';
@@ -31,7 +33,7 @@ type Point = { x: number; z: number };
 
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
-  private ground!: ShaderMaterial; // set in createGround
+  private readonly grounds: ShaderMaterial[] = []; // the floor's, the raised ground's and the step's
   private sky!: ShaderMaterial; // set in createSky
   private fogScale = 1;
   private fogTarget = 1;
@@ -66,20 +68,36 @@ export class Environment {
     this.skyWall.setEnabled(bounds === 'sky');
   }
 
+  // The floor inside the world's edge, the ground past it raised, and the step up between them: one
+  // shader, each drawing only its own side of the edge.
   private createGround(): void {
     const scene = this.engine.scene;
     const size = this.span * 6;
-    // In tiles: one triangle across the whole world interpolates depth coarsely far off, and the
-    // crusts and sills laid a hair over the floor sink into it.
-    const ground = MeshBuilder.CreateGround('ground', { width: size, height: size, subdivisions: 16 }, scene);
-    ground.position.set((this.bounds.minX + this.bounds.maxX) / 2, 0, (this.bounds.minZ + this.bounds.maxZ) / 2);
-    ground.isPickable = false;
-    const mat = new ShaderMaterial('groundMat', scene, 'worldGround', {
+    const plane = (name: string, y: number, side: number) => {
+      // In tiles: one triangle across the whole world interpolates depth coarsely far off, and the
+      // crusts and sills laid a hair over the floor sink into it.
+      const mesh = MeshBuilder.CreateGround(name, { width: size, height: size, subdivisions: 16 }, scene);
+      mesh.position.set((this.bounds.minX + this.bounds.maxX) / 2, y, (this.bounds.minZ + this.bounds.maxZ) / 2);
+      mesh.isPickable = false;
+      mesh.material = this.groundMaterial(name, side);
+    };
+    plane('ground', 0, 0);
+    plane('raised-ground', OUTSIDE_HEIGHT, 1);
+    // The step stands STEP_GAP out from the edge, where the raised ground starts, off the wall's plane.
+    const out = this.shape.map((part): WorldPart =>
+      part.kind === 'disc' ? { ...part, r: part.r + STEP_GAP } : { ...part, halfWidth: part.halfWidth + STEP_GAP },
+    );
+    this.createWall('ground-step', out, OUTSIDE_HEIGHT, this.groundMaterial('ground-step', 2));
+  }
+
+  private groundMaterial(name: string, side: number): ShaderMaterial {
+    const mat = new ShaderMaterial(`${name}Mat`, this.engine.scene, 'worldGround', {
       attributes: ['position'],
       uniforms: [
         'world',
         'worldViewProjection',
         'cameraPos',
+        'side',
         'lineColor',
         'majorColor',
         'floorColor',
@@ -99,6 +117,7 @@ export class Environment {
         'arcCount',
       ],
     });
+    mat.setFloat('side', side);
     mat.setColor3('lineColor', new Color3(0.2, 0.9, 0.5));
     mat.setColor3('majorColor', new Color3(0.45, 1.0, 0.7));
     mat.setColor3('floorColor', new Color3(0.03, 0.06, 0.05));
@@ -107,11 +126,11 @@ export class Environment {
     mat.setColor3('zenithColor', ZENITH_COLOR);
     mat.setColor3('horizonColor', HORIZON_COLOR);
     mat.setFloat('horizon', 0);
-    this.ground = mat;
     this.setShapeUniforms(mat);
     mat.backFaceCulling = false;
-    ground.material = mat;
+    this.grounds.push(mat);
     this.materials.push(mat);
+    return mat;
   }
 
   private setShapeUniforms(mat: ShaderMaterial): void {
@@ -312,7 +331,7 @@ export class Environment {
       const k = 1 - Math.pow(0.5, dt / FOG_HALF_LIFE);
       this.fogScale += (this.fogTarget - this.fogScale) * k;
       if (Math.abs(this.fogScale - this.fogTarget) < 1e-3) this.fogScale = this.fogTarget;
-      this.ground.setFloat('fogScale', this.fogScale);
+      for (const g of this.grounds) g.setFloat('fogScale', this.fogScale);
       this.engine.scene.fogDensity = BASE_FOG_DENSITY * Math.sqrt(this.fogScale);
     }
     for (const m of this.materials) {
@@ -323,7 +342,7 @@ export class Environment {
     const faded = Math.sqrt(FADED / (GROUND_FOG * this.fogScale)); // metres to where the floor is 90% fog
     const horizon = -height / Math.hypot(height, faded); // the sine of the angle down to it
     this.sky.setFloat('horizon', horizon);
-    this.ground.setFloat('horizon', horizon);
+    for (const g of this.grounds) g.setFloat('horizon', horizon);
   }
 }
 
