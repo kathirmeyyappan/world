@@ -103,8 +103,8 @@ export const KERB_HEIGHT = 0.08;
 // colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
 // three parts of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT
 // down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb is lit
-// bright along the top of the drop and along its toe at the foot, so where you can't go reads from
-// afar. The
+// bright along the top of the drop (green on its top, grey down the face) and along its toe at the
+// foot (grey), so where you can't go reads from afar. The
 // kerb's outer face, the drop, carries the grid on down from the floor to the ground below
 // (surfaceGridLine).
 export const GROUND_FRAGMENT = `
@@ -173,7 +173,11 @@ void main() {
   float outside = side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
   col = mix(col, lineColor * 0.45, rim);
-  col = mix(col, majorColor * pulse, lit);
+  // Lit green on the curb's top, at the floor's edge; grey like everything past it elsewhere.
+  vec3 bright = majorColor * pulse;
+  float past = 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y);
+  bright = mix(bright, vec3(dot(bright, vec3(0.299, 0.587, 0.114))), past);
+  col = mix(col, bright, lit);
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);

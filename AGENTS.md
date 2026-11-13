@@ -418,7 +418,8 @@ wire: server and client both build the world from that file.
   clamped 1 m inside it no matter what, so keep structures inside too.
   Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
   mitred where two parts' edges meet, whose outer face drops to the ground past the edge, with a
-  toe as bold along its foot (both rims of the drop lit, so the border reads from the drop too), `OUTSIDE_HEIGHT` (10 m) down
+  toe as bold along its foot (both rims of the drop lit grey, the kerb's top green, so the border
+  reads from the drop too), `OUTSIDE_HEIGHT` (10 m) down
   (`render/Environment.ts`), so where you can't go reads from afar; the grid carries on down that
   drop, each face gridded across the two axes its normal lies furthest from (`surfaceGridLine`, so
   one family of lines runs over any surface, terrain included). The floor and that ground both end under the
