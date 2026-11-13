@@ -1,5 +1,5 @@
-// Static scenery: shader-drawn grid floor, the ground past the world's edge raised OUTSIDE_HEIGHT over
-// it with a step up between, gradient sky with stars, and a boundary wall that only shows up when you
+// Static scenery: shader-drawn grid floor, the ground past the world's edge OUTSIDE_HEIGHT from it
+// with a step between, gradient sky with stars, and a boundary wall that only shows up when you
 // get close, at whatever height you're at. All of it follows the world shape. Sky billboards live in
 // SkyObject.ts.
 import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData } from '@babylonjs/core';
@@ -9,7 +9,7 @@ import {
   GROUND_FOG,
   GROUND_FRAGMENT,
   GROUND_VERTEX,
-  MAX_ARCS,
+  MAX_SECTORS,
   MAX_BRIDGES,
   MAX_DISCS,
   SKY_FRAGMENT,
@@ -33,7 +33,7 @@ type Point = { x: number; z: number };
 
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
-  private readonly grounds: ShaderMaterial[] = []; // the floor's, the raised ground's and the step's
+  private readonly grounds: ShaderMaterial[] = []; // the floor's, the ground's past the edge and the step's
   private sky!: ShaderMaterial; // set in createSky
   private fogScale = 1;
   private fogTarget = 1;
@@ -68,7 +68,7 @@ export class Environment {
     this.skyWall.setEnabled(bounds === 'sky');
   }
 
-  // The floor inside the world's edge, the ground past it raised, and the step up between them: one
+  // The floor inside the world's edge, the ground past it, and the step between them: one
   // shader, each drawing only its own side of the edge.
   private createGround(): void {
     const scene = this.engine.scene;
@@ -82,10 +82,11 @@ export class Environment {
       mesh.material = this.groundMaterial(name, side);
     };
     plane('ground', 0, 0);
-    plane('raised-ground', OUTSIDE_HEIGHT, 1);
-    // The step stands STEP_GAP out from the edge, where the raised ground starts, off the wall's plane.
+    plane('outside-ground', OUTSIDE_HEIGHT, 1);
+    // The step stands STEP_GAP out from the edge, where the ground past it starts, off the wall's
+    // plane. A sector's straight sides stay put: they're kept under a path (sim/outline.ts).
     const out = this.shape.map((part): WorldPart =>
-      part.kind === 'disc' ? { ...part, r: part.r + STEP_GAP } : { ...part, halfWidth: part.halfWidth + STEP_GAP },
+      part.kind === 'bridge' ? { ...part, halfWidth: part.halfWidth + STEP_GAP } : { ...part, r: part.r + STEP_GAP },
     );
     this.createWall('ground-step', out, OUTSIDE_HEIGHT, this.groundMaterial('ground-step', 2));
   }
@@ -110,11 +111,11 @@ export class Environment {
         'discs',
         'bridges',
         'bridgeWidths',
-        'arcs',
-        'arcSpans',
+        'sectors',
+        'sectorSpans',
         'discCount',
         'bridgeCount',
-        'arcCount',
+        'sectorCount',
       ],
     });
     mat.setFloat('side', side);
@@ -137,7 +138,7 @@ export class Environment {
     const discs: number[] = [];
     const bridges: number[] = [];
     const widths: number[] = [];
-    const arcs: number[] = [];
+    const sectors: number[] = [];
     const spans: number[] = [];
     for (const part of this.shape) {
       if (part.kind === 'disc') discs.push(part.x, part.z, part.r);
@@ -145,30 +146,30 @@ export class Environment {
         bridges.push(part.ax, part.az, part.bx, part.bz);
         widths.push(part.halfWidth);
       } else {
-        arcs.push(part.x, part.z, part.r, part.halfWidth);
+        sectors.push(part.x, part.z, part.r);
         spans.push(part.from, part.to);
       }
     }
     const discCount = discs.length / 3;
     const bridgeCount = widths.length;
-    const arcCount = arcs.length / 4;
-    if (discCount > MAX_DISCS || bridgeCount > MAX_BRIDGES || arcCount > MAX_ARCS)
+    const sectorCount = sectors.length / 3;
+    if (discCount > MAX_DISCS || bridgeCount > MAX_BRIDGES || sectorCount > MAX_SECTORS)
       throw new Error(
-        `the world has more discs, bridges or arcs than the floor shader's ${MAX_DISCS}, ${MAX_BRIDGES} and ${MAX_ARCS}`,
+        `the world has more discs, bridges or sectors than the floor shader's ${MAX_DISCS}, ${MAX_BRIDGES} and ${MAX_SECTORS}`,
       );
     while (discs.length < MAX_DISCS * 3) discs.push(0, 0, 0);
     while (bridges.length < MAX_BRIDGES * 4) bridges.push(0, 0, 0, 0);
     while (widths.length < MAX_BRIDGES) widths.push(0);
-    while (arcs.length < MAX_ARCS * 4) arcs.push(0, 0, 0, 0);
-    while (spans.length < MAX_ARCS * 2) spans.push(0, 0);
+    while (sectors.length < MAX_SECTORS * 3) sectors.push(0, 0, 0);
+    while (spans.length < MAX_SECTORS * 2) spans.push(0, 0);
     mat.setArray3('discs', discs);
     mat.setArray4('bridges', bridges);
     mat.setFloats('bridgeWidths', widths);
-    mat.setArray4('arcs', arcs);
-    mat.setArray2('arcSpans', spans);
+    mat.setArray3('sectors', sectors);
+    mat.setArray2('sectorSpans', spans);
     mat.setInt('discCount', discCount);
     mat.setInt('bridgeCount', bridgeCount);
-    mat.setInt('arcCount', arcCount);
+    mat.setInt('sectorCount', sectorCount);
   }
 
   private createSky(): void {
@@ -279,8 +280,8 @@ export class Environment {
     return wall;
   }
 
-  // Points along one part's own edge, in order: a closed loop for discs, two sides for bridges and arcs
-  // with a null between them so they're never stitched together.
+  // Points along one part's own edge, in order: a closed loop for discs and sectors, two sides for
+  // bridges with a null between them so they're never stitched together.
   private *outline(part: WorldPart): Iterable<Point | null> {
     if (part.kind === 'disc') {
       const steps = Math.max(24, Math.ceil((2 * Math.PI * part.r) / WALL_STEP));
@@ -290,15 +291,15 @@ export class Environment {
       }
       return;
     }
-    if (part.kind === 'arc') {
-      const steps = Math.max(2, Math.ceil(((part.to - part.from) * (part.r + part.halfWidth)) / WALL_STEP));
-      for (const r of [part.r + part.halfWidth, part.r - part.halfWidth]) {
-        for (let i = 0; i <= steps; i++) {
-          const a = part.from + ((part.to - part.from) * i) / steps;
-          yield { x: part.x + Math.cos(a) * r, z: part.z + Math.sin(a) * r };
-        }
-        yield null;
-      }
+    if (part.kind === 'sector') {
+      const middle = { x: part.x, z: part.z };
+      const point = (a: number, r: number) => ({ x: part.x + Math.cos(a) * r, z: part.z + Math.sin(a) * r });
+      const side = Math.max(2, Math.ceil(part.r / WALL_STEP));
+      for (let i = 0; i < side; i++) yield point(part.from, (part.r * i) / side);
+      const steps = Math.max(2, Math.ceil(((part.to - part.from) * part.r) / WALL_STEP));
+      for (let i = 0; i <= steps; i++) yield point(part.from + ((part.to - part.from) * i) / steps, part.r);
+      for (let i = side - 1; i > 0; i--) yield point(part.to, (part.r * i) / side);
+      yield middle;
       return;
     }
     const len = Math.hypot(part.bx - part.ax, part.bz - part.az);

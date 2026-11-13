@@ -156,7 +156,7 @@ export class View {
     const along = Math.max(0, Math.min(span * out, structures.raycast(eyes, dir, span) - SKIN));
     const x = eyes.x + dir.x * along;
     const z = eyes.z + dir.z * along;
-    const ground = worldDistance(x, z) > 0 ? OUTSIDE_HEIGHT : 0; // the ground past the edge stands higher
+    const ground = worldDistance(x, z) > 0 ? Math.max(0, OUTSIDE_HEIGHT) : 0; // over the ground past the edge where it's higher, never under the floor
     camera.position.set(x, Math.max(ground + FLOOR, eyes.y + dir.y * along - dip * (1 - out)), z);
   }
 

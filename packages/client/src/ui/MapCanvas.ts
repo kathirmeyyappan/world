@@ -371,7 +371,7 @@ function drawPineapple(c: CanvasRenderingContext2D, m: PineappleMark, px: (n: nu
 }
 
 // A part of the outline, or a landmark, as one closed path in world metres (a landmark open in the
-// middle as a second circle, which an even-odd fill leaves out). Bridges and arcs have round ends.
+// middle as a second circle, which an even-odd fill leaves out). Bridges have round ends.
 function partPath(p: WorldPart | Footprint): Path2D {
   const path = new Path2D();
   if (p.kind === 'disc') {
@@ -382,19 +382,16 @@ function partPath(p: WorldPart | Footprint): Path2D {
     }
     return path;
   }
-  const w = p.halfWidth;
-  if (p.kind === 'bridge') {
-    const side = Math.atan2(p.bz - p.az, p.bx - p.ax) + Math.PI / 2; // the bearing of one side from the middle line
-    path.arc(p.bx, p.bz, w, side, side - Math.PI, true);
-    path.arc(p.ax, p.az, w, side - Math.PI, side, true);
+  if (p.kind === 'sector') {
+    path.moveTo(p.x, p.z);
+    path.arc(p.x, p.z, p.r, p.from, p.to);
     path.closePath();
     return path;
   }
-  const end = (a: number) => [p.x + p.r * Math.cos(a), p.z + p.r * Math.sin(a)] as const;
-  path.arc(p.x, p.z, p.r + w, p.from, p.to);
-  path.arc(...end(p.to), w, p.to, p.to + Math.PI);
-  path.arc(p.x, p.z, p.r - w, p.to, p.from, true);
-  path.arc(...end(p.from), w, p.from + Math.PI, p.from + 2 * Math.PI);
+  const w = p.halfWidth;
+  const side = Math.atan2(p.bz - p.az, p.bx - p.ax) + Math.PI / 2; // the bearing of one side from the middle line
+  path.arc(p.bx, p.bz, w, side, side - Math.PI, true);
+  path.arc(p.ax, p.az, w, side - Math.PI, side, true);
   path.closePath();
   return path;
 }

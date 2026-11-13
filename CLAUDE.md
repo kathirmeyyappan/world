@@ -108,13 +108,16 @@ wire: server and client both build the world from that file.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
   (r 30 at x 112) and the bridge between them, the four buildings' grounds and paths (the annex
-  and that bridge turned round the main disc to 90°, 150°, 210° and 270°; SpongeBob's house's
-  further out, at 124 m, on wider grounds, r 36, so its dune sits on the floor with room round it),
-  and an arc through all four grounds, twice a path's width. A part is a disc, a straight `bridge` or
-  a curved `arc`. Players are clamped 1 m inside it no matter what, so keep structures inside too.
-  Past the edge the ground is drawn `OUTSIDE_HEIGHT` (0.6 m) up, with a grey step to it
+  and that bridge turned round the main disc to 70°, 135°, 225° and 290°, the keeps' pulled in to
+  100 m and SpongeBob's house's further out, at 124 m, on wider grounds, r 36, so its dune sits on
+  the floor with room round it), and the fan between them all, a slice of the main disc's middle out
+  to the keeps' from the first building's bearing round to the last's, so the bridge to the tower is
+  the only corridor and the widest gap, between Buildings 2 and 3, is open floor. A part is a disc,
+  a straight `bridge` or a pie-slice `sector` (its straight sides kept under a path). Players are
+  clamped 1 m inside it no matter what, so keep structures inside too.
+  Past the edge the ground is drawn `OUTSIDE_HEIGHT` (1 m) down, with a grey step to it
   (`render/Environment.ts`), so where you can't go reads from afar; it's only drawn (the sim's floor
-  is flat), and the third-person camera keeps above it.
+  is flat), and the third-person camera keeps above the floor's level.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;

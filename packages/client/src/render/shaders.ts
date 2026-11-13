@@ -41,20 +41,26 @@ void main() {
 `;
 
 // Signed distance to the world's edge, mirroring worldDistance() in shared: discs are (x, z, r),
-// bridges are (ax, az, bx, bz) with a half width, and arcs are (x, z, r, half width) with the
-// bearings they run between. Counts are capped so the loops stay constant.
+// bridges are (ax, az, bx, bz) with a half width, and sectors are (x, z, r) with the bearings
+// between their sides. Counts are capped so the loops stay constant.
 export const MAX_DISCS = 8;
 export const MAX_BRIDGES = 8;
-export const MAX_ARCS = 2;
+export const MAX_SECTORS = 2;
 export const WORLD_SDF = `
 uniform vec3 discs[${MAX_DISCS}];
 uniform vec4 bridges[${MAX_BRIDGES}];
 uniform float bridgeWidths[${MAX_BRIDGES}];
-uniform vec4 arcs[${MAX_ARCS}];
-uniform vec2 arcSpans[${MAX_ARCS}];
+uniform vec3 sectors[${MAX_SECTORS}];
+uniform vec2 sectorSpans[${MAX_SECTORS}];
 uniform int discCount;
 uniform int bridgeCount;
-uniform int arcCount;
+uniform int sectorCount;
+
+float segmentDistance(vec2 p, vec2 a, vec2 b) {
+  vec2 v = b - a;
+  float t = clamp(dot(p - a, v) / max(dot(v, v), 1.0e-6), 0.0, 1.0);
+  return length(p - (a + v * t));
+}
 
 float worldDistance(vec2 p) {
   float d = 1.0e9;
@@ -64,43 +70,39 @@ float worldDistance(vec2 p) {
   }
   for (int i = 0; i < ${MAX_BRIDGES}; i++) {
     if (i >= bridgeCount) break;
-    vec2 a = bridges[i].xy;
-    vec2 v = bridges[i].zw - a;
-    float t = clamp(dot(p - a, v) / max(dot(v, v), 1.0e-6), 0.0, 1.0);
-    d = min(d, length(p - (a + v * t)) - bridgeWidths[i]);
+    d = min(d, segmentDistance(p, bridges[i].xy, bridges[i].zw) - bridgeWidths[i]);
   }
-  for (int i = 0; i < ${MAX_ARCS}; i++) {
-    if (i >= arcCount) break;
-    vec2 c = arcs[i].xy;
-    float r = arcs[i].z;
-    vec2 span = arcSpans[i];
+  for (int i = 0; i < ${MAX_SECTORS}; i++) {
+    if (i >= sectorCount) break;
+    vec2 c = sectors[i].xy;
+    float r = sectors[i].z;
+    vec2 span = sectorSpans[i];
     vec2 q = p - c;
-    vec2 spine;
-    if (mod(atan(q.y, q.x) - span.x, 6.2831853) <= span.y - span.x) spine = c + q / max(length(q), 1.0e-6) * r;
-    else {
-      vec2 from = c + r * vec2(cos(span.x), sin(span.x));
-      vec2 to = c + r * vec2(cos(span.y), sin(span.y));
-      spine = length(p - from) < length(p - to) ? from : to;
-    }
-    d = min(d, length(p - spine) - arcs[i].w);
+    bool within = mod(atan(q.y, q.x) - span.x, 6.2831853) <= span.y - span.x;
+    float edge = min(
+      segmentDistance(p, c, c + r * vec2(cos(span.x), sin(span.x))),
+      segmentDistance(p, c, c + r * vec2(cos(span.y), sin(span.y)))
+    );
+    if (within) edge = min(edge, abs(length(q) - r));
+    d = min(d, within && length(q) <= r ? -edge : edge);
   }
   return d;
 }
 `;
 
-// Metres past the world's edge the raised ground outside it starts: the step up to it stands there,
+// Metres past the world's edge the ground outside it starts: the step to it stands there,
 // clear of the boundary wall on the edge itself.
 export const STEP_GAP = 0.02;
 
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
 // colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
-// three sides of the world's edge (side): the floor inside it, the ground past it raised
-// OUTSIDE_HEIGHT, and the step up between them; past the edge the grid dims and turns grey, and the
-// step's top is lit, so where you can't go reads from afar.
+// three sides of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT up
+// (or down), and the step between them; past the edge the grid dims and turns grey, and the step's
+// top is lit, so where you can't go reads from afar.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
-uniform float side; // 0 the floor, 1 the raised ground, 2 the step
+uniform float side; // 0 the floor, 1 the ground past the edge, 2 the step
 uniform vec3 cameraPos;
 uniform vec3 lineColor;
 uniform vec3 majorColor;
@@ -133,7 +135,7 @@ void main() {
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
   float outside = side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
-  float rim = side > 1.5 ? 1.0 - smoothstep(0.0, 0.06 + fwidth(vWorld.y), ${OUTSIDE_HEIGHT.toFixed(2)} - vWorld.y) : 0.0;
+  float rim = side > 1.5 ? 1.0 - smoothstep(0.0, 0.06 + fwidth(vWorld.y), ${Math.max(0, OUTSIDE_HEIGHT).toFixed(2)} - vWorld.y) : 0.0;
   col = mix(mix(col, vec3(0.12), 1.0 - plain), vec3(0.55), rim * 0.8);
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
