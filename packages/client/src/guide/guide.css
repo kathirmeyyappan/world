@@ -4,6 +4,7 @@
   --accent: #ffc857;
   --accent-soft: #ffdc8f;
   --second: #7fd1ae;
+  --shot: #ff7043;
   --panel: #111014;
   --cell: #18171c;
   --line: rgba(255, 236, 200, 0.18);
@@ -249,118 +250,113 @@ h2.command .args {
   white-space: normal;
 }
 
-.bot-diagram {
+/* The guide's diagrams (src/guide/diagram.ts): the subject green, people amber, other bots grey,
+   walls hatched; a stroke's colour says what it is, and faint marks are where something was or what
+   it ignores. */
+.diagram {
   max-width: 640px;
   margin: 8px 0 12px;
   border: 1px solid var(--line);
   background: var(--cell);
 }
 
-.bot-diagram svg {
+.diagram svg {
   display: block;
   width: 100%;
   height: auto;
 }
 
-/* The diagrams' marks: the bot in green, people in amber, other bots grey, walls hatched. */
-.bot-diagram .bd-bot circle {
+.diagram .dg-subject circle {
   fill: var(--second);
 }
 
-.bot-diagram .bd-bot line {
+.diagram .dg-subject line {
   stroke: var(--second);
   stroke-width: 4;
   stroke-linecap: round;
 }
 
-.bot-diagram .bd-person {
+.diagram .dg-person {
   fill: var(--accent);
 }
 
-.bot-diagram .bd-other {
+.diagram .dg-other {
   fill: var(--dim);
 }
 
-.bot-diagram .bd-ghost,
-.bot-diagram .bd-dim {
-  opacity: 0.4;
-}
-
-.bot-diagram .bd-wall {
+.diagram .dg-wall {
   stroke: var(--dim);
   stroke-width: 1.5;
 }
 
-.bot-diagram .bd-hatch {
+.diagram .dg-hatch {
   stroke: var(--dim);
   stroke-width: 1.5;
 }
 
-.bot-diagram .bd-ring {
+.diagram .dg-ring {
   fill: none;
   stroke: rgba(255, 236, 200, 0.3);
   stroke-width: 1.5;
   stroke-dasharray: 6 6;
 }
 
-.bot-diagram .bd-move,
-.bot-diagram .bd-look,
-.bot-diagram .bd-turn,
-.bot-diagram .bd-shot {
+.diagram .dg-stroke {
   fill: none;
   stroke-width: 2.5;
   stroke-linecap: round;
 }
 
-.bot-diagram .bd-move {
+.diagram .dg-move,
+.diagram .dg-detour {
   stroke: var(--accent-soft);
 }
 
-.bot-diagram .bd-detour {
+.diagram .dg-detour {
   stroke-dasharray: 8 6;
 }
 
-.bot-diagram .bd-look,
-.bot-diagram .bd-turn {
+.diagram .dg-look,
+.diagram .dg-turn {
   stroke: var(--second);
 }
 
-.bot-diagram .bd-look {
+.diagram .dg-look {
   stroke-dasharray: 2 7;
 }
 
-.bot-diagram .bd-shot,
-.bot-diagram .bd-cross {
-  stroke: #ff7043;
+.diagram .dg-shot,
+.diagram .dg-cross {
+  stroke: var(--shot);
 }
 
-.bot-diagram .bd-cross {
+.diagram .dg-cross {
   fill: none;
   stroke-width: 2;
 }
 
-.bot-diagram .bd-faint {
+.diagram .dg-faint {
   opacity: 0.4;
 }
 
-.bot-diagram .bd-head-move {
+.diagram .dg-head-move {
   fill: var(--accent-soft);
 }
 
-.bot-diagram .bd-head-look {
+.diagram .dg-head-look {
   fill: var(--second);
 }
 
-.bot-diagram .bd-head-shot {
-  fill: #ff7043;
+.diagram .dg-head-shot {
+  fill: var(--shot);
 }
 
-.bot-diagram .bd-label {
+.diagram .dg-label {
   fill: var(--text);
   font: 20px var(--mono);
 }
 
-.bot-diagram .bd-label.bd-note {
+.diagram .dg-label.dg-note {
   fill: var(--dim);
 }
 
