@@ -445,7 +445,9 @@ wire: server and client both build the world from that file.
   of it) with headroom, so a building's ground floor can be a spawn point and roofs, decks and wall
   tops never are. Info cubes wander the main disc at about 3 m and
   pass through structures, so tall pieces there will have cubes floating through them.
-- Seal what players walk on: a floor with gaps drops people through it. Give each floor a single
+- Seal what players walk on: a floor with gaps drops people through it, and a body stands wherever
+  its middle is, so a hair's gap between two tops is a gap (overlap pieces that meet edge to edge,
+  as the Krusty Krab's roof boards do). Give each floor a single
   hole where its stair arrives (`roundFloor`'s `hole`), and leave headroom over the flight below it:
   the hole has to cover the stretch where the stair is within about 2.7 m of the floor above.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
@@ -506,7 +508,8 @@ it in metres, and everything else a plain colour from one small atlas (the model
 but the kitchen's wall darker and greyer, as steel), which also carries the menu and the ORDER HERE
 sign. It comes to about 9,300 triangles and 260 KB in nine parts, all lit like the pineapple's
 outside, and a profile (`content/krustyKrabProfile.ts`) of 167 boxes, the roof's
-four leaning staves as ramps, and the door's two leaves. A model's parts list is all `Models.ts`
+four leaning staves as ramps (each run on a few centimetres into its neighbours, so no seam is left
+between them to drop through), and the door's two leaves. A model's parts list is all `Models.ts`
 needs of it: a new model is a script, its files, and a row in `MODELS` there.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands

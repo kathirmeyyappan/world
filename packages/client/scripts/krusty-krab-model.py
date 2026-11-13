@@ -47,7 +47,8 @@ the pineapple's outside.
 
 What the sim collides with is worked out as each piece is built (Model): boxes round what's
 upright or level, stacks of them for the arches, the wedge under the outer face of each of the
-roof's leaning staves, and thin walls along the boat's rim.
+roof's leaning staves (each reaching a little into the boards beside it, so the roof has no seam
+to drop through), and thin walls along the boat's rim.
 
 Its size is one rule: Squidward, 3.2 m tall, standing in the boat, has the top of his head a third
 of the way up the dark of the order window (SCALE).
@@ -696,6 +697,7 @@ class Model:
 
 
 WALL = 0.3  # metres: the thinnest a wall of the sim's may be (a pane of glass is thinner)
+SEAM = 0.03  # metres one piece of the roof's solid reaches into the next
 
 
 def rects(mask: np.ndarray) -> list[tuple[int, int, int, int]]:
@@ -776,6 +778,10 @@ def build(objs: dict[str, Obj]) -> Model:
     # The barrel: seven staves, each a board the building's length, from the back wall over the
     # top to the band above the front windows. Upright ones are walls to the sim; a leaning one
     # is the wedge under its outer face, which is all anything outside can touch.
+    # An upright board's two corners; a leaning one's outer face, its low and high edges (z, y),
+    # and where the board begins and ends along the building.
+    upright: list[tuple[np.ndarray, np.ndarray]] = []
+    leaning: list[tuple[np.ndarray, np.ndarray, float, float]] = []
     for stave in loose(one("Toit")):
         board = model.add("roof", "along", prism(stave, X, tolerance=0.04))
         at = board.points
@@ -790,10 +796,24 @@ def build(objs: dict[str, Obj]) -> Model:
         low, high = sorted(face[np.argsort(face @ across)[[0, -1]]], key=lambda corner: corner[1])
         slope = np.degrees(np.arctan2(high[1] - low[1], abs(high[0] - low[0])))
         if slope < 8 or slope > 80:
-            model.bounds(board)
-            continue
-        mid = (at[:, 0].min() + at[:, 0].max()) / 2
-        model.ramps.append([mid, low[0], mid, high[0], low[1], np.ptp(at[:, 0]), high[1] - low[1]])
+            upright.append((at.min(axis=0), at.max(axis=0)))
+        else:
+            leaning.append((low, high, float(at[:, 0].min()), float(at[:, 0].max())))
+    # A body stands wherever its middle is, so a hair's breadth between one board's solid and the
+    # next is a hole in the roof to fall through. Each wedge runs on along its own slope until it
+    # is SEAM inside the boards either side of it, and every board reaches SEAM into the arches.
+    along = np.array([SEAM, 0.0, 0.0])
+    for corner, other in upright:
+        model.box(corner - along, other + along)
+    spans = [(corner[2], other[2]) for corner, other in upright]
+    spans += [(min(low[0], high[0]), max(low[0], high[0])) for low, high, _, _ in leaning]
+    for n, (low, high, x0, x1) in enumerate(leaning):
+        others = [span for k, span in enumerate(spans) if k != len(upright) + n]
+        rise = (high - low) / abs(high[0] - low[0])  # per metre across the floor
+        gap = [min(max(a - edge[0], edge[0] - b, 0.0) for a, b in others) for edge in (low, high)]
+        low, high = low - rise * (gap[0] + SEAM), high + rise * (gap[1] + SEAM)
+        mid = (x0 + x1) / 2
+        model.ramps.append([mid, low[0], mid, high[0], low[1], x1 - x0 + 2 * SEAM, high[1] - low[1]])
 
     # The two ends: the arch, the wall under it down to the windows, and the rope net over the
     # glass, each cut from a board standing across the building. To the sim the arch and the wall
