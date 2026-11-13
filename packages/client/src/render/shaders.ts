@@ -1,5 +1,5 @@
 // GLSL for the environment. Kept in one place so the ground, sky and boundary share helpers.
-import { EYE_HEIGHT } from '@world/shared';
+import { EYE_HEIGHT, OUTSIDE_HEIGHT } from '@world/shared';
 import { BASE_FOG_DENSITY } from './Engine';
 
 // The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera, the scene's
@@ -102,10 +102,11 @@ export const KERB_HEIGHT = 0.08;
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
 // colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
 // three parts of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT
-// down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb's top
-// is lit bright and its inner face the grid's colour, so where you can't go reads from afar. The
-// kerb's outer face, the drop, carries the grid on down from the floor to the ground below: its
-// upright lines where the floor's meet it, and level ones at the same spacing.
+// down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb is drawn
+// as a bold line of the grid along the top of the drop (green on its top, grey down the face) and
+// along its toe at the foot (grey), so where you can't go reads from afar. The
+// kerb's outer face, the drop, carries the grid on down from the floor to the ground below
+// (surfaceGridLine).
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
@@ -130,16 +131,14 @@ float gridLine(vec2 p, float spacing, float width) {
   return max(gridLine1(p.x, spacing, width), gridLine1(p.y, spacing, width));
 }
 
-// The grid on an upright face: where x or z crosses a line of the floor's, an upright line, and a
-// level one at each multiple of the spacing in height. A face running along an axis never crosses
-// that axis's lines, so they're left off it rather than lighting all of it where it lies on one.
-float wallGridLine(vec3 w, float spacing, float width) {
-  vec3 n = normalize(cross(dFdx(w), dFdy(w)));
-  vec2 along = abs(n.zx) / max(length(n.xz), 1.0e-4); // how much x and z change along the face, level
-  return max(
-    max(gridLine1(w.x, spacing, width) * smoothstep(0.15, 0.35, along.x), gridLine1(w.z, spacing, width) * smoothstep(0.15, 0.35, along.y)),
-    gridLine1(w.y, spacing, width)
-  );
+// The grid on any surface, from its world position: of the three axes, the one its normal lies
+// nearest picks the grid (a level surface the floor's lines across x and z; one facing most along x
+// the lines across z and up; along z, across x and up), so one family of lines runs over each face
+// and a curve switches family where it turns past halfway rather than showing two at once.
+float surfaceGridLine(vec3 w, float spacing, float width) {
+  vec3 n = abs(normalize(cross(dFdx(w), dFdy(w))));
+  vec2 plane = n.y >= max(n.x, n.z) ? w.xz : n.x >= n.z ? w.zy : w.xy;
+  return gridLine(plane, spacing, width);
 }
 
 void main() {
@@ -147,15 +146,22 @@ void main() {
   float dist = length(p - cameraPos.xz);
   float sd = worldDistance(p);
   if (side < 0.5 ? sd > ${-KERB_WIDTH / 2} : side < 1.5 && sd < ${-KERB_WIDTH / 2}) discard;
-  // On the kerb: its top, its inner face, or else the drop.
-  float top = side > 1.5 ? step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : 0.0;
-  float inner = side > 1.5 ? step(sd, ${-KERB_WIDTH / 2}) * (1.0 - top) : 0.0;
+  // On the kerb: lit along both rims of the drop, the top with the band of the face under it and
+  // the toe with the band over it, so the border reads as bold seen from above or from the drop;
+  // its inner face the grid's colour; and the drop between them gridded.
+  float lit = 0.0;
+  float rim = 0.0;
+  if (side > 1.5) {
+    rim = step(sd, ${-KERB_WIDTH / 2}) * step(vWorld.y, ${(KERB_HEIGHT - 0.001).toFixed(3)});
+    lit = (1.0 - rim) * max(step(${-KERB_WIDTH / 2}, vWorld.y), step(vWorld.y, ${(OUTSIDE_HEIGHT + KERB_HEIGHT + KERB_WIDTH / 2).toFixed(3)}));
+  }
   float minor;
   float major;
   if (side > 1.5) {
-    float drop = (1.0 - top) * (1.0 - inner);
-    minor = wallGridLine(vWorld, 2.0, 0.045) * drop;
-    major = wallGridLine(vWorld, 10.0, 0.09) * drop;
+    // The lit parts are drawn as a bold line of the grid, so they're its colour exactly.
+    float drop = (1.0 - lit) * (1.0 - rim);
+    minor = max(surfaceGridLine(vWorld, 2.0, 0.045) * drop, lit);
+    major = max(surfaceGridLine(vWorld, 10.0, 0.09) * drop, lit);
   } else {
     minor = gridLine(p, 2.0, 0.045);
     major = gridLine(p, 10.0, 0.09);
@@ -165,10 +171,10 @@ void main() {
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
-  float outside = side > 0.5 ? 1.0 : 0.0;
+  // Grey past the edge: the ground there and all of the kerb but its top, at the floor's edge.
+  float outside = side > 1.5 ? 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
-  col = mix(col, lineColor * 0.45, inner);
-  col = mix(col, majorColor * pulse, top);
+  col = mix(col, lineColor * 0.45, rim);
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);
