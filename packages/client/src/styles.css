@@ -514,11 +514,12 @@ body {
   }
 }
 
+/* Only errors show here: "connecting" is behind the loading screen. */
 #home-status {
   min-height: 18px;
   margin-top: 14px;
   font-size: 19px;
-  color: #ffb74d;
+  color: #ff3b4e;
 }
 
 #home,
