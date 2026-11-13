@@ -90,7 +90,7 @@ export interface Photo {
 }
 
 export interface Place extends Entry {
-  id: 'main' | 'pineapple' | 'welcome' | 'sanctuary' | 'building4' | 'tower' | 'terrace';
+  id: 'main' | 'pineapple' | 'krusty-krab' | 'welcome' | 'sanctuary' | 'building4' | 'tower' | 'terrace';
   building?: number; // a building's place, by its number less one: its title is the game's name for it (BUILDING_NAMES)
   photos: Photo[];
 }
@@ -122,6 +122,18 @@ export const PLACES: Place[] = [
       { file: 'pineapple-plan-ground-floor', caption: 'Floor plan: the ground floor' },
       { file: 'pineapple-plan-first-floor', caption: 'Floor plan: the first floor, round the bedroom' },
       { file: 'pineapple-plan-library', caption: 'Floor plan: the library' },
+    ],
+  },
+  {
+    id: 'krusty-krab',
+    title: 'The Krusty Krab',
+    summary: 'The Krusty Krab, with its dining room and the cashier’s boat inside.',
+    facts: [],
+    photos: [
+      { file: 'krusty-krab-outside', caption: 'The Krusty Krab, from the main area' },
+      { file: 'krusty-krab-end', caption: 'The rope net under one of its arches' },
+      { file: 'krusty-krab-inside', caption: 'The dining room' },
+      { file: 'krusty-krab-boat', caption: 'The cashier’s boat, under the order window' },
     ],
   },
   {

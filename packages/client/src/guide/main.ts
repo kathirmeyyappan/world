@@ -16,6 +16,8 @@ import {
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
+  KRUSTY_KRAB_FLOOR,
+  KRUSTY_KRAB_PROFILE,
   MAIN_AREA,
   PICKUP_AREAS,
   PINEAPPLE_LEVELS,
@@ -284,6 +286,12 @@ function placeStats(place: Place): Stat[] {
         { label: 'Height', value: `${num(DUNE_HEIGHT + PINEAPPLE_PROFILE.attic.deck.y)} m` },
         { label: 'Floors', value: `${PINEAPPLE_LEVELS.length}` },
         { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}` },
+      ];
+    case 'krusty-krab':
+      return [
+        // To the tops of the arches, the highest of it anyone stands on.
+        { label: 'Height', value: `${num(KRUSTY_KRAB_PROFILE.size.h)} m` },
+        { label: 'Hearts', value: `${heartsIn([KRUSTY_KRAB_FLOOR])}` },
       ];
     case 'welcome':
     case 'sanctuary':

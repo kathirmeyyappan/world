@@ -36,4 +36,6 @@ export * from './content/pickups';
 export * from './content/towerFrames';
 export * from './content/pineapple';
 export * from './content/pineappleProfile';
+export * from './content/krustyKrab';
+export * from './content/krustyKrabProfile';
 export { BUILDING_NAMES } from './content/buildings';

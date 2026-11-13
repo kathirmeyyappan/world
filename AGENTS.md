@@ -403,17 +403,26 @@ wire: server and client both build the world from that file.
   the sim collides with boxes cut from every surface of the rooms, hidden rings for the shell,
   walls along the flat faces carved round its doors, and the path's flagstones as ramps lying with
   the dune.
+  The Krusty Krab (`content/krustyKrab.ts`) stands on grounds of its own across the main disc
+  from the tower, between Buildings 2 and 3, its door facing the middle: a model the client draws
+  (see Models below), a barrel of timber between two arches, 36 m long, 24 m deep and 18 m tall,
+  glazed along the front, with a double glass door that swings as one; inside, the dining room
+  (tables and barrels to stand on, the cashier's boat) in front of the kitchen, a solid block with
+  a loft on top. Its size is one rule: Squidward, standing in the boat, has the top of his head a
+  third of the way up the order window. To the sim it is the boxes and wedges of its profile
+  (`content/krustyKrabProfile.ts`), all hidden.
   The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
 - Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
   `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
   (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds and paths (the
-  annex and that bridge, at half its width, turned round the main disc to 70°, 135°, 225° and 290°, the keeps' pulled in to
+  annex and that bridge, at half its width, turned round the main disc to 70°, 125°, 235° and 290°, the keeps' pulled in to
   100 m and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
-  the floor with room round it), and the fan between them all, a slice of the main disc's middle out
-  to the keeps' from the first building's bearing round to the last's, so the bridge to the tower is
-  the only corridor and the widest gap, between Buildings 2 and 3, is open floor. A part is a disc,
+  the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
+  100 m out, so the five sites are 55° apart), and the fan between them all, a slice of the main
+  disc's middle out to the keeps' from the first building's bearing round to the last's, so the
+  bridge to the tower is the only corridor and everything between the buildings is open floor. A part is a disc,
   a straight `bridge` or a pie-slice `sector` (its straight sides kept under a path). Players are
   clamped 1 m inside it no matter what, so keep structures inside too.
   Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
@@ -457,11 +466,13 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 11,913 pieces (5,576
-  drawn; the house's rooms are 3,937 hidden boxes and its shell 2,400 hidden ring pieces) render as
-  77 meshes (about 15 in view at once), and a world-spanning raycast costs about 190 µs. The sim's
-  grid has height bands as well as cells, so a walker's tick pays only for the pieces at its own
-  height (about 70 µs inside the house). Check both numbers in the PR when a landmark adds a lot.
+  so draw calls stay in the tens however many pieces there are. The world's 13,336 pieces (5,645
+  drawn; the house's rooms and shell are 7,516 hidden pieces and the Krusty Krab 175) render as
+  83 meshes (about 15 in view at once), and a raycast tries the pieces a stretch of grid cells at a
+  time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
+  through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
+  tick pays only for the pieces at its own height (about 70 µs inside the house, 27 µs inside the
+  Krusty Krab). Check both numbers in the PR when a landmark adds a lot.
   Everything heavy is streamed in through `render/Loader.ts` (see Models below).
 
 ### Models and doors
@@ -482,6 +493,21 @@ the solid shell round the rooms) and the renderer skips them, so what you bump i
 generator's to keep true to the models. `render/models/Models.ts` fetches each part listed in
 `render/models/pineappleParts.ts` (generated too) and hangs it where the content's placement says,
 a door's on a node at its pin.
+
+`krusty-krab-model.py` makes the Krusty Krab from one Sketchfab GLB of 4.2 million triangles (176
+MB) by rebuilding rather than thinning it, since the model's bevelled meshes don't thin: anything
+cut from a board (the roof's staves, the arches, the plinth, the kitchen's doors, the rope nets,
+the flags) is its silhouette traced and pushed through again (`prism`), anything convex (crates,
+barrels, rivets, the chimney) the hull of its outermost points (`hull`), and the boat a hull lofted
+through its outline at each plank's edge (`boat`); what's too small to see is dropped (the floor's
+nails, the rivets round the doors), and the bolts along the kitchen wall's plates are kept as their
+heads alone, a square each. The timber gets plank textures painted in the script and wrapped over
+it in metres, and everything else a plain colour from one small atlas (the model's own colours,
+but the kitchen's wall darker and greyer, as steel), which also carries the menu and the ORDER HERE
+sign. It comes to about 9,300 triangles and 260 KB in nine parts, all lit like the pineapple's
+outside, and a profile (`content/krustyKrabProfile.ts`) of 167 boxes, the roof's
+four leaning staves as ramps, and the door's two leaves. A model's parts list is all `Models.ts`
+needs of it: a new model is a script, its files, and a row in `MODELS` there.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
 somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
@@ -570,7 +596,8 @@ Cubes don't know about structures. Every map (the HUD's minimap, the menu's and 
 through `ui/MapCanvas.ts`, which reads the outline (`WORLD_SHAPE`) and `content/landmarks.ts` itself,
 so they all show one world and a map change is a change there: footprints grey on the floor (a disc's
 `rings` drawn inside it: Tung Tung Tower has one per floor above the ground), SpongeBob's house as
-itself (a `PineappleMark`: the fruit hatched, its leaves in the middle, on the sand of its dune), and
+itself (a `PineappleMark`: the fruit hatched, its leaves in the middle, on the sand of its dune), the
+Krusty Krab as itself (a `KrustyKrabMark`: its plinth, the barrel of its roof, its arches), and
 with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the terrace, the sky bridge and the
 staircases. List a landmark's there when it's worth navigating by.
 
