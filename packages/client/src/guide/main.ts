@@ -33,7 +33,7 @@ import { commandGroups } from '../ui/commands';
 import {
   BOT_EXAMPLES,
   BOT_FLAG_TEXT,
-  BOT_MEDIA,
+  BOT_DIAGRAM_TEXT,
   BOT_NOTE,
   CHARACTERS,
   CONTROLS,
@@ -48,6 +48,7 @@ import {
   type Photo,
   type Place,
 } from './content';
+import { botDiagram } from './botDiagrams';
 import { cubeThing, gearThing, itemThing, pickupThing } from './things';
 import { botFlagRows, characterStats, gearStats, itemStats, num, pickupStats, speedyStats, type Stat } from './stats';
 
@@ -389,20 +390,6 @@ function worldPanel(): HTMLElement {
   return panel;
 }
 
-// A bot's clip, playing on a loop with no sound, or its still.
-function botMedia(id: BotId): HTMLElement {
-  const { file, caption } = BOT_MEDIA[id];
-  const src = `/assets/guide/bots/${file}`;
-  if (file.endsWith('.mp4')) {
-    const video = el('video', 'bot-media');
-    Object.assign(video, { src, muted: true, loop: true, autoplay: true, playsInline: true, title: caption });
-    return video;
-  }
-  const img = el('img', 'bot-media');
-  Object.assign(img, { src, alt: caption, title: caption });
-  return img;
-}
-
 function botPage(id: BotId): HTMLElement {
   const bot = BOTS[id];
   const page = el('div');
@@ -413,7 +400,7 @@ function botPage(id: BotId): HTMLElement {
   example.append(el('code', '', cmd), el('span', '', what));
   page.append(
     head,
-    botMedia(id),
+    botDiagram(id, BOT_DIAGRAM_TEXT[id]),
     el('p', 'summary', sentence(bot.blurb)),
     statTable(botFlagRows(bot.worker, BOT_FLAG_TEXT)),
     el('h3', '', 'For example'),

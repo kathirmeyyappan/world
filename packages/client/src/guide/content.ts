@@ -194,11 +194,14 @@ export const BOT_FLAG_TEXT: Record<BotFlag, string> = {
   target: 'who it goes after: the words up to the next flag, each any part of a name',
 };
 
-// What each bot's page shows of it: a looping clip, or a still where it's mostly standing still.
-export const BOT_MEDIA: Record<BotId, { file: string; caption: string }> = {
-  sniper: { file: 'sniper.jpg', caption: 'A sniper bot on a floor of the tower, scoped' },
-  circle: { file: 'circle.mp4', caption: 'A circle bot as SpongeBob, circling Patrick' },
-  stalker: { file: 'stalker.mp4', caption: 'A stalker bot watching a player walk past' },
+// What each bot's diagram shows, for a screen reader.
+export const BOT_DIAGRAM_TEXT: Record<BotId, string> = {
+  sniper:
+    'The sniper seen from above: it shoots a person close by, keeps one further off in its sights, can’t see one behind a wall, and ducks behind cover to reload.',
+  circle:
+    'A circle bot seen from above: it strafes round the nearest player facing them, and when something is in the way finds a way round it to the ring further on.',
+  stalker:
+    'A stalker bot seen from above: it stands still and turns to face the nearest person as they walk past, ignoring bots and anyone further off.',
 };
 
 export const BOT_EXAMPLES: Record<BotId, [string, string]> = {

@@ -249,15 +249,119 @@ h2.command .args {
   white-space: normal;
 }
 
-.bot-media {
-  display: block;
-  width: 100%;
+.bot-diagram {
   max-width: 640px;
-  aspect-ratio: 16 / 9;
   margin: 8px 0 12px;
   border: 1px solid var(--line);
   background: var(--cell);
-  object-fit: cover;
+}
+
+.bot-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* The diagrams' marks: the bot in green, people in amber, other bots grey, walls hatched. */
+.bot-diagram .bd-bot circle {
+  fill: var(--second);
+}
+
+.bot-diagram .bd-bot line {
+  stroke: var(--second);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.bot-diagram .bd-person {
+  fill: var(--accent);
+}
+
+.bot-diagram .bd-other {
+  fill: var(--dim);
+}
+
+.bot-diagram .bd-ghost,
+.bot-diagram .bd-dim {
+  opacity: 0.4;
+}
+
+.bot-diagram .bd-wall {
+  stroke: var(--dim);
+  stroke-width: 1.5;
+}
+
+.bot-diagram .bd-hatch {
+  stroke: var(--dim);
+  stroke-width: 1.5;
+}
+
+.bot-diagram .bd-ring {
+  fill: none;
+  stroke: rgba(255, 236, 200, 0.3);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+}
+
+.bot-diagram .bd-move,
+.bot-diagram .bd-look,
+.bot-diagram .bd-turn,
+.bot-diagram .bd-shot {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.bot-diagram .bd-move {
+  stroke: var(--accent-soft);
+}
+
+.bot-diagram .bd-detour {
+  stroke-dasharray: 8 6;
+}
+
+.bot-diagram .bd-look,
+.bot-diagram .bd-turn {
+  stroke: var(--second);
+}
+
+.bot-diagram .bd-look {
+  stroke-dasharray: 2 7;
+}
+
+.bot-diagram .bd-shot,
+.bot-diagram .bd-cross {
+  stroke: #ff7043;
+}
+
+.bot-diagram .bd-cross {
+  fill: none;
+  stroke-width: 2;
+}
+
+.bot-diagram .bd-faint {
+  opacity: 0.4;
+}
+
+.bot-diagram .bd-head-move {
+  fill: var(--accent-soft);
+}
+
+.bot-diagram .bd-head-look {
+  fill: var(--second);
+}
+
+.bot-diagram .bd-head-shot {
+  fill: #ff7043;
+}
+
+.bot-diagram .bd-label {
+  fill: var(--text);
+  font: 20px var(--mono);
+}
+
+.bot-diagram .bd-label.bd-note {
+  fill: var(--dim);
 }
 
 .example {
