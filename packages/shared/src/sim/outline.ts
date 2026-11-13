@@ -34,15 +34,20 @@ export const BUILDING_GROUNDS: Disc[] = BUILDING_SITES.map(({ bearing, out, r = 
 // the building (36 m by 24 m, content/krustyKrab.ts) with ten metres to spare at its corners.
 export const KRUSTY_KRAB_GROUNDS: Disc = { kind: 'disc', ...turned(KRUSTY_KRAB_BEARING, KEEP_OUT, 0), r: 32 };
 // The open floor between them all: a slice of the main disc's middle out to the keeps' middles,
-// from FAN_SPILL degrees short of the first building's bearing round to as far past the last's, so
-// its straight sides run out from the main disc into the end buildings' grounds with room beside
-// the terrace's staircase there, and the only way out of it is the bridge to the tower.
-const FAN_SPILL = 10;
+// from the first building's bearing round to the last's, so the only way out of it is the bridge to
+// the tower.
 export const BUILDING_FAN: Sector = {
   kind: 'sector',
   x: MAIN_DISC.x,
   z: MAIN_DISC.z,
   r: KEEP_OUT,
-  from: ((BUILDING_SITES[0].bearing - FAN_SPILL) * Math.PI) / 180,
-  to: ((BUILDING_SITES[BUILDING_SITES.length - 1].bearing + FAN_SPILL) * Math.PI) / 180,
+  from: (BUILDING_SITES[0].bearing * Math.PI) / 180,
+  to: (BUILDING_SITES[BUILDING_SITES.length - 1].bearing * Math.PI) / 180,
 };
+// The fan's two straight sides, each held FAN_SIDE metres out and parallel to its end building's
+// bearing by a strip of floor from the middle along it to the building's grounds, so the floor runs
+// beside Building 4's terrace staircase, which climbs along that bearing, at an even width.
+const FAN_SIDE = 10;
+export const FAN_SIDES: Bridge[] = [BUILDING_GROUNDS[0], BUILDING_GROUNDS[BUILDING_GROUNDS.length - 1]].map(
+  ({ x, z }) => ({ kind: 'bridge', ax: MAIN_DISC.x, az: MAIN_DISC.z, bx: x, bz: z, halfWidth: FAN_SIDE }),
+);

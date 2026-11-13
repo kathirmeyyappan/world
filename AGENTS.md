@@ -420,9 +420,9 @@ wire: server and client both build the world from that file.
   annex's size round the main disc at 70°, 125°, 235° and 290°, the keeps' 100 m out and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
   100 m out, so the five sites are 55° apart), and the fan between them all, a slice of the main
-  disc's middle out to the keeps' from 10° short of the first building's bearing round to 10° past
-  the last's, so the bridge to the tower is the only corridor and everything between the buildings
-  is open floor. A part is a disc,
+  disc's middle out to the keeps' from the first building's bearing round to the last's, its two
+  straight sides held 10 m out, parallel to those bearings, by a strip of floor along each (`FAN_SIDES`),
+  so the bridge to the tower is the only corridor and everything between the buildings is open floor. A part is a disc,
   a straight `bridge` or a pie-slice `sector`. Players are
   clamped 1 m inside it no matter what, so keep structures inside too.
   Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
