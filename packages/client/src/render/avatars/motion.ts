@@ -207,10 +207,10 @@ export function stridePose(out: BodyPose, s: Stride, cycle: number, dx: number, 
   const sin = Math.sin(turn);
   const cos = Math.cos(turn);
   const going = Math.hypot(dx, dz);
-  // Between one foot leaving the ground and the other coming down the body is thrown up and falls
-  // back: highest halfway, and feet and all.
+  // Between one foot leaving the ground and the other coming down the body floats up and settles
+  // back, feet and all: highest halfway, leaving and landing level, so a step has no jolt in it.
   const flight = ((cycle % 0.5) - s.duty) / (0.5 - s.duty);
-  const hop = s.duty < 0.5 && flight > 0 ? s.hop * going * 4 * flight * (1 - flight) : 0;
+  const hop = s.duty < 0.5 && flight > 0 ? s.hop * going * Math.sin(Math.PI * flight) ** 2 : 0;
   out[HIP_X] = s.sway * sin;
   out[HIP_Y] = hop - s.crouch - s.bounce * going * Math.cos(2 * turn - 2 * Math.PI * s.late);
   out[HIP_Z] = 0;
@@ -274,10 +274,11 @@ export function standPose(out: BodyPose, stand: Stand, seconds: number): void {
   out[HIP_X] += stand.shift * Math.sin((2 * Math.PI * seconds) / (stand.seconds * 3));
 }
 
-// In the air, moving up at `vy` m/s (down, negative), `seconds` after leaving the ground; `kicking`
-// is how much of its flutter the legs have, none hanging under a jet's thrust.
-export function airPose(out: BodyPose, style: Style, vy: number, seconds: number, kicking: number): void {
-  mix(out, style.rise, style.fall, smooth(0.5 - vy / (2 * APEX)));
+// In the air, `falling` of the way from its pose going up to its pose coming down, `seconds` after
+// leaving the ground; `kicking` is how much of its flutter the legs have, none hanging under a
+// jet's thrust.
+export function airPose(out: BodyPose, style: Style, falling: number, seconds: number, kicking: number): void {
+  mix(out, style.rise, style.fall, falling);
   const flutter = style.flutter;
   if (!flutter || kicking <= 0) return;
   const kick = Math.sin(2 * Math.PI * flutter.hz * seconds);
@@ -286,8 +287,6 @@ export function airPose(out: BodyPose, style: Style, vy: number, seconds: number
   out[FOOT_L + FOOT_Y] += flutter.lift * kicking * Math.max(0, -kick);
   out[FOOT_R + FOOT_Y] += flutter.lift * kicking * Math.max(0, kick);
 }
-
-const APEX = 2.5; // m/s either side of the top of a jump over which a body goes from rising to falling
 
 // 0 to 1 over 0 to 1, flat at both ends.
 export function smooth(t: number): number {

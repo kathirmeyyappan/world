@@ -7,7 +7,7 @@
 // differently as their styles (Mario.ts, Luigi.ts), and a new one is a model and a style. The
 // walker still places the body, counts its stride, aims what it holds and lays it down dead.
 import { Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
-import { WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
+import { GRAVITY, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import {
@@ -108,8 +108,12 @@ export interface JointedSpec {
 }
 
 const EASE_MOVING = 0.1; // seconds a body takes to settle from its stride into standing, and to pick it up
-const EASE_TAKEOFF = 0.05; // seconds into its pose in the air
-const EASE_TOUCHDOWN = 0.09; // and out of it
+// Seconds into its pose in the air, out of it, and over the top of a jump from its pose going up
+// to its pose coming down: each from rest to rest, so no pose is snapped to in a frame.
+const TAKEOFF_SECONDS = 0.14;
+const TOUCHDOWN_SECONDS = 0.14;
+const APEX_SECONDS = 0.28;
+const EASE_LANDING = 0.05; // seconds a landing takes to drop into its crouch
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
@@ -117,6 +121,9 @@ const EASE_KICKING = 0.15; // seconds its legs take to stop fluttering as a jet 
 const EASE_BANK = 0.15; // seconds it takes to lean into a turn, and to come back up out of one
 const MAX_BANK = 0.3; // radians it leans into the sharpest turn
 const MOVING = 0.4; // m/s across the floor that is going somewhere: under it the body keeps the way it had
+// Metres that is moving: a player's own body drifts by less on every frame, as its prediction's
+// correction dies away, and that isn't a step of the sim.
+const MOVED = 1e-3;
 const STILL = 0.1; // seconds without moving that is standing still, not waiting on the sim's next tick
 const JUMPED = 3; // metres moved at once that can only be a respawn or a correction
 const HEAD_TURN_LIMIT = 1.2; // radians a head may turn from the way the body faces
@@ -151,16 +158,19 @@ export class JointedAvatar extends WalkerAvatar {
   private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
   private velX = 0; // m/s across the floor, in the world, as it last moved
   private velZ = 0;
-  private vy = 0; // m/s upward, as it last moved in the air
+  private sinking = false; // whether it last moved down
+  private peak = 0; // the highest its feet have been since it left the ground, metres
+  private falling = 0; // how far over the top of its jump it is: 0 going up, 1 coming down
   private grounded = true;
   private facing = 0; // the way the body faces, radians in the world: the root's yaw
   private bank = 0; // radians it's leaning into a turn, to its right
   private dirX = 0; // the way it's going across the floor, in its own frame: its length under 1 through a change
   private dirZ = 1;
   private moving = 0; // how much of its stride it's in, the rest standing
-  private airborne = 0; // how much of its pose in the air it's in
+  private airborne = 0; // how far into its pose in the air it is: 0 on the ground, 1 well off it
   private aloft = 0; // seconds since it left the ground
   private kicking = 1; // how much of its flutter its legs have in the air: none under a jet's thrust
+  private impact = 0; // how hard it last landed, dying away: what its crouch is drawn toward
   private landed = 0; // how far into its landing crouch it is
   private stood = 0; // seconds it has been drawn, for its breath
 
@@ -212,17 +222,30 @@ export class JointedAvatar extends WalkerAvatar {
       stridePose(other, this.stride, (step / 2) % 1, this.dirX, this.dirZ);
       mix(out, out, other, this.moving);
     }
-    if (p.grounded && !this.grounded) this.landed = Math.min(1, Math.max(0, -this.vy) / style.landSpeed);
+    // In the air it's going up or coming down by which way it last moved, eased from one to the
+    // other over the top; a landing is as hard as the drop from its highest point.
+    if (p.grounded) {
+      if (!this.grounded)
+        this.impact = Math.min(1, Math.sqrt(2 * GRAVITY * Math.max(0, this.peak - feetY)) / style.landSpeed);
+      this.peak = feetY;
+    } else {
+      if (this.grounded) this.falling = 0;
+      this.peak = Math.max(this.peak, feetY);
+      this.falling = Math.min(1, Math.max(0, this.falling + (this.sinking ? dt : -dt) / APEX_SECONDS));
+    }
     this.grounded = p.grounded;
-    if (p.grounded) this.vy = 0;
-    this.landed *= Math.pow(0.5, dt / style.landSeconds);
+    this.impact *= Math.pow(0.5, dt / style.landSeconds);
+    this.landed = eased(this.landed, this.impact, dt, EASE_LANDING);
     if (this.landed > 0.001) mix(out, out, style.land, this.landed);
     this.aloft = p.grounded ? 0 : this.aloft + dt;
     this.kicking = eased(this.kicking, p.thrusting ? 0 : 1, dt, EASE_KICKING);
-    this.airborne = eased(this.airborne, p.grounded ? 0 : 1, dt, p.grounded ? EASE_TOUCHDOWN : EASE_TAKEOFF);
-    if (this.airborne > 0.001) {
-      airPose(other, style, this.vy, this.aloft, this.kicking);
-      mix(out, out, other, this.airborne);
+    this.airborne = Math.min(
+      1,
+      Math.max(0, this.airborne + (p.grounded ? -dt / TOUCHDOWN_SECONDS : dt / TAKEOFF_SECONDS)),
+    );
+    if (this.airborne > 0) {
+      airPose(other, style, smooth(this.falling), this.aloft, this.kicking);
+      mix(out, out, other, smooth(this.airborne));
     }
     out[HIP_TILT] += this.bank;
     out[CHEST_TILT] += this.bank;
@@ -234,7 +257,7 @@ export class JointedAvatar extends WalkerAvatar {
   protected override climb(p: RemotePlayer, feetY: number, dt: number): Pose {
     const climbed = super.climb(p, feetY, dt);
     this.watch(p, feetY);
-    this.moving = this.airborne = this.landed = 0;
+    this.moving = this.airborne = this.landed = this.impact = 0;
     const { out } = this;
     const s = Math.sin(this.climbPhase);
     out.set(CLIMB);
@@ -267,10 +290,13 @@ export class JointedAvatar extends WalkerAvatar {
     }
   }
 
-  // How the body has moved since it last did: its speed across the floor and up or down. A body
-  // isn't moved every frame (a player's own is moved a sim tick at a time, and drawn between
-  // them where it was), so its speed is taken over the time since it last moved, and it's standing
-  // still only after STILL without moving. Returns the seconds since it was last drawn.
+  // How the body has moved since it last did: its speed across the floor, and whether it went up
+  // or down. A body isn't moved every frame (a player's own is moved a sim tick at a time, on
+  // whichever frames the ticks fall, and between them only drifts a hair as its correction dies
+  // away), so its speed across is taken over the time since it last moved by MOVED, which gives its
+  // heading true and its size roughly, and nothing here is read from how fast it rises or falls,
+  // only which. It's standing still only after STILL without moving. Returns the seconds since it
+  // was last drawn.
   private watch(p: RemotePlayer, feetY: number): number {
     const now = performance.now() / 1000;
     const dt = this.drawn === null ? 0 : Math.min(0.1, now - this.drawn);
@@ -286,7 +312,7 @@ export class JointedAvatar extends WalkerAvatar {
     const dy = feetY - last.y;
     const dz = p.z - last.z;
     const since = now - last.at;
-    if (dx === 0 && dy === 0 && dz === 0 && since < STILL) return dt;
+    if (Math.hypot(dx, dy, dz) < MOVED && since < STILL) return dt;
     last.x = p.x;
     last.y = feetY;
     last.z = p.z;
@@ -294,7 +320,7 @@ export class JointedAvatar extends WalkerAvatar {
     if (since <= 0 || Math.hypot(dx, dy, dz) > JUMPED) return dt;
     this.velX = dx / since;
     this.velZ = dz / since;
-    if (!p.grounded) this.vy = dy / since;
+    if (Math.abs(dy) > MOVED) this.sinking = dy < 0;
     return dt;
   }
 }

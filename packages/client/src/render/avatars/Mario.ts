@@ -1,10 +1,10 @@
 // Mario: 2 m of plumber, as tall as the standard body, from Mario Kart 8's model (marioModel.ts,
 // made by scripts/jointed-model.py), a jointed body (Jointed.ts) moved the way the 3D Mario games
-// move him. He never jogs: at a full walk he is already running, every step a little leap with
-// both feet off the ground, knees high in front and heels flicked up behind, leaning in, fists
-// pumping from hip to chin; held back he strolls upright with his arms loose; and running flat out
-// he is the same run drawn longer, higher and further over. He jumps with one fist up and a knee
-// leading, and comes down arms wide. Worn with /mario; his hit capsule is AVATARS.mario.hitbox.
+// move him. He never jogs: at a full walk he is already running, quick short legs turning over
+// under a body that leans in and hardly bobs, fists pumping at his sides; held back he strolls
+// upright with his arms loose; and running flat out he is the same run drawn longer and further
+// over. He jumps with one fist up and a knee leading, and comes down arms wide. Worn with /mario;
+// his hit capsule is AVATARS.mario.hitbox.
 import type { JointedSpec } from './Jointed';
 import { MARIO_MODEL } from './marioModel';
 import { pose, type Stride, type Style } from './motion';
@@ -37,55 +37,52 @@ const STROLL: Stride = {
   tuck: 0.1,
   grip: 0.5,
 };
-// Nothing of a jog in it: knees up to the hips in front, heels flicked up to the seat behind (the
-// soles show from behind), the hips and shoulders twisting hard against each other, elbows out and
-// fists swinging from hip to chin.
+// Quick and smooth: the legs turn over fast under a body that hardly rises, each foot down for a
+// moment and off the ground the rest, the heel flicking up behind; he leans well in, and his
+// fists pump close at his sides. Nothing lands hard: a run that bounces reads as clopping.
 const RUN: Stride = {
   pace: 1,
-  step: 0.3,
-  duty: 0.27,
-  hop: 0.14,
-  lift: 0.2,
-  kick: 0.3,
-  spread: 0.01,
-  toe: 0.8,
-  heel: 0.35,
-  crouch: 0.1,
-  bounce: 0.06,
-  late: 0.3,
-  sway: 0.02,
-  roll: 0.06,
-  twist: 0.3,
-  lean: 0.3,
-  counter: 0.35,
-  rock: 0.04,
+  step: 0.27,
+  duty: 0.3,
+  hop: 0.045,
+  lift: 0.16,
+  kick: 0.24,
+  spread: 0,
+  toe: 0.7,
+  heel: 0.25,
+  crouch: 0.09,
+  bounce: 0.02,
+  late: 0.25,
+  sway: 0.01,
+  roll: 0.03,
+  twist: 0.16,
+  lean: 0.28,
+  counter: 0.18,
+  rock: 0,
   nod: 0.35,
-  reach: 1.05,
-  carry: 0.15,
-  out: 0.55,
-  elbow: 1.6,
-  pump: 0.3,
-  tuck: 0.2,
+  reach: 0.75,
+  carry: 0.1,
+  out: 0.42,
+  elbow: 1.5,
+  pump: 0.18,
+  tuck: 0.15,
   grip: 1,
 };
 const SPRINT: Stride = {
   ...RUN,
   pace: 1.6,
-  step: 0.34,
-  duty: 0.22,
-  hop: 0.2,
-  lift: 0.22,
-  kick: 0.36,
-  toe: 0.9,
-  crouch: 0.12,
-  bounce: 0.07,
-  twist: 0.36,
-  lean: 0.48,
-  counter: 0.42,
-  reach: 1.25,
-  carry: 0.1,
-  out: 0.6,
-  elbow: 1.65,
+  step: 0.31,
+  duty: 0.26,
+  hop: 0.06,
+  lift: 0.18,
+  kick: 0.3,
+  crouch: 0.11,
+  bounce: 0.025,
+  twist: 0.2,
+  lean: 0.42,
+  counter: 0.22,
+  reach: 0.9,
+  out: 0.45,
 };
 
 export const MARIO_STYLE: Style = {
