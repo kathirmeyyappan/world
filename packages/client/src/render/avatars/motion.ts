@@ -101,6 +101,7 @@ export interface Stride {
   // the ground between steps, a run.
   step: number; // metres
   duty: number;
+  hop: number; // metres the whole body leaves the ground by between steps, where both feet are off it
   lift: number; // metres a foot rises on its way forward
   kick: number; // metres more its heel flicks up behind as it leaves the ground
   spread: number; // metres each foot is carried out to its side of where it stands
@@ -143,19 +144,21 @@ export interface Style {
   rise: BodyPose; // going up in the air
   fall: BodyPose; // coming down
   // Legs that scissor in the air, one ahead as the other goes back: how often, how far each way and
-  // how high the back one's foot comes.
+  // how high the back one's foot comes. They hang still under a jetpack's thrust.
   flutter?: { hz: number; reach: number; lift: number };
   land: BodyPose; // the crouch a hard landing drops into
   landSpeed: number; // m/s of fall that drops all the way into it
   landSeconds: number; // the crouch's half-life
   dead: BodyPose; // lying on its back
   follow: number; // the share of the look's pitch the head takes
+  bank: number; // radians it leans into a turn for each radian a second it's turning, at a full walk
 }
 
 const STRIDE_KEYS: (keyof Stride)[] = [
   'pace',
   'step',
   'duty',
+  'hop',
   'lift',
   'kick',
   'spread',
@@ -204,8 +207,12 @@ export function stridePose(out: BodyPose, s: Stride, cycle: number, dx: number, 
   const sin = Math.sin(turn);
   const cos = Math.cos(turn);
   const going = Math.hypot(dx, dz);
+  // Between one foot leaving the ground and the other coming down the body is thrown up and falls
+  // back: highest halfway, and feet and all.
+  const flight = ((cycle % 0.5) - s.duty) / (0.5 - s.duty);
+  const hop = s.duty < 0.5 && flight > 0 ? s.hop * going * 4 * flight * (1 - flight) : 0;
   out[HIP_X] = s.sway * sin;
-  out[HIP_Y] = -s.crouch - s.bounce * going * Math.cos(2 * turn - 2 * Math.PI * s.late);
+  out[HIP_Y] = hop - s.crouch - s.bounce * going * Math.cos(2 * turn - 2 * Math.PI * s.late);
   out[HIP_Z] = 0;
   out[HIP_LEAN] = s.lean * HIPS_SHARE * dz;
   out[HIP_TURN] = -s.twist * cos * dz;
@@ -222,6 +229,8 @@ export function stridePose(out: BodyPose, s: Stride, cycle: number, dx: number, 
   arm(out, ARM_R, s, -swing);
   foot(out, FOOT_R, s, cycle, dx, dz, 1);
   foot(out, FOOT_L, s, (cycle + 0.5) % 1, dx, dz, -1);
+  out[FOOT_R + FOOT_Y] += hop;
+  out[FOOT_L + FOOT_Y] += hop;
 }
 
 function arm(out: BodyPose, at: number, s: Stride, swing: number): void {
@@ -265,16 +274,17 @@ export function standPose(out: BodyPose, stand: Stand, seconds: number): void {
   out[HIP_X] += stand.shift * Math.sin((2 * Math.PI * seconds) / (stand.seconds * 3));
 }
 
-// In the air, moving up at `vy` m/s (down, negative), `seconds` after leaving the ground.
-export function airPose(out: BodyPose, style: Style, vy: number, seconds: number): void {
+// In the air, moving up at `vy` m/s (down, negative), `seconds` after leaving the ground; `kicking`
+// is how much of its flutter the legs have, none hanging under a jet's thrust.
+export function airPose(out: BodyPose, style: Style, vy: number, seconds: number, kicking: number): void {
   mix(out, style.rise, style.fall, smooth(0.5 - vy / (2 * APEX)));
   const flutter = style.flutter;
-  if (!flutter) return;
+  if (!flutter || kicking <= 0) return;
   const kick = Math.sin(2 * Math.PI * flutter.hz * seconds);
-  out[FOOT_L + FOOT_Z] += flutter.reach * kick;
-  out[FOOT_R + FOOT_Z] -= flutter.reach * kick;
-  out[FOOT_L + FOOT_Y] += flutter.lift * Math.max(0, -kick);
-  out[FOOT_R + FOOT_Y] += flutter.lift * Math.max(0, kick);
+  out[FOOT_L + FOOT_Z] += flutter.reach * kicking * kick;
+  out[FOOT_R + FOOT_Z] -= flutter.reach * kicking * kick;
+  out[FOOT_L + FOOT_Y] += flutter.lift * kicking * Math.max(0, -kick);
+  out[FOOT_R + FOOT_Y] += flutter.lift * kicking * Math.max(0, kick);
 }
 
 const APEX = 2.5; // m/s either side of the top of a jump over which a body goes from rising to falling

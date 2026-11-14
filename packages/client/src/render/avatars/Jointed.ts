@@ -40,6 +40,7 @@ import {
   airPose,
   mix,
   pose,
+  smooth,
   standPose,
   strideAt,
   stridePose,
@@ -110,9 +111,19 @@ const EASE_MOVING = 0.1; // seconds a body takes to settle from its stride into 
 const EASE_TAKEOFF = 0.05; // seconds into its pose in the air
 const EASE_TOUCHDOWN = 0.09; // and out of it
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
-const MOVING = 0.4; // m/s across the floor that is going somewhere: under it the stride keeps the way it had
-const JUMPED = 3; // metres moved in one frame that can only be a respawn or a correction
-const HEAD_TURN_LIMIT = 1.2; // radians a head may turn from the body on a ladder, where the body faces the rungs
+const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
+const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
+const EASE_KICKING = 0.15; // seconds its legs take to stop fluttering as a jet takes its weight, and to start again
+const EASE_BANK = 0.15; // seconds it takes to lean into a turn, and to come back up out of one
+const MAX_BANK = 0.3; // radians it leans into the sharpest turn
+const MOVING = 0.4; // m/s across the floor that is going somewhere: under it the body keeps the way it had
+const STILL = 0.1; // seconds without moving that is standing still, not waiting on the sim's next tick
+const JUMPED = 3; // metres moved at once that can only be a respawn or a correction
+const HEAD_TURN_LIMIT = 1.2; // radians a head may turn from the way the body faces
+// A head turns to the look while the look is within HEAD_GIVES_UP radians of the way the body
+// faces, less and less over the last HEAD_FADE of that: running back toward the eye, it looks ahead.
+const HEAD_GIVES_UP = 2.4;
+const HEAD_FADE = 0.8;
 // On a ladder: the hips in toward it and the feet on its rungs, a rung apart, each stepping up as
 // the other holds; the hands on the rails overhead, each reaching as its own foot steps.
 const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts)
@@ -136,14 +147,20 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly stride: Stride;
   private readonly out = pose();
   private readonly other = pose();
-  private last: { x: number; y: number; z: number; at: number } | null = null;
-  private vy = 0; // m/s upward, as the body was last seen to move in the air
+  private drawn: number | null = null; // when it was last drawn, seconds
+  private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
+  private velX = 0; // m/s across the floor, in the world, as it last moved
+  private velZ = 0;
+  private vy = 0; // m/s upward, as it last moved in the air
   private grounded = true;
+  private facing = 0; // the way the body faces, radians in the world: the root's yaw
+  private bank = 0; // radians it's leaning into a turn, to its right
   private dirX = 0; // the way it's going across the floor, in its own frame: its length under 1 through a change
   private dirZ = 1;
   private moving = 0; // how much of its stride it's in, the rest standing
   private airborne = 0; // how much of its pose in the air it's in
   private aloft = 0; // seconds since it left the ground
+  private kicking = 1; // how much of its flutter its legs have in the air: none under a jet's thrust
   private landed = 0; // how far into its landing crouch it is
   private stood = 0; // seconds it has been drawn, for its breath
 
@@ -166,11 +183,28 @@ export class JointedAvatar extends WalkerAvatar {
 
   // On the ground or in the air: standing, striding at its pace the way it's going, or held in
   // the air, each eased into the next; a landing drops it toward its crouch by how fast it fell.
+  // Empty-handed the body turns to face the way it's going, leaning into the turn, and stays
+  // facing that way when it stops; with something to aim it faces its look, and sidesteps.
   protected override walk(p: RemotePlayer, feetY: number, step: number): Pose {
     const walked = super.walk(p, feetY, step);
     const dt = this.watch(p, feetY);
     const { style, out, other } = this;
     const pace = p.walk / walkSpeedOf(this.kind);
+    const speed = Math.hypot(this.velX, this.velZ);
+    const going = speed > MOVING;
+    const armed = p.item !== null;
+    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : this.facing;
+    const turn = wrap(want - this.facing) * (1 - Math.exp((-3 * dt) / (armed ? EASE_AIM : EASE_TURN)));
+    this.facing = wrap(this.facing + turn);
+    this.root.rotation.y = this.facing;
+    const banking = dt > 0 && !armed ? (turn / dt) * style.bank * Math.min(1, pace) : 0;
+    this.bank = eased(this.bank, Math.max(-MAX_BANK, Math.min(MAX_BANK, banking)), dt, EASE_BANK);
+    if (going) {
+      const sin = Math.sin(this.facing);
+      const cos = Math.cos(this.facing);
+      this.dirX = eased(this.dirX, (this.velX * cos - this.velZ * sin) / speed, dt, EASE_DIRECTION);
+      this.dirZ = eased(this.dirZ, (this.velX * sin + this.velZ * cos) / speed, dt, EASE_DIRECTION);
+    }
     this.moving = eased(this.moving, p.grounded && pace > 0.02 ? 1 : 0, dt, EASE_MOVING);
     standPose(out, style.stand, this.stood);
     if (this.moving > 0.001) {
@@ -184,12 +218,15 @@ export class JointedAvatar extends WalkerAvatar {
     this.landed *= Math.pow(0.5, dt / style.landSeconds);
     if (this.landed > 0.001) mix(out, out, style.land, this.landed);
     this.aloft = p.grounded ? 0 : this.aloft + dt;
+    this.kicking = eased(this.kicking, p.thrusting ? 0 : 1, dt, EASE_KICKING);
     this.airborne = eased(this.airborne, p.grounded ? 0 : 1, dt, p.grounded ? EASE_TOUCHDOWN : EASE_TAKEOFF);
     if (this.airborne > 0.001) {
-      airPose(other, style, this.vy, this.aloft);
+      airPose(other, style, this.vy, this.aloft, this.kicking);
       mix(out, out, other, this.airborne);
     }
-    this.show(p);
+    out[HIP_TILT] += this.bank;
+    out[CHEST_TILT] += this.bank;
+    this.show(p, this.facing);
     return walked;
   }
 
@@ -205,9 +242,9 @@ export class JointedAvatar extends WalkerAvatar {
     out[FOOT_R + FOOT_Y] -= (RUNG / 2) * s;
     out[ARM_L + ARM_SWING] += CLIMB_REACH * s;
     out[ARM_R + ARM_SWING] -= CLIMB_REACH * s;
-    const facing = WORLD_STRUCTURES.ladderFacing(p.climb!.piece, p.climb!.side);
-    out[HEAD_TURN] = Math.max(-HEAD_TURN_LIMIT, Math.min(HEAD_TURN_LIMIT, wrap(p.yaw - facing)));
-    this.show(p);
+    this.facing = WORLD_STRUCTURES.ladderFacing(p.climb!.piece, p.climb!.side);
+    this.bank = 0;
+    this.show(p, this.facing);
     return climbed;
   }
 
@@ -216,9 +253,13 @@ export class JointedAvatar extends WalkerAvatar {
     this.rig.apply(this.style.dead);
   }
 
-  // The frame's pose onto the rig, the head tipped with the look and the weapon arm, straight, along it.
-  private show(p: RemotePlayer): void {
-    this.out[HEAD_LEAN] += p.pitch * this.style.follow;
+  // The frame's pose onto the rig of a body facing `facing`: the head turned and tipped to the
+  // look, and the weapon arm, straight, along it.
+  private show(p: RemotePlayer, facing: number): void {
+    const off = wrap(p.yaw - facing);
+    const looks = smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE);
+    this.out[HEAD_TURN] += Math.max(-HEAD_TURN_LIMIT, Math.min(HEAD_TURN_LIMIT, off)) * looks;
+    this.out[HEAD_LEAN] += p.pitch * this.style.follow * looks;
     this.rig.apply(this.out);
     if (p.item && !p.dead) {
       this.rig.straighten();
@@ -226,28 +267,34 @@ export class JointedAvatar extends WalkerAvatar {
     }
   }
 
-  // How the body has moved since it was last drawn: its rise or fall, and the way it's going across
-  // the floor in its own frame. Returns the seconds since.
+  // How the body has moved since it last did: its speed across the floor and up or down. A body
+  // isn't moved every frame (a player's own is moved a sim tick at a time, and drawn between
+  // them where it was), so its speed is taken over the time since it last moved, and it's standing
+  // still only after STILL without moving. Returns the seconds since it was last drawn.
   private watch(p: RemotePlayer, feetY: number): number {
     const now = performance.now() / 1000;
-    const last = this.last;
-    this.last = { x: p.x, y: feetY, z: p.z, at: now };
-    if (!last) return 0;
-    const dt = Math.min(0.1, now - last.at);
+    const dt = this.drawn === null ? 0 : Math.min(0.1, now - this.drawn);
+    this.drawn = now;
     this.stood += dt;
-    const dx = p.x - last.x;
-    const dz = p.z - last.z;
-    if (dt <= 0 || Math.hypot(dx, dz, feetY - last.y) > JUMPED) return dt;
-    if (!p.grounded) this.vy = (feetY - last.y) / dt;
-    const sin = Math.sin(p.yaw);
-    const cos = Math.cos(p.yaw);
-    const right = (dx * cos - dz * sin) / dt;
-    const ahead = (dx * sin + dz * cos) / dt;
-    const speed = Math.hypot(right, ahead);
-    if (speed > MOVING) {
-      this.dirX = eased(this.dirX, right / speed, dt, EASE_DIRECTION);
-      this.dirZ = eased(this.dirZ, ahead / speed, dt, EASE_DIRECTION);
+    const last = this.last;
+    if (!last) {
+      this.last = { x: p.x, y: feetY, z: p.z, at: now };
+      this.facing = p.yaw;
+      return dt;
     }
+    const dx = p.x - last.x;
+    const dy = feetY - last.y;
+    const dz = p.z - last.z;
+    const since = now - last.at;
+    if (dx === 0 && dy === 0 && dz === 0 && since < STILL) return dt;
+    last.x = p.x;
+    last.y = feetY;
+    last.z = p.z;
+    last.at = now;
+    if (since <= 0 || Math.hypot(dx, dy, dz) > JUMPED) return dt;
+    this.velX = dx / since;
+    this.velZ = dz / since;
+    if (!p.grounded) this.vy = dy / since;
     return dt;
   }
 }
