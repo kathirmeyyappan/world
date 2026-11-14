@@ -400,7 +400,7 @@ staircases. List a landmark's there when it's worth navigating by.
 
 An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: command, eye
 height, hitbox, and on foot its `walk` in m/s and its `jump` power, 1 rising `JUMP_RISE`, 1.6 m;
-`walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim) and a builder in `packages/client/src/render/avatars/` (`WALKERS` in `index.ts`,
+`walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -410,18 +410,43 @@ climbing a ladder and lying dead. Motion is written there once, for all of them,
 own touches (a tail, a twitch, feet that lift) are its `extra` hook. A body that differs by a
 number (how far a leg swings, a two-part tentacle, no legs at all) is still a figure; one that
 differs by a rule (a sidestep, a slither, tentacles wrapping the rungs) extends `WalkerAvatar` and
-overrides that one phase (`walk`, `climb`, `lie` or `aim`), registered in `WALKERS` by its class,
+overrides that one phase (`walk`, `climb`, `lie` or `aim`), registered in `MAKERS` by its class,
 and the walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
 atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
-it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`). Rebuild the bot map after
+it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
+a whole skeleton a humanoid (below). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 
+A character that should move like itself is a humanoid (`render/avatars/Humanoid.ts`,
+`HumanoidAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
+chest, head, arms with elbows, hands with fingers and a thumb, legs with knees and feet) under a
+model from `scripts/kart-model.py`, which reads a Mario Kart 8 racer's rip (every racer is on the
+one rig, in a T-pose), and a `Style` (`render/avatars/motion.ts`) that is all of its movement as
+numbers. A `BodyPose` is every joint: the hips placed and turned, the chest and head turned in the
+body's frame (so a head stays level over a leaning trunk), each arm swung from hanging, bent and its
+hand closed, and each foot put where it should be, the rig bending the leg to reach it (two-bone
+IK), so feet stay on the ground whatever the hips do. A style is how it stands (with its breath),
+a `Stride` at each of a few paces (every number a step is drawn from: how far and how high the
+feet go, how long each is down, the hips' bounce, sway and twist, the trunk's lean, the arms'
+swing and the elbows' bend), the stride at any pace being between its neighbours', and its poses
+in the air (`rise`, `fall`, a `flutter` for legs that scissor), landing and dead. The frame's pose
+is those blended: standing into the stride as it gets going, the stride drawn along the way the
+body is going in its own frame (so it sidesteps and backpedals), into the air and out through the
+landing's crouch. So two characters on one rig differ only by their styles (Luigi's is Mario's,
+drawn for longer legs, with his own air), a new one is a row in the script's `RACERS`, its files
+and a style, and a move that is a rule, not a number, is a subclass overriding that phase. Paces
+are shares of the look's walk: 1 is its full walk and `RUN_MULTIPLIER` its run on Shift, so a
+style says what each looks like (Mario's full walk is already his run, and Shift his sprint).
+Tune a style by looking: draw the stride from the side and the front a few frames apart and
+change one number at a time.
+
 Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace
-its step sounds and its limbs alike, what a footfall sounds like (the thuds, a bar of its own sounds,
-or a loop), and the sounds' pitch; the swing of its limbs is the renderer's. Ask for each when adding
-one.
+its step sounds and its limbs alike (with `runStride`, longer running flat out), what a footfall
+sounds like (the thuds, a bar of its own sounds, or a loop), the sounds' pitch, and with `jump` its
+own sound for a jump in place of the swoosh; the swing of its limbs is the renderer's. Ask for each
+when adding one.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,

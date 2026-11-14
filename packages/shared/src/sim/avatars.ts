@@ -22,6 +22,8 @@ export type AvatarId =
   | 'squidward'
   | 'gary'
   | 'plankton'
+  | 'mario'
+  | 'luigi'
   | 'light-dragon'
   | 'colgera';
 
@@ -198,6 +200,30 @@ const LOOKS = {
     hitbox: { top: 0.28, radius: 0.06, head: 0.19 }, // 0.28 m to his antennae's tips, 0.07 m across: the head is everything from the mouth up
     walk: 3.5,
     jump: 1,
+  },
+  mario: {
+    id: 'mario',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become mario',
+    command: 'mario',
+    eye: 1.56,
+    hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
+    walk: 8,
+    jump: 1.2,
+  },
+  luigi: {
+    id: 'luigi',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become luigi',
+    command: 'luigi',
+    eye: 1.74,
+    hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
+    walk: 8,
+    jump: 1.5,
   },
   'light-dragon': {
     id: 'light-dragon',
