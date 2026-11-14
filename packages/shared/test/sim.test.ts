@@ -13,6 +13,7 @@ import {
   PLAYER_RADIUS,
   GEAR,
   JUMP_VELOCITY,
+  RUN_MULTIPLIER,
   SCOPED_SPEED_MULTIPLIER,
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
@@ -180,7 +181,7 @@ test("pickups drift about their own areas, never leaving them or crossing a ring
   }
 });
 
-test('/speedy boost multiplies movement and wears off; a scope slows it and stops jumps; a chill halves it and wears off', () => {
+test('/speedy boost multiplies movement and wears off; holding the run does too; a scope slows it and stops jumps; a chill halves it and wears off', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   p.boost = SPEEDY_SECONDS;
   stepPlayer(p, frame(1, { my: 1 }), 1, WORLD_SHAPE);
@@ -190,11 +191,13 @@ test('/speedy boost multiplies movement and wears off; a scope slows it and stop
   const before = p.pos.z;
   stepPlayer(p, frame(99, { my: 1 }), 0.1, WORLD_SHAPE);
   assert.ok(Math.abs(p.pos.z - before - 0.8) < 1e-9, 'back to normal speed');
+  stepPlayer(p, frame(99, { my: 1, actions: ['run'] }), 0.1, WORLD_SHAPE);
+  assert.ok(Math.abs(p.pos.z - before - 0.8 - 0.8 * RUN_MULTIPLIER) < 1e-9, 'running');
 
-  // Scoped: 30% of the walk, and the jump does nothing.
+  // Scoped: 30% of the walk whether or not the run is held, and the jump does nothing.
   p.item = createItem('sniper', false);
   const at = p.pos.z;
-  stepPlayer(p, frame(100, { my: 1, jump: true, actions: ['scope'] }), 0.1, WORLD_SHAPE);
+  stepPlayer(p, frame(100, { my: 1, jump: true, actions: ['scope', 'run'] }), 0.1, WORLD_SHAPE);
   assert.ok(Math.abs(p.pos.z - at - 0.8 * SCOPED_SPEED_MULTIPLIER) < 1e-9, 'scoped walk');
   assert.equal(p.vy, 0, 'no jump while scoped');
 

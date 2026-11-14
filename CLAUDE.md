@@ -770,6 +770,7 @@ controls.shoot(True)                # persistent hold, e.g. flamethrower
 controls.shoot(False)
 controls.scope(True)
 controls.thrust(True)               # hold a worn jetpack's lift (after /jetpack)
+controls.run(True)                  # hold the run: the walk 60% faster, except scoped
 controls.read_cube(cube_or_id)
 await controls.chat("hello")
 await controls.command("sniper")    # sends /sniper

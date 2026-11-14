@@ -27,8 +27,11 @@ export const LADDER_REACH = 0.9;
 export const LADDER_GAP = 0.05;
 export const MAX_PITCH = Math.PI / 2 - 0.1;
 
+// Running (the `run` action, held): the walk this many times as fast, except down a scope.
+export const RUN_MULTIPLIER = 1.6;
+
 // /speedy: temporary movement multiplier, counted down by the sim so prediction matches.
-export const SPEEDY_MULTIPLIER = 1.8;
+export const SPEEDY_MULTIPLIER = 1.6;
 export const SPEEDY_SECONDS = 20;
 
 // Aiming down a scope: walking at this fraction of the speed, and no jumping.
