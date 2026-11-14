@@ -144,7 +144,7 @@ export interface Style {
   rise: BodyPose; // going up in the air
   fall: BodyPose; // coming down
   // Legs that scissor in the air, one ahead as the other goes back: how often, how far each way and
-  // how high the back one's foot comes.
+  // how high the back one's foot comes. They hang still under a jetpack's thrust.
   flutter?: { hz: number; reach: number; lift: number };
   land: BodyPose; // the crouch a hard landing drops into
   landSpeed: number; // m/s of fall that drops all the way into it
@@ -274,16 +274,17 @@ export function standPose(out: BodyPose, stand: Stand, seconds: number): void {
   out[HIP_X] += stand.shift * Math.sin((2 * Math.PI * seconds) / (stand.seconds * 3));
 }
 
-// In the air, moving up at `vy` m/s (down, negative), `seconds` after leaving the ground.
-export function airPose(out: BodyPose, style: Style, vy: number, seconds: number): void {
+// In the air, moving up at `vy` m/s (down, negative), `seconds` after leaving the ground; `kicking`
+// is how much of its flutter the legs have, none hanging under a jet's thrust.
+export function airPose(out: BodyPose, style: Style, vy: number, seconds: number, kicking: number): void {
   mix(out, style.rise, style.fall, smooth(0.5 - vy / (2 * APEX)));
   const flutter = style.flutter;
-  if (!flutter) return;
+  if (!flutter || kicking <= 0) return;
   const kick = Math.sin(2 * Math.PI * flutter.hz * seconds);
-  out[FOOT_L + FOOT_Z] += flutter.reach * kick;
-  out[FOOT_R + FOOT_Z] -= flutter.reach * kick;
-  out[FOOT_L + FOOT_Y] += flutter.lift * Math.max(0, -kick);
-  out[FOOT_R + FOOT_Y] += flutter.lift * Math.max(0, kick);
+  out[FOOT_L + FOOT_Z] += flutter.reach * kicking * kick;
+  out[FOOT_R + FOOT_Z] -= flutter.reach * kicking * kick;
+  out[FOOT_L + FOOT_Y] += flutter.lift * kicking * Math.max(0, -kick);
+  out[FOOT_R + FOOT_Y] += flutter.lift * kicking * Math.max(0, kick);
 }
 
 const APEX = 2.5; // m/s either side of the top of a jump over which a body goes from rising to falling
