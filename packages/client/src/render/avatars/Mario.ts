@@ -1,11 +1,11 @@
 // Mario: 2 m of plumber, as tall as the standard body, from Mario Kart 8's model (marioModel.ts,
-// made by scripts/humanoid-model.py), a humanoid (Humanoid.ts) moved the way Super Mario Odyssey moves
+// made by scripts/jointed-model.py), a jointed body (Jointed.ts) moved the way Super Mario Odyssey moves
 // him. He never ambles: at a full walk he is already running, a quick patter of short legs under a
 // big head that stays level, leaning in, fists pumping at his chest; held back he strolls upright
 // with his arms loose; and running flat out he is the same run drawn longer, further over and
 // lower. He jumps with one fist up and a knee leading, and comes down arms wide. Worn with /mario;
 // his hit capsule is AVATARS.mario.hitbox.
-import type { HumanoidSpec } from './Humanoid';
+import type { JointedSpec } from './Jointed';
 import { MARIO_MODEL } from './marioModel';
 import { pose, type Stride, type Style } from './motion';
 
@@ -133,4 +133,4 @@ export const MARIO_STYLE: Style = {
   follow: 0.5,
 };
 
-export const MARIO: HumanoidSpec = { kind: 'mario', model: MARIO_MODEL, style: MARIO_STYLE, shadow: 1.2 };
+export const MARIO: JointedSpec = { kind: 'mario', model: MARIO_MODEL, style: MARIO_STYLE, shadow: 1.2 };

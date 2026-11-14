@@ -1,9 +1,9 @@
 // Luigi: 2.2 m of the taller brother, as Mario Kart 8's model stands beside Mario's (luigiModel.ts,
-// made by scripts/humanoid-model.py), a humanoid (Humanoid.ts) on Mario's rig. He moves as Mario does
+// made by scripts/jointed-model.py), a jointed body (Jointed.ts) on Mario's rig. He moves as Mario does
 // with longer legs and less certainty: a longer, springier stride, arms looser and further from
 // his sides, a little more sway; and in the air his legs scuttle, kicking the whole way up and
 // down, with his arms out to steady him. Worn with /luigi; his hit capsule is AVATARS.luigi.hitbox.
-import type { HumanoidSpec } from './Humanoid';
+import type { JointedSpec } from './Jointed';
 import { LUIGI_MODEL } from './luigiModel';
 import { MARIO_STYLE } from './Mario';
 import { pose, type Stride, type Style } from './motion';
@@ -44,4 +44,4 @@ export const LUIGI_STYLE: Style = {
   flutter: { hz: 6, reach: 0.2, lift: 0.1 },
 };
 
-export const LUIGI: HumanoidSpec = { kind: 'luigi', model: LUIGI_MODEL, style: LUIGI_STYLE, shadow: 1.2 };
+export const LUIGI: JointedSpec = { kind: 'luigi', model: LUIGI_MODEL, style: LUIGI_STYLE, shadow: 1.2 };

@@ -1,6 +1,6 @@
 // A walker with a whole skeleton, moved in its own style: a trunk of hips, spine and chest under a
 // head, arms that bend at the elbow and legs that bend at the knee, skinned from a model made by
-// scripts/humanoid-model.py. Where the walker (Walker.ts) swings every body's limbs by one rule, this
+// scripts/jointed-model.py. Where the walker (Walker.ts) swings every body's limbs by one rule, this
 // one is posed (motion.ts): each frame is a pose blended from its style's (standing, its stride at
 // the pace it's going, rising, falling, landing), and the rig turns the pose into joint rotations,
 // bending each leg to put its foot where the pose says. So two characters on this rig move as
@@ -50,7 +50,7 @@ import {
 import { SkinnedBody, type SkinnedModel } from './skinned';
 import { WalkerAvatar, type Figure, type Pose } from './Walker';
 
-export type HumanBone =
+export type JointedBone =
   | 'hips'
   | 'spine'
   | 'chest'
@@ -71,7 +71,7 @@ export type HumanBone =
   | 'legR'
   | 'shinR'
   | 'footR';
-const PARENTS: Record<HumanBone, HumanBone | null> = {
+const PARENTS: Record<JointedBone, JointedBone | null> = {
   hips: null,
   spine: 'hips',
   chest: 'spine',
@@ -95,13 +95,13 @@ const PARENTS: Record<HumanBone, HumanBone | null> = {
 };
 
 // A model on this rig, standing in a T-pose: its arms straight out to the sides, its legs straight down.
-export interface HumanoidModel extends SkinnedModel<HumanBone> {
+export interface JointedModel extends SkinnedModel<JointedBone> {
   readonly sole: readonly number[]; // metres a shoe's toe reaches ahead of its ankle, and its heel behind it
 }
 
-export interface HumanoidSpec {
+export interface JointedSpec {
   kind: AvatarId;
-  model: HumanoidModel;
+  model: JointedModel;
   style: Style;
   shadow: number; // metres across
 }
@@ -130,7 +130,7 @@ const THUMB_FOLD = 0.6;
 const THUMB_CURL = 1.3;
 const CLIMB_REACH = 0.35; // radians a hand goes up and down the rail with each rung
 
-export class HumanoidAvatar extends WalkerAvatar {
+export class JointedAvatar extends WalkerAvatar {
   private readonly rig: Rig;
   private readonly style: Style;
   private readonly stride: Stride;
@@ -147,7 +147,7 @@ export class HumanoidAvatar extends WalkerAvatar {
   private landed = 0; // how far into its landing crouch it is
   private stood = 0; // seconds it has been drawn, for its breath
 
-  constructor(engine: Engine, id: string, kind: AvatarId, spec: HumanoidSpec, color: string) {
+  constructor(engine: Engine, id: string, kind: AvatarId, spec: JointedSpec, color: string) {
     let rig: Rig | undefined;
     super(
       engine,
@@ -264,7 +264,7 @@ function wrap(angle: number): number {
 // The skeleton: the model's skin on its bones, what the walker needs of them, and the pose solver.
 class Rig {
   readonly figure: Figure;
-  private readonly skin: SkinnedBody<HumanBone>;
+  private readonly skin: SkinnedBody<JointedBone>;
   private readonly hipsAt: Vector3; // the hips' pivot, standing
   private readonly thigh: number; // metres, hip to knee
   private readonly shin: number; // knee to ankle
@@ -277,11 +277,11 @@ class Rig {
   private readonly standL: Vector3;
   private readonly standR: Vector3;
 
-  constructor(engine: Engine, id: string, spec: HumanoidSpec, base: TransformNode) {
+  constructor(engine: Engine, id: string, spec: JointedSpec, base: TransformNode) {
     const { kind, model } = spec;
     const skin = new SkinnedBody(engine, `${kind}-${id}`, model, kind, PARENTS, base);
     this.skin = skin;
-    const at = (bone: HumanBone) => Vector3.FromArray(model.bones[bone] as number[]);
+    const at = (bone: JointedBone) => Vector3.FromArray(model.bones[bone] as number[]);
     this.hipsAt = at('hips');
     this.thigh = Vector3.Distance(at('legR'), at('shinR'));
     this.shin = Vector3.Distance(at('shinR'), at('footR'));
@@ -350,11 +350,11 @@ class Rig {
     pose: BodyPose,
     at: number,
     side: 1 | -1,
-    upper: HumanBone,
-    fore: HumanBone,
-    hand: HumanBone,
-    fingers: HumanBone,
-    thumb: HumanBone,
+    upper: JointedBone,
+    fore: JointedBone,
+    hand: JointedBone,
+    fingers: JointedBone,
+    thumb: JointedBone,
   ): void {
     Quaternion.RotationYawPitchRollToRef(0, -pose[at + ARM_SWING], -side * (Math.PI / 2 - pose[at + ARM_OUT]), A);
     Quaternion.RotationAxisToRef(Vector3.RightReadOnly, pose[at + ARM_IN], B);
@@ -367,7 +367,7 @@ class Rig {
 
   // The hand the model holds flat, palm down, closed `grip` of the way to a fist: the fingers fold
   // under it at the knuckles and the thumb comes round under them.
-  private hand(side: 1 | -1, grip: number, fingers: HumanBone, thumb: HumanBone): void {
+  private hand(side: 1 | -1, grip: number, fingers: JointedBone, thumb: JointedBone): void {
     Quaternion.RotationAxisToRef(Vector3.LeftHandedForwardReadOnly, -side * FINGER_CURL * grip, A);
     set(this.skin.node(fingers), A);
     Quaternion.RotationYawPitchRollToRef(-side * THUMB_FOLD * grip, THUMB_CURL * grip, 0, A);
@@ -380,9 +380,9 @@ class Rig {
     hips: TransformNode,
     joint: Vector3,
     stand: Vector3,
-    upper: HumanBone,
-    lower: HumanBone,
-    foot: HumanBone,
+    upper: JointedBone,
+    lower: JointedBone,
+    foot: JointedBone,
   ): void {
     // The hip joint, where the hips have been put and turned.
     joint.rotateByQuaternionToRef(HIPS, HIP).addInPlace(hips.position);
@@ -421,7 +421,7 @@ class Rig {
   }
 }
 
-// Scratch for the frame's arithmetic, shared by every humanoid: none of it survives a call.
+// Scratch for the frame's arithmetic, shared by every jointed body: none of it survives a call.
 const IDENTITY = Quaternion.Identity();
 const HIPS = new Quaternion();
 const SPINE = new Quaternion();

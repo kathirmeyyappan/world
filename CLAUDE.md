@@ -415,14 +415,14 @@ and the walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
 atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
 it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
-a whole skeleton a humanoid (below). Rebuild the bot map after
+a whole skeleton a jointed body (below). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 
-A character that should move like itself is a humanoid (`render/avatars/Humanoid.ts`,
-`HumanoidAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
+A character that should move like itself is a jointed body (`render/avatars/Jointed.ts`,
+`JointedAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
 chest, head, arms with elbows, hands with fingers and a thumb, legs with knees and feet) under a
-model from `scripts/humanoid-model.py`, which reads a rip of the character's own model (Mario's
+model from `scripts/jointed-model.py`, which reads a rip of the character's own model (Mario's
 and Luigi's are on one rig, in a T-pose), and a `Style` (`render/avatars/motion.ts`) that is all of its movement as
 numbers. A `BodyPose` is every joint: the hips placed and turned, the chest and head turned in the
 body's frame (so a head stays level over a leaning trunk), each arm swung from hanging, bent and its

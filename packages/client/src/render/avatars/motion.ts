@@ -1,4 +1,4 @@
-// How a humanoid (Humanoid.ts) moves, as numbers: a pose is every joint it sets, a stride the pose
+// How a jointed body (Jointed.ts) moves, as numbers: a pose is every joint it sets, a stride the pose
 // at each moment of a step, and a style everything one character's movement is made of (how it
 // stands, its stride at each pace, how it rises, falls and lands). Poses blend channel by channel,
 // so a body eases from any of these into any other, and two characters on one rig differ only by
