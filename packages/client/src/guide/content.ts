@@ -88,7 +88,7 @@ export interface Photo {
 }
 
 export interface Place extends Entry {
-  id: 'pineapple' | 'krusty-krab' | 'welcome' | 'sanctuary' | 'building4' | 'tower' | 'terrace';
+  id: 'pineapple' | 'krusty-krab' | 'welcome-building' | 'anime-building' | 'building4' | 'tower' | 'terrace';
   building?: number; // a building's place, by its number less one: its title is the game's name for it (BUILDING_NAMES)
   photos: Photo[];
 }
@@ -124,27 +124,27 @@ export const PLACES: Place[] = [
     ],
   },
   {
-    id: 'welcome',
+    id: 'welcome-building',
     building: 1,
     title: '',
     summary: 'A room with some info about me and a live Spotify widget.',
     facts: [],
     photos: [
-      { file: 'welcome-room-outside', caption: 'Outside' },
-      { file: 'welcome-room-spotify', caption: 'The Spotify widget' },
-      { file: 'welcome-room-photos', caption: 'Inside' },
+      { file: 'welcome-building-outside', caption: 'Outside' },
+      { file: 'welcome-building-spotify', caption: 'The Spotify widget' },
+      { file: 'welcome-building-photos', caption: 'Inside' },
     ],
   },
   {
-    id: 'sanctuary',
+    id: 'anime-building',
     building: 2,
     title: '',
     summary: 'A room with some peak anime as well as a live tracker of my recently watched / read media.',
     facts: [],
     photos: [
-      { file: 'dire-sanctuary-outside', caption: 'Outside' },
-      { file: 'dire-sanctuary-anime', caption: 'The anime list' },
-      { file: 'dire-sanctuary-covers', caption: 'Inside' },
+      { file: 'anime-building-outside', caption: 'Outside' },
+      { file: 'anime-building-anime', caption: 'The anime list' },
+      { file: 'anime-building-covers', caption: 'Inside' },
     ],
   },
   {
@@ -174,7 +174,7 @@ export const PLACES: Place[] = [
     id: 'terrace',
     title: 'Terrace',
     summary:
-      'A brick terrace above the middle of the world, reached by staircases from the roofs of the Welcome Room, the Dire Sanctuary and Building 4, and by the bridge from the tower.',
+      'A brick terrace above the middle of the world, reached by staircases from the roofs of the Welcome Building, the Anime Building and Building 4, and by the bridge from the tower.',
     facts: [],
     photos: [
       { file: 'terrace-overview', caption: 'The terrace, with its staircases' },
