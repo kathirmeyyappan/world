@@ -91,6 +91,7 @@ CLIPS = {
     "jump": Clip("77/78 - Single jump/Land from single jump", 0, 12),
     "fall": Clip("86/87 - General fall/General land", 4, 4),
     "land": Clip("77/78 - Single jump/Land from single jump", 24, 37),
+    "leap": Clip("19 - Fast longjump", 0, 22),
 }
 
 

@@ -400,7 +400,10 @@ staircases. List a landmark's there when it's worth navigating by.
 
 An avatar is a row in `AVATARS` (`packages/shared/src/sim/avatars.ts`: command, eye
 height, hitbox, and on foot its `walk` in m/s and its `jump` power, 1 rising `JUMP_RISE`, 1.6 m;
-`walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+`walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim; with a `leap`, a jump
+taken at a run, on the move, is a long jump: off the way the keys go at a multiple of its run,
+rising a share of its jump under a share of gravity with little grip on the flight, until it lands,
+`PlayerState.leap` and `walker.ts`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -428,8 +431,8 @@ frames of where the hips are and how each bone is turned, drawn by an animator, 
 Mario's are Super Mario 64's own (`marioClips.ts`, baked by `scripts/jointed-clips.py` from a
 rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
 the jointed body's, the hips in leg lengths so a longer-legged body bobs as far for its size, and
-each frame stood on the ground). A `Style` is its clips (idle, walk, run, jump, fall, land) and a
-few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+each frame stood on the ground). A `Style` is its clips (idle, walk, run, jump, fall, land, and
+a `leap` for a look with a long jump, played takeoff to landing) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:

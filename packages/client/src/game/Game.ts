@@ -1011,6 +1011,7 @@ export class Game {
         gear: self.gear?.id ?? null,
         thrusting: self.thrusting,
         walk: self.walk,
+        leap: self.leap,
         climb: self.climb,
         chilled: self.chilled > 0,
         dead: this.dead,

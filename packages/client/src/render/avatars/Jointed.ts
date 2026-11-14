@@ -102,6 +102,7 @@ export interface Style {
     jump: RawClip; // leaving the ground, held at its end while it's going up
     fall: RawClip; // coming down, looped
     land: RawClip; // from the bottom of a landing's crouch back up to standing
+    leap?: RawClip; // a long jump (sim/avatars.ts `Leap`), takeoff to landing: held at its end
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -173,7 +174,7 @@ const CLIMB_REACH = 0.35; // radians a hand goes up and down the rail with each 
 export class JointedAvatar extends WalkerAvatar {
   private readonly rig: Rig;
   private readonly style: Style;
-  private readonly clips: Record<keyof Style['clips'], Clip>;
+  private readonly clips: Record<Exclude<keyof Style['clips'], 'leap'>, Clip> & { leap: Clip | null };
   private readonly out = motion();
   private readonly other = motion();
   private readonly third = motion();
@@ -194,6 +195,7 @@ export class JointedAvatar extends WalkerAvatar {
   private airborne = 0; // how far into its pose in the air it is: 0 on the ground, 1 well off it
   private aloft = 0; // seconds since it left the ground
   private kicking = 1; // how much of its flutter its legs have in the air: none under a jet's thrust
+  private leaping = 0; // how far into its long jump's pose it is, of its poses in the air
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
@@ -220,6 +222,7 @@ export class JointedAvatar extends WalkerAvatar {
       jump: clip(raw.jump),
       fall: clip(raw.fall),
       land: clip(raw.land),
+      leap: raw.leap ? clip(raw.leap) : null,
     };
   }
 
@@ -304,6 +307,12 @@ export class JointedAvatar extends WalkerAvatar {
       if (style.flutter && this.kicking > 0.001) {
         sample(third, clips.run, this.aloft * style.flutter, true);
         blend(other, other, third, this.kicking, LEGS);
+      }
+      // A long jump is its own way through the air, takeoff to landing.
+      this.leaping = Math.min(1, Math.max(0, this.leaping + (p.leap ? dt : -dt) / TAKEOFF_SECONDS));
+      if (clips.leap && this.leaping > 0) {
+        sample(third, clips.leap, this.aloft / clips.leap.seconds, false);
+        blend(other, other, third, smooth(this.leaping));
       }
       const air = smooth(this.airborne);
       blend(out, out, other, air);

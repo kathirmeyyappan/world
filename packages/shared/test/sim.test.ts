@@ -62,6 +62,8 @@ import {
   KRUSTY_KRAB_PLACEMENT,
   KRUSTY_KRAB_PROFILE,
   WORLD_STRUCTURES,
+  isGrounded,
+  type AvatarId,
 } from '@world/shared';
 import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
 
@@ -179,6 +181,29 @@ test("pickups drift about their own areas, never leaving them or crossing a ring
       assert.ok(Math.abs(p.pos.y - region.y - PICKUPS[p.kind].height) < 0.2, `${p.id} at its height`);
     }
   }
+});
+
+test('a jump at a run is a long jump for a look that has one: lower and further, and over when it lands', () => {
+  // A running jump from the origin: how far it carries and how high the feet get.
+  const flight = (avatar: AvatarId) => {
+    const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+    becomeAvatar(p, avatar);
+    let peak = 0;
+    let leapt = false;
+    for (let i = 1; i < 200; i++) {
+      stepPlayer(p, frame(i, { my: 1, jump: i === 1, actions: ['run'] }), TICK_DT, WORLD_SHAPE);
+      peak = Math.max(peak, p.pos.y - EYE_HEIGHT);
+      leapt ||= p.leap;
+      if (i > 1 && isGrounded(p)) break;
+    }
+    return { far: p.pos.z, peak, leapt, leaping: p.leap };
+  };
+  const plain = flight('sulley'); // Mario's jump power, and no long jump
+  const long = flight('mario');
+  assert.ok(!plain.leapt && long.leapt, 'only the look with a long jump leaps');
+  assert.ok(!long.leaping, 'the long jump is over on landing');
+  assert.ok(long.far > plain.far * 1.8, `further: ${long.far.toFixed(1)} m against ${plain.far.toFixed(1)} m`);
+  assert.ok(long.peak < plain.peak * 0.6, `lower: ${long.peak.toFixed(2)} m against ${plain.peak.toFixed(2)} m`);
 });
 
 test('/speedy boost multiplies movement and wears off; holding the run does too; a scope slows it and stops jumps; a chill halves it and wears off', () => {
