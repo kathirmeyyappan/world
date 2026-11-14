@@ -3,10 +3,10 @@
 // needed or at startup), what it rises out of the ground through, and the slow wave that runs down
 // its body in the air, if any. A new skin is a row here and a row in AVATARS; the renderer
 // (Dragon.ts) is the same for all of them.
-import type { Vector3 } from '@babylonjs/core';
+import { Color3, type Vector3 } from '@babylonjs/core';
 import type { AvatarsOf } from '@world/shared';
 import type { Engine } from '../Engine';
-import { Portal } from '../Portal';
+import { GroundRipple } from '../GroundRipple';
 import { Storm } from '../Storm';
 
 export type DragonAvatarId = AvatarsOf<'asian-dragon'>;
@@ -76,11 +76,13 @@ export interface Wave {
 
 export interface DragonLook {
   model(): Promise<DragonModel>;
-  rise(engine: Engine, name: string): Rise;
+  rise(engine: Engine, name: string, hole: number): Rise; // `hole`: metres the body is round, as it comes up
   wave: Wave | null;
   glow: boolean; // the skin has a glow atlas (<id>-glow.png): what shines on it in the dark
   mouth: number; // metres across the mouth: the breath starts all along that line, not from a point
 }
+
+const GOLD = new Color3(0.9, 0.65, 0.2); // what the light dragon's rings glow at their crests
 
 // A loader that fetches once and hands everyone the same promise.
 function once<T>(load: () => Promise<T>): () => Promise<T> {
@@ -89,10 +91,11 @@ function once<T>(load: () => Promise<T>): () => Promise<T> {
 }
 
 export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
-  // The light dragon: a long serpent that comes up through a portal of gold light.
+  // The light dragon: a long serpent that comes up through the ground rippling out
+  // in rings that glow gold.
   'light-dragon': {
     model: once(() => import('./dragonModel').then((m) => m.DRAGON_MODEL)),
-    rise: (engine, name) => new Portal(engine, name),
+    rise: (engine, name, hole) => new GroundRipple(engine, name, hole, { across: 40, fade: 0.6, glow: GOLD }),
     wave: { size: 0.375, length: 13.1, seconds: 2.6, from: 7.5 },
     glow: false,
     mouth: 0.7,
@@ -101,7 +104,7 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
   // through a storm.
   colgera: {
     model: once(() => import('./colgeraModel').then((m) => m.COLGERA_MODEL)),
-    rise: (engine, name) => new Storm(engine, name),
+    rise: (engine, name, hole) => new Storm(engine, name, hole),
     wave: { size: 0.3, length: 14, seconds: 3.2, from: 4 },
     glow: true, // its eyes, the crystals and the veins through the ice
     mouth: 1.8, // between the mandibles

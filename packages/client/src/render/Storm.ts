@@ -1,39 +1,19 @@
-// The storm Colgera rises through: a great white pool lying on the ground where it comes up, lit
-// blue round its rim and crawling with static like a screen between channels, with ripples
-// spreading out across it from the middle as over water (the portal's, in white) and a gale
-// turning over it, pixel "+"s of grey and white whirling round and up and white fog rolling round
-// its edge; open while any of the body is still down in it, and once the tail is out the pool
-// fades shut and the gale stops blowing, its last "+"s and puffs dying off one by one as they
-// would (dragons.ts `rise`). The ice it leaves on the floor is the sim's (room.ts).
-import {
-  Color3,
-  Color4,
-  DynamicTexture,
-  Mesh,
-  MeshBuilder,
-  ParticleSystem,
-  StandardMaterial,
-  Texture,
-  Vector3,
-} from '@babylonjs/core';
+// The storm Colgera rises through: the ground round it rippling out in rings glowing icy blue
+// (GroundRipple.ts), with a gale turning over it, pixel "+"s of grey and white whirling round and
+// up, and white fog rolling round its edge; open while any of the body is still down in the
+// ground, and once the tail is out the rings settle and the gale stops blowing, its last "+"s and
+// puffs dying off one by one as they would (dragons.ts `rise`). The ice it leaves on the floor is
+// the sim's (room.ts).
+import { Color3, Color4, DynamicTexture, Mesh, ParticleSystem, Texture, type Vector3 } from '@babylonjs/core';
 import type { Rise } from './avatars/dragons';
 import type { Engine } from './Engine';
+import { GroundRipple } from './GroundRipple';
 import { perScene } from './perScene';
 import { plusSprites } from './Poof';
-import { rippleAt } from './Portal';
 
 const ACROSS = 40; // metres: wider than the wings
+const ICE_GLOW = new Color3(0.35, 0.55, 0.8); // what the rings' crests glow
 const FADE = 0.9; // seconds to open or shut
-const POOL = 512; // pixels across the pool's picture: fine enough for a ripple's band to be a band
-const GRAIN = 64; // pixels across a tile of static, laid over the pool a few times across
-const GRAIN_SCALE = 2; // picture pixels to a pixel of static: coarse grain
-const REPAINT = 1 / 30; // seconds between paintings of the pool: a fresh frame of static, the ripples moved on
-const STATIC_TILES = 4; // tiles of static to cycle through
-const STATIC_LEVEL = 0.3; // how much of the static shows through the white
-const STOPS = 128; // samples across the radius the ripples are painted from
-const RIPPLE = 0.8; // how solid a ripple's band is, near the middle: well over the pool between the bands
-const RIPPLE_SHARPNESS = 2; // broader bands than the portal's: seen through the static, and from the floor's level
-const POOL_ALPHA = 0.5; // how solid the pool is: the floor and the ice on it show through
 const PLUSSES = 360; // "+"s in the air at once
 const PLUS_SECONDS = 2.4;
 const PLUS_TURN = 1.5; // radians a second the gale turns round the pool
@@ -44,42 +24,19 @@ const FOG_SECONDS = 3.2;
 const FOG_TURN = 0.45; // radians a second the fog rolls round
 const FOG_RISE = 0.6; // m/s
 
-let base: HTMLCanvasElement | null = null; // the pool's white and blue, drawn once for every storm
-let grains: HTMLCanvasElement[] | null = null; // the tiles of static, likewise
-
 export class Storm implements Rise {
   private readonly spin: Mesh; // the gale's frame, turning round the pool's axis
   private readonly roll: Mesh; // the fog's, turning slower
-  private readonly disc: Mesh;
-  private readonly material: StandardMaterial;
-  private readonly picture: DynamicTexture;
+  private readonly ground: GroundRipple;
   private readonly plusses: ParticleSystem;
   private readonly fog: ParticleSystem;
-  private open = 0; // 0 shut to 1 open
   private blowing = false; // the gale's systems started and not yet stopped
-  private time = 0; // seconds the pool has been open, the ripples' clock
-  private painted = -Infinity; // the time the pool was last painted at
 
-  constructor(engine: Engine, name: string) {
+  constructor(engine: Engine, name: string, hole: number) {
     const scene = engine.scene;
     this.spin = new Mesh(`${name}-spin`, scene);
     this.roll = new Mesh(`${name}-roll`, scene);
-    this.disc = MeshBuilder.CreateDisc(name, { radius: ACROSS / 2, tessellation: 48 }, scene);
-    this.disc.rotation.x = Math.PI / 2;
-    this.disc.isPickable = false;
-    this.disc.parent = this.spin;
-    this.picture = new DynamicTexture(`${name}-pool`, POOL, scene, false, Texture.BILINEAR_SAMPLINGMODE);
-    this.picture.hasAlpha = true;
-    this.material = new StandardMaterial(name, scene);
-    this.material.emissiveTexture = this.picture;
-    this.material.opacityTexture = this.picture;
-    this.material.emissiveColor = Color3.White();
-    this.material.diffuseColor = Color3.Black();
-    this.material.specularColor = Color3.Black();
-    this.material.disableLighting = true;
-    this.material.backFaceCulling = false;
-    this.disc.material = this.material;
-    this.paint();
+    this.ground = new GroundRipple(engine, `${name}-ground`, hole, { across: ACROSS, fade: FADE, glow: ICE_GLOW });
     // The gale: "+"s born over the pool, climbing and drawn in toward the middle, in the frame of a
     // node that turns, so every one of them goes round with it (a solid whirl, faster out at the
     // rim), spinning as they go.
@@ -136,26 +93,18 @@ export class Storm implements Rise {
     this.fog.startDirectionFunction = (_world, direction) => {
       direction.set(0, FOG_RISE * (0.5 + Math.random()), 0);
     };
-    this.disc.setEnabled(false);
   }
 
   update(at: Vector3, ground: number, open: boolean, dt: number): void {
-    this.open = Math.max(0, Math.min(1, this.open + ((open ? 1 : -1) * dt) / FADE));
+    this.ground.update(at, ground, open, dt);
     if (open) {
       this.spin.position.set(at.x, ground + 0.05, at.z);
       this.roll.position.copyFrom(this.spin.position);
     }
     // The frames the gale blows in stay enabled: the scene draws a particle system only while its
     // emitter is, and a stopped one still has its last particles to live out.
-    this.disc.setEnabled(this.open > 0);
     this.spin.rotation.y += dt * PLUS_TURN;
     this.roll.rotation.y -= dt * FOG_TURN;
-    this.material.alpha = POOL_ALPHA * this.open;
-    this.disc.scaling.setAll(0.7 + 0.3 * this.open);
-    if (this.open > 0) {
-      this.time += dt;
-      if (this.time - this.painted >= REPAINT) this.paint();
-    }
     if (open !== this.blowing) {
       this.blowing = open;
       for (const system of [this.plusses, this.fog]) {
@@ -165,78 +114,13 @@ export class Storm implements Rise {
     }
   }
 
-  // The pool's picture at this moment: its white and blue, a fresh frame of static laid over it,
-  // and the ripples over that, each a thin band of white moving outward and fading as it goes.
-  private paint(): void {
-    this.painted = this.time;
-    const ctx = this.picture.getContext() as CanvasRenderingContext2D;
-    const tiles = (grains ??= Array.from({ length: STATIC_TILES }, grainTile));
-    ctx.clearRect(0, 0, POOL, POOL);
-    ctx.drawImage((base ??= poolPicture()), 0, 0);
-    ctx.save();
-    ctx.globalCompositeOperation = 'source-atop'; // static only where the pool is, its soft edge kept
-    ctx.globalAlpha = STATIC_LEVEL;
-    const pattern = ctx.createPattern(tiles[Math.floor(Math.random() * tiles.length)], 'repeat');
-    if (pattern) {
-      ctx.scale(GRAIN_SCALE, GRAIN_SCALE);
-      ctx.translate(Math.random() * GRAIN, Math.random() * GRAIN);
-      ctx.fillStyle = pattern;
-      ctx.fillRect(-GRAIN, -GRAIN, POOL / GRAIN_SCALE + GRAIN, POOL / GRAIN_SCALE + GRAIN);
-    }
-    ctx.restore();
-    const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
-    for (let i = 0; i <= STOPS; i++) {
-      const r = i / STOPS;
-      g.addColorStop(r, `rgba(255,255,255,${(RIPPLE * rippleAt(r, this.time, RIPPLE_SHARPNESS)).toFixed(3)})`);
-    }
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, POOL, POOL);
-    this.picture.update();
-  }
-
   dispose(): void {
     this.plusses.dispose(); // its own sheet of "+"s with it
     this.fog.dispose(false); // not the puff: every storm's
-    this.disc.dispose();
-    this.material.dispose();
-    this.picture.dispose();
+    this.ground.dispose();
     this.spin.dispose();
     this.roll.dispose();
   }
-}
-
-// The pool between the ripples: pale in the middle, through blue to deep blue at the rim, and gone
-// just past it.
-function poolPicture(): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = POOL;
-  const ctx = canvas.getContext('2d')!;
-  const g = ctx.createRadialGradient(POOL / 2, POOL / 2, 0, POOL / 2, POOL / 2, POOL / 2);
-  g.addColorStop(0, 'rgba(226,238,255,0.9)');
-  g.addColorStop(0.55, 'rgba(206,228,255,0.9)');
-  g.addColorStop(0.8, 'rgba(140,195,255,0.88)');
-  g.addColorStop(0.93, 'rgba(70,150,255,0.7)');
-  g.addColorStop(1, 'rgba(50,130,255,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, POOL, POOL);
-  return canvas;
-}
-
-// A tile of static: every pixel a random grey with a touch of blue.
-function grainTile(): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = GRAIN;
-  const ctx = canvas.getContext('2d')!;
-  const image = ctx.createImageData(GRAIN, GRAIN);
-  for (let i = 0; i < image.data.length; i += 4) {
-    const v = Math.random() * 255;
-    image.data[i] = v * 0.75;
-    image.data[i + 1] = v * 0.88;
-    image.data[i + 2] = v;
-    image.data[i + 3] = 255;
-  }
-  ctx.putImageData(image, 0, 0);
-  return canvas;
 }
 
 // A soft puff of fog, every storm's in a scene.

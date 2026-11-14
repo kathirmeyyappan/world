@@ -2,7 +2,7 @@
 // OUTSIDE_HEIGHT below, gradient sky with stars, and a boundary wall that only shows up when you
 // get close, at whatever height you're at. All of it follows the world shape. Sky billboards live in
 // SkyObject.ts.
-import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData } from '@babylonjs/core';
+import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData, type Scene } from '@babylonjs/core';
 import { EYE_HEIGHT, OUTSIDE_HEIGHT, partDistance, worldBounds, type WorldPart, worldReach } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
@@ -33,6 +33,13 @@ const FADED = Math.log(10); // the floor's fog exponent at 90% fogged: where the
 
 type Point = { x: number; z: number };
 
+const ENVIRONMENTS = new WeakMap<Scene, Environment>();
+
+// The scene's environment, if it has one: the world's has, the menu's preview of the player has not.
+export function environmentOf(scene: Scene): Environment | null {
+  return ENVIRONMENTS.get(scene) ?? null;
+}
+
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
   private readonly grounds: ShaderMaterial[] = []; // the floor's, the ground's past the edge and the kerb's
@@ -50,6 +57,7 @@ export class Environment {
     private readonly shape: WorldPart[],
     private readonly ceiling = 0, // the top of the tallest structure
   ) {
+    ENVIRONMENTS.set(engine.scene, this);
     this.bounds = worldBounds(shape);
     this.span = Math.max(this.bounds.maxX - this.bounds.minX, this.bounds.maxZ - this.bounds.minZ);
     Effect.ShadersStore['worldGroundVertexShader'] = GROUND_VERTEX;
@@ -174,9 +182,14 @@ export class Environment {
         'discCount',
         'bridgeCount',
         'sectorCount',
+        'relief',
+        'reliefBase',
+        'reliefHeight',
+        'reliefGlow',
       ],
     });
     mat.setFloat('side', side);
+    mat.setFloat('relief', 0);
     mat.setColor3('lineColor', new Color3(0.2, 0.9, 0.5));
     mat.setColor3('majorColor', new Color3(0.45, 1.0, 0.7));
     mat.setColor3('floorColor', new Color3(0.03, 0.06, 0.05));
@@ -190,6 +203,24 @@ export class Environment {
     this.grounds.push(mat);
     this.materials.push(mat);
     return mat;
+  }
+
+  // The floor's look for a patch of it bent into ripples (render/GroundRipple.ts), kept in step
+  // with the floor's own until it's released: the same pixels where the patch lies level, shaded by
+  // its slope and glowing `glow` toward its crests, `height` over `base`.
+  rippleGround(base: number, height: number, glow: Color3): ShaderMaterial {
+    const mat = this.groundMaterial('ripple', 0);
+    mat.setFloat('relief', 1);
+    mat.setFloat('reliefBase', base);
+    mat.setFloat('reliefHeight', height);
+    mat.setColor3('reliefGlow', glow);
+    mat.setFloat('fogScale', this.fogScale);
+    return mat;
+  }
+
+  releaseGround(mat: ShaderMaterial): void {
+    for (const list of [this.grounds, this.materials]) list.splice(list.indexOf(mat), 1);
+    mat.dispose();
   }
 
   private setShapeUniforms(mat: ShaderMaterial): void {

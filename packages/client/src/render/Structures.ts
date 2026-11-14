@@ -33,6 +33,7 @@ import {
 } from '@world/shared';
 import type { Engine } from './Engine';
 import type { Loader } from './Loader';
+import { perScene } from './perScene';
 import { MATERIALS, TEXELS, paintMaterial } from './structureMaterials';
 
 const DEFAULT_COLORS: Record<StructureKind, string> = {
@@ -48,14 +49,29 @@ const FLAT_TILE = 4; // texture repeat for flat-coloured pieces, which have no t
 // Brightness by face direction, in each piece's own frame.
 const SHADE = { top: 1, bottom: 0.5, sideX: 0.82, sideZ: 0.68 };
 
-type Look = StructureMaterial | string; // a material, or a flat colour
+export type Look = StructureMaterial | string; // a material, or a flat colour
+
+// A piece's look: its material, or a flat colour.
+export function lookOf(s: Structure): Look {
+  return s.material ?? s.color ?? DEFAULT_COLORS[s.kind];
+}
+
+// The scene's material for a look, made the first time it's asked for and shared by every mesh of
+// that look (the merged pieces, and a ripple across their tops, GroundRipple.ts).
+const sceneMaterials = perScene(() => new Map<Look, StandardMaterial>());
+export function structureMaterial(scene: Scene, look: Look): StandardMaterial {
+  const made = sceneMaterials(scene);
+  let mat = made.get(look);
+  if (!mat) made.set(look, (mat = material(scene, look)));
+  return mat;
+}
 
 export function buildStructures(engine: Engine, structures: readonly Structure[], loader: Loader): void {
   const scene = engine.scene;
   const groups = new Map<string, { look: Look; x: number; z: number; pieces: { s: Structure; i: number }[] }>();
   structures.forEach((s, i) => {
     if (s.hidden) return;
-    const look: Look = s.material ?? s.color ?? DEFAULT_COLORS[s.kind];
+    const look = lookOf(s);
     const rx = Math.floor(s.x / REGION);
     const rz = Math.floor(s.z / REGION);
     const key = `${look}@${rx},${rz}`;
@@ -63,27 +79,20 @@ export function buildStructures(engine: Engine, structures: readonly Structure[]
     group.pieces.push({ s, i });
     groups.set(key, group);
   });
-  const materials = new Map<Look, StandardMaterial>();
   for (const [key, { look, x, z, pieces }] of groups)
     loader.add({
       x,
       z,
       load: () => {
         const meshes = pieces.map(({ s, i }) => {
-          const spec = s.material ? MATERIALS[s.material] : null;
-          const mesh = build(scene, `structure-${i}`, s, {
-            tile: spec?.tile ?? FLAT_TILE,
-            worldTop: s.worldTop ?? spec?.worldTop ?? true,
-          });
+          const mesh = build(scene, `structure-${i}`, s, mappingOf(s));
           mesh.position.set(s.x, mesh.position.y + (s.y ?? 0), s.z);
           mesh.rotation.y = s.yaw ?? 0; // Babylon's rotation about y matches the sim's yaw
           return mesh;
         });
         const merged = Mesh.MergeMeshes(meshes, true, true)!;
         merged.name = `structures-${key}`;
-        let mat = materials.get(look);
-        if (!mat) materials.set(look, (mat = material(scene, look)));
-        merged.material = mat;
+        merged.material = structureMaterial(scene, look);
         merged.isPickable = false;
         merged.freezeWorldMatrix();
       },
@@ -115,6 +124,20 @@ function material(scene: Scene, look: Look): StandardMaterial {
 interface Mapping {
   tile: number;
   worldTop: boolean;
+}
+
+function mappingOf(s: Structure): Mapping {
+  const spec = s.material ? MATERIALS[s.material] : null;
+  return { tile: spec?.tile ?? FLAT_TILE, worldTop: s.worldTop ?? spec?.worldTop ?? true };
+}
+
+// Where a top of `s` takes its texture at world (wx, wz): world x/z when its tops tile in the
+// world, or else axes turned with the piece.
+export function topUv(s: Structure, wx: number, wz: number, { tile, worldTop } = mappingOf(s)): [number, number] {
+  if (worldTop) return [wx / tile, wz / tile];
+  const yaw = s.yaw ?? 0;
+  const [cos, sin] = [Math.cos(yaw), Math.sin(yaw)];
+  return [(wx * cos - wz * sin) / tile, (wx * sin + wz * cos) / tile];
 }
 
 function build(scene: Scene, name: string, s: Structure, mapping: Mapping): Mesh {
@@ -224,8 +247,7 @@ function paintFaces(
     let shade: number;
     if (Math.abs(ny) >= Math.abs(nx) && Math.abs(ny) >= Math.abs(nz)) {
       shade = ny > 0 ? SHADE.top : SHADE.bottom;
-      if (worldTop) uvs.push(wx / tile, wz / tile);
-      else uvs.push((wx * cos - wz * sin) / tile, (wx * sin + wz * cos) / tile);
+      uvs.push(...topUv(s, wx, wz, { tile, worldTop }));
     } else {
       shade = Math.abs(nx) >= Math.abs(nz) ? SHADE.sideX : SHADE.sideZ;
       // The face's normal in the world, turned a quarter about the vertical: along the face.
