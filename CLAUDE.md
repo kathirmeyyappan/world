@@ -456,9 +456,9 @@ Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its
 its step sounds and its limbs alike, what a footfall sounds like (the thuds, a bar of its own
 sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer's. Ask for each
 when adding one. What it says in its own voice is a row in `VOICES` (`audio/voices.ts`): its sound
-for a jump in the swoosh's place, the takes it picks from on a long jump, and the takes it cries
-out with at a hit, heard by everyone near (`Game.cry`, no more often than `CRY_GAP_MS`; its own
-player hears it in the hurt sound's place).
+for a jump in the swoosh's place, and the takes it picks from on a long jump, at a hit (heard by
+everyone near, no more often than `CRY_GAP_MS`; its own player hears it in the hurt sound's
+place), a moment after a kill, and when a player switches to it (`Game.say`).
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,

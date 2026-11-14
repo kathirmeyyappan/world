@@ -57,6 +57,12 @@ export type SoundId =
   | 'mario-hurt-3'
   | 'luigi-hurt-1'
   | 'luigi-hurt-2'
+  | 'luigi-kill-1'
+  | 'luigi-kill-2'
+  | 'mario-kill-1'
+  | 'mario-kill-2'
+  | 'mario-enter'
+  | 'luigi-enter'
   | 'land'
   | 'land-hard'
   | 'hurt'
@@ -131,6 +137,12 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.11 },
   'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.11 },
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.11 },
+  'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.1 },
+  'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.1 },
+  'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.1 },
+  'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.1 },
+  'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.1 },
+  'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.1 },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing

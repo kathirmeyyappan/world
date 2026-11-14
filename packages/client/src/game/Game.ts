@@ -121,6 +121,7 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 // A roar comes back off the world: the same again, this much later and this much quieter.
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
+const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this: the longest lasts 0.4 s
 // Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
 // so two at a like distance don't trade it back and forth.
@@ -153,6 +154,7 @@ export class Game {
   private aim = { yaw: 0, pitch: 0 }; // the look sent this frame: the camera's, or in third person the eyes' at the crosshair's target
   private ownAvatar: Avatar | null = null; // the player's own body, drawn in third person
   private classId: PlayerClass | null = null; // the class the player was last seen as
+  private look: AvatarId | null = null; // the avatar the player was last seen as
   private wearing: string | null = null; // the avatar and item the player was last seen with, for dropping the scope
   private heldFace: { piece: number; side: 1 | -1; way: 1 | -1 } | null = null; // the ladder face the player was last seen holding
   private swing = 0; // radians the camera has still to turn after a swap round a ladder
@@ -598,6 +600,7 @@ export class Game {
         this.hud.announceKill(m.shooter, m.victim, m.item, m.headshot);
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) this.die(`shot by ${this.hud.playerName(m.shooter)}`);
+        this.say(m.shooter, 'kill', GLOAT_DELAY);
         return;
       case 'fell':
         this.hud.announceFall(m.victim);
@@ -648,13 +651,12 @@ export class Game {
   }): void {
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
-      if (!this.cry(m.victim, this.prediction?.state.avatar, null)) this.sfx.play('hurt');
+      if (!this.cry(m.victim)) this.sfx.play('hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
-      const avatar = this.avatars.get(m.victim);
-      avatar?.flash();
-      this.cry(m.victim, avatar?.kind, this.headOf(m.victim));
+      this.avatars.get(m.victim)?.flash();
+      this.cry(m.victim);
     }
     if (m.shooter === this.myId) {
       this.hud.hitMarker();
@@ -662,15 +664,24 @@ export class Game {
     }
   }
 
-  // A hit's cry in the victim's own voice (voices.ts), from `at` or, with no spot, the local
-  // player's own: false if that look has none, or its last cry is still sounding (a spray lands
-  // many hits a second).
-  private cry(id: string, avatar: AvatarId | undefined, at: Vec3 | null): boolean {
-    const line = avatar && take(VOICES[avatar]?.hurt);
+  // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
+  // their head is, or the local player's own, from nowhere. False if their look has no such line.
+  private say(id: string, line: 'hurt' | 'kill' | 'enter', delay = 0): boolean {
+    const mine = id === this.myId;
+    const avatar = mine ? this.prediction?.state.avatar : this.avatars.get(id)?.kind;
+    const sound = avatar && take(VOICES[avatar]?.[line]);
+    const at = mine ? null : this.headOf(id);
+    if (!sound || (!mine && !at)) return false;
+    return this.sfx.play(sound, at, { delay });
+  }
+
+  // A player's cry at a hit. False if their look has none, or their last is still sounding (a
+  // spray lands many hits a second).
+  private cry(id: string): boolean {
     const now = performance.now();
-    if (!line || now - (this.criedOut.get(id) ?? -Infinity) < CRY_GAP_MS) return false;
+    if (now - (this.criedOut.get(id) ?? -Infinity) < CRY_GAP_MS || !this.say(id, 'hurt')) return false;
     this.criedOut.set(id, now);
-    return this.sfx.play(line, at);
+    return true;
   }
 
   // This tick's tap shots, each played where its shooter stands. One that passed close to the
@@ -771,6 +782,10 @@ export class Game {
       this.mobile.setClass(cls);
       this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
+    }
+    if (self.avatar !== this.look) {
+      if (this.look) this.say(this.myId, 'enter');
+      this.look = self.avatar;
     }
     // A new look or a new item in hand takes the scope with it, as death does.
     const wearing = `${self.avatar} ${self.item?.id ?? ''}`;
@@ -889,13 +904,15 @@ export class Game {
       seen.add(rp.id);
       let avatar = this.avatars.get(rp.id);
       // A new look, or a new colour on the figure that wears it, is a new avatar.
-      if (avatar && (avatar.kind !== rp.avatar || (avatar.color !== undefined && avatar.color !== rp.color))) {
+      const was = avatar?.kind;
+      if (avatar && (was !== rp.avatar || (avatar.color !== undefined && avatar.color !== rp.color))) {
         avatar.dispose();
         avatar = undefined;
       }
       if (!avatar) {
         avatar = createAvatar(this.engine, rp);
         this.avatars.set(rp.id, avatar);
+        if (was && was !== rp.avatar) this.say(rp.id, 'enter');
       }
       avatar.update(rp, this.footsteps.phase(rp.id));
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
