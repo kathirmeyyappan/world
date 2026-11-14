@@ -17,9 +17,7 @@ const RINGS = 48; // rings of vertices from the middle out to the rim
 const SEGMENTS = 128; // vertices round each ring
 const WAVELENGTH = 5; // metres between crests
 const SPEED = 7; // m/s the crests run outward
-const HEIGHT = 0.3; // metres a crest stands at the body's edge, at full strength
 const SHARPNESS = 2.5; // how narrow a crest is: the top of a cosine to this power
-const HEAVE = 0.4; // metres the ground is heaved up round the body where it breaks through
 const HEAVE_WIDTH = 1.6; // metres out from the body's edge the heave spreads
 const LIFT = 0.004; // metres the level patch stands over the surface, in front of it, painting the same pixels
 const SAME = 0.02; // metres: a spot whose ground is within this of the middle's is on the same surface
@@ -28,6 +26,8 @@ const STEP = 0.4; // metres over the surface its ground is read from at a spot
 export interface RippleLook {
   across: number; // metres
   fade: number; // seconds to open or shut
+  height: number; // metres a crest stands at the body's edge, at full strength
+  heave: number; // metres the ground is heaved up round the body where it breaks through
   glow: Color3; // what it glows, added to the surface: in a pool brightest round the body, and on the crests
 }
 
@@ -87,7 +87,7 @@ class Patch {
     private readonly z: number,
     private readonly y: number,
     private readonly weight: Float32Array,
-    private readonly glow: Color3,
+    private readonly look: RippleLook,
     floor: boolean,
   ) {
     const n = weight.length;
@@ -155,11 +155,11 @@ class Patch {
     // Its bounds stand as tall as it ever bends, so it isn't culled while a crest is in view.
     mesh.buildBoundingInfo(
       new Vector3(x - radius, y, z - radius),
-      new Vector3(x + radius, y + LIFT + HEAVE + HEIGHT, z + radius),
+      new Vector3(x + radius, y + LIFT + look.heave + look.height, z + radius),
     );
     let material: Material;
     let release: () => void;
-    const ground = env && env.rippleGround(x, z, radius, y + LIFT, HEIGHT, look.glow);
+    const ground = env && env.rippleGround(x, z, radius, y + LIFT, look.height, look.glow);
     if (env && ground) {
       material = ground;
       release = () => env.releaseGround(ground);
@@ -168,7 +168,7 @@ class Patch {
       release = () => {};
     }
     mesh.material = material;
-    return new Patch(mesh, ground, release, x, z, y, weight, look.glow, !piece);
+    return new Patch(mesh, ground, release, x, z, y, weight, look, !piece);
   }
 
   // The rings `time` seconds after opening, at `strength` (0 to 1) of their full height, round a
@@ -176,11 +176,11 @@ class Patch {
   bend(time: number, strength: number, hole: number, radius: number): void {
     const height = (r: number) => {
       const d = Math.max(0, r - hole); // metres out from the body's edge
-      const heave = HEAVE * Math.exp(-((d / HEAVE_WIDTH) ** 2));
+      const heave = this.look.heave * Math.exp(-((d / HEAVE_WIDTH) ** 2));
       const crest = (0.5 + 0.5 * Math.cos((2 * Math.PI * (d - SPEED * time)) / WAVELENGTH)) ** SHARPNESS;
       const reached = Math.max(0, Math.min(1, (SPEED * time - d) / WAVELENGTH)); // the front grows in
       const fade = Math.max(0, 1 - d / Math.max(1e-6, radius - hole));
-      return strength * (heave + HEIGHT * fade * reached * crest);
+      return strength * (heave + this.look.height * fade * reached * crest);
     };
     const step = radius / RINGS / 2;
     for (let i = 0; i <= RINGS; i++) {
@@ -206,8 +206,11 @@ class Patch {
       this.normals.set([normal.x, normal.y, normal.z], k * 3);
       if (this.colors) {
         const shade = reliefShade(normal);
-        const lit = reliefLight(r / radius, Math.min(1, h / HEIGHT), strength);
-        this.colors.set([shade + this.glow.r * lit, shade + this.glow.g * lit, shade + this.glow.b * lit, 1], k * 4);
+        const lit = reliefLight(r / radius, Math.min(1, h / this.look.height), strength);
+        this.colors.set(
+          [shade + this.look.glow.r * lit, shade + this.look.glow.g * lit, shade + this.look.glow.b * lit, 1],
+          k * 4,
+        );
       }
     }
     this.mesh.updateVerticesData(VertexBuffer.PositionKind, this.positions);

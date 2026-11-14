@@ -95,7 +95,8 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
   // in rings, glowing white and barely gold.
   'light-dragon': {
     model: once(() => import('./dragonModel').then((m) => m.DRAGON_MODEL)),
-    rise: (engine, name, hole) => new GroundRipple(engine, name, hole, { across: 40, fade: 0.6, glow: GOLD }),
+    rise: (engine, name, hole) =>
+      new GroundRipple(engine, name, hole, { across: 40, fade: 0.6, height: 0.5, heave: 0.65, glow: GOLD }),
     wave: { size: 0.375, length: 13.1, seconds: 2.6, from: 7.5 },
     glow: false,
     mouth: 0.7,
@@ -104,7 +105,7 @@ export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
   // through a storm.
   colgera: {
     model: once(() => import('./colgeraModel').then((m) => m.COLGERA_MODEL)),
-    rise: (engine, name, hole) => new Storm(engine, name, hole),
+    rise: (engine, name) => new Storm(engine, name),
     wave: { size: 0.3, length: 14, seconds: 3.2, from: 4 },
     glow: true, // its eyes, the crystals and the veins through the ice
     mouth: 1.8, // between the mandibles
