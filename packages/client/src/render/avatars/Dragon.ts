@@ -9,7 +9,7 @@
 // rider's key, and as it rises out of the ground, through whatever its skin rises through, open
 // until the whole of it is out. A weak point the sim says is shattered loses its pieces here in a
 // burst of shards. What shots have to hit is the class's (sim/dragon.ts), not anything drawn here.
-import { Bone, Matrix, Mesh, Quaternion, Skeleton, TransformNode, Vector3, VertexData } from '@babylonjs/core';
+import { Bone, Matrix, Mesh, Plane, Quaternion, Skeleton, TransformNode, Vector3, VertexData } from '@babylonjs/core';
 import {
   AVATARS,
   ITEMS,
@@ -50,6 +50,7 @@ const JAW_EASE = 0.15;
 // MIN_ALTITUDE: a wing reaches 7.7 m from a shoulder 0.64 m under the spine, at size 1.
 const FLAP_LIFT = 0.45;
 const FLAP_SECONDS = 1.6;
+const CLEAR = 1e6; // metres down a plane is put to clip nothing
 const FLAP_SPREAD = 0.7;
 // The breath: how many times a hand weapon's particles, how many times their size, how much a
 // flame's keep to the middle of the cone, and seconds it keeps pouring after the last tick that
@@ -85,6 +86,10 @@ export class DragonAvatar implements Avatar {
   private disposed = false;
   private dead = false;
   private readonly at = new Vector3();
+  // What of the body is still down in the ground it's rising out of, kept from being drawn: on the
+  // floor the floor hides it, but a deck or a roof is a slab with air under it. Set on the skin's
+  // materials for good and moved out of the way once it's risen, so the shaders never change.
+  private readonly ground = new Plane(0, -1, 0, -CLEAR);
   private readonly phase: number; // where in the wave this one starts, so no two move in step
   private lastNow = performance.now();
 
@@ -112,7 +117,7 @@ export class DragonAvatar implements Avatar {
             width: look.mouth * dragonShape(kind).size,
           })
         : null;
-    this.rise = look.rise(engine, `dragon-${id}-rise`);
+    this.rise = look.rise(engine, `dragon-${id}-rise`, dragonShape(kind).headRadius);
     void look.model().then((m) => this.build(engine, m));
   }
 
@@ -160,6 +165,7 @@ export class DragonAvatar implements Avatar {
     // The ice over a hollow: the same skin, seen through.
     const ice = material.clone(`dragon-${this.id}-ice`);
     ice.alpha = ICE_ALPHA;
+    material.clipPlane = ice.clipPlane = this.ground;
     this.hitFlash = new HitFlash([material, ice]);
     const mesh = (name: string, data: MeshData, skin = material) => {
       const mesh = new Mesh(`dragon-${this.id}-${name}`, scene);
@@ -217,12 +223,10 @@ export class DragonAvatar implements Avatar {
     }
     if (!p.dead && p.firing && p.item !== null && p.item === this.breath) this.breathUntil = now + BREATH_HOLD * 1000;
     const breathing = now < this.breathUntil;
-    this.rise.update(
-      this.at,
-      WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y),
-      !!d && !d.risen && !this.dead,
-      dt,
-    );
+    const rising = !!d && !d.risen && !this.dead;
+    const ground = WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y);
+    this.rise.update(this.at, ground, rising, dt);
+    this.ground.d = rising ? ground : -CLEAR; // a plane (0, -1, 0, d) clips everything under y = d
     if (d) this.shatter(p, d);
     if (this.model) this.pose(this.model, p, now, dt, breathing);
     this.jet?.set(breathing);

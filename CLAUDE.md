@@ -477,9 +477,12 @@ A new look in a class is a row in `AVATARS` (with `item` for one that comes with
 `regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu, `life` for a
 life of its own), and for a dragon its shape there and a row in the client's `DRAGONS`
 (`render/avatars/dragons.ts`): the model it's drawn from, what it rises out of the ground through
-(the light dragon's portal of gold light, `render/Portal.ts`; Colgera's storm, `render/Storm.ts`,
-a wide white pool lit blue at its rim, crawling with static and rippling outward like the portal,
-with a gale of grey and white "+"s and white fog whirling over it), and
+(the ground itself rippling out from the body in rings, `render/GroundRipple.ts`: a patch of the
+floor or of the structure's top it comes up through, drawn with that surface's own look so only the
+bending shows, glowing as a pool round the body and a little more on the crests, white and barely
+gold for the light dragon; Colgera's storm, `render/Storm.ts`, the same glowing white lit blue, with a gale of grey and white "+"s and white fog whirling over
+it; and what of the body is still under that surface is clipped, so a deck or a roof hides it as
+the floor does), and
 the wave down its body (`Wave`, in metres of body: the spine's points ride it, so a body of rigid
 pieces tilts along it joint by joint and a skinned one bends); with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars by action and
 the cry it rises with, each a `Call` with a take heard up close and, where the rip has one, a take
@@ -557,7 +560,7 @@ renderer (`ui/MapCanvas.ts`, which draws a `MinimapFrame` onto any canvas at the
 HUD's `Minimap` is a panel round one, and keeps the view and the latest frame for the menu's),
 with the same toggle (P too), a wheel or a pinch to zoom it and a drag to slide it; on touch,
 where the HUD has no minimap, it's the only map. A texture a renderer draws once and shares (the
-shadow, a portal's light, a storm's fog) is made per scene (`render/perScene.ts`), since a second
+shadow, a storm's fog) is made per scene (`render/perScene.ts`), since a second
 scene can't use the first's.
 
 The commands card (C, or the CMDS button, `ui/CommandsMenu.ts`) is every command as a button, on

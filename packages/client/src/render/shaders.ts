@@ -27,6 +27,28 @@ vec3 skyColor(vec3 dir) {
 }
 `;
 
+// How bright a surface bent out of the level is, from its normal: 1 level, darker as it tips, and
+// lighter on the slopes facing RELIEF_LIGHT than on those facing away, so a ridge reads as one.
+// GroundRipple.ts shades a structure's top the same way on the CPU (reliefShade there).
+export const RELIEF_LIGHT = { x: 0.6, z: -0.8 }; // level, unit length
+export const RELIEF_TILT = 0.9; // darkening from level to a slope of 45 degrees, about
+export const RELIEF_SIDE = 0.9; // the difference between a slope facing the light and one facing away
+// How much of a ripple's glow it shines with (reliefLight): RELIEF_POOL in the middle, falling off
+// to nothing at the rim as (1 - out)^RELIEF_FALLOFF with `out` its share of the radius, and
+// RELIEF_CREST more at a crest's full height.
+export const RELIEF_POOL = 0.8;
+export const RELIEF_FALLOFF = 1.4;
+export const RELIEF_CREST = 0.3;
+const RELIEF_SHADE = `
+float reliefLight(float out_, float crest, float strength) {
+  return strength * ${RELIEF_POOL.toFixed(2)} * pow(max(0.0, 1.0 - out_), ${RELIEF_FALLOFF.toFixed(2)}) + ${RELIEF_CREST.toFixed(2)} * crest;
+}
+
+float reliefShade(vec3 n) {
+  return max(0.0, 1.0 - ${RELIEF_TILT.toFixed(2)} * (1.0 - n.y) + ${RELIEF_SIDE.toFixed(2)} * dot(n.xz, vec2(${RELIEF_LIGHT.x.toFixed(2)}, ${RELIEF_LIGHT.z.toFixed(2)})));
+}
+`;
+
 export const GROUND_VERTEX = `
 precision highp float;
 attribute vec3 position;
@@ -122,6 +144,17 @@ uniform vec3 floorColor;
 uniform vec3 fogColor;
 uniform float fogScale; // 1 normally, small while scoped so the far end is visible
 uniform float time;
+// A patch of the floor bent into ripples (render/GroundRipple.ts): shaded by its slope, as if lit
+// low from one side, and glowing reliefGlow as a pool round reliefCentre (at reliefStrength,
+// brightest in the middle and gone at reliefRadius) and a little more on its crests, reliefHeight
+// over reliefBase. 0 everywhere else, where the floor is flat.
+uniform float relief;
+uniform float reliefBase;
+uniform float reliefHeight;
+uniform vec3 reliefGlow;
+uniform vec2 reliefCentre;
+uniform float reliefRadius;
+uniform float reliefStrength;
 ${WORLD_SDF}
 ${SKY_GRADIENT}
 
@@ -151,6 +184,8 @@ float surfaceGridLine(vec3 w, vec3 normal, float spacing, float width) {
   vec3 n = abs(normalize(normal));
   return n.y >= max(n.x, n.z) ? max(gx, gz) : n.x >= n.z ? max(gz, gy) : max(gx, gy);
 }
+
+${RELIEF_SHADE}
 
 void main() {
   vec2 p = vWorld.xz;
@@ -186,6 +221,13 @@ void main() {
   float outside = side > 1.5 ? 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
   col = mix(col, lineColor * 0.45, rim);
+  if (relief > 0.5) {
+    vec3 n = normalize(vNormal);
+    col *= reliefShade(n);
+    float out_ = length(vWorld.xz - reliefCentre) / reliefRadius;
+    float crest = clamp((vWorld.y - reliefBase) / reliefHeight, 0.0, 1.0);
+    col += reliefGlow * reliefLight(out_, crest, reliefStrength);
+  }
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
   gl_FragColor = vec4(col, 1.0);
