@@ -30,7 +30,7 @@ export const BUILDINGS: Structure[] = KEEPS.flatMap((k) => k?.structures ?? PINE
 export const BUILDING_FOOTPRINTS: Disc[] = KEEPS.map((k) => k?.footprint ?? PINEAPPLE_FOOTPRINT);
 // What a keep standing a tower floor is called, by the floor: the ground floor's, with the Spotify
 // widget, and the first floor's, with the anime list (content/towerFrames.ts).
-const ROOM_NAMES: Partial<Record<number, string>> = { 0: 'WELCOME ROOM', 1: 'DIRE SANCTUARY' };
+const ROOM_NAMES: Partial<Record<number, string>> = { 0: 'WELCOME BUILDING', 1: 'ANIME BUILDING' };
 // Each building's name, Building 1 first, as the area title shows it on its grounds.
 export const BUILDING_NAMES: string[] = BUILDING_PLAN.map((plan, n) =>
   plan === 'house' ? "SPONGEBOB'S HOUSE" : (typeof plan === 'number' && ROOM_NAMES[plan]) || `BUILDING ${n + 1}`,

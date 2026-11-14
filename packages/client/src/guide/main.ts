@@ -139,7 +139,7 @@ function items(): Section[] {
   ];
 }
 
-// A name as the game shouts it ("DIRE SANCTUARY") in the guide's case ("Dire Sanctuary").
+// A name as the game shouts it ("ANIME BUILDING") in the guide's case ("Anime Building").
 function titleCase(name: string): string {
   return name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -289,8 +289,8 @@ function placeStats(place: Place): Stat[] {
         { label: 'Height', value: `${num(KRUSTY_KRAB_PROFILE.size.h)} m` },
         { label: 'Hearts', value: `${heartsIn([KRUSTY_KRAB_FLOOR])}` },
       ];
-    case 'welcome':
-    case 'sanctuary':
+    case 'welcome-building':
+    case 'anime-building':
     case 'building4': {
       const ground = BUILDING_GROUNDS[place.building ?? 0];
       const levels = BUILDING_LEVELS.filter((r) => Math.hypot(r.x - ground.x, r.z - ground.z) < 1);

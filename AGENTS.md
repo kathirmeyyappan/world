@@ -378,7 +378,7 @@ wire: server and client both build the world from that file.
   2 to 4 (`content/buildings.ts`) are all one round keep (`content/keep.ts`): a layout of four
   floors (each one's doors and where its flight starts), stacked from the ground and turned to face
   the way in. The tower stacks all four and a building stands one of them alone (Building 2, the
-  Welcome Room, the ground floor with the Spotify widget; Building 3, the Dire Sanctuary, the first
+  Welcome Building, the ground floor with the Spotify widget; Building 3, the Anime Building, the first
   with the anime list; each named in `BUILDING_NAMES` by its floor), so a floor is the same room in both, stair and murals alike;
   change a floor there and both follow. Building 4 stands a bare keep until it gets a structure of
   its own.
