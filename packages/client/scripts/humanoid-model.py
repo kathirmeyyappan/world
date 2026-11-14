@@ -1,23 +1,25 @@
-"""Builds render/avatars/<name>Model.ts and the avatar's texture from a Mario Kart 8 racer's rip
-(Mystie's, at the Models Resource), unpacked into a folder:
+"""Builds render/avatars/<name>Model.ts and the avatar's texture for a humanoid (render/avatars/
+Humanoid.ts) from a rip of the character's model, unpacked into a folder:
 
     pip install numpy pillow fast_simplification
-    python packages/client/scripts/kart-model.py mario path/to/Mario
-    python packages/client/scripts/kart-model.py luigi path/to/Luigi
+    python packages/client/scripts/humanoid-model.py mario path/to/Mario
+    python packages/client/scripts/humanoid-model.py luigi path/to/Luigi
 
-Each rip is the game's own model in Collada (<name>.dae): a body and a face skinned over one rig of
-34 joints, the same in every racer (a hip the legs hang from by a knee and a foot, two joints of
-spine, a head with its cap, hair, mouth and mustache, and from a clavicle each side an arm with an
-elbow, a hand, two finger joints and two of thumb), standing in a T-pose with its feet on the
-ground, z up, facing -y, in a unit of its own. The pupils are meshes of their own floating over the
-face, for the game to move; the face's texture has the eyes painted in already, so they are left out.
+A rip is the character's own model in Collada (<name>.dae): a body and a face skinned over a rig of
+34 joints (a hip the legs hang from by a knee and a foot, two joints of spine, a head with its cap,
+hair, mouth and mustache, and from a clavicle each side an arm with an elbow, a hand, two finger
+joints and two of thumb), standing in a T-pose with its feet on the ground, z up, facing -y, in a
+unit of its own. Mario's and Luigi's are on that one rig, joint for joint, and any other rip on it
+goes through as it is; the ones here are Mystie's rips at the Models Resource (CHARACTERS says
+which game each is from). The pupils are meshes of their own floating over the face, for the game
+to move; the face's texture has the eyes painted in already, so they are left out.
 
-This folds the rig onto the humanoid's bones (render/avatars/Humanoid.ts: BONES, every joint a body
-moves on its own walking, running and jumping), each vertex keeping the weights it had on each
-bone's joints so the skin bends at a knee or an elbow, and turns it into the avatar's frame (y up,
-facing +z, x to its right, feet at 0, `height` tall). The body's texture and the face's are packed
-into one atlas. It writes what avatar-model.py writes, in the same layout (render/avatars/skinned.ts
-SkinnedModel), and the reach of a shoe's sole, for standing the feet on the ground.
+This folds the rig onto the humanoid's bones (Humanoid.ts: every joint a body moves on its own
+walking, running and jumping), each vertex keeping the weights it had on each bone's joints so the
+skin bends at a knee or an elbow, and turns it into the avatar's frame (y up, facing +z, x to its
+right, feet at 0, `height` tall). The body's texture and the face's are packed into one atlas. It
+writes what avatar-model.py writes, in the same layout (render/avatars/skinned.ts SkinnedModel), and
+the reach of a shoe's sole, for standing the feet on the ground.
 """
 
 from __future__ import annotations
@@ -66,17 +68,18 @@ BACK_DROP = 0.2  # metres below the shoulders the tank hangs
 
 
 @dataclass(frozen=True)
-class Racer:
+class Character:
     title: str
+    game: str  # the game the rip is of
     height: float  # metres, feet to the top of the cap
     texture_size: int = 512  # px: the body's texture is scaled down to this on its long side
 
 
 # Mario stands as tall as the standard body, and the rest as tall beside him as their models are
 # beside his, to a tenth of a metre.
-RACERS = {
-    "mario": Racer("Mario", 2.0),
-    "luigi": Racer("Luigi", 2.2),
+CHARACTERS = {
+    "mario": Character("Mario", "Mario Kart 8", 2.0),
+    "luigi": Character("Luigi", "Mario Kart 8", 2.2),
 }
 
 
@@ -85,7 +88,7 @@ def floats(node: ET.Element) -> np.ndarray:
 
 
 def main(name: str, folder: str) -> None:
-    racer = RACERS[name]
+    character = CHARACTERS[name]
     rip = Path(folder)
     out = CLIENT / f"src/render/avatars/{name}Model.ts"
     texture_out = CLIENT / f"public/assets/textures/avatars/{name}.png"
@@ -100,7 +103,7 @@ def main(name: str, folder: str) -> None:
         pictures[(effect.get("id") or "").removesuffix("-effect")] = images[first.text] or ""
 
     # Each mesh in the pose it was bound in, with the joints' own places there: the rig's nodes are
-    # left as the game last posed them, sat in a kart, so the bind pose is the one to read.
+    # left as the game last posed them (sat down, in these), so the bind pose is the one to read.
     geometries = {g.get("id"): g for g in doc.iter(f"{NS}geometry")}
     bone_names = [bone for bone, _ in BONES]
     parts = []
@@ -187,7 +190,7 @@ def main(name: str, folder: str) -> None:
     # left-handed frame.
     turn = np.array([[-1.0, 0, 0], [0, 0, 1], [0, -1, 0]])
     feet = posed[:, 2].min()
-    scale = racer.height / (posed[:, 2].max() - feet)
+    scale = character.height / (posed[:, 2].max() - feet)
     origin = np.array([0, pivots["hips"][1], feet])
 
     def avatar(p: np.ndarray) -> np.ndarray:
@@ -220,7 +223,7 @@ def main(name: str, folder: str) -> None:
     sole = np.array([shoe[:, 2].max() - pivots["footR"][2], pivots["footR"][2] - shoe[:, 2].min()])
 
     regions = [
-        textured(Image.open(rip / part["picture"]).convert("RGB"), uv, span, racer.texture_size)
+        textured(Image.open(rip / part["picture"]).convert("RGB"), uv, span, character.texture_size)
         for part, span in zip(parts, spans)
     ]
     atlas, uv = pack_regions(regions, uv)
@@ -232,7 +235,7 @@ def main(name: str, folder: str) -> None:
         return "[" + ", ".join(f"{c + 0.0:.4f}".replace("-0.0000", "0.0000") for c in v) + "]"
 
     lines = [
-        f"// Generated by packages/client/scripts/kart-model.py from Mystie's rip of {racer.title} in Mario Kart 8"
+        f"// Generated by packages/client/scripts/humanoid-model.py from Mystie's rip of {character.title} in {character.game}"
         " (the Models Resource); don't edit.",
         "// One skinned mesh in the avatar's frame (metres: feet at 0, facing +z, x to its right): vertices in",
         "// millimetres (Int16 x, y, z), unit normals (Int8), texture coordinates (Uint16 over 0 to 1, v down the",
@@ -241,7 +244,7 @@ def main(name: str, folder: str) -> None:
         "// `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back,",
         "// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it.",
         f"export const {name.upper()}_MODEL = {{",
-        f"  height: {racer.height},",
+        f"  height: {character.height},",
         f"  hand: {vec(palm)},",
         f"  back: {vec(back)},",
         f"  lie: {lie:.4f},",

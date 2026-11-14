@@ -1,5 +1,5 @@
 // Mario: 2 m of plumber, as tall as the standard body, from Mario Kart 8's model (marioModel.ts,
-// made by scripts/kart-model.py), a humanoid (Humanoid.ts) moved the way Super Mario Odyssey moves
+// made by scripts/humanoid-model.py), a humanoid (Humanoid.ts) moved the way Super Mario Odyssey moves
 // him. He never ambles: at a full walk he is already running, a quick patter of short legs under a
 // big head that stays level, leaning in, fists pumping at his chest; held back he strolls upright
 // with his arms loose; and running flat out he is the same run drawn longer, further over and

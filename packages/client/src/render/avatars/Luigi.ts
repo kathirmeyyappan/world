@@ -1,5 +1,5 @@
 // Luigi: 2.2 m of the taller brother, as Mario Kart 8's model stands beside Mario's (luigiModel.ts,
-// made by scripts/kart-model.py), a humanoid (Humanoid.ts) on Mario's rig. He moves as Mario does
+// made by scripts/humanoid-model.py), a humanoid (Humanoid.ts) on Mario's rig. He moves as Mario does
 // with longer legs and less certainty: a longer, springier stride, arms looser and further from
 // his sides, a little more sway; and in the air his legs scuttle, kicking the whole way up and
 // down, with his arms out to steady him. Worn with /luigi; his hit capsule is AVATARS.luigi.hitbox.

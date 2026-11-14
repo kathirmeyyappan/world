@@ -422,8 +422,8 @@ numbers in the PR.
 A character that should move like itself is a humanoid (`render/avatars/Humanoid.ts`,
 `HumanoidAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
 chest, head, arms with elbows, hands with fingers and a thumb, legs with knees and feet) under a
-model from `scripts/kart-model.py`, which reads a Mario Kart 8 racer's rip (every racer is on the
-one rig, in a T-pose), and a `Style` (`render/avatars/motion.ts`) that is all of its movement as
+model from `scripts/humanoid-model.py`, which reads a rip of the character's own model (Mario's
+and Luigi's are on one rig, in a T-pose), and a `Style` (`render/avatars/motion.ts`) that is all of its movement as
 numbers. A `BodyPose` is every joint: the hips placed and turned, the chest and head turned in the
 body's frame (so a head stays level over a leaning trunk), each arm swung from hanging, bent and its
 hand closed, and each foot put where it should be, the rig bending the leg to reach it (two-bone
@@ -435,7 +435,7 @@ in the air (`rise`, `fall`, a `flutter` for legs that scissor), landing and dead
 is those blended: standing into the stride as it gets going, the stride drawn along the way the
 body is going in its own frame (so it sidesteps and backpedals), into the air and out through the
 landing's crouch. So two characters on one rig differ only by their styles (Luigi's is Mario's,
-drawn for longer legs, with his own air), a new one is a row in the script's `RACERS`, its files
+drawn for longer legs, with his own air), a new one is a row in the script's `CHARACTERS`, its files
 and a style, and a move that is a rule, not a number, is a subclass overriding that phase. Paces
 are shares of the look's walk: 1 is its full walk and `RUN_MULTIPLIER` its run on Shift, so a
 style says what each looks like (Mario's full walk is already his run, and Shift his sprint).

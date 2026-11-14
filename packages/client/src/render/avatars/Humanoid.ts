@@ -1,6 +1,6 @@
 // A walker with a whole skeleton, moved in its own style: a trunk of hips, spine and chest under a
 // head, arms that bend at the elbow and legs that bend at the knee, skinned from a model made by
-// scripts/kart-model.py. Where the walker (Walker.ts) swings every body's limbs by one rule, this
+// scripts/humanoid-model.py. Where the walker (Walker.ts) swings every body's limbs by one rule, this
 // one is posed (motion.ts): each frame is a pose blended from its style's (standing, its stride at
 // the pace it's going, rising, falling, landing), and the rig turns the pose into joint rotations,
 // bending each leg to put its foot where the pose says. So two characters on this rig move as
