@@ -1,84 +1,91 @@
 // Mario: 2 m of plumber, as tall as the standard body, from Mario Kart 8's model (marioModel.ts,
-// made by scripts/jointed-model.py), a jointed body (Jointed.ts) moved the way Super Mario Odyssey moves
-// him. He never ambles: at a full walk he is already running, a quick patter of short legs under a
-// big head that stays level, leaning in, fists pumping at his chest; held back he strolls upright
-// with his arms loose; and running flat out he is the same run drawn longer, further over and
-// lower. He jumps with one fist up and a knee leading, and comes down arms wide. Worn with /mario;
-// his hit capsule is AVATARS.mario.hitbox.
+// made by scripts/jointed-model.py), a jointed body (Jointed.ts) moved the way the 3D Mario games
+// move him. He never jogs: at a full walk he is already running, every step a little leap with
+// both feet off the ground, knees high in front and heels flicked up behind, leaning in, fists
+// pumping from hip to chin; held back he strolls upright with his arms loose; and running flat out
+// he is the same run drawn longer, higher and further over. He jumps with one fist up and a knee
+// leading, and comes down arms wide. Worn with /mario; his hit capsule is AVATARS.mario.hitbox.
 import type { JointedSpec } from './Jointed';
 import { MARIO_MODEL } from './marioModel';
 import { pose, type Stride, type Style } from './motion';
 
 const STROLL: Stride = {
   pace: 0.3,
-  step: 0.15,
+  step: 0.16,
   duty: 0.6,
-  lift: 0.07,
-  kick: 0.02,
+  hop: 0,
+  lift: 0.08,
+  kick: 0.03,
   spread: 0,
-  toe: 0.35,
-  heel: 0.25,
+  toe: 0.4,
+  heel: 0.3,
   crouch: 0.03,
-  bounce: 0.012,
+  bounce: 0.02,
   late: 0,
-  sway: 0.02,
-  roll: 0.03,
-  twist: 0.1,
-  lean: 0.04,
-  counter: 0.08,
-  rock: 0.02,
+  sway: 0.025,
+  roll: 0.04,
+  twist: 0.14,
+  lean: 0.05,
+  counter: 0.12,
+  rock: 0.03,
   nod: 0.3,
-  reach: 0.4,
+  reach: 0.5,
   carry: 0.05,
-  out: 0.35,
-  elbow: 0.4,
-  pump: 0.12,
+  out: 0.4,
+  elbow: 0.5,
+  pump: 0.15,
   tuck: 0.1,
-  grip: 0.3,
+  grip: 0.5,
 };
+// Nothing of a jog in it: knees up to the hips in front, heels flicked up to the seat behind (the
+// soles show from behind), the hips and shoulders twisting hard against each other, elbows out and
+// fists swinging from hip to chin.
 const RUN: Stride = {
   pace: 1,
-  step: 0.24,
-  duty: 0.42,
-  lift: 0.15,
-  kick: 0.1,
-  spread: 0,
-  toe: 0.6,
-  heel: 0.3,
-  crouch: 0.09,
-  bounce: 0.035,
-  late: 0.2,
-  sway: 0.012,
-  roll: 0.04,
-  twist: 0.18,
-  lean: 0.2,
-  counter: 0.22,
-  rock: 0,
-  nod: 0.3,
-  reach: 0.85,
-  carry: 0.05,
-  out: 0.38,
-  elbow: 1.35,
+  step: 0.3,
+  duty: 0.27,
+  hop: 0.14,
+  lift: 0.2,
+  kick: 0.3,
+  spread: 0.01,
+  toe: 0.8,
+  heel: 0.35,
+  crouch: 0.1,
+  bounce: 0.06,
+  late: 0.3,
+  sway: 0.02,
+  roll: 0.06,
+  twist: 0.3,
+  lean: 0.3,
+  counter: 0.35,
+  rock: 0.04,
+  nod: 0.35,
+  reach: 1.05,
+  carry: 0.15,
+  out: 0.55,
+  elbow: 1.6,
   pump: 0.3,
-  tuck: 0.1,
+  tuck: 0.2,
   grip: 1,
 };
 const SPRINT: Stride = {
   ...RUN,
   pace: 1.6,
-  step: 0.29,
-  duty: 0.36,
-  lift: 0.19,
-  kick: 0.16,
-  toe: 0.75,
-  crouch: 0.11,
-  bounce: 0.045,
-  twist: 0.22,
-  lean: 0.36,
-  counter: 0.28,
-  reach: 1.05,
-  carry: 0.05,
-  elbow: 1.45,
+  step: 0.34,
+  duty: 0.22,
+  hop: 0.2,
+  lift: 0.22,
+  kick: 0.36,
+  toe: 0.9,
+  crouch: 0.12,
+  bounce: 0.07,
+  twist: 0.36,
+  lean: 0.48,
+  counter: 0.42,
+  reach: 1.25,
+  carry: 0.1,
+  out: 0.6,
+  elbow: 1.65,
 };
 
 export const MARIO_STYLE: Style = {
@@ -131,6 +138,7 @@ export const MARIO_STYLE: Style = {
     footR: { x: 0.1, yaw: 0.5 },
   }),
   follow: 0.5,
+  bank: 0.06,
 };
 
 export const MARIO: JointedSpec = { kind: 'mario', model: MARIO_MODEL, style: MARIO_STYLE, shadow: 1.2 };

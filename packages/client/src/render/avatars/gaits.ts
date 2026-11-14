@@ -32,9 +32,9 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   // A side's two tentacles plop down together, a lighter higher plop then a heavier lower one, 1.7
   // times a second at his full 6 m/s walk: an unhurried amble.
   squidward: { stride: 3.5, steps: { bar: ['suction-1', 'suction-2', 'suction-3', 'suction-4'] }, pitch: 1 },
-  // Quick short steps: over five a second at a full walk, and longer ones running, as Odyssey has them.
-  mario: { stride: 1.5, runStride: 2, steps: 'thuds', pitch: 1.05, jump: 'mario-jump' },
-  luigi: { stride: 1.7, runStride: 2.3, steps: 'thuds', pitch: 1, jump: 'mario-jump' },
+  // Each step a little leap: under five a second at a full walk, and longer ones running.
+  mario: { stride: 1.7, runStride: 2.4, steps: 'thuds', pitch: 1.05, jump: 'mario-jump' },
+  luigi: { stride: 1.9, runStride: 2.7, steps: 'thuds', pitch: 1, jump: 'mario-jump' },
   'light-dragon': null,
   colgera: null,
 };
