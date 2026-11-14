@@ -36,6 +36,7 @@ import { MapCanvas } from '../ui/MapCanvas';
 import { MapControls } from '../ui/mapControls';
 import { commandGroups } from '../ui/commands';
 import {
+  ABILITIES,
   BOT_EXAMPLES,
   BOT_FLAG_TEXT,
   BOT_DIAGRAM_TEXT,
@@ -55,7 +56,17 @@ import {
 } from './content';
 import { botDiagram } from './botDiagrams';
 import { cubeThing, gearThing, itemThing, pickupThing } from './things';
-import { botFlagRows, characterStats, gearStats, itemStats, num, pickupStats, speedyStats, type Stat } from './stats';
+import {
+  abilityStats,
+  botFlagRows,
+  characterStats,
+  gearStats,
+  itemStats,
+  num,
+  pickupStats,
+  speedyStats,
+  type Stat,
+} from './stats';
 
 const COLOR = '#ff7043'; // the standard body's paint in the views
 
@@ -65,6 +76,7 @@ interface Pick {
   id: string;
   entry: Entry;
   stats: () => Stat[];
+  abilities?: () => { entry: Entry; stats: Stat[] }[]; // what it can do that the rest can't, each under its own heading
   view: { body: Shown } | { thing: Thing } | null;
 }
 
@@ -84,6 +96,7 @@ function characters(): Section[] {
     id,
     entry: CHARACTERS[id],
     stats: () => characterStats(id),
+    abilities: () => abilityStats(id).map((a) => ({ entry: ABILITIES[a.id], stats: a.stats })),
     view: { body: shown(id) },
   });
   return [
@@ -252,6 +265,11 @@ class Catalog {
       el('h2', '', entry.title),
       ...(entry.summary ? [el('p', 'summary', entry.summary)] : []),
       statTable(pick.stats()),
+      ...(pick.abilities?.() ?? []).flatMap((a) => [
+        el('h3', '', `Special ability: ${a.entry.title}`),
+        el('p', 'summary', a.entry.summary),
+        statTable(a.stats),
+      ]),
       ...facts(entry.facts),
     );
     this.view.resize();

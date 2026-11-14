@@ -30,7 +30,8 @@ export const MAX_PITCH = Math.PI / 2 - 0.1;
 // Running (the `run` action, held): the walk this many times as fast, except down a scope.
 export const RUN_MULTIPLIER = 1.6;
 
-// /speedy: temporary movement multiplier, counted down by the sim so prediction matches.
+// /speedy: temporary movement multiplier, counted down by the sim so prediction matches. A boosted
+// walk gains nothing by running: the faster of the two multipliers applies, never both.
 export const SPEEDY_MULTIPLIER = 1.6;
 export const SPEEDY_SECONDS = 20;
 

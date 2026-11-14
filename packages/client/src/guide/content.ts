@@ -3,6 +3,7 @@
 // stats.ts. The tables are keyed by the registries' ids, so a new skin or item doesn't build until
 // it has an entry. `facts` are shown under a thing's numbers when there are any.
 import type { AvatarId, BotFlag, BotId, GearId, ItemId, PickupKind } from '@world/shared';
+import type { AbilityId } from './stats';
 
 export interface Entry {
   title: string;
@@ -39,20 +40,25 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
 
 const plain = (title: string, summary: string): Entry => ({ title, summary, facts: [] });
 
+// A character's special abilities (stats.ts `abilityStats`): what each is.
+export const ABILITIES: Record<AbilityId, Entry> = {
+  leap: plain('Long jump', 'A jump while running goes low and far, with little steering until it lands.'),
+};
+
 export const CHARACTERS: Record<AvatarId, Entry> = {
   standard: plain('Standard', 'The default skin.'),
   elizabeth: plain('Elizabeth', 'Elizabeth from Gintama.'),
   sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
-  sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),
-  mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
+  mario: plain('Mario', 'Italian plumber.'),
+  luigi: plain('Luigi', 'The green goat.'),
   spongebob: plain('SpongeBob SquarePants', 'The one and only SpongeBob SquarePants.'),
   patrick: plain('Patrick Star', 'SpongeBob’s best friend. Is mayonnaise an instrument?'),
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),
   squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
   plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
-  mario: plain('Mario', 'Mario from Super Mario.'),
-  luigi: plain('Luigi', 'Luigi, Mario’s brother.'),
+  mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
+  sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),
   'light-dragon': plain('Light Dragon', 'The Light Dragon from Tears of the Kingdom.'),
   colgera: plain(
     'Colgera',

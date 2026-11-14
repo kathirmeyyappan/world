@@ -14,16 +14,16 @@ export type AvatarId =
   | 'standard'
   | 'elizabeth'
   | 'sahur'
-  | 'sulley'
-  | 'mike'
+  | 'mario'
+  | 'luigi'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
   | 'squidward'
   | 'gary'
   | 'plankton'
-  | 'mario'
-  | 'luigi'
+  | 'mike'
+  | 'sulley'
   | 'light-dragon'
   | 'colgera';
 
@@ -58,6 +58,16 @@ interface Look {
 interface Moves {
   walk: number;
   jump: number;
+  leap?: Leap;
+}
+
+// A long jump: what a jump taken at a run is, for a look that has one (walker.ts). It goes low and
+// far, and floats: half the rise comes from gravity pulling on it less until it lands.
+export interface Leap {
+  rise: number; // the share of its jump's height it rises
+  speed: number; // the share of its run it flies at
+  float: number; // the share of gravity that pulls on it in the air
+  grip: number; // m/s² the keys have on its flight
 }
 
 // A look is of a class (classes.ts), and brings what its class's sim needs of it: a walker how it
@@ -105,29 +115,31 @@ const LOOKS = {
     walk: 8,
     jump: 1,
   },
-  sulley: {
-    id: 'sulley',
+  mario: {
+    id: 'mario',
     class: 'walker',
     item: null,
     regen: false,
-    blurb: 'become sulley from monsters, inc.',
-    command: 'sulley',
-    eye: 2.35,
-    hitbox: { top: 2.6, radius: 0.72, head: 0.75 }, // the torso is 1.25 m across; the head sits on the shoulders, chin at 1.6 m
+    blurb: 'become mario',
+    command: 'mario',
+    eye: 1.56,
+    hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
     walk: 8,
-    jump: 1.2,
+    jump: 1.35,
+    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
   },
-  mike: {
-    id: 'mike',
+  luigi: {
+    id: 'luigi',
     class: 'walker',
     item: null,
     regen: false,
-    blurb: 'become mike wazowski from monsters, inc.',
-    command: 'mike',
-    eye: 1.08,
-    hitbox: { top: 1.4, radius: 0.5, head: 0.5 }, // a 0.9 m ball that is all head: the eye is 1.07 m up
+    blurb: 'become luigi',
+    command: 'luigi',
+    eye: 1.74,
+    hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
     walk: 8,
-    jump: 1,
+    jump: 1.55,
+    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
   },
   spongebob: {
     id: 'spongebob',
@@ -201,29 +213,29 @@ const LOOKS = {
     walk: 3.5,
     jump: 1,
   },
-  mario: {
-    id: 'mario',
+  mike: {
+    id: 'mike',
     class: 'walker',
     item: null,
     regen: false,
-    blurb: 'become mario',
-    command: 'mario',
-    eye: 1.56,
-    hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
+    blurb: 'become mike wazowski from monsters, inc.',
+    command: 'mike',
+    eye: 1.08,
+    hitbox: { top: 1.4, radius: 0.5, head: 0.5 }, // a 0.9 m ball that is all head: the eye is 1.07 m up
+    walk: 8,
+    jump: 1,
+  },
+  sulley: {
+    id: 'sulley',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become sulley from monsters, inc.',
+    command: 'sulley',
+    eye: 2.35,
+    hitbox: { top: 2.6, radius: 0.72, head: 0.75 }, // the torso is 1.25 m across; the head sits on the shoulders, chin at 1.6 m
     walk: 8,
     jump: 1.2,
-  },
-  luigi: {
-    id: 'luigi',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become luigi',
-    command: 'luigi',
-    eye: 1.74,
-    hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
-    walk: 8,
-    jump: 1.5,
   },
   'light-dragon': {
     id: 'light-dragon',
@@ -327,6 +339,12 @@ export function walkSpeedOf(avatar: AvatarId): number {
 export function jumpVelocityOf(avatar: AvatarId): number {
   const look = AVATARS[avatar];
   return Math.sqrt(2 * GRAVITY * JUMP_RISE * (look.class === 'walker' ? look.jump : 1));
+}
+
+// A look's long jump, if it has one.
+export function leapOf(avatar: AvatarId): Leap | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.leap) || null;
 }
 
 // How fast a look climbs a ladder, m/s, along the rails.

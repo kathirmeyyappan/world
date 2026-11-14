@@ -77,20 +77,23 @@ A_POSE = "14 - A pose"
 
 @dataclass(frozen=True)
 class Clip:
-    source: str  # the animation's name in the file
-    first: int  # its frames of the source's, first to last
+    source: str | tuple[str, ...]  # the animation's name in the file, or several played end to end
+    first: int  # its frames of each source's, first to last
     last: int
     every: int = 1  # every how many of them are kept
     stride: bool = False  # a walk's cycle: turned round to start as the right foot comes down
 
 
 CLIPS = {
-    "idle": Clip("197 - Idle head center", 0, 29),
+    # The game's idle is three animations in turn, each a breath: the head round to the left, across
+    # to the right, and back to the middle, each starting where the last left it.
+    "idle": Clip(("195 - Idle head left", "196 - Idle head right", "197 - Idle head center"), 0, 29, 2),
     "walk": Clip("72 - Walking", 0, 75, 2, stride=True),
     "run": Clip("114/115 - Running/Running (unused)", 0, 71, 2, stride=True),
     "jump": Clip("77/78 - Single jump/Land from single jump", 0, 12),
     "fall": Clip("86/87 - General fall/General land", 4, 4),
     "land": Clip("77/78 - Single jump/Land from single jump", 24, 37),
+    "leap": Clip("19 - Fast longjump", 0, 22),
 }
 
 
@@ -259,7 +262,8 @@ def main(glb: str) -> None:
         f"  bones: [{', '.join(repr(b) for b, _, _ in BONES)}],",
     ]
     for name, clip in CLIPS.items():
-        frames = [frame(clip.source, k) for k in range(clip.first, clip.last + 1)]
+        sources = (clip.source,) if isinstance(clip.source, str) else clip.source
+        frames = [frame(source, k) for source in sources for k in range(clip.first, clip.last + 1)]
         if clip.stride:
             # The right foot comes down on the first frame it's on the ground after being off it.
             right = np.array([f[2][1] for f in frames])
@@ -268,7 +272,7 @@ def main(glb: str) -> None:
             frames = frames[start:] + frames[:start]
             left = np.array([f[2][0] for f in frames]) < 0.02
             other = next(k for k in range(1, len(frames)) if left[k] and not left[k - 1])
-            print(f"{name}: right foot down on source frame {clip.first + start}, left {other / len(frames):.2f} of the way on")
+            print(f"{name}: right foot down on frame {clip.first + start}, left {other / len(frames):.2f} of the way on")
         frames = frames[:: clip.every]
         turns = np.array([f[1] for f in frames])
         for k in range(1, len(turns)):  # each bone's turn on the same side of the sphere as its last

@@ -2,7 +2,7 @@
 // slides on ice, and flies on a jetpack, all against the structures; a shot has to land in their
 // avatar's capsule. The sim half of the walker class (classes.ts); the look and the held item are
 // applied before it runs (player.ts).
-import { AVATARS, climbSpeedOf, jumpVelocityOf, walkSpeedOf } from './avatars';
+import { AVATARS, climbSpeedOf, jumpVelocityOf, leapOf, walkSpeedOf } from './avatars';
 import type { ClassSpec } from './classes';
 import {
   CHILLED_SPEED_MULTIPLIER,
@@ -43,6 +43,7 @@ export const WALKER: ClassSpec = {
   enter() {},
   exit(p) {
     p.climb = null;
+    p.leap = false;
   },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
@@ -68,11 +69,16 @@ export function stepWalker(
   structures: Structures,
 ): number {
   // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; an
-  // ice hit's chill slows it too. Holding the run speeds it up, whichever way it goes, except scoped.
+  // ice hit's chill slows it too. Holding the run speeds it up, whichever way it goes, except
+  // scoped, and so does a boost: the faster of the two, never both.
+  const fast = Math.max(
+    p.boost > 0 ? SPEEDY_MULTIPLIER : 1,
+    !p.scoped && input?.actions.includes('run') ? RUN_MULTIPLIER : 1,
+  );
   const speed =
     walkSpeedOf(p.avatar) *
-    (p.boost > 0 ? SPEEDY_MULTIPLIER : 1) *
-    (p.scoped ? SCOPED_SPEED_MULTIPLIER : input?.actions.includes('run') ? RUN_MULTIPLIER : 1) *
+    fast *
+    (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
   if (p.climb) return climb(p, input, dt, structures);
@@ -88,7 +94,20 @@ export function stepWalker(
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
     const jump = jumpVelocityOf(p.avatar);
-    if (grip === Infinity) p.vy = jump;
+    const leap = leapOf(p.avatar);
+    const keys = Math.hypot(input.mx, input.my);
+    if (grip === Infinity && leap && keys > 0 && input.actions.includes('run')) {
+      // A jump at a run, for a look with a long jump: off the way the keys go at a multiple of its
+      // run, rising a share of its jump under a share of gravity, the keys left little grip on it.
+      const fly = (walkSpeedOf(p.avatar) * RUN_MULTIPLIER * leap.speed) / keys;
+      const sinY = Math.sin(p.yaw);
+      const cosY = Math.cos(p.yaw);
+      p.vx = (sinY * input.my + cosY * input.mx) * fly;
+      p.vz = (cosY * input.my - sinY * input.mx) * fly;
+      p.vy = jump * Math.sqrt(leap.rise * leap.float);
+      p.thrown = leap.grip;
+      p.leap = true;
+    } else if (grip === Infinity) p.vy = jump;
     else {
       // Ice pushes back only square to itself, so the feet push off it along its normal: straight
       // up on the flat, and on a slope partly downhill, shedding whatever climb the walk had. That
@@ -104,7 +123,8 @@ export function stepWalker(
   // land on the highest top within a step of where the feet were.
   const feet = p.pos.y - EYE_HEIGHT;
   const ceiling = structures.ceilingAt(p.pos.x, p.pos.z, p.pos.y + CAPSULE_TOP);
-  p.vy -= GRAVITY * dt;
+  if (push) p.leap = false;
+  p.vy -= GRAVITY * (p.leap ? (leapOf(p.avatar)?.float ?? 1) : 1) * dt;
   if (push) p.vy = thrust(p.vy, push, dt);
   p.pos.y += p.vy * dt;
   if (p.pos.y + CAPSULE_TOP > ceiling) {
@@ -119,7 +139,10 @@ export function stepWalker(
     p.vy = 0;
   }
   const standing = p.pos.y <= floor;
-  if (standing) p.thrown = null;
+  if (standing) {
+    p.thrown = null;
+    p.leap = false;
+  }
 
   // Across the floor: where the keys send the walk, at its speed. On a sure footing, and in the
   // air on its own feet, that's the walk itself; on a slippery one the feet only bend the momentum
@@ -197,6 +220,7 @@ function takeHold(
     p.pos.z = spot.z;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
+    p.leap = false;
     return true;
   }
   return false;
