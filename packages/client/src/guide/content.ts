@@ -25,6 +25,7 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
     title: 'Standard',
     keys: [
       ['WASD', 'move'],
+      ['Shift', 'hold to run'],
       ['Space', 'jump'],
       ['Mouse', 'look; click to shoot, open a door or read a cube'],
       ...SHARED,

@@ -14,8 +14,10 @@ export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebre
 //   hold    works while held, burning fuel: a flamethrower fires every cooldown, a jetpack pushes every tick
 //   toggle  a state the client flips and reports while on (the sniper's scope)
 // The swaps are a climber's, not an item's: a tap on A or D on a ladder (the touch SWAP button is
-// A's), to go round to its other face by its left or its right (walker.ts).
-export type ItemAction = 'shoot' | 'scope' | 'thrust' | 'roar-1' | 'roar-2' | 'roar-3' | 'swap-left' | 'swap-right';
+// A's), to go round to its other face by its left or its right (walker.ts). The run is a walker's
+// too, held on Shift: its walk at RUN_MULTIPLIER (walker.ts).
+export type ItemAction =
+  'shoot' | 'scope' | 'thrust' | 'roar-1' | 'roar-2' | 'roar-3' | 'swap-left' | 'swap-right' | 'run';
 export type ActionMode = 'tap' | 'hold' | 'toggle';
 
 export interface ActionSpec {
@@ -172,7 +174,8 @@ export function isItemAction(v: unknown): v is ItemAction {
     v === 'roar-2' ||
     v === 'roar-3' ||
     v === 'swap-left' ||
-    v === 'swap-right'
+    v === 'swap-right' ||
+    v === 'run'
   );
 }
 
@@ -214,6 +217,7 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
   'swap-right': () => '% to go round the ladder',
   'roar-2': () => '% to roar',
   'roar-3': () => '% to roar',
+  run: () => '% to run',
 };
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1, chills 5s": the numbers that

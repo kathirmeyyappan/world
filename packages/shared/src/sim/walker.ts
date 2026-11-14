@@ -10,6 +10,7 @@ import {
   GRAVITY,
   PLAYER_PADDING,
   PLAYER_RADIUS,
+  RUN_MULTIPLIER,
   SCOPED_SPEED_MULTIPLIER,
   SLIDE_SPEED,
   SPEEDY_MULTIPLIER,
@@ -67,11 +68,11 @@ export function stepWalker(
   structures: Structures,
 ): number {
   // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; an
-  // ice hit's chill slows it too.
+  // ice hit's chill slows it too. Holding the run speeds it up, whichever way it goes, except scoped.
   const speed =
     walkSpeedOf(p.avatar) *
     (p.boost > 0 ? SPEEDY_MULTIPLIER : 1) *
-    (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
+    (p.scoped ? SCOPED_SPEED_MULTIPLIER : input?.actions.includes('run') ? RUN_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
   if (p.climb) return climb(p, input, dt, structures);

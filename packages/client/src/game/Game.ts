@@ -392,6 +392,7 @@ export class Game {
       else if (this.input.wasPressed('KeyD')) actions.push('swap-right');
     }
     this.swapRequested = false;
+    if (this.input.isDown('ShiftLeft') || this.input.isDown('ShiftRight')) actions.push('run');
     return actions;
   }
 
