@@ -213,7 +213,7 @@ export class Game {
     private readonly onDisconnect: (reason: string) => void,
   ) {
     const canvas = canvasEl;
-    this.engine = new Engine(canvas);
+    this.engine = new Engine(canvas, true);
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);

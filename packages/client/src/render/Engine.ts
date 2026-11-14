@@ -29,14 +29,18 @@ export class Engine {
   readonly engine: BabylonEngine;
   readonly scene: Scene;
   readonly glowLayer: GlowLayer;
-  readonly picture = new Picture(window.matchMedia('(pointer: coarse)').matches, performance.now());
+  readonly picture: Picture;
   private drawnAt = performance.now(); // when the last frame was drawn
   private due = performance.now(); // when the next frame is due: the frame rate's interval on from the last
   private ran = performance.now(); // when the loop last ran, on a tick of the display
   private tick = Infinity; // ms between the display's ticks: the median of the last gaps between the loop's runs
   private gaps: number[] = [];
 
-  constructor(canvas: HTMLCanvasElement) {
+  // `main` is the game's own engine: its picture keeps the device's record of the sizes it has died
+  // at, and its lost context is one of those deaths. A preview's (BodyView) is neither, or opening
+  // the menu while the game tries a finer size would read the game's trial as a death.
+  constructor(canvas: HTMLCanvasElement, main = false) {
+    this.picture = new Picture(window.matchMedia('(pointer: coarse)').matches, performance.now(), main);
     this.engine = new BabylonEngine(canvas, false, { preserveDrawingBuffer: false, stencil: true });
     this.engine.setHardwareScalingLevel(this.picture.level);
     this.scene = new Scene(this.engine);
@@ -75,10 +79,11 @@ export class Engine {
     window.addEventListener('resize', () => this.engine.resize());
     // The GPU dropping the context leaves nothing to draw with: the size drawn is pinned off for
     // this device (Picture.lost) and the page starts over, as it does after a death.
-    this.engine.onContextLostObservable.add(() => {
-      this.picture.lost();
-      location.reload();
-    });
+    if (main)
+      this.engine.onContextLostObservable.add(() => {
+        this.picture.lost();
+        location.reload();
+      });
   }
 
   // Every tick of the display, a frame when one is due: each is due the frame rate's interval on
