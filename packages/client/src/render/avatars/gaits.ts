@@ -3,14 +3,11 @@
 // swing), so what you hear lands with what you see; what a footfall sounds like; and how the
 // sound is pitched, a heavy body lower and slower. Every avatar has a row, null for one that never
 // walks, so a new one has to choose each of these.
-import { RUN_MULTIPLIER, walkSpeedOf, type AvatarId } from '@world/shared';
+import type { AvatarId } from '@world/shared';
 import type { SoundId } from '../../audio/Sfx';
 
 export interface GaitSpec {
-  stride: number; // metres between footfalls, at any speed up to its full walk: a slow walk steps slowly
-  // Metres between footfalls running flat out (RUN_MULTIPLIER of its walk), for one whose stride
-  // lengthens as it runs; between a walk and that, in between.
-  runStride?: number;
+  stride: number; // metres between footfalls, at any speed: a slow walk steps slowly
   jump?: SoundId; // what leaving the ground on a jump sounds like: the swoosh unless given
   // A footfall: one of the thuds, a different one each time; a bar of the avatar's own sounds,
   // played round in order; or a loop that runs for as long as it moves along the ground.
@@ -32,16 +29,9 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   // A side's two tentacles plop down together, a lighter higher plop then a heavier lower one, 1.7
   // times a second at his full 6 m/s walk: an unhurried amble.
   squidward: { stride: 3.5, steps: { bar: ['suction-1', 'suction-2', 'suction-3', 'suction-4'] }, pitch: 1 },
-  // Quick, light steps: near six a second at a full walk, and longer ones running.
-  mario: { stride: 1.4, runStride: 2, steps: 'thuds', pitch: 1.05, jump: 'mario-jump' },
-  luigi: { stride: 1.6, runStride: 2.3, steps: 'thuds', pitch: 1, jump: 'mario-jump' },
+  // As Super Mario 64 paces his run: the stride the same at any speed, the legs only quicker.
+  mario: { stride: 1.8, steps: 'thuds', pitch: 1.05, jump: 'mario-jump' },
+  luigi: { stride: 2, steps: 'thuds', pitch: 1, jump: 'mario-jump' },
   'light-dragon': null,
   colgera: null,
 };
-
-// The metres between an avatar's footfalls with its feet walking at `walk` m/s.
-export function strideOf(avatar: AvatarId, gait: GaitSpec, walk: number): number {
-  if (gait.runStride === undefined) return gait.stride;
-  const running = (walk / walkSpeedOf(avatar) - 1) / (RUN_MULTIPLIER - 1);
-  return gait.stride + (gait.runStride - gait.stride) * Math.min(1, Math.max(0, running));
-}
