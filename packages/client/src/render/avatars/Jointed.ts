@@ -113,6 +113,7 @@ const EASE_TOUCHDOWN = 0.09; // and out of it
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
+const EASE_KICKING = 0.15; // seconds its legs take to stop fluttering as a jet takes its weight, and to start again
 const EASE_BANK = 0.15; // seconds it takes to lean into a turn, and to come back up out of one
 const MAX_BANK = 0.3; // radians it leans into the sharpest turn
 const MOVING = 0.4; // m/s across the floor that is going somewhere: under it the body keeps the way it had
@@ -159,6 +160,7 @@ export class JointedAvatar extends WalkerAvatar {
   private moving = 0; // how much of its stride it's in, the rest standing
   private airborne = 0; // how much of its pose in the air it's in
   private aloft = 0; // seconds since it left the ground
+  private kicking = 1; // how much of its flutter its legs have in the air: none under a jet's thrust
   private landed = 0; // how far into its landing crouch it is
   private stood = 0; // seconds it has been drawn, for its breath
 
@@ -216,9 +218,10 @@ export class JointedAvatar extends WalkerAvatar {
     this.landed *= Math.pow(0.5, dt / style.landSeconds);
     if (this.landed > 0.001) mix(out, out, style.land, this.landed);
     this.aloft = p.grounded ? 0 : this.aloft + dt;
+    this.kicking = eased(this.kicking, p.thrusting ? 0 : 1, dt, EASE_KICKING);
     this.airborne = eased(this.airborne, p.grounded ? 0 : 1, dt, p.grounded ? EASE_TOUCHDOWN : EASE_TAKEOFF);
     if (this.airborne > 0.001) {
-      airPose(other, style, this.vy, this.aloft);
+      airPose(other, style, this.vy, this.aloft, this.kicking);
       mix(out, out, other, this.airborne);
     }
     out[HIP_TILT] += this.bank;
