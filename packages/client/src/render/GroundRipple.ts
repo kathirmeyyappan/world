@@ -5,21 +5,21 @@
 // texture mapping), so where it lies level it paints the very pixels under it and only the bending
 // shows. Built when it opens, over just the stretch of that one surface round the body (not past
 // a deck's edge, up a wall or onto another look), and dropped once it has settled shut.
-import { Color3, Mesh, Vector3, VertexBuffer, VertexData, type Material } from '@babylonjs/core';
+import { Color3, Mesh, Vector3, VertexBuffer, VertexData, type Material, type ShaderMaterial } from '@babylonjs/core';
 import { WORLD_STRUCTURES, type Structure } from '@world/shared';
 import type { Rise } from './avatars/dragons';
 import type { Engine } from './Engine';
 import { environmentOf } from './Environment';
-import { RELIEF_LIGHT, RELIEF_SIDE, RELIEF_TILT } from './shaders';
+import { RELIEF_CREST, RELIEF_FALLOFF, RELIEF_LIGHT, RELIEF_POOL, RELIEF_SIDE, RELIEF_TILT } from './shaders';
 import { lookOf, structureMaterial, topUv, type Look } from './Structures';
 
 const RINGS = 48; // rings of vertices from the middle out to the rim
 const SEGMENTS = 128; // vertices round each ring
 const WAVELENGTH = 5; // metres between crests
 const SPEED = 7; // m/s the crests run outward
-const HEIGHT = 0.9; // metres a crest stands at the body's edge, at full strength
+const HEIGHT = 0.3; // metres a crest stands at the body's edge, at full strength
 const SHARPNESS = 2.5; // how narrow a crest is: the top of a cosine to this power
-const HEAVE = 1.1; // metres the ground is heaved up round the body where it breaks through
+const HEAVE = 0.4; // metres the ground is heaved up round the body where it breaks through
 const HEAVE_WIDTH = 1.6; // metres out from the body's edge the heave spreads
 const LIFT = 0.004; // metres the level patch stands over the surface, in front of it, painting the same pixels
 const SAME = 0.02; // metres: a spot whose ground is within this of the middle's is on the same surface
@@ -28,7 +28,7 @@ const STEP = 0.4; // metres over the surface its ground is read from at a spot
 export interface RippleLook {
   across: number; // metres
   fade: number; // seconds to open or shut
-  glow: Color3; // what the crests glow, added to the surface at a crest's full height
+  glow: Color3; // what it glows, added to the surface: in a pool brightest round the body, and on the crests
 }
 
 export class GroundRipple implements Rise {
@@ -81,6 +81,7 @@ class Patch {
 
   private constructor(
     private readonly mesh: Mesh,
+    private readonly ground: ShaderMaterial | null, // the floor's look, which glows by its own uniforms
     private readonly release: () => void,
     private readonly x: number,
     private readonly z: number,
@@ -158,8 +159,8 @@ class Patch {
     );
     let material: Material;
     let release: () => void;
-    if (env) {
-      const ground = env.rippleGround(y + LIFT, HEIGHT, look.glow);
+    const ground = env && env.rippleGround(x, z, radius, y + LIFT, HEIGHT, look.glow);
+    if (env && ground) {
       material = ground;
       release = () => env.releaseGround(ground);
     } else {
@@ -167,7 +168,7 @@ class Patch {
       release = () => {};
     }
     mesh.material = material;
-    return new Patch(mesh, release, x, z, y, weight, look.glow, !piece);
+    return new Patch(mesh, ground, release, x, z, y, weight, look.glow, !piece);
   }
 
   // The rings `time` seconds after opening, at `strength` (0 to 1) of their full height, round a
@@ -187,6 +188,7 @@ class Patch {
       this.heights[i] = height(r);
       this.slopes[i] = i === 0 ? 0 : (height(r + step) - height(r - step)) / (2 * step);
     }
+    this.ground?.setFloat('reliefStrength', strength);
     const n = this.weight.length;
     const normal = new Vector3();
     for (let k = 0; k < n; k++) {
@@ -204,7 +206,7 @@ class Patch {
       this.normals.set([normal.x, normal.y, normal.z], k * 3);
       if (this.colors) {
         const shade = reliefShade(normal);
-        const lit = Math.min(1, h / HEIGHT);
+        const lit = reliefLight(r / radius, Math.min(1, h / HEIGHT), strength);
         this.colors.set([shade + this.glow.r * lit, shade + this.glow.g * lit, shade + this.glow.b * lit, 1], k * 4);
       }
     }
@@ -219,7 +221,11 @@ class Patch {
   }
 }
 
-// The floor shader's reliefShade (shaders.ts), for a structure's top, shaded by its vertices.
+// The floor shader's reliefLight and reliefShade (shaders.ts), for a structure's top, lit by its vertices.
+function reliefLight(out: number, crest: number, strength: number): number {
+  return strength * RELIEF_POOL * Math.max(0, 1 - out) ** RELIEF_FALLOFF + RELIEF_CREST * crest;
+}
+
 function reliefShade(n: Vector3): number {
   return Math.max(0, 1 - RELIEF_TILT * (1 - n.y) + RELIEF_SIDE * (n.x * RELIEF_LIGHT.x + n.z * RELIEF_LIGHT.z));
 }

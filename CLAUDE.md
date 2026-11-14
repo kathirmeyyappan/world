@@ -479,8 +479,8 @@ life of its own), and for a dragon its shape there and a row in the client's `DR
 (`render/avatars/dragons.ts`): the model it's drawn from, what it rises out of the ground through
 (the ground itself rippling out from the body in rings, `render/GroundRipple.ts`: a patch of the
 floor or of the structure's top it comes up through, drawn with that surface's own look so only the
-bending shows, its crests glowing gold for the light dragon; Colgera's storm, `render/Storm.ts`, the
-same with its crests glowing icy blue and a gale of grey and white "+"s and white fog whirling over
+bending shows, glowing as a pool round the body and a little more on the crests, white and barely
+gold for the light dragon; Colgera's storm, `render/Storm.ts`, the same glowing white lit blue, with a gale of grey and white "+"s and white fog whirling over
 it; and what of the body is still under that surface is clipped, so a deck or a roof hides it as
 the floor does), and
 the wave down its body (`Wave`, in metres of body: the spine's points ride it, so a body of rigid

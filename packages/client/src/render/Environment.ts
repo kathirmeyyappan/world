@@ -2,7 +2,17 @@
 // OUTSIDE_HEIGHT below, gradient sky with stars, and a boundary wall that only shows up when you
 // get close, at whatever height you're at. All of it follows the world shape. Sky billboards live in
 // SkyObject.ts.
-import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector3, VertexData, type Scene } from '@babylonjs/core';
+import {
+  Color3,
+  Effect,
+  Mesh,
+  MeshBuilder,
+  ShaderMaterial,
+  Vector2,
+  Vector3,
+  VertexData,
+  type Scene,
+} from '@babylonjs/core';
 import { EYE_HEIGHT, OUTSIDE_HEIGHT, partDistance, worldBounds, type WorldPart, worldReach } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
@@ -186,6 +196,9 @@ export class Environment {
         'reliefBase',
         'reliefHeight',
         'reliefGlow',
+        'reliefCentre',
+        'reliefRadius',
+        'reliefStrength',
       ],
     });
     mat.setFloat('side', side);
@@ -206,14 +219,18 @@ export class Environment {
   }
 
   // The floor's look for a patch of it bent into ripples (render/GroundRipple.ts), kept in step
-  // with the floor's own until it's released: the same pixels where the patch lies level, shaded by
-  // its slope and glowing `glow` toward its crests, `height` over `base`.
-  rippleGround(base: number, height: number, glow: Color3): ShaderMaterial {
+  // with the floor's own until it's released: the same pixels where the patch lies level and
+  // unlit, shaded by its slope, and glowing `glow` as a pool round (x, z) out to `radius` (at the
+  // strength its owner sets as `reliefStrength`) and on its crests, `height` over `base`.
+  rippleGround(x: number, z: number, radius: number, base: number, height: number, glow: Color3): ShaderMaterial {
     const mat = this.groundMaterial('ripple', 0);
     mat.setFloat('relief', 1);
     mat.setFloat('reliefBase', base);
     mat.setFloat('reliefHeight', height);
     mat.setColor3('reliefGlow', glow);
+    mat.setVector2('reliefCentre', new Vector2(x, z));
+    mat.setFloat('reliefRadius', radius);
+    mat.setFloat('reliefStrength', 0);
     mat.setFloat('fogScale', this.fogScale);
     return mat;
   }

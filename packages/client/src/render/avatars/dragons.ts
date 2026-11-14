@@ -82,7 +82,7 @@ export interface DragonLook {
   mouth: number; // metres across the mouth: the breath starts all along that line, not from a point
 }
 
-const GOLD = new Color3(0.9, 0.65, 0.2); // what the light dragon's rings glow at their crests
+const GOLD = new Color3(1, 0.95, 0.78); // what the light dragon's ground glows: white, barely gold
 
 // A loader that fetches once and hands everyone the same promise.
 function once<T>(load: () => Promise<T>): () => Promise<T> {
@@ -92,7 +92,7 @@ function once<T>(load: () => Promise<T>): () => Promise<T> {
 
 export const DRAGONS: Record<DragonAvatarId, DragonLook> = {
   // The light dragon: a long serpent that comes up through the ground rippling out
-  // in rings that glow gold.
+  // in rings, glowing white and barely gold.
   'light-dragon': {
     model: once(() => import('./dragonModel').then((m) => m.DRAGON_MODEL)),
     rise: (engine, name, hole) => new GroundRipple(engine, name, hole, { across: 40, fade: 0.6, glow: GOLD }),

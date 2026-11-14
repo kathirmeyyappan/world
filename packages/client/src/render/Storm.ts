@@ -1,4 +1,4 @@
-// The storm Colgera rises through: the ground round it rippling out in rings glowing icy blue
+// The storm Colgera rises through: the ground round it rippling out in rings, glowing white lit blue
 // (GroundRipple.ts), with a gale turning over it, pixel "+"s of grey and white whirling round and
 // up, and white fog rolling round its edge; open while any of the body is still down in the
 // ground, and once the tail is out the rings settle and the gale stops blowing, its last "+"s and
@@ -12,7 +12,7 @@ import { perScene } from './perScene';
 import { plusSprites } from './Poof';
 
 const ACROSS = 40; // metres: wider than the wings
-const ICE_GLOW = new Color3(0.35, 0.55, 0.8); // what the rings' crests glow
+const ICE_GLOW = new Color3(0.75, 0.85, 1); // what the ground glows: white, lit blue
 const FADE = 0.9; // seconds to open or shut
 const PLUSSES = 360; // "+"s in the air at once
 const PLUS_SECONDS = 2.4;
