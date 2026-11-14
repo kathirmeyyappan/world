@@ -15,7 +15,7 @@ import {
   type Structures,
   type Vec3,
 } from '@world/shared';
-import { GAITS, strideOf } from '../render/avatars/gaits';
+import { GAITS } from '../render/avatars/gaits';
 import type { Sfx, SoundId } from './Sfx';
 
 // What a step on each kind of surface sounds like: a different one each step.
@@ -102,7 +102,7 @@ export class Footsteps {
       const at = p.self ? null : p.pos;
       const level = p.self ? SELF : 1;
       const rate = gait.pitch;
-      w.stride = strideOf(p.avatar, gait, p.walk);
+      w.stride = gait.stride;
       const across = Math.hypot(p.pos.x - w.at.x, p.pos.z - w.at.z);
       const down = w.at.y - p.pos.y;
       const wasGrounded = w.grounded;

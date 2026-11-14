@@ -423,35 +423,36 @@ A character that should move like itself is a jointed body (`render/avatars/Join
 `JointedAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
 chest, head, arms with elbows, hands with fingers and a thumb, legs with knees and feet) under a
 model from `scripts/jointed-model.py`, which reads a rip of the character's own model (Mario's
-and Luigi's are on one rig, in a T-pose), and a `Style` (`render/avatars/motion.ts`) that is all of its movement as
-numbers. A `BodyPose` is every joint: the hips placed and turned, the chest and head turned in the
-body's frame (so a head stays level over a leaning trunk), each arm swung from hanging, bent and its
-hand closed, and each foot put where it should be, the rig bending the leg to reach it (two-bone
-IK), so feet stay on the ground whatever the hips do. A style is how it stands (with its breath),
-a `Stride` at each of a few paces (every number a step is drawn from: how far and how high the
-feet go, how long each is down, the hips' bounce, sway and twist, the trunk's lean, the arms'
-swing and the elbows' bend), the stride at any pace being between its neighbours', and its poses
-in the air (`rise`, `fall`, a `flutter` for legs that scissor), landing and dead. The frame's pose
-is those blended: standing into the stride as it gets going, into the air and out through the
-landing's crouch. A stride with a foot down under half the time is a run, and its `hop` is how far
-the whole body leaves the ground between steps: without one a run reads as a fast walk, glued
-down. Empty-handed the body turns to face the way it's going (the look only turns its head),
-leaning into the turn by the style's `bank`, and stays facing that way when it stops; with
-something to aim it faces its look, and the stride is drawn along the way it's going in its own
-frame, so it sidesteps and backpedals. It watches how it moves from where it's drawn, and a
-player's own body is moved a sim tick at a time, not every frame, so a speed is taken over the
-time since the body last moved, never frame to frame (which reads as zero and double by turns). So two characters on one rig differ only by their styles (Luigi's is Mario's,
-drawn for longer legs, with his own air), a new one is a row in the script's `CHARACTERS`, its files
-and a style, and a move that is a rule, not a number, is a subclass overriding that phase. Paces
-are shares of the look's walk: 1 is its full walk and `RUN_MULTIPLIER` its run on Shift, so a
-style says what each looks like (Mario's full walk is already his run, and Shift his sprint).
-Tune a style by looking: draw the stride from the side and the front a few frames apart and
-change one number at a time.
+and Luigi's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
+frames of where the hips are and how each bone is turned, drawn by an animator, never worked out.
+Mario's are Super Mario 64's own (`marioClips.ts`, baked by `scripts/jointed-clips.py` from a
+rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
+the jointed body's, the hips in leg lengths so a longer-legged body bobs as far for its size, and
+each frame stood on the ground). A `Style` is its clips (idle, walk, run, jump, fall, land) and a
+few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
+and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
+coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:
+it reads as wrong however it's tuned. Find its clips. Empty-handed the body turns to face the way
+it's going (the look only turns its head), leaning into the turn by the style's `bank`, and stays
+facing that way when it stops; with something to aim it faces its look, its hips turned toward
+the way its feet go and its chest back, running the stride backward past a point. It watches how
+it moves from where it's drawn, which for a player's own body is a sim tick at a time, on
+whichever frames the ticks fall, with a hair of drift on every frame between as its prediction's
+correction dies away. So nothing is read from a speed taken frame to frame (it comes out zero and
+double by turns, and a pose hung on it flickers): the heading is taken over the time since the
+body last moved by more than that drift, in the air only which way it last moved is read, up or
+down, and a landing's weight is the drop from its highest point. Every change of pose runs from
+rest to rest over a few frames, never snapped. The poses no clip covers (on a ladder, lying dead)
+are written as a `BodyPose` (`render/avatars/motion.ts`), which the rig solves, bending each leg
+to put its foot where the pose says. Two characters on one rig can share clips (Luigi plays
+Mario's, his legs running on in the air), and a new one is a row in the model script's
+`CHARACTERS`, its files, and clips of its own if it moves its own way.
 
 Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace
-its step sounds and its limbs alike (with `runStride`, longer running flat out), what a footfall
-sounds like (the thuds, a bar of its own sounds, or a loop), the sounds' pitch, and with `jump` its
-own sound for a jump in place of the swoosh; the swing of its limbs is the renderer's. Ask for each
+its step sounds and its limbs alike, what a footfall sounds like (the thuds, a bar of its own
+sounds, or a loop), the sounds' pitch, and with `jump` its own sound for a jump in place of the
+swoosh; the swing of its limbs is the renderer's. Ask for each
 when adding one.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
