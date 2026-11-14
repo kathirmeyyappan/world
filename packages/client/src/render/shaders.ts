@@ -136,15 +136,20 @@ float gridLine(vec2 p, float spacing, float width) {
 }
 
 // The grid on any surface, from its world position and its mesh's normal there (interpolated, so
-// it turns smoothly over a curve and the family switches along one clean line; a normal worked out
-// from the pixels' own slopes is noisy enough near halfway to flip back and forth): of the three
-// axes, the one the normal lies nearest picks the grid (a level surface the floor's lines across x and z; one facing most along x
-// the lines across z and up; along z, across x and up), so one family of lines runs over each face
-// and a curve switches family where it turns past halfway rather than showing two at once.
+// it turns smoothly over a curve and the family switches along one clean line): of the three axes,
+// the one the normal lies nearest picks the grid (a level surface the floor's lines across x and z;
+// one facing most along x the lines across z and up; along z, across x and up), so one family of
+// lines runs over each face and a curve switches family where it turns past halfway rather than
+// showing two at once. All three axes' lines are worked out everywhere and only then chosen between:
+// a line's anti-aliasing reads how fast its coordinate changes from pixel to pixel, and fed a
+// different coordinate on either side of the switch it would read a jump there and smear a strip of
+// broken line along it.
 float surfaceGridLine(vec3 w, vec3 normal, float spacing, float width) {
+  float gx = gridLine1(w.x, spacing, width);
+  float gy = gridLine1(w.y, spacing, width);
+  float gz = gridLine1(w.z, spacing, width);
   vec3 n = abs(normalize(normal));
-  vec2 plane = n.y >= max(n.x, n.z) ? w.xz : n.x >= n.z ? w.zy : w.xy;
-  return gridLine(plane, spacing, width);
+  return n.y >= max(n.x, n.z) ? max(gx, gz) : n.x >= n.z ? max(gz, gy) : max(gx, gy);
 }
 
 void main() {
