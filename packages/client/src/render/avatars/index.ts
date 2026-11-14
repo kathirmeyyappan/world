@@ -7,7 +7,10 @@ import { DragonAvatar } from './Dragon';
 import { DRAGONS, type DragonAvatarId } from './dragons';
 import { buildElizabeth } from './Elizabeth';
 import { buildGary } from './Gary';
+import { JointedAvatar, type JointedSpec } from './Jointed';
 import { KRABS } from './Krabs';
+import { LUIGI } from './Luigi';
+import { MARIO } from './Mario';
 import { MIKE } from './Mike';
 import { PATRICK } from './Patrick';
 import { PLANKTON } from './Plankton';
@@ -33,17 +36,24 @@ const SKINNED: readonly AvatarId[] = [
   'squidward',
   'gary',
   'plankton',
+  'mario',
+  'luigi',
   ...(Object.keys(DRAGONS) as DragonAvatarId[]),
 ];
 
 // Everyone on foot is a figure the walker poses (Walker.ts), made from its builder; one that moves
-// by a rule of its own is a subclass of WalkerAvatar, made here by its class. A dragon skin is the
-// dragon (Dragon.ts) in that skin's look (dragons.ts).
+// by a rule of its own is a subclass of WalkerAvatar, made here by its class: a jointed
+// body (Jointed.ts) is posed in its own style. A dragon skin is the dragon (Dragon.ts) in that skin's
+// look (dragons.ts).
 type Make = (engine: Engine, id: string, kind: AvatarId, color: string) => Avatar;
 const walker =
   (build: Build): Make =>
   (engine, id, kind, color) =>
     new WalkerAvatar(engine, id, kind, build, color);
+const jointed =
+  (spec: JointedSpec): Make =>
+  (engine, id, kind, color) =>
+    new JointedAvatar(engine, id, kind, spec, color);
 const dragon =
   (look: DragonAvatarId): Make =>
   (engine, id, kind) =>
@@ -60,6 +70,8 @@ const MAKERS: Record<AvatarId, Make> = {
   squidward: walker(buildSquidward),
   gary: walker(buildGary),
   plankton: walker(bodyBuilder(PLANKTON)),
+  mario: jointed(MARIO),
+  luigi: jointed(LUIGI),
   'light-dragon': dragon('light-dragon'),
   colgera: dragon('colgera'),
 };
