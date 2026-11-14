@@ -101,6 +101,7 @@ export interface Stride {
   // the ground between steps, a run.
   step: number; // metres
   duty: number;
+  hop: number; // metres the whole body leaves the ground by between steps, where both feet are off it
   lift: number; // metres a foot rises on its way forward
   kick: number; // metres more its heel flicks up behind as it leaves the ground
   spread: number; // metres each foot is carried out to its side of where it stands
@@ -150,12 +151,14 @@ export interface Style {
   landSeconds: number; // the crouch's half-life
   dead: BodyPose; // lying on its back
   follow: number; // the share of the look's pitch the head takes
+  bank: number; // radians it leans into a turn for each radian a second it's turning, at a full walk
 }
 
 const STRIDE_KEYS: (keyof Stride)[] = [
   'pace',
   'step',
   'duty',
+  'hop',
   'lift',
   'kick',
   'spread',
@@ -204,8 +207,12 @@ export function stridePose(out: BodyPose, s: Stride, cycle: number, dx: number, 
   const sin = Math.sin(turn);
   const cos = Math.cos(turn);
   const going = Math.hypot(dx, dz);
+  // Between one foot leaving the ground and the other coming down the body is thrown up and falls
+  // back: highest halfway, and feet and all.
+  const flight = ((cycle % 0.5) - s.duty) / (0.5 - s.duty);
+  const hop = s.duty < 0.5 && flight > 0 ? s.hop * going * 4 * flight * (1 - flight) : 0;
   out[HIP_X] = s.sway * sin;
-  out[HIP_Y] = -s.crouch - s.bounce * going * Math.cos(2 * turn - 2 * Math.PI * s.late);
+  out[HIP_Y] = hop - s.crouch - s.bounce * going * Math.cos(2 * turn - 2 * Math.PI * s.late);
   out[HIP_Z] = 0;
   out[HIP_LEAN] = s.lean * HIPS_SHARE * dz;
   out[HIP_TURN] = -s.twist * cos * dz;
@@ -222,6 +229,8 @@ export function stridePose(out: BodyPose, s: Stride, cycle: number, dx: number, 
   arm(out, ARM_R, s, -swing);
   foot(out, FOOT_R, s, cycle, dx, dz, 1);
   foot(out, FOOT_L, s, (cycle + 0.5) % 1, dx, dz, -1);
+  out[FOOT_R + FOOT_Y] += hop;
+  out[FOOT_L + FOOT_Y] += hop;
 }
 
 function arm(out: BodyPose, at: number, s: Stride, swing: number): void {

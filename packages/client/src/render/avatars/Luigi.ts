@@ -12,6 +12,7 @@ import { pose, type Stride, type Style } from './motion';
 const lanky = (s: Stride): Stride => ({
   ...s,
   step: s.step * 1.2,
+  hop: s.hop * 1.25,
   lift: s.lift * 1.15,
   bounce: s.bounce * 1.3,
   sway: s.sway * 1.8,

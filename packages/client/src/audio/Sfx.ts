@@ -111,7 +111,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'suction-3': { file: 'suction-3.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-4': { file: 'suction-4.mp3', half: 6, reach: 30, volume: 0.06 },
   jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
-  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.06 }, // Mario's and Luigi's (gaits.ts)
+  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.04 }, // Mario's and Luigi's (gaits.ts)
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing

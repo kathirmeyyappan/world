@@ -432,9 +432,15 @@ a `Stride` at each of a few paces (every number a step is drawn from: how far an
 feet go, how long each is down, the hips' bounce, sway and twist, the trunk's lean, the arms'
 swing and the elbows' bend), the stride at any pace being between its neighbours', and its poses
 in the air (`rise`, `fall`, a `flutter` for legs that scissor), landing and dead. The frame's pose
-is those blended: standing into the stride as it gets going, the stride drawn along the way the
-body is going in its own frame (so it sidesteps and backpedals), into the air and out through the
-landing's crouch. So two characters on one rig differ only by their styles (Luigi's is Mario's,
+is those blended: standing into the stride as it gets going, into the air and out through the
+landing's crouch. A stride with a foot down under half the time is a run, and its `hop` is how far
+the whole body leaves the ground between steps: without one a run reads as a fast walk, glued
+down. Empty-handed the body turns to face the way it's going (the look only turns its head),
+leaning into the turn by the style's `bank`, and stays facing that way when it stops; with
+something to aim it faces its look, and the stride is drawn along the way it's going in its own
+frame, so it sidesteps and backpedals. It watches how it moves from where it's drawn, and a
+player's own body is moved a sim tick at a time, not every frame, so a speed is taken over the
+time since the body last moved, never frame to frame (which reads as zero and double by turns). So two characters on one rig differ only by their styles (Luigi's is Mario's,
 drawn for longer legs, with his own air), a new one is a row in the script's `CHARACTERS`, its files
 and a style, and a move that is a rule, not a number, is a subclass overriding that phase. Paces
 are shares of the look's walk: 1 is its full walk and `RUN_MULTIPLIER` its run on Shift, so a
