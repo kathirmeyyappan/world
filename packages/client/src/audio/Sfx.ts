@@ -48,6 +48,15 @@ export type SoundId =
   | 'suction-4'
   | 'jump'
   | 'mario-jump'
+  | 'mario-leap-1'
+  | 'mario-leap-2'
+  | 'luigi-leap-1'
+  | 'luigi-leap-2'
+  | 'mario-hurt-1'
+  | 'mario-hurt-2'
+  | 'mario-hurt-3'
+  | 'luigi-hurt-1'
+  | 'luigi-hurt-2'
   | 'land'
   | 'land-hard'
   | 'hurt'
@@ -111,7 +120,17 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'suction-3': { file: 'suction-3.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-4': { file: 'suction-4.mp3', half: 6, reach: 30, volume: 0.06 },
   jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
-  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.04 }, // Mario's and Luigi's (gaits.ts)
+  // A character's own voice (voices.ts), over the body's sounds so it's heard as speech.
+  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.04 },
+  'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.09 },
+  'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.09 },
+  'luigi-leap-1': { file: 'luigi-leap-1.mp3', half: 6, reach: 30, volume: 0.09 },
+  'luigi-leap-2': { file: 'luigi-leap-2.mp3', half: 6, reach: 30, volume: 0.09 },
+  'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.11 },
+  'mario-hurt-2': { file: 'mario-hurt-2.mp3', half: 6, reach: 30, volume: 0.11 },
+  'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.11 },
+  'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.11 },
+  'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.11 },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing

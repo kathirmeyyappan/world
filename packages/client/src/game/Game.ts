@@ -23,6 +23,7 @@ import {
   itemStats,
   lookDirection,
   resolveFire,
+  type AvatarId,
   type FrostCell,
   type ItemAction,
   type ItemId,
@@ -39,6 +40,7 @@ import {
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, heard, loopsOf, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
+import { take, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -119,6 +121,7 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 // A roar comes back off the world: the same again, this much later and this much quieter.
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
+const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this: the longest lasts 0.4 s
 // Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
 // so two at a like distance don't trade it back and forth.
 const THEME_HYSTERESIS = 15;
@@ -155,6 +158,7 @@ export class Game {
   private swing = 0; // radians the camera has still to turn after a swap round a ladder
   private swapRequested = false; // the touch SWAP button was pressed since the last frame
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
+  private readonly criedOut = new Map<string, number>(); // when each player last cried out at a hit (performance.now)
   private themeOf: string | null = null; // the dragon whose theme is playing
   // When the first dragon of each theme rose (ms): its theme has been running since, heard or not.
   private readonly themeClocks = new Map<SoundId, number>();
@@ -555,6 +559,7 @@ export class Game {
         }
         avatar?.dispose();
         this.avatars.delete(m.id);
+        this.criedOut.delete(m.id);
         this.hud.removePlayer(m.id, m.name);
         return;
       }
@@ -643,16 +648,29 @@ export class Game {
   }): void {
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
-      this.sfx.play('hurt');
+      if (!this.cry(m.victim, this.prediction?.state.avatar, null)) this.sfx.play('hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
-      this.avatars.get(m.victim)?.flash();
+      const avatar = this.avatars.get(m.victim);
+      avatar?.flash();
+      this.cry(m.victim, avatar?.kind, this.headOf(m.victim));
     }
     if (m.shooter === this.myId) {
       this.hud.hitMarker();
       this.hitNotice.show(this.hud.playerName(m.victim), m.damage, m.headshot);
     }
+  }
+
+  // A hit's cry in the victim's own voice (voices.ts), from `at` or, with no spot, the local
+  // player's own: false if that look has none, or its last cry is still sounding (a spray lands
+  // many hits a second).
+  private cry(id: string, avatar: AvatarId | undefined, at: Vec3 | null): boolean {
+    const line = avatar && take(VOICES[avatar]?.hurt);
+    const now = performance.now();
+    if (!line || now - (this.criedOut.get(id) ?? -Infinity) < CRY_GAP_MS) return false;
+    this.criedOut.set(id, now);
+    return this.sfx.play(line, at);
   }
 
   // This tick's tap shots, each played where its shooter stands. One that passed close to the
@@ -849,6 +867,7 @@ export class Game {
           walk: self.walk,
           avatar: self.avatar,
           grounded: !this.dead && isGrounded(self),
+          leap: self.leap,
           falling: -self.vy,
           self: true,
         },
@@ -858,6 +877,7 @@ export class Game {
           walk: rp.walk,
           avatar: rp.avatar,
           grounded: rp.grounded && !rp.dead,
+          leap: rp.leap,
           self: false,
         })),
       ],

@@ -8,7 +8,6 @@ import type { SoundId } from '../../audio/Sfx';
 
 export interface GaitSpec {
   stride: number; // metres between footfalls, at any speed: a slow walk steps slowly
-  jump?: SoundId; // what leaving the ground on a jump sounds like: the swoosh unless given
   // A footfall: one of the thuds, a different one each time; a bar of the avatar's own sounds,
   // played round in order; or a loop that runs for as long as it moves along the ground.
   steps: 'thuds' | { bar: SoundId[] } | { loop: SoundId };
@@ -30,8 +29,8 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   // times a second at his full 6 m/s walk: an unhurried amble.
   squidward: { stride: 3.5, steps: { bar: ['suction-1', 'suction-2', 'suction-3', 'suction-4'] }, pitch: 1 },
   // As Super Mario 64 paces his run: the stride the same at any speed, the legs only quicker.
-  mario: { stride: 1.8, steps: 'thuds', pitch: 1.05, jump: 'mario-jump' },
-  luigi: { stride: 2, steps: 'thuds', pitch: 1, jump: 'mario-jump' },
+  mario: { stride: 1.8, steps: 'thuds', pitch: 1.05 },
+  luigi: { stride: 2, steps: 'thuds', pitch: 1 },
   'light-dragon': null,
   colgera: null,
 };

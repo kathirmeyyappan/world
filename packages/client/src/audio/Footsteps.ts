@@ -1,6 +1,7 @@
 // The sounds a body makes moving about: a step every stride its feet walk on the ground (so a
 // boosted runner steps faster, a scoped one slower, and one scrabbling on ice at the pace of the
-// keys, PlayerState.walk), a swoosh on leaving the ground going up, and on touching down a landing
+// keys, PlayerState.walk), a swoosh on leaving the ground going up (or what its voice says there,
+// voices.ts), and on touching down a landing
 // as hard as the fall was fast. Worked out from each player's walk, position and whether they're
 // grounded, frame to frame, so it's the same for everyone. Each avatar's gait
 // (render/avatars/gaits.ts) sets its stride, what its steps are and how heavy it sounds, and paces
@@ -17,6 +18,7 @@ import {
 } from '@world/shared';
 import { GAITS } from '../render/avatars/gaits';
 import type { Sfx, SoundId } from './Sfx';
+import { take, VOICES } from './voices';
 
 // What a step on each kind of surface sounds like: a different one each step.
 const FOOTFALLS: Record<Footfall, SoundId[]> = {
@@ -62,7 +64,8 @@ export class Footsteps {
   }
 
   // Everyone this frame (`dt` seconds since the last): where they are, how fast their feet walk,
-  // what they look like, whether they're on the ground, how fast they're falling if that's known
+  // what they look like, whether they're on the ground, whether they're in a long jump, how fast
+  // they're falling if that's known
   // (the local player's own sim), and `self` for the local player, whose sounds play flat. Without
   // a speed, a landing is judged by the drop from their highest point, which takes no account of a
   // jetpack braking the fall. Returns the step loops wanted this frame, for the Sfx's loops.
@@ -73,6 +76,7 @@ export class Footsteps {
       walk: number;
       avatar: AvatarId;
       grounded: boolean;
+      leap: boolean;
       falling?: number;
       self: boolean;
     }[],
@@ -119,7 +123,8 @@ export class Footsteps {
         w.peak = Math.max(w.peak, p.pos.y);
         w.falling = Math.max(w.falling, p.falling ?? 0);
         if (w.liftedFrom !== null && p.pos.y - w.liftedFrom > RISE) {
-          this.sfx.play(gait.jump ?? 'jump', at, { level });
+          const voice = VOICES[p.avatar];
+          this.sfx.play((p.leap ? take(voice?.leap) : undefined) ?? voice?.jump ?? 'jump', at, { level });
           w.liftedFrom = null;
         } else if (down > 0) w.liftedFrom = null; // going down first: they stepped off something
         continue;

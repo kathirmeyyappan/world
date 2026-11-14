@@ -454,9 +454,11 @@ Mario's, his legs running on in the air), and a new one is a row in the model sc
 
 Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace
 its step sounds and its limbs alike, what a footfall sounds like (the thuds, a bar of its own
-sounds, or a loop), the sounds' pitch, and with `jump` its own sound for a jump in place of the
-swoosh; the swing of its limbs is the renderer's. Ask for each
-when adding one.
+sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer's. Ask for each
+when adding one. What it says in its own voice is a row in `VOICES` (`audio/voices.ts`): its sound
+for a jump in the swoosh's place, the takes it picks from on a long jump, and the takes it cries
+out with at a hit, heard by everyone near (`Game.cry`, no more often than `CRY_GAP_MS`; its own
+player hears it in the hurt sound's place).
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,
