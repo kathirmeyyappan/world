@@ -57,7 +57,10 @@ export interface Figure {
   head?: TransformNode; // a head on a neck: turns to the look on a ladder
   legs?: Leg[];
   armL?: Arm; // swings against the legs, and reaches up the rungs on a ladder
-  armR: Arm & { grip: TransformNode }; // holds the item, which hangs on the grip at the hand: aimed along the look
+  // Holds the item, which hangs on the grip at the hand, aimed along the look: by its own middle
+  // there, or `hold` from it in the grip's frame (x to the right, y back along the barrel, z up),
+  // for a fist that closes round the item's handle.
+  armR: Arm & { grip: TransformNode; hold?: Vector3 };
   rock?: TransformNode; // what rocks to each side with the stride: the base unless given
   back: { node: TransformNode; at: Vector3 }; // where a tank and the gear hang
   materials: StandardMaterial[]; // the skin, flashed by a hit
@@ -115,7 +118,8 @@ export class WalkerAvatar implements Avatar {
     this.color = this.figure.color;
     this.aimFrom = bend ? raised(armR.reach, bend) : armR.reach;
     this.hitFlash = new HitFlash(materials);
-    this.items = new HeldItems(engine, `${kind}-${id}`, kind, armR.grip, Vector3.Zero(), back.node, back.at, itemScale);
+    const hold = armR.hold ?? Vector3.Zero();
+    this.items = new HeldItems(engine, `${kind}-${id}`, kind, armR.grip, hold, back.node, back.at, itemScale);
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, shadow);
     this.shadow.parent = this.root;
     this.shadow.position.y = 0.02;

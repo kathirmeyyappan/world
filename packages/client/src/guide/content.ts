@@ -3,6 +3,7 @@
 // stats.ts. The tables are keyed by the registries' ids, so a new skin or item doesn't build until
 // it has an entry. `facts` are shown under a thing's numbers when there are any.
 import type { AvatarId, BotFlag, BotId, GearId, ItemId, PickupKind } from '@world/shared';
+import type { AbilityId } from './stats';
 
 export interface Entry {
   title: string;
@@ -38,6 +39,11 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
 ];
 
 const plain = (title: string, summary: string): Entry => ({ title, summary, facts: [] });
+
+// A character's special abilities (stats.ts `abilityStats`): what each is.
+export const ABILITIES: Record<AbilityId, Entry> = {
+  leap: plain('Long jump', 'A jump while running goes low and far, with little steering until it lands.'),
+};
 
 export const CHARACTERS: Record<AvatarId, Entry> = {
   standard: plain('Standard', 'The default skin.'),

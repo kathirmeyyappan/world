@@ -198,12 +198,12 @@ test('a jump at a run is a long jump for a look that has one: lower and further,
     }
     return { far: p.pos.z, peak, leapt, leaping: p.leap };
   };
-  const plain = flight('sulley'); // Mario's jump power, and no long jump
+  const plain = flight('sulley'); // a running jump of about Mario's power, and no long jump
   const long = flight('mario');
   assert.ok(!plain.leapt && long.leapt, 'only the look with a long jump leaps');
   assert.ok(!long.leaping, 'the long jump is over on landing');
-  assert.ok(long.far > plain.far * 1.8, `further: ${long.far.toFixed(1)} m against ${plain.far.toFixed(1)} m`);
-  assert.ok(long.peak < plain.peak * 0.6, `lower: ${long.peak.toFixed(2)} m against ${plain.peak.toFixed(2)} m`);
+  assert.ok(long.far > plain.far * 1.4, `further: ${long.far.toFixed(1)} m against ${plain.far.toFixed(1)} m`);
+  assert.ok(long.peak < plain.peak * 0.75, `lower: ${long.peak.toFixed(2)} m against ${plain.peak.toFixed(2)} m`);
 });
 
 test('/speedy boost multiplies movement and wears off; holding the run does too; a scope slows it and stops jumps; a chill halves it and wears off', () => {
@@ -211,6 +211,8 @@ test('/speedy boost multiplies movement and wears off; holding the run does too;
   p.boost = SPEEDY_SECONDS;
   stepPlayer(p, frame(1, { my: 1 }), 1, WORLD_SHAPE);
   assert.ok(Math.abs(p.pos.z - 8 * SPEEDY_MULTIPLIER) < 1e-9, 'boosted for one second');
+  stepPlayer(p, frame(1, { my: 1, actions: ['run'] }), 1, WORLD_SHAPE);
+  assert.ok(Math.abs(p.pos.z - 2 * 8 * SPEEDY_MULTIPLIER) < 1e-9, 'running adds nothing to a boost');
   for (let i = 2; i <= SPEEDY_SECONDS; i++) stepPlayer(p, frame(i, { my: 0 }), 1, WORLD_SHAPE);
   assert.equal(p.boost, 0);
   const before = p.pos.z;

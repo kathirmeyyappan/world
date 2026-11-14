@@ -221,8 +221,8 @@ const LOOKS = {
     eye: 1.56,
     hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
     walk: 8,
-    jump: 1.2,
-    leap: { rise: 0.5, speed: 2, float: 0.5, grip: 6 }, // twice a running jump's distance at half its height
+    jump: 1.35,
+    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
   },
   luigi: {
     id: 'luigi',
@@ -234,8 +234,8 @@ const LOOKS = {
     eye: 1.74,
     hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
     walk: 8,
-    jump: 1.5,
-    leap: { rise: 0.5, speed: 2, float: 0.5, grip: 6 }, // twice a running jump's distance at half its height
+    jump: 1.55,
+    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
   },
   'light-dragon': {
     id: 'light-dragon',

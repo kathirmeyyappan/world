@@ -169,6 +169,10 @@ const CLIMB = pose({
 const FINGER_CURL = 1.7;
 const THUMB_FOLD = 0.6;
 const THUMB_CURL = 1.3;
+const FIST = 0.05; // metres a fist's middle is from the palm's, on the palm's side
+// Where a held item's own origin (the top of its handle) goes from the fist's middle, in the grip's
+// frame: the handle's middle in the fist, so the barrel runs over the top of the hand.
+const HOLD = new Vector3(0, 0.02, 0.06);
 const CLIMB_REACH = 0.35; // radians a hand goes up and down the rail with each rung
 
 export class JointedAvatar extends WalkerAvatar {
@@ -441,14 +445,19 @@ class Rig {
 
     // A held item goes in the right palm, which the walker points along the look from the shoulder:
     // the arm's own length, straight, is its reach.
+    // A held item is gripped in the right fist, the hand turned thumb up as a hand holds a pistol:
+    // the palm's middle, with the fist's middle a little to the palm's side of it, turned with the
+    // hand about the wrist. The grip hangs on the forearm, which stays as the model holds it while
+    // the arm aims, so the walker turns the item along the look as it does for any arm.
     const armR = skin.node('armR');
-    const hand = skin.node('handR');
+    const palm = skin.offset('handR', model.hand);
     const grip = new TransformNode(`avatar-grip-${id}`, engine.scene);
-    grip.parent = hand;
-    grip.position.copyFrom(skin.offset('handR', model.hand));
+    grip.parent = skin.node('forearmR');
+    grip.position.copyFrom(skin.offset('forearmR', model.bones.handR));
+    grip.position.addInPlaceFromFloats(palm.x, palm.z, palm.y + FIST);
     const chest = skin.node('chest');
     this.figure = {
-      armR: { node: armR, grip, reach: at('handR').subtract(at('armR')).normalize() },
+      armR: { node: armR, grip, hold: HOLD, reach: at('handR').subtract(at('armR')).normalize() },
       back: { node: chest, at: skin.offset('chest', model.back) },
       materials: [skin.material],
       shadow: spec.shadow,
@@ -522,7 +531,7 @@ class Rig {
   // grip: what the walker aims.
   straighten(): void {
     set(this.skin.node('forearmR'), IDENTITY);
-    set(this.skin.node('handR'), IDENTITY);
+    set(this.skin.node('handR'), THUMB_UP);
     this.hand(1, 1, 'fingersR', 'thumbR');
     this.gripped = -1;
   }
@@ -607,6 +616,8 @@ class Rig {
 
 // Scratch for the frame's arithmetic, shared by every jointed body: none of it survives a call.
 const IDENTITY = Quaternion.Identity();
+// The right hand, which the model holds palm down, turned about the arm's length to thumb up.
+const THUMB_UP = Quaternion.RotationAxis(Vector3.RightReadOnly, -Math.PI / 2);
 const HIPS = new Quaternion();
 const SPINE = new Quaternion();
 const CHEST = new Quaternion();
